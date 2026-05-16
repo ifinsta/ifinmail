@@ -509,7 +509,7 @@ The preferred approach is to build a small internal CSS utility layer instead of
 
 ## 10. Backend Technology Choices
 
-### 10.1 Python
+### 10.1 Python (Django)
 
 Python should be used for:
 
@@ -522,15 +522,33 @@ Python should be used for:
 - Background tasks.
 - Policy dashboards.
 
-Recommended Python approach:
+The framework choice is **Django** with **Django Ninja** for API endpoints. This aligns with the ifinsta ecosystem's established patterns and provides the best balance of built-in capability versus dependency bloat.
 
-- Keep dependencies minimal.
-- Use FastAPI only if the team accepts its dependency footprint.
-- Otherwise use a smaller WSGI/ASGI stack.
-- Use strict type hints.
-- Use lockfiles.
-- Run static analysis.
-- Isolate services into small deployable units.
+**Why Django over FastAPI for ifinmail:**
+
+| Concern | Django | FastAPI + ecosystem |
+|---|---|---|
+| Admin dashboard | Built-in (Django Admin) | Build from scratch |
+| Auth system | Built-in (sessions, Argon2id, MFA-ready) | Add JWT libs, session middleware, CSRF |
+| ORM + migrations | Built-in | SQLAlchemy + Alembic |
+| Total deps to audit | 1 framework | 8-10 packages wired together |
+| Training curve | Conventions guide beginners | Too many choices for new engineers |
+| Async performance | Adequate (mail I/O dominates) | Faster (irrelevant for this workload) |
+
+**Django approach for ifinmail:**
+
+- Use Django Admin for internal admin dashboard (domain management, user management, DNS verification, abuse review queues).
+- Use **Django Ninja** for the public API contract — clean, typed, auto-generates OpenAPI schema without DRF's complexity.
+- Use Django's built-in ORM with PostgreSQL.
+- Use Django's built-in auth as the base, extended with device credentials, MFA (pyotp), and session management.
+- Use Celery + Redis for background tasks (DNS verification, bounce processing, reputation tracking).
+- Use environment-specific settings modules: `base.py`, `development.py`, `production.py`, `testing.py`.
+- Use `requirements/` directory with `base.txt`, `development.txt`, `production.txt`, `test.txt`.
+- Use `pyproject.toml` for tool configuration (ruff, pytest).
+- Use a `Makefile` for common operations (migrate, collectstatic, deploy, shell).
+- Keep dependencies minimal, pinned, and audited. Generate SBOMs.
+- Run static analysis (ruff, mypy with django-stubs).
+- Isolate services into Django apps under `backend/apps/`.
 
 ### 10.2 Rust
 
@@ -665,15 +683,28 @@ Initial implementation may use PostgreSQL full-text search for simplicity. Later
 
 ### 14.1 Deployment model
 
-Phase one can use a single well-hardened VPS or dedicated server for early testing, similar to Mail-in-a-Box simplicity. Production should support separation of concerns:
+ifinmail uses **Docker Compose** for both local development and production deployment, following the ifinsta ecosystem's provisioning patterns.
 
-- Mail ingress nodes.
-- Mail egress nodes.
-- API nodes.
-- Database nodes.
-- Worker nodes.
+Phase one can use a single well-hardened VPS or dedicated server for early testing, similar to Mail-in-a-Box simplicity. Production should support separation of concerns via Docker Compose services:
+
+- Mail ingress nodes (Postfix, Rspamd).
+- Mail egress nodes (Postfix).
+- API nodes (Django + Gunicorn/Uvicorn).
+- Database nodes (PostgreSQL).
+- Worker nodes (Celery workers).
+- Cache nodes (Redis).
+- Reverse proxy (nginx with TLS via Certbot).
 - Monitoring node.
 - Backup storage.
+
+Deployment is managed through:
+- `provisioning/docker/docker-compose.yml` — service definitions.
+- `provisioning/docker/Dockerfile` — application image.
+- `provisioning/nginx/` — reverse proxy and TLS configuration.
+- `provisioning/scripts/deploy.sh` — deployment automation.
+- `provisioning/scripts/obtain-ssl.sh` — ACME certificate automation.
+- `Makefile` — common operations (`make up`, `make migrate`, `make deploy`, etc.).
+- `.env.production` — environment-specific secrets (never committed).
 
 ### 14.2 Backups
 
@@ -806,7 +837,130 @@ ifinmail succeeds when:
 
 ---
 
-## 18. Final Recommendation
+## 18. Organization and Ecosystem
+
+### 18.1 Ownership
+
+ifinmail is a proprietary project developed by **Eleso Solution**. It is the flagship email platform within the **ifinsta product ecosystem**.
+
+### 18.2 Ecosystem alignment
+
+ifinmail shares architectural patterns, tooling conventions, and deployment strategies with the broader ifinsta platform:
+
+- Django-based backend with environment-specific settings (`base.py`, `development.py`, `production.py`, `testing.py`).
+- `backend/apps/` directory structure for Django apps.
+- `requirements/` directory with split dependency files (`base.txt`, `development.txt`, `production.txt`, `test.txt`).
+- `pyproject.toml` for tool configuration (ruff, pytest).
+- `Makefile` for common operations.
+- `provisioning/` directory for Docker, nginx, SSL, and deployment scripts.
+- `.env` file convention with `.env.example` committed and `.env.production` excluded.
+- Pre-commit hooks, ruff linting, mypy type checking.
+- Docker Compose for local development and production deployment.
+
+### 18.3 Licensing
+
+ifinmail is proprietary software. Source code is not publicly distributed. All rights reserved by Eleso Solution.
+
+---
+
+## 19. Project Structure
+
+The ifinmail repository follows the ifinsta ecosystem's Django project layout:
+
+```
+ifinmail/
+├── .env.example                    # Environment template (committed)
+├── .env.development                # Local dev overrides (gitignored)
+├── .env.production                 # Production secrets (gitignored)
+├── .gitignore
+├── .pre-commit-config.yaml
+├── Makefile                        # Common operations (migrate, deploy, shell, etc.)
+├── manage.py                       # Django entry point
+├── pyproject.toml                  # Tool config (ruff, pytest, mypy)
+├── pytest.ini
+├── mypy.ini
+├── conftest.py                     # Shared pytest fixtures
+├── README.md
+├── ifinmail_proposal.md
+├── guide/                          # Engineering curriculum
+├── requirements/
+│   ├── base.txt                    # Core dependencies (Django, Ninja, Celery, etc.)
+│   ├── development.txt             # Dev-only deps
+│   ├── production.txt              # Production-only deps
+│   └── test.txt                    # Test-only deps
+├── backend/
+│   ├── __init__.py
+│   ├── config/                     # Django project configuration
+│   │   ├── __init__.py
+│   │   ├── settings/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py             # Shared settings
+│   │   │   ├── development.py      # Dev overrides
+│   │   │   ├── production.py       # Production overrides
+│   │   │   └── testing.py          # Test overrides
+│   │   ├── urls.py                 # Root URL routing
+│   │   ├── wsgi.py
+│   │   ├── asgi.py
+│   │   └── celery.py               # Celery app configuration
+│   └── apps/                       # Django apps
+│       ├── __init__.py
+│       ├── core/                   # Core platform apps
+│       │   ├── accounts/           # Users, auth, MFA, sessions
+│       │   ├── devices/            # Device registration, bootstrap, credentials
+│       │   ├── domains/            # Domain management, DNS verification
+│       │   ├── mailboxes/          # Mailbox CRUD, aliases, routing
+│       │   └── audit/              # Audit logs, security events
+│       ├── mail/                   # Mail operations
+│       │   ├── messages/           # Message metadata, search
+│       │   ├── attachments/        # Attachment handling
+│       │   └── reputation/         # Trust levels, sending limits, warm-up
+│       └── admin/                  # Admin-facing features
+│           ├── dashboard/          # Deliverability dashboard
+│           ├── abuse/              # Abuse review queues
+│           └── billing/            # Billing integration (future)
+├── provisioning/
+│   ├── docker/
+│   │   ├── Dockerfile
+│   │   └── docker-compose.yml
+│   ├── nginx/
+│   │   └── conf.d/
+│   ├── scripts/
+│   │   ├── deploy.sh
+│   │   └── obtain-ssl.sh
+│   └── README.md
+├── static/                         # Static assets (CSS, JS, images)
+├── staticfiles/                    # Collected static (gitignored)
+├── templates/                      # Django templates (server-rendered HTML)
+├── logs/                           # Application logs (gitignored)
+├── media/                          # User-uploaded files (gitignored)
+└── scripts/                        # Utility scripts
+```
+
+---
+
+## 20. Scope and Timeline Reality
+
+ifinmail is a large-scale platform. The proposal describes a product that competes with Gmail and Outlook — this is a multi-year, multi-engineer effort. The 6-phase development plan should be understood as follows:
+
+| Phase | Realistic timeline (small team) | Notes |
+|---|---|---|
+| 1 — Foundation | 3-6 months | Postfix, Dovecot, Rspamd, basic Django admin, simple webmail |
+| 2 — API Contract | 2-4 months | OpenAPI, Mail/Auth/Admin APIs, Django Ninja, web client |
+| 3 — Reputation | 2-3 months | Trust levels, abuse controls, deliverability dashboard |
+| 4 — Android | 3-5 months | Native Kotlin, Rust core via JNI, encrypted cache |
+| 5 — Desktop | 3-5 months | Windows, macOS, Linux, signed installers, auto-update |
+| 6 — Scale | Ongoing | Organizations, shared mailboxes, dedicated IPs, calendar/contacts |
+
+The 12-week engineering curriculum is a **training vehicle**, not a delivery plan. It prepares new attaches to contribute to Phase 1 and Phase 2 work. The capstone "mini-ifinmail" prototype demonstrates understanding of the stack, not a production-ready system.
+
+Key risks to timeline:
+- Mail deliverability (IP warming, reputation) is operationally intensive and cannot be rushed.
+- DNS propagation and third-party mail provider policies are outside our control.
+- Security audits and penetration testing should precede any production launch.
+
+---
+
+## 21. Final Recommendation
 
 ifinmail should be built as a serious mail platform, not a simple webmail wrapper. The correct foundation is a blend of proven mail infrastructure and a modern API-first product layer.
 

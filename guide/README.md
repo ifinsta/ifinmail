@@ -37,7 +37,7 @@ Learn the mail infrastructure layer and begin building the API platform.
 | [Week 5](week_05/) | Postfix & SMTP | Postfix configuration, virtual domains, TLS, queue management, transport maps |
 | [Week 6](week_06/) | Dovecot & IMAP | Dovecot setup, Maildir storage, LMTP delivery, authentication, Sieve filtering |
 | [Week 7](week_07/) | Email Security & Authentication | SPF, DKIM, DMARC, Rspamd, DNS records, reputation fundamentals |
-| [Week 8](week_08/) | Python API Development | FastAPI, REST design, OpenAPI contracts, JWT auth, the ifinmail API groups |
+| [Week 8](week_08/) | Django API Development | Django, Django Ninja, REST design, OpenAPI contracts, JWT auth, Django Admin, the ifinmail API groups |
 
 ---
 
@@ -73,7 +73,7 @@ A sixth "Review & Practice" day (Saturday) provides consolidation exercises.
 In Week 12, attaches will integrate everything into a working prototype:
 
 - Configure Postfix + Dovecot for a test domain
-- Build a Python FastAPI backend exposing Mail and Auth APIs
+- Build a Django backend exposing Mail and Auth APIs via Django Ninja
 - Create a framework-free webmail UI with `.ifinmail-*` CSS
 - Implement SPF, DKIM, DMARC for the test domain
 - Deploy behind TLS with basic monitoring

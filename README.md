@@ -39,10 +39,11 @@ ifinmail is an open-source email platform designed to compete with Outlook and G
 | Filtering | Rspamd | Spam, DKIM, DMARC, SPF, greylisting, reputation |
 | Database | PostgreSQL | Users, domains, mail metadata, audit logs |
 | Cache / Queues | Redis | Rate limits, counters, sessions, task queues |
-| API Backend | Python (FastAPI) | REST API, admin workflows, orchestration |
+| API Backend | Django + Django Ninja | REST API, admin dashboard (built-in), auth, orchestration |
+| Background Tasks | Celery + Redis | DNS verification, bounce processing, reputation tracking |
 | Core Libraries | Rust | Mail parsing, crypto, sync engine, policy engine |
 | Frontend | Vanilla HTML/CSS/JS | Webmail, admin dashboard — no React/Angular/Vue |
-| Infra | Docker, systemd, Certbot | Deployment, TLS, service management |
+| Infra | Docker Compose, nginx, Certbot | Deployment, TLS, service management |
 
 ## Guiding Principles
 
@@ -55,22 +56,33 @@ ifinmail is an open-source email platform designed to compete with Outlook and G
 
 ```
 ifinmail/
-  README.md                   — You are here
-  ifinmail_proposal.md        — Full product proposal (architecture, phases, risks)
-  guide/                      — 12-week engineering curriculum for new attaches
-    README.md                 — Curriculum overview
-    week_01/                  — Linux/Unix Fundamentals
-    week_02/                  — Networking & Email Protocols
-    week_03/                  — Python, Git & Development Environment
-    week_04/                  — Databases & Data Modeling
-    week_05/                  — Postfix & SMTP Configuration
-    week_06/                  — Dovecot & IMAP
-    week_07/                  — Email Security (SPF, DKIM, DMARC, Rspamd)
-    week_08/                  — Python API Development
-    week_09/                  — Rust Fundamentals
-    week_10/                  — Minimal Frontend (HTML/CSS/JS)
-    week_11/                  — Security, DevOps & Deployment
-    week_12/                  — Capstone Project
+├── README.md                     — You are here
+├── ifinmail_proposal.md          — Full product proposal (architecture, phases, risks)
+├── guide/                        — 12-week engineering curriculum for new attaches
+│   ├── README.md                 — Curriculum overview
+│   ├── week_01/                  — Linux/Unix Fundamentals
+│   ├── week_02/                  — Networking & Email Protocols
+│   ├── week_03/                  — Python, Git & Development Environment
+│   ├── week_04/                  — Databases & Data Modeling
+│   ├── week_05/                  — Postfix & SMTP Configuration
+│   ├── week_06/                  — Dovecot & IMAP
+│   ├── week_07/                  — Email Security (SPF, DKIM, DMARC, Rspamd)
+│   ├── week_08/                  — Django API Development
+│   ├── week_09/                  — Rust Fundamentals
+│   ├── week_10/                  — Minimal Frontend (HTML/CSS/JS)
+│   ├── week_11/                  — Security, DevOps & Deployment
+│   └── week_12/                  — Capstone Project
+├── backend/
+│   ├── config/                   — Django project configuration
+│   │   └── settings/             — base, development, production, testing
+│   └── apps/                     — Django apps (accounts, devices, domains, mail, etc.)
+├── requirements/                 — Split dependency files (base, dev, prod, test)
+├── provisioning/                 — Docker, nginx, SSL, deployment scripts
+├── templates/                    — Server-rendered HTML templates
+├── static/                       — Static assets (CSS, JS, images)
+├── Makefile                      — Common operations (migrate, deploy, shell, etc.)
+├── pyproject.toml                — Tool config (ruff, pytest, mypy)
+└── manage.py                     — Django entry point
 ```
 
 ## Quick Start
@@ -94,8 +106,8 @@ Read the [full proposal](ifinmail_proposal.md) to understand the product vision,
 
 | Phase | Scope |
 |---|---|
-| 1 — Foundation | Postfix, Dovecot, Rspamd, PostgreSQL, basic admin CLI, simple webmail |
-| 2 — API Contract & Web Client | OpenAPI contract, Mail/Auth/Admin/Bootstrap APIs, framework-free web client |
+| 1 — Foundation | Postfix, Dovecot, Rspamd, PostgreSQL, Django Admin, simple webmail |
+| 2 — API Contract & Web Client | OpenAPI contract (Django Ninja), Mail/Auth/Admin/Bootstrap APIs, framework-free web client |
 | 3 — Reputation & Abuse | Trust levels, sending limits, bounce/complaint handling, deliverability dashboard |
 | 4 — Android Client | Native Kotlin client, Rust core via JNI, encrypted cache, push notifications |
 | 5 — Desktop Clients | Windows, macOS, Linux clients, signed installers, auto-update |

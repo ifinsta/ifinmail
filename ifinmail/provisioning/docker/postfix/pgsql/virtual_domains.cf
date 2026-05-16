@@ -1,0 +1,6 @@
+# Postfix PostgreSQL virtual domains lookup
+user = postfix
+password = ${env:POSTFIX_DB_PASSWORD, postfix_password_change_me}
+hosts = postgres
+dbname = ifinmail
+query = SELECT name FROM domains WHERE name = '%s' AND verified = TRUE

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="ifinmail-shell">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f6f8fa">
+    <title>{% block title %}ifinmail{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/ifinmail-variables.css">
+    <link rel="stylesheet" href="/static/css/ifinmail-reset.css">
+    <link rel="stylesheet" href="/static/css/ifinmail-utilities.css">
+    <link rel="stylesheet" href="/static/css/ifinmail-layout.css">
+    <link rel="stylesheet" href="/static/css/ifinmail-components.css">
+    {% block head %}{% endblock %}
+</head>
+<body class="ifinmail-body {% block body_class %}{% endblock %}">
+    <header class="ifinmail-header">
+        <div class="ifinmail-header-brand">
+            <a href="/" class="ifinmail-logo">ifinmail</a>
+        </div>
+        <nav class="ifinmail-header-nav">
+            <a href="/mail" class="ifinmail-nav-link">Mail</a>
+            <a href="/admin" class="ifinmail-nav-link">Admin</a>
+        </nav>
+        <div class="ifinmail-header-user">
+            <span class="ifinmail-user-email">{% block user_email %}user@ifinmail.local{% endblock %}</span>
+        </div>
+    </header>
+
+    <main class="ifinmail-main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="ifinmail-footer">
+        <p>ifinmail — secure, API-first email platform</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,67 @@
+/* ifinmail Design Tokens
+   Single source of truth for all colors, typography, spacing, and borders.
+   GitHub Primer-inspired — border-centric, no shadows, no transitions.
+   All custom properties prefixed with --ifinmail- */
+
+:root {
+    /* === Accent === */
+    --ifinmail-primary: #0969da;
+    --ifinmail-primary-hover: #0550ae;
+    --ifinmail-primary-light: #ddf4ff;
+
+    /* === Backgrounds === */
+    --ifinmail-bg: #ffffff;
+    --ifinmail-bg-secondary: #f6f8fa;
+    --ifinmail-bg-tertiary: #eaeef2;
+
+    /* === Text === */
+    --ifinmail-text: #1f2328;
+    --ifinmail-text-secondary: #656d76;
+    --ifinmail-text-muted: #8b949e;
+
+    /* === Borders === */
+    --ifinmail-border-light: #d8dee4;
+    --ifinmail-border: #d0d7de;
+    --ifinmail-border-hover: #afb8c1;
+    --ifinmail-border-strong: #8b949e;
+
+    /* === Semantic colors === */
+    --ifinmail-success: #1a7f37;
+    --ifinmail-success-light: #dafbe1;
+    --ifinmail-danger: #cf222e;
+    --ifinmail-danger-light: #ffebe9;
+    --ifinmail-warning: #9a6700;
+    --ifinmail-warning-light: #fff8c5;
+
+    /* === Typography === */
+    --ifinmail-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --ifinmail-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --ifinmail-font-size-xs: 0.75rem;
+    --ifinmail-font-size-sm: 0.875rem;
+    --ifinmail-font-size-base: 0.875rem;
+    --ifinmail-font-size-lg: 1rem;
+    --ifinmail-font-size-xl: 1.25rem;
+    --ifinmail-font-size-2xl: 1.5rem;
+    --ifinmail-font-weight-normal: 400;
+    --ifinmail-font-weight-medium: 500;
+    --ifinmail-font-weight-semibold: 600;
+    --ifinmail-font-weight-bold: 700;
+    --ifinmail-line-height: 1.6;
+
+    /* === Spacing === */
+    --ifinmail-space-1: 0.25rem;
+    --ifinmail-space-2: 0.5rem;
+    --ifinmail-space-3: 0.75rem;
+    --ifinmail-space-4: 1rem;
+    --ifinmail-space-6: 1.5rem;
+    --ifinmail-space-8: 2rem;
+    --ifinmail-space-10: 2.5rem;
+    --ifinmail-space-12: 3rem;
+
+    /* === Border radii === */
+    --ifinmail-radius-sm: 4px;
+    --ifinmail-radius-md: 6px;
+    --ifinmail-radius-lg: 6px;
+
+    /* No shadows. No transitions. GitHub-style border-centric design. */
+}

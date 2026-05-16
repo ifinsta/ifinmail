@@ -1,0 +1,123 @@
+# ifinmail full stack — Phase 1 single-VPS deployment
+# 7 services: postgres, redis, postfix, dovecot, rspamd, api, nginx
+
+services:
+  # --- Databases ---
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ifinmail
+      POSTGRES_USER: ifinmail
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-dev_password_change_in_prod}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ifinmail"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # --- Mail Infrastructure ---
+  postfix:
+    build: ./postfix
+    volumes:
+      - postfix_spool:/var/spool/postfix
+      - mail_data:/var/mail/vhosts
+      - certbot_certs:/etc/postfix/certs:ro
+      - rundir:/var/run/dovecot
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+    depends_on:
+      - postgres
+      - dovecot
+    restart: unless-stopped
+
+  dovecot:
+    build: ./dovecot
+    volumes:
+      - mail_data:/var/mail/vhosts
+      - certbot_certs:/etc/dovecot/certs:ro
+      - rundir:/var/run/dovecot
+    ports:
+      - "143:143"
+      - "993:993"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  rspamd:
+    build: ./rspamd
+    volumes:
+      - rspamd_data:/var/lib/rspamd
+      - ./dkim:/etc/dkim:ro
+    ports:
+      - "127.0.0.1:11332:11332"   # milter (bound to localhost)
+      - "127.0.0.1:11334:11334"   # web UI (bound to localhost, security)
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # --- Platform API ---
+  api:
+    build:
+      context: ../..
+      dockerfile: provisioning/docker/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ifinmail:${POSTGRES_ADMIN_PASSWORD:-dev_password_change_in_prod}@postgres:5432/ifinmail
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_change_in_production}
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_ALLOWED_HOSTS: ${DOMAIN:-localhost}
+    volumes:
+      - mail_data:/var/mail/vhosts:ro   # read Dovecot's Maildir
+      - certbot_certs:/etc/ssl/certs:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Reverse Proxy ---
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - ./nginx/www:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  postfix_spool:
+  mail_data:
+  certbot_certs:
+  rspamd_data:
+  rundir:
+
+networks:
+  default:
+    name: ifinmail-net

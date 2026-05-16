@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Django
+staticfiles/
+media/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# --- ifinmail provisioning ---
+# Environment (contains secrets)
+provisioning/.env
+
+# DKIM private keys
+provisioning/docker/dkim/*.key
+provisioning/docker/dkim/*.pub
+
+# Certificates
+provisioning/docker/certs/
+
+# Backups
+backups/

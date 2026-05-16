@@ -1,0 +1,2 @@
+# Rspamd Redis backend — Bayes, fuzzy hashes, rate limits
+servers = "redis:6379";

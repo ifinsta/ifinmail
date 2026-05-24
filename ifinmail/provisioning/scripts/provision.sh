@@ -69,6 +69,7 @@ ADMIN_EMAIL=$ADMIN_EMAIL
 COREDNS_IP=127.0.0.1
 
 POSTGRES_ADMIN_PASSWORD=$(rand_b64 36)
+APP_DB_PASSWORD=$(rand_b64 24)
 DOVECOT_DB_PASSWORD=$(rand_b64 36)
 POSTFIX_DB_PASSWORD=$(rand_b64 36)
 
@@ -77,16 +78,22 @@ DJANGO_ALLOWED_HOSTS=$DOMAIN,$MAIL_HOSTNAME
 
 REDIS_HOST=redis
 REDIS_PORT=6379
+REDIS_PASSWORD=$(rand_b64 24)
 
 DKIM_SELECTOR=$DKIM_SELECTOR
 
 BACKUP_RETENTION_DAYS=30
-BACKUP_ENCRYPT=false
+BACKUP_ENCRYPT=true
+BACKUP_GPG_RECIPIENT=${BACKUP_GPG_RECIPIENT:-ifinmail-backup@ifinsta.online}
 
 MONITOR_QUEUE_WARN=50
 MONITOR_QUEUE_CRITICAL=200
 MONITOR_CERT_WARN_DAYS=30
 MONITOR_CERT_CRITICAL_DAYS=7
+
+DJANGO_SUPERUSER_EMAIL=$ADMIN_EMAIL
+DJANGO_SUPERUSER_USERNAME=admin
+DJANGO_SUPERUSER_PASSWORD=$(rand_b64 16)
 EOF
 
     echo "Created production environment: $ENV_FILE"
@@ -102,6 +109,8 @@ validate_env() {
         DOVECOT_DB_PASSWORD
         POSTFIX_DB_PASSWORD
         SECRET_KEY
+        DJANGO_SUPERUSER_PASSWORD
+        APP_DB_PASSWORD
     )
     local missing=false
 
@@ -170,6 +179,39 @@ domain {
 EOF
 }
 
+ensure_backup_gpg_key() {
+    local gpg_key_id="${BACKUP_GPG_RECIPIENT:-ifinmail-backup@ifinsta.online}"
+    if gpg --list-keys "$gpg_key_id" >/dev/null 2>&1; then
+        echo "GPG backup key already exists: $gpg_key_id"
+        return
+    fi
+
+    echo "Generating GPG backup key ($gpg_key_id)..."
+    cat > /tmp/gpg-batch.txt << GPGBATCH
+%echo Generating ifinmail backup GPG key
+Key-Type: RSA
+Key-Length: 4096
+Key-Usage: encrypt
+Name-Real: ifinmail Backup
+Name-Email: $gpg_key_id
+Expire-Date: 0
+%no-protection
+%commit
+%echo Done
+GPGBATCH
+
+    gpg --batch --gen-key /tmp/gpg-batch.txt 2>/dev/null
+    rm -f /tmp/gpg-batch.txt
+
+    if gpg --list-keys "$gpg_key_id" >/dev/null 2>&1; then
+        local fp
+        fp="$(gpg --fingerprint "$gpg_key_id" 2>/dev/null | head -2 | tail -1 | tr -d ' ')"
+        echo "GPG backup key generated successfully (fingerprint: $fp)"
+    else
+        echo "WARNING: Failed to generate GPG backup key. Backup encryption disabled."
+    fi
+}
+
 obtain_certificate() {
     local live_dir="$DOCKER_DIR/certs/live/$MAIL_HOSTNAME"
     local issuer
@@ -220,6 +262,7 @@ main() {
 
     need_cmd docker
     need_cmd openssl
+    need_cmd gpg
     detect_compose
 
     ensure_env
@@ -237,6 +280,7 @@ main() {
     ensure_directories
     ensure_bootstrap_cert
     ensure_dkim
+    ensure_backup_gpg_key
 
     echo "Building images..."
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" build --pull)

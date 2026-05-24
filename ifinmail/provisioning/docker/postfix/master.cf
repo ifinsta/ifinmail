@@ -3,10 +3,10 @@
 # service type  private unpriv  chroot  wakeup  maxproc  command + args
 
 # --- Main SMTP (port 25) ---
-smtp      inet  n       -       y       -       -       smtpd
+smtp      inet  n       -       y       -       50       smtpd
 
 # --- Submission (port 587) — authenticated clients, mandatory TLS ---
-submission inet n       -       y       -       -       smtpd
+submission inet n       -       y       -       50       smtpd
   -o syslog_name=postfix/submission
   -o smtpd_tls_security_level=encrypt
   -o smtpd_sasl_auth_enable=yes
@@ -17,7 +17,7 @@ submission inet n       -       y       -       -       smtpd
   -o smtpd_tls_wrappermode=no
 
 # --- SMTPS (port 465) — implicit TLS for legacy clients ---
-smtps     inet  n       -       y       -       -       smtpd
+smtps     inet  n       -       y       -       50       smtpd
   -o syslog_name=postfix/smtps
   -o smtpd_tls_wrappermode=yes
   -o smtpd_sasl_auth_enable=yes

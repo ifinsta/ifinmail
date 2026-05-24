@@ -1,3 +1,7 @@
 from django.urls import path
 
-urlpatterns = []
+from .views import inbox
+
+urlpatterns = [
+    path('', inbox, name='inbox'),
+]

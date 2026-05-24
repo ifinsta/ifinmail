@@ -1,4 +1,4 @@
-.PHONY: migrate run shell collectstatic deploy provision up down build logs ps shell-api migrate-api
+.PHONY: migrate run shell collectstatic deploy provision reload up down build logs ps shell-api migrate-api health backup restore-test firewall
 
 # --- Django targets (local development) ---
 migrate:
@@ -26,6 +26,12 @@ DOCKER_COMPOSE = $(COMPOSE_BIN) --env-file provisioning/.env -f provisioning/doc
 provision:
 	DOMAIN="$(DOMAIN)" provisioning/scripts/provision.sh
 
+reload:
+	$(DOCKER_COMPOSE) build --pull
+	$(DOCKER_COMPOSE) up -d --remove-orphans
+	@echo ""
+	$(DOCKER_COMPOSE) ps
+
 up:
 	$(DOCKER_COMPOSE) up -d
 
@@ -46,3 +52,18 @@ shell-api:
 
 migrate-api:
 	$(DOCKER_COMPOSE) exec api python manage.py migrate
+
+health:
+	$(DOCKER_COMPOSE) ps
+	@echo ""
+	@echo "=== API Health Check ==="
+	@curl -s http://localhost:8000/health/ | python3 -m json.tool 2>/dev/null || echo "API not reachable"
+
+backup:
+	provisioning/scripts/backup_full.sh
+
+restore-test:
+	provisioning/scripts/restore_test.sh
+
+firewall:
+	provisioning/scripts/firewall.sh

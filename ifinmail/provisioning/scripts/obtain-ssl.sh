@@ -6,6 +6,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROVISIONING_DIR="$(dirname "$SCRIPT_DIR")"
 
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose --env-file "$PROVISIONING_DIR/.env" -f "$PROVISIONING_DIR/docker/docker-compose.yml")
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose --env-file "$PROVISIONING_DIR/.env" -f "$PROVISIONING_DIR/docker/docker-compose.yml")
+else
+    echo "ERROR: docker compose v2 or docker-compose v1 is required."
+    exit 1
+fi
+
 # Load environment
 set -a
 source "$PROVISIONING_DIR/.env"
@@ -16,6 +25,7 @@ MAIL_HOSTNAME="${MAIL_HOSTNAME:-mail.$DOMAIN}"
 EMAIL="${ADMIN_EMAIL:-admin@$DOMAIN}"
 CERTBOT_WWW="$PROVISIONING_DIR/docker/nginx/www"
 CERTBOT_CERTS="$PROVISIONING_DIR/docker/certs"
+LIVE_DIR="$CERTBOT_CERTS/live/$MAIL_HOSTNAME"
 
 echo "Obtaining TLS certificate for: $DOMAIN"
 echo "Mail hostname: $MAIL_HOSTNAME"
@@ -23,12 +33,17 @@ echo "Contact email: $EMAIL"
 
 # Ensure nginx is serving ACME challenges
 echo "Ensuring nginx is running for ACME challenges..."
-docker compose --env-file "$PROVISIONING_DIR/.env" -f "$PROVISIONING_DIR/docker/docker-compose.yml" up -d nginx 2>/dev/null || true
+"${COMPOSE[@]}" up -d nginx 2>/dev/null || true
 sleep 2
+
+ISSUER="$(openssl x509 -in "$LIVE_DIR/fullchain.pem" -noout -issuer 2>/dev/null || true)"
+if [ -n "$ISSUER" ] && [[ "$ISSUER" != *"Let's Encrypt"* ]]; then
+    rm -rf "$LIVE_DIR" "$CERTBOT_CERTS/archive/$MAIL_HOSTNAME" "$CERTBOT_CERTS/renewal/$MAIL_HOSTNAME.conf"
+fi
 
 # Obtain certificate via webroot
 echo "Running certbot..."
-docker run --rm \
+if docker run --rm \
     -v "$CERTBOT_WWW:/var/www/certbot" \
     -v "$CERTBOT_CERTS:/etc/letsencrypt" \
     certbot/certbot certonly \
@@ -36,16 +51,18 @@ docker run --rm \
     --webroot-path /var/www/certbot \
     --non-interactive \
     --agree-tos \
+    --cert-name "$MAIL_HOSTNAME" \
     -m "$EMAIL" \
-    -d "$DOMAIN" \
-    -d "$MAIL_HOSTNAME"
-
-if [ $? -eq 0 ]; then
+    -d "$MAIL_HOSTNAME" \
+    -d "$DOMAIN"; then
+    if [ ! -s "$LIVE_DIR/dh.pem" ]; then
+        openssl dhparam -out "$LIVE_DIR/dh.pem" 2048
+    fi
     echo "Certificate obtained successfully!"
-    echo "Certificate stored at: $CERTBOT_CERTS/live/$MAIL_HOSTNAME/"
+    echo "Certificate stored at: $LIVE_DIR/"
 
     # Restart nginx to pick up new cert
-    docker compose --env-file "$PROVISIONING_DIR/.env" -f "$PROVISIONING_DIR/docker/docker-compose.yml" restart nginx
+    "${COMPOSE[@]}" restart nginx
 
     echo ""
     echo "Auto-renewal (run via cron monthly):"

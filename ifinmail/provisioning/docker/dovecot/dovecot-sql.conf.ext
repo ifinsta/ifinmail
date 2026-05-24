@@ -1,6 +1,6 @@
 # Dovecot PostgreSQL authentication — ifinmail
 driver = pgsql
-connect = host=postgres dbname=ifinmail user=dovecot password=${env:DOVECOT_DB_PASSWORD, dovecot_password_change_me}
+connect = host=postgres dbname=ifinmail user=dovecot password=__DOVECOT_DB_PASSWORD__
 
 default_pass_scheme = ARGON2ID
 

@@ -1,4 +1,4 @@
-.PHONY: migrate run shell collectstatic deploy up down build logs ps shell-api migrate-api
+.PHONY: migrate run shell collectstatic deploy provision up down build logs ps shell-api migrate-api
 
 # --- Django targets (local development) ---
 migrate:
@@ -19,7 +19,12 @@ deploy:
 	python manage.py migrate
 
 # --- Docker targets (provisioning) ---
-DOCKER_COMPOSE = docker compose -f provisioning/docker/docker-compose.yml
+DOMAIN ?= ifinsta.online
+COMPOSE_BIN := $(shell if docker compose version >/dev/null 2>&1; then printf 'docker compose'; else printf 'docker-compose'; fi)
+DOCKER_COMPOSE = $(COMPOSE_BIN) --env-file provisioning/.env -f provisioning/docker/docker-compose.yml
+
+provision:
+	DOMAIN="$(DOMAIN)" provisioning/scripts/provision.sh
 
 up:
 	$(DOCKER_COMPOSE) up -d

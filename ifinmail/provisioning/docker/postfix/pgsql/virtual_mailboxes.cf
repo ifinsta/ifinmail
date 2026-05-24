@@ -1,6 +1,6 @@
 # Postfix PostgreSQL virtual mailboxes lookup
 user = postfix
-password = ${env:POSTFIX_DB_PASSWORD, postfix_password_change_me}
+password = __POSTFIX_DB_PASSWORD__
 hosts = postgres
 dbname = ifinmail
 query = SELECT local_part||'/' FROM mailboxes WHERE local_part = '%u' AND domain_id = (SELECT id FROM domains WHERE name = '%d')

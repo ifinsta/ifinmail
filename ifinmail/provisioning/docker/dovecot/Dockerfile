@@ -18,12 +18,15 @@ RUN groupadd -g 5000 vmail \
 
 # Copy configuration
 COPY dovecot.conf /etc/dovecot/dovecot.conf
-COPY dovecot-sql.conf.ext /etc/dovecot/dovecot-sql.conf.ext
+COPY dovecot-sql.conf.ext /etc/dovecot/dovecot-sql.conf.ext.template
+RUN rm -rf /etc/dovecot/conf.d /etc/dovecot/sieve
 COPY conf.d/ /etc/dovecot/conf.d/
 COPY sieve/ /etc/dovecot/sieve/
+COPY entrypoint.sh /usr/local/bin/ifinmail-dovecot-entrypoint
 
-RUN chmod 640 /etc/dovecot/dovecot-sql.conf.ext \
-    && chown root:dovecot /etc/dovecot/dovecot-sql.conf.ext \
+RUN chmod 640 /etc/dovecot/dovecot-sql.conf.ext.template \
+    && chown root:dovecot /etc/dovecot/dovecot-sql.conf.ext.template \
+    && chmod +x /usr/local/bin/ifinmail-dovecot-entrypoint \
     && mkdir -p /var/run/dovecot \
     && chown root:root /var/run/dovecot \
     && chmod 755 /var/run/dovecot \
@@ -31,4 +34,5 @@ RUN chmod 640 /etc/dovecot/dovecot-sql.conf.ext \
 
 EXPOSE 143 993
 
+ENTRYPOINT ["ifinmail-dovecot-entrypoint"]
 CMD ["dovecot", "-F"]

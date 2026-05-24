@@ -7,39 +7,77 @@ import subprocess
 import json
 import time
 import os
-from datetime import datetime, timedelta
-from typing import Dict, Any
+import sys
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+MAIL_HOSTNAME = os.environ.get("MAIL_HOSTNAME", "mail.ifinsta.online")
+CERT_DIR = os.path.join(PROJECT_ROOT, "provisioning", "docker", "certs", "live", MAIL_HOSTNAME)
+COMPOSE_FILE = os.path.join(PROJECT_ROOT, "provisioning", "docker", "docker-compose.yml")
+ALERT_WEBHOOK = os.environ.get("MONITOR_ALERT_WEBHOOK", "")
+QUEUE_WARN = int(os.environ.get("MONITOR_QUEUE_WARN", "50"))
+QUEUE_CRITICAL = int(os.environ.get("MONITOR_QUEUE_CRITICAL", "200"))
+
+# Track alert state to avoid repeated notifications
+ALERT_STATE_FILE = "/tmp/ifinmail_monitor_alert_state"
 
 try:
     import redis
-    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True, socket_connect_timeout=5)
+    redis_client = redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        password=REDIS_PASSWORD or None,
+        db=0,
+        decode_responses=True,
+        socket_connect_timeout=5,
+    )
 except ImportError:
     redis_client = None
+
+
+def _docker_compose_cmd() -> List[str]:
+    """Build the docker compose command with the correct compose file."""
+    if os.path.exists("/usr/bin/docker") or os.path.exists("/usr/local/bin/docker"):
+        return ["docker", "compose", "-f", COMPOSE_FILE]
+    return ["docker-compose", "-f", COMPOSE_FILE]
+
+
+def _docker_ps() -> str:
+    """Get docker compose ps output in JSON or fallback text."""
+    try:
+        result = subprocess.run(
+            _docker_compose_cmd() + ["ps", "--format", "json"],
+            capture_output=True, text=True, timeout=10
+        )
+        return result.stdout.strip()
+    except Exception:
+        return ""
 
 
 def check_postfix_queue() -> Dict[str, Any]:
     """Check mail queue status."""
     try:
         result = subprocess.run(
-            ["docker", "compose", "-f", "/opt/ifinmail/provisioning/docker/docker-compose.yml",
-             "exec", "-T", "postfix", "find", "/var/spool/postfix/active", "-type", "f"],
+            _docker_compose_cmd() + ["exec", "-T", "postfix", "find", "/var/spool/postfix/active", "-type", "f"],
             capture_output=True, text=True, timeout=30
         )
         active = len([l for l in result.stdout.strip().split("\n") if l])
 
         result = subprocess.run(
-            ["docker", "compose", "-f", "/opt/ifinmail/provisioning/docker/docker-compose.yml",
-             "exec", "-T", "postfix", "find", "/var/spool/postfix/deferred", "-type", "f"],
+            _docker_compose_cmd() + ["exec", "-T", "postfix", "find", "/var/spool/postfix/deferred", "-type", "f"],
             capture_output=True, text=True, timeout=30
         )
         deferred = len([l for l in result.stdout.strip().split("\n") if l])
 
-        if deferred < 50:
+        if deferred < QUEUE_WARN:
             status = "OK"
-        elif deferred < 200:
+        elif deferred < QUEUE_CRITICAL:
             status = "WARN"
         else:
             status = "CRITICAL"
@@ -54,29 +92,29 @@ def check_postfix_queue() -> Dict[str, Any]:
         return {"error": str(e), "status": "UNKNOWN"}
 
 
-def check_service_status() -> Dict[str, bool]:
-    """Check if all Docker services are running."""
-    services = {
-        "postgres": "postgres:5432",
-        "redis": "redis:6379",
-        "postfix": "postfix:25",
-        "dovecot": "dovecot:993",
-        "rspamd": "rspamd:11332",
-        "api": "api:8000",
-        "nginx": "nginx:443",
-    }
+def check_service_status() -> Dict[str, Any]:
+    """Check if all Docker services are running using inspect (not fragile string matching)."""
+    services = ["postgres", "redis", "postfix", "dovecot", "rspamd", "api", "nginx"]
     status = {}
-    for name, target in services.items():
+
+    for name in services:
         try:
             result = subprocess.run(
-                ["docker", "compose", "-f", "/opt/ifinmail/provisioning/docker/docker-compose.yml",
-                 "ps", "--status", "running", name],
-                capture_output=True, text=True, timeout=10
+                ["docker", "inspect", "--format", "{{.State.Status}}", f"ifinmail-{name}-1"],
+                capture_output=True, text=True, timeout=5
             )
-            # Service is running if its name appears in output
-            status[name] = name in result.stdout
+            state = result.stdout.strip()
+            status[name] = state == "running"
         except Exception:
-            status[name] = False
+            # Fallback: try docker compose ps
+            try:
+                result = subprocess.run(
+                    _docker_compose_cmd() + ["ps", "--status", "running", "--format", "json", name],
+                    capture_output=True, text=True, timeout=10
+                )
+                status[name] = len(result.stdout.strip()) > 0
+            except Exception:
+                status[name] = False
     return status
 
 
@@ -105,8 +143,7 @@ def check_delivery_rate() -> Dict[str, Any]:
     """Calculate delivery rate from Postfix logs (last hour)."""
     try:
         result = subprocess.run(
-            ["docker", "compose", "-f", "/opt/ifinmail/provisioning/docker/docker-compose.yml",
-             "exec", "-T", "postfix", "grep", "-E", "status=(sent|deferred|bounced)",
+            _docker_compose_cmd() + ["exec", "-T", "postfix", "grep", "-E", "status=(sent|deferred|bounced)",
              "/var/log/mail.log"],
             capture_output=True, text=True, timeout=10
         )
@@ -127,38 +164,141 @@ def check_delivery_rate() -> Dict[str, Any]:
         return {"error": str(e)}
 
 
+def check_api_health() -> Dict[str, Any]:
+    """Check if the API health endpoint responds."""
+    try:
+        result = subprocess.run(
+            ["curl", "-fsS", "-m", "5", "http://localhost:8000/health/"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            try:
+                return json.loads(result.stdout)
+            except json.JSONDecodeError:
+                return {"status": "degraded", "error": "invalid response"}
+        return {"status": "unreachable", "error": f"HTTP {result.returncode}"}
+    except Exception as e:
+        return {"status": "unreachable", "error": str(e)}
+
+
 def check_cert_expiry() -> Dict[str, Any]:
-    """Check TLS certificate expiration."""
-    mail_hostname = os.getenv("MAIL_HOSTNAME", "mail.ifinsta.online")
-    cert_paths = [
-        f"/etc/letsencrypt/live/{mail_hostname}/fullchain.pem",
-    ]
-    results = {}
-    for path in cert_paths:
+    """Check TLS certificate expiration on the host filesystem."""
+    cert_path = os.path.join(CERT_DIR, "fullchain.pem")
+    if not os.path.exists(cert_path):
+        return {"error": f"cert not found at {cert_path}"}
+
+    try:
+        output = subprocess.check_output(
+            ["openssl", "x509", "-in", cert_path, "-noout", "-enddate"],
+            text=True, stderr=subprocess.DEVNULL
+        )
+        expiry_str = output.split("=")[1].strip()
+        expiry = datetime.strptime(expiry_str, "%b %d %H:%M:%S %Y %Z")
+        days_left = (expiry - datetime.now()).days
+
+        cert_warn = int(os.environ.get("MONITOR_CERT_WARN_DAYS", "30"))
+        cert_critical = int(os.environ.get("MONITOR_CERT_CRITICAL_DAYS", "7"))
+
+        if days_left > cert_warn:
+            status = "OK"
+        elif days_left > cert_critical:
+            status = "WARN"
+        else:
+            status = "CRITICAL"
+
+        return {
+            "path": cert_path,
+            "expires": expiry.isoformat(),
+            "days_left": days_left,
+            "status": status,
+        }
+    except Exception as e:
+        return {"error": str(e), "status": "UNKNOWN"}
+
+
+def check_system_resources() -> Dict[str, Any]:
+    """Check CPU and memory usage."""
+    try:
+        import psutil
+        cpu = psutil.cpu_percent(interval=1)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        return {
+            "cpu_percent": cpu,
+            "memory_percent": mem.percent,
+            "memory_available_gb": round(mem.available / (1024**3), 1),
+            "disk_percent": disk.percent,
+            "disk_free_gb": round(disk.free / (1024**3), 1),
+        }
+    except ImportError:
+        # Fallback: use /proc
         try:
-            output = subprocess.check_output(
-                ["openssl", "x509", "-in", path, "-noout", "-enddate"],
-                text=True, stderr=subprocess.DEVNULL
-            )
-            expiry_str = output.split("=")[1].strip()
-            expiry = datetime.strptime(expiry_str, "%b %d %H:%M:%S %Y %Z")
-            days_left = (expiry - datetime.now()).days
-
-            if days_left > 30:
-                status = "OK"
-            elif days_left > 7:
-                status = "WARN"
-            else:
-                status = "CRITICAL"
-
-            results[path] = {
-                "expires": expiry.isoformat(),
-                "days_left": days_left,
-                "status": status,
+            with open("/proc/loadavg") as f:
+                load = f.read().split()[0]
+            with open("/proc/meminfo") as f:
+                meminfo = {}
+                for line in f:
+                    parts = line.split(":")
+                    if len(parts) >= 2:
+                        key = parts[0].strip()
+                        val = parts[1].strip().split()[0]
+                        meminfo[key] = int(val)
+                mem_total = meminfo.get("MemTotal", 0)
+                mem_avail = meminfo.get("MemAvailable", 0)
+                mem_pct = round((1 - mem_avail / mem_total) * 100, 1) if mem_total else 0
+            return {
+                "load_average": load,
+                "memory_percent": mem_pct,
+                "method": "procfs",
             }
+        except Exception as e:
+            return {"error": str(e)}
+
+
+def send_alert(report: Dict[str, Any]):
+    """Send webhook alert if status is CRITICAL and state changed."""
+    if not ALERT_WEBHOOK:
+        return
+
+    overall = report.get("overall", "OK")
+    prev_state = None
+    try:
+        with open(ALERT_STATE_FILE) as f:
+            prev_state = f.read().strip()
+    except FileNotFoundError:
+        pass
+
+    if overall == "CRITICAL" and prev_state != "CRITICAL":
+        # Send alert
+        try:
+            payload = json.dumps({
+                "text": f":red_circle: ifinmail monitor CRITICAL\n```{json.dumps(report, indent=2)[:1500]}```"
+            })
+            subprocess.run(
+                ["curl", "-fsS", "-X", "POST", "-H", "Content-Type: application/json",
+                 "-d", payload, ALERT_WEBHOOK],
+                timeout=10, capture_output=True
+            )
         except Exception:
             pass
-    return results
+    elif overall == "OK" and prev_state == "CRITICAL":
+        # Recovery notification
+        try:
+            payload = json.dumps({"text": f":green_circle: ifinmail monitor RECOVERED — all systems OK"})
+            subprocess.run(
+                ["curl", "-fsS", "-X", "POST", "-H", "Content-Type: application/json",
+                 "-d", payload, ALERT_WEBHOOK],
+                timeout=10, capture_output=True
+            )
+        except Exception:
+            pass
+
+    # Persist current state
+    try:
+        with open(ALERT_STATE_FILE, "w") as f:
+            f.write(overall)
+    except Exception:
+        pass
 
 
 def run_all_checks() -> Dict[str, Any]:
@@ -167,9 +307,11 @@ def run_all_checks() -> Dict[str, Any]:
         "timestamp": datetime.utcnow().isoformat(),
         "postfix_queue": check_postfix_queue(),
         "services": check_service_status(),
+        "api_health": check_api_health(),
         "disk": check_disk_space(),
         "delivery_rate": check_delivery_rate(),
         "certificates": check_cert_expiry(),
+        "system": check_system_resources(),
     }
 
     # Determine overall status
@@ -178,10 +320,16 @@ def run_all_checks() -> Dict[str, Any]:
         statuses.append(report["postfix_queue"]["status"])
     if not all(report["services"].values()):
         statuses.append("CRITICAL")
+    api_status = report.get("api_health", {}).get("status", "unknown")
+    if api_status not in ("ok", "unknown"):
+        statuses.append("WARN" if api_status == "degraded" else "CRITICAL")
+    cert_status = report.get("certificates", {}).get("status", "OK")
+    if cert_status in ("CRITICAL", "WARN", "UNKNOWN"):
+        statuses.append(cert_status)
 
     if "CRITICAL" in statuses:
         report["overall"] = "CRITICAL"
-    elif "WARN" in statuses:
+    elif "WARN" in statuses or "UNKNOWN" in statuses:
         report["overall"] = "WARN"
     else:
         report["overall"] = "OK"
@@ -195,6 +343,9 @@ def run_all_checks() -> Dict[str, Any]:
         except Exception:
             pass
 
+    # Send alert if needed
+    send_alert(report)
+
     return report
 
 
@@ -204,5 +355,7 @@ if __name__ == "__main__":
 
     if report["overall"] == "CRITICAL":
         print("\n!!! CRITICAL — check ifinmail services immediately !!!")
+        sys.exit(2)
     elif report["overall"] == "WARN":
         print("\n! WARNING — some services need attention")
+        sys.exit(1)

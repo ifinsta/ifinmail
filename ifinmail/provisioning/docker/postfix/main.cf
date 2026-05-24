@@ -8,6 +8,10 @@ myorigin = $mydomain
 # --- Network ---
 inet_interfaces = all
 inet_protocols = ipv4
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+
+# --- Defer reject until RCPT TO (save bandwidth on rejected mail) ---
+smtpd_delay_reject = yes
 
 # --- Virtual Domains & Mailboxes (PostgreSQL-backed) ---
 virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_domains.cf
@@ -79,6 +83,12 @@ smtpd_client_connection_count_limit = 50
 smtpd_client_connection_rate_limit = 30
 smtpd_client_message_rate_limit = 30
 smtpd_client_recipient_rate_limit = 30
+
+# --- Anti-abuse ---
+anvil_rate_time_unit = 60s
+smtpd_error_sleep_time = 1s
+smtpd_soft_error_limit = 10
+smtpd_hard_error_limit = 20
 
 # --- Debugging ---
 debug_peer_level = 2

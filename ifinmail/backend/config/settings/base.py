@@ -62,6 +62,12 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', 'ifinmail'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
+        'CONN_MAX_AGE': int(os.environ.get('CONN_MAX_AGE', '0')),
+        'OPTIONS': {
+            'sslmode': os.environ.get('DB_SSLMODE', 'prefer'),
+            'application_name': os.environ.get('DB_APPLICATION_NAME', 'ifinmail-api'),
+            'connect_timeout': int(os.environ.get('DB_CONNECT_TIMEOUT', '10')),
+        },
     }
 }
 

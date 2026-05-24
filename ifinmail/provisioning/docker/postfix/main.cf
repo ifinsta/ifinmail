@@ -1,8 +1,8 @@
 # ifinmail Postfix main.cf — virtual mailbox delivery via PostgreSQL + Dovecot LMTP
 
 # --- Identity ---
-myhostname = ${env:MAIL_HOSTNAME, mail.example.com}
-mydomain = ${env:MAIL_DOMAIN, example.com}
+myhostname = __MAIL_HOSTNAME__
+mydomain = __MAIL_DOMAIN__
 myorigin = $mydomain
 
 # --- Network ---
@@ -14,7 +14,7 @@ virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_domains.cf
 virtual_mailbox_maps = pgsql:/etc/postfix/pgsql/virtual_mailboxes.cf
 virtual_alias_maps = pgsql:/etc/postfix/pgsql/virtual_aliases.cf
 virtual_mailbox_base = /var/mail/vhosts
-virtual_transport = lmtp:unix:private/dovecot-lmtp
+virtual_transport = lmtp:unix:/var/run/dovecot/lmtp
 virtual_uid_maps = static:5000
 virtual_gid_maps = static:5000
 

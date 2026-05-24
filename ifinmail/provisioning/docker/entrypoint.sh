@@ -5,7 +5,19 @@ echo "=== ifinmail entrypoint ==="
 
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL..."
-until python -c "import psycopg2; psycopg2.connect('${DATABASE_URL}')" 2>/dev/null; do
+until python - <<'PY' 2>/dev/null
+import os
+import psycopg
+
+psycopg.connect(
+    dbname=os.environ["DB_NAME"],
+    user=os.environ["DB_USER"],
+    password=os.environ["DB_PASSWORD"],
+    host=os.environ["DB_HOST"],
+    port=os.environ.get("DB_PORT", "5432"),
+).close()
+PY
+do
     echo "  PostgreSQL not ready, retrying in 2s..."
     sleep 2
 done

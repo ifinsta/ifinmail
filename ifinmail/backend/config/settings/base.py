@@ -116,7 +116,7 @@ USE_I18N = os.environ.get("USE_I18N", "True").lower() == "true"
 USE_L10N = os.environ.get("USE_L10N", "True").lower() == "true"
 USE_TZ = os.environ.get("USE_TZ", "True").lower() == "true"
 
-LOCALE_PATHS = [BASE_DIR / "locale"]
+LOCALE_PATHS = [BASE_DIR / "frontend" / "locale"]
 
 STATIC_URL = os.environ.get("STATIC_URL", "/static/")
 STATICFILES_DIRS = [BASE_DIR / "frontend" / "static"]

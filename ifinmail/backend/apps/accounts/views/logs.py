@@ -6,12 +6,11 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_POST
+from django.utils.translation import gettext_lazy as _
 
 from backend.services.audit import AuditService
 
 from .auth import _is_staff
-from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger("backend")
 
@@ -73,12 +72,6 @@ def logs(request: HttpRequest) -> HttpResponse:
     audit_items = _admin_audit_items(page=page_num, level=level)
     is_mock = len(log_rows) == 0 and len(audit_items) == 0
 
-    log_footer = (
-        '<div class="ifinmail-table-panel-header"><span>'
-        + str(_("No log data available — telemetry not yet integrated"))
-        + '</span></div>'
-    ) if not log_rows else ""
-
     return render(
         request,
         "admin/logs.html",
@@ -87,7 +80,7 @@ def logs(request: HttpRequest) -> HttpResponse:
             "header_search_placeholder": "Search system logs...",
             "log_headers": [_("Timestamp"), _("Level"), _("Service"), _("Message")],
             "log_rows": log_rows,
-            "log_footer": log_footer,
+            "log_empty_message": _("No log data available — telemetry not yet integrated"),
             "audit_items": audit_items,
             "is_mock": is_mock,
             "current_level": level,

@@ -58,16 +58,36 @@
             <article class="ifinmail-panel ifinmail-span-7">
                 <h2 class="ifinmail-panel-title">{% trans 'Color Palette' %}</h2>
                 <div class="ifinmail-admin-grid" style="margin-top:20px">
-                    <div class="ifinmail-span-4"><span class="ifinmail-overline">{% trans 'Primary Color' %}</span><div class="ifinmail-codebox"><span class="ifinmail-avatar" style="width:32px;height:32px;margin-right:12px;background:{{ primary_color|default:'#0051D5' }}"></span>{{ primary_color|default:'#0051D5' }}</div></div>
-                    <div class="ifinmail-span-4"><span class="ifinmail-overline">{% trans 'Secondary Color' %}</span><div class="ifinmail-codebox">{{ secondary_color|default:'#ECEEF0' }}</div></div>
-                    <div class="ifinmail-span-4"><span class="ifinmail-overline">{% trans 'Accent/Tertiary' %}</span><div class="ifinmail-codebox">{{ accent_color|default:'#4EDEA3' }}</div></div>
+                    <div class="ifinmail-span-4">
+                        <span class="ifinmail-overline">{% trans 'Primary Color' %}</span>
+                        <div class="ifinmail-codebox" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+                            <input type="color" id="primary-color-picker" value="{{ primary_color|default:'#0051D5' }}" style="border:none;background:transparent;width:34px;height:34px;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;">
+                            <input type="text" id="primary-color-input" value="{{ primary_color|default:'#0051D5' }}" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--ifinmail-color-border);font-family:var(--ifinmail-font-mono);font-size:12px;border-radius:4px;background:var(--ifinmail-bg);">
+                        </div>
+                    </div>
+                    <div class="ifinmail-span-4">
+                        <span class="ifinmail-overline">{% trans 'Secondary Color' %}</span>
+                        <div class="ifinmail-codebox" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+                            <input type="color" id="secondary-color-picker" value="{{ secondary_color|default:'#ECEEF0' }}" style="border:none;background:transparent;width:34px;height:34px;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;">
+                            <input type="text" id="secondary-color-input" value="{{ secondary_color|default:'#ECEEF0' }}" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--ifinmail-color-border);font-family:var(--ifinmail-font-mono);font-size:12px;border-radius:4px;background:var(--ifinmail-bg);">
+                        </div>
+                    </div>
+                    <div class="ifinmail-span-4">
+                        <span class="ifinmail-overline">{% trans 'Accent/Tertiary' %}</span>
+                        <div class="ifinmail-codebox" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+                            <input type="color" id="accent-color-picker" value="{{ accent_color|default:'#4EDEA3' }}" style="border:none;background:transparent;width:34px;height:34px;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;">
+                            <input type="text" id="accent-color-input" value="{{ accent_color|default:'#4EDEA3' }}" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--ifinmail-color-border);font-family:var(--ifinmail-font-mono);font-size:12px;border-radius:4px;background:var(--ifinmail-bg);">
+                        </div>
+                    </div>
                 </div>
                 <div class="ifinmail-codebox" style="margin-top:22px">
                     <span class="ifinmail-overline">{% trans 'Live Preview' %}</span>
-                    <button class="ifinmail-btn ifinmail-btn--primary" type="button">{% trans 'Primary Action' %}</button>
-                    <button class="ifinmail-btn" type="button">{% trans 'Secondary Action' %}</button>
-                    <a class="ifinmail-link-strong">{% trans 'Sample Hyperlink' %}</a>
-                    <p><span class="ifinmail-badge ifinmail-badge--success">{% trans 'Accent Badge' %}</span></p>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+                        <button class="ifinmail-btn ifinmail-btn--primary" id="preview-primary-btn" type="button">{% trans 'Primary Action' %}</button>
+                        <button class="ifinmail-btn" type="button">{% trans 'Secondary Action' %}</button>
+                        <a class="ifinmail-link-strong" id="preview-link">{% trans 'Sample Hyperlink' %}</a>
+                        <span class="ifinmail-badge ifinmail-badge--success" id="preview-accent-badge">{% trans 'Accent Badge' %}</span>
+                    </div>
                 </div>
             </article>
 
@@ -114,6 +134,52 @@
         return '';
     }
 
+    // Sync color pickers with hex text inputs and update live preview styles
+    function setupColorSync(pickerId, inputId, variableName, callback) {
+        var picker = document.getElementById(pickerId);
+        var input = document.getElementById(inputId);
+        if (!picker || !input) return;
+
+        picker.addEventListener('input', function() {
+            input.value = picker.value.toUpperCase();
+            if (variableName) {
+                document.documentElement.style.setProperty(variableName, picker.value);
+            }
+            if (callback) callback(picker.value);
+        });
+
+        input.addEventListener('input', function() {
+            var val = input.value.trim();
+            if (val.charAt(0) !== '#') val = '#' + val;
+            if (/^#[0-9A-F]{6}$/i.test(val)) {
+                picker.value = val;
+                if (variableName) {
+                    document.documentElement.style.setProperty(variableName, val);
+                }
+                if (callback) callback(val);
+            }
+        });
+    }
+
+    setupColorSync('primary-color-picker', 'primary-color-input', '--ifinmail-color-primary', function(color) {
+        // Dynamic focus rings and helper classes
+        document.documentElement.style.setProperty('--ifinmail-primary', color);
+        document.documentElement.style.setProperty('--ifinmail-secondary', color);
+        var btn = document.getElementById('preview-primary-btn');
+        if (btn) btn.style.backgroundColor = color;
+    });
+
+    setupColorSync('secondary-color-picker', 'secondary-color-input', '--ifinmail-color-surface-2');
+
+    setupColorSync('accent-color-picker', 'accent-color-input', '--ifinmail-success', function(color) {
+        var badge = document.getElementById('preview-accent-badge');
+        if (badge) {
+            badge.style.backgroundColor = color + '1A'; // 10% opacity
+            badge.style.color = color;
+            badge.style.borderColor = color + '33'; // 20% opacity
+        }
+    });
+
     window.previewFonts = function() {
         var heading = document.getElementById('heading-font').value;
         var body = document.getElementById('body-font').value;
@@ -125,9 +191,9 @@
 
     window.saveBranding = function() {
         var formData = new FormData();
-        formData.append('primary_color', '{{ primary_color|default:"" }}');
-        formData.append('secondary_color', '{{ secondary_color|default:"" }}');
-        formData.append('accent_color', '{{ accent_color|default:"" }}');
+        formData.append('primary_color', document.getElementById('primary-color-input').value);
+        formData.append('secondary_color', document.getElementById('secondary-color-input').value);
+        formData.append('accent_color', document.getElementById('accent-color-input').value);
         formData.append('heading_font', document.getElementById('heading-font').value);
         formData.append('body_font', document.getElementById('body-font').value);
         var favInput = document.querySelector('#favicon-form input[type=file]');

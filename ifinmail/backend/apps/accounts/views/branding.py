@@ -144,7 +144,7 @@ def branding_save(request: HttpRequest) -> HttpResponse:
             _save_overrides(overrides)
             AuditService.record(
                 action='branding_saved',
-                user=request.user.username if request.user.is_authenticated else None,
+                user=request.user.email if request.user.is_authenticated else None,
                 detail='Branding overrides updated',
             )
         except OSError as e:
@@ -175,7 +175,7 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
             os.remove(favicon_path)
         AuditService.record(
             action='branding_reset',
-            user=request.user.username if request.user.is_authenticated else None,
+            user=request.user.email if request.user.is_authenticated else None,
             detail='Branding overrides cleared',
         )
     except OSError as e:

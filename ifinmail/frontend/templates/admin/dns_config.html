@@ -22,6 +22,7 @@
 
         <div id="register-domain-form" style="display:none" class="ifinmail-inline-form-panel">
             <form onsubmit="event.preventDefault(); registerDomain()" style="display:flex;gap:12px;align-items:flex-end">
+                {% csrf_token %}
                 <div style="flex:1">
                     <label class="ifinmail-label">{% trans 'Domain Name' %}</label>
                     <input id="new-domain-input" type="text" placeholder="example.com" class="ifinmail-input" style="width:100%" required>
@@ -122,16 +123,9 @@
 <script>
 (function() {
     function getCSRFToken() {
-        var name = 'csrftoken';
-        var cookies = document.cookie.split(';');
-        for (var i = 0; i < cookies.length; i++) {
-            var c = cookies[i].trim();
-            if (c.indexOf(name + '=') === 0) {
-                return decodeURIComponent(c.substring(name.length + 1));
-            }
-        }
-        return '';
-    }
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+     }
 
     window.toggleRegisterForm = function() {
         var form = document.getElementById('register-domain-form');

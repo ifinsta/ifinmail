@@ -167,7 +167,7 @@ def dns_register_domain(request: HttpRequest) -> JsonResponse:
         records = _build_records(domain_name, server_ip)
         AuditService.record(
             action='domain_registered',
-            user=request.user.username if request.user.is_authenticated else None,
+            user=request.user.email if request.user.is_authenticated else None,
             detail=f'{domain_name} (created={created}, records={len(records)})',
         )
         return JsonResponse(
@@ -208,7 +208,7 @@ def dns_export_records(request: HttpRequest) -> HttpResponse:
         writer.writerow([r.type, r.name, r.value, getattr(r, 'priority', ''), r.ttl])
     AuditService.record(
         action='dns_export',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail=f'Exported {len(records)} records for {domain_name}',
     )
     return response
@@ -223,7 +223,7 @@ def dns_toggle_proxy(request: HttpRequest) -> JsonResponse:
     # In production this would persist to a config file; here we note the intended change.
     AuditService.record(
         action='smtp_proxy_toggle',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail=f'SMTP Proxy {"disabled" if current else "enabled"}',
     )
     return JsonResponse(
@@ -240,7 +240,7 @@ def dns_toggle_relay(request: HttpRequest) -> JsonResponse:
     current = os.environ.get('MAIL_SMART_HOST', '').lower() in ('1', 'true', 'yes')
     AuditService.record(
         action='smart_host_toggle',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail=f'Smart Host Relay {"disabled" if current else "enabled"}',
     )
     return JsonResponse(
@@ -265,7 +265,7 @@ def dns_set_hop_count(request: HttpRequest) -> JsonResponse:
         )
     AuditService.record(
         action='hop_count_update',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail=f'Set max hop count to {value}',
     )
     return JsonResponse(

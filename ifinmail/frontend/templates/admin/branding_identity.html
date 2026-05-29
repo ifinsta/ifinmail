@@ -101,6 +101,8 @@
 <script>
 (function() {
     function getCSRFToken() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el) return el.value;
         var name = 'csrftoken';
         var cookies = document.cookie.split(';');
         for (var i = 0; i < cookies.length; i++) {

@@ -98,7 +98,7 @@ def spam_set_sensitivity(request: HttpRequest) -> JsonResponse:
         _save_spam_settings(spam_settings)
         AuditService.record(
             action='spam_sensitivity',
-            user=request.user.username if request.user.is_authenticated else None,
+            user=request.user.email if request.user.is_authenticated else None,
             detail=f'Set sensitivity to {value:.1f}',
         )
     except OSError as e:
@@ -141,7 +141,7 @@ def spam_add_provider(request: HttpRequest) -> JsonResponse:
         _save_spam_settings(spam_settings)
         AuditService.record(
             action='spam_provider_added',
-            user=request.user.username if request.user.is_authenticated else None,
+            user=request.user.email if request.user.is_authenticated else None,
             detail=f'Added DNSBL provider: {host} ({ptype})',
         )
     except OSError as e:

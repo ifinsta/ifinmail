@@ -16,10 +16,16 @@ from .auth import _is_staff
 
 logger = logging.getLogger('backend')
 
-_BRANDING_OVERRIDES_FILE = os.environ.get(
-    'BRANDING_OVERRIDES_PATH',
-    os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json'),
-)
+def _get_overrides_file_path() -> str:
+    env_path = os.environ.get('BRANDING_OVERRIDES_PATH')
+    if env_path:
+        return env_path
+    base_dir = getattr(django_settings, 'BASE_DIR', None)
+    if base_dir:
+        return os.path.join(base_dir, 'branding_overrides.json')
+    return os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json')
+
+_BRANDING_OVERRIDES_FILE = _get_overrides_file_path()
 _MEDIA_ROOT = getattr(
     django_settings, 'MEDIA_ROOT', os.path.join(os.environ.get('APP_DIR', '/app'), 'media')
 )
@@ -142,6 +148,10 @@ def branding_save(request: HttpRequest) -> HttpResponse:
     if changed:
         try:
             _save_overrides(overrides)
+            # Dynamic hot-reload of branding config
+            from backend.config.branding import BrandingConfig
+            django_settings.BRAND_CONFIG = BrandingConfig.from_env()
+            
             AuditService.record(
                 action='branding_saved',
                 user=request.user.email if request.user.is_authenticated else None,
@@ -173,6 +183,11 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
         favicon_path = os.path.join(_MEDIA_ROOT, 'branding', 'favicon.ico')
         if os.path.isfile(favicon_path):
             os.remove(favicon_path)
+            
+        # Dynamic hot-reload of branding config to reset defaults
+        from backend.config.branding import BrandingConfig
+        django_settings.BRAND_CONFIG = BrandingConfig.from_env()
+        
         AuditService.record(
             action='branding_reset',
             user=request.user.email if request.user.is_authenticated else None,

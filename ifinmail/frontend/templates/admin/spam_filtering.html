@@ -25,25 +25,25 @@
             </article>
             <article class="ifinmail-panel ifinmail-span-6">
                 <span class="ifinmail-overline">{% trans 'Filtering Activity (24h)' %}</span>
-                <div class="ifinmail-chart-bars" style="height:160px;border:0;padding:18px 0 0">
+                <div class="ifinmail-chart-bars" style="height:160px">
                     {% for h in filter_activity_bars %}<span style="height:{{ h }}%"></span>{% empty %}<span style="height:0%"></span>{% endfor %}
                 </div>
             </article>
 
             <article class="ifinmail-panel ifinmail-span-8">
                 <h2 class="ifinmail-panel-title">{% trans 'Global Sensitivity Control' %}</h2>
-                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:30px">
-                    <span>{% trans 'Heuristic Aggression Level' %}</span><strong id="sensitivity-label" style="font-size:var(--ifinmail-font-size-2xl);color:var(--ifinmail-color-primary)">{{ heuristic_level|default:'5.0' }}</strong>
+                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:16px">
+                    <span>{% trans 'Heuristic Aggression Level' %}</span><strong id="sensitivity-label" style="font-size:1.25rem;color:var(--ifinmail-color-primary)">{{ heuristic_level|default:'5.0' }}</strong>
                 </div>
                 <input type="range" id="sensitivity-slider" min="1" max="10" step="0.5" value="{{ heuristic_level|default:'5.0' }}" onchange="setSensitivity(this.value)" oninput="document.getElementById('sensitivity-label').textContent = parseFloat(this.value).toFixed(1)" style="width:100%;margin-top:24px">
-                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:18px;color:var(--ifinmail-color-text-muted)">
+                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:12px">
                     <span>{% trans 'Permissive' %}</span><span>{% trans 'Standard' %}</span><span>{% trans 'Strict' %}</span><span>{% trans 'Zero-Tolerance' %}</span>
                 </div>
                 <div class="ifinmail-quote">{% trans 'Higher values increase the likelihood of catching sophisticated spam but may elevate false positive risks for encrypted attachments.' %}</div>
             </article>
             <aside class="ifinmail-panel ifinmail-span-4">
                 <h2 class="ifinmail-panel-title">{% trans 'Engines' %}</h2>
-                <div style="margin-top:20px">
+                <div style="margin-top:14px">
                     {% for engine in filter_engines %}
                     <div class="ifinmail-engine-row"{% if not engine.enabled %} style="opacity:.55"{% endif %}><span><strong>{{ engine.name|default:'' }}</strong><br><small>{{ engine.detail|default:'' }}</small></span>{% if engine.enabled %}<span class="ifinmail-switch ifinmail-switch--on"></span>{% else %}<span>▣</span>{% endif %}</div>
                     {% empty %}
@@ -63,7 +63,7 @@
     </div>
 </section>
 
-<div id="add-provider-form" style="display:none;background:var(--ifinmail-color-bg-panel);border:1px solid var(--ifinmail-color-border);border-radius:8px;padding:16px;margin-top:12px">
+<div id="add-provider-form" style="display:none" class="ifinmail-inline-form-panel">
     <form onsubmit="event.preventDefault(); addProvider()" style="display:flex;gap:12px;align-items:flex-end">
         <div style="flex:1">
             <label class="ifinmail-label">{% trans 'Provider Host' %}</label>
@@ -78,8 +78,8 @@
                 <option value="PASSIVE">PASSIVE</option>
             </select>
         </div>
-        <button type="submit" class="ifinmail-btn ifinmail-btn--primary" style="margin-bottom:0">{% trans 'Add' %}</button>
-        <button type="button" class="ifinmail-btn ifinmail-btn--outline" onclick="toggleAddProvider()" style="margin-bottom:0">{% trans 'Cancel' %}</button>
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Add' %}</button>
+        <button type="button" class="ifinmail-btn ifinmail-btn--outline" onclick="toggleAddProvider()">{% trans 'Cancel' %}</button>
     </form>
 </div>
 

@@ -30,6 +30,7 @@
 
 </head>
 <body class="ifinmail-body{% block body_class %}{% endblock %}">
+    {% csrf_token %}
     {% block body_layout %}
     <div class="ifinmail-app-layout">
         {% block sidebar_wrapper %}

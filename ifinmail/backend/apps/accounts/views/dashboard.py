@@ -334,7 +334,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             'tls_info': tls_info,
             'tls_info_json': json.dumps(tls_info),
             'mail_hostname': os.environ.get('MAIL_HOSTNAME', ''),
-            'active_section': 'general',
+            'active_section': 'dashboard',
             'header_search_placeholder': 'Search mail server logs...',
             'is_mock': is_mock,
         },
@@ -407,7 +407,7 @@ def dashboard_rescan(request: HttpRequest) -> JsonResponse:
         results['tls'] = MonitoringService.check_tls_expiry()
         AuditService.record(
             action='dashboard_rescan',
-            user=request.user.username if request.user.is_authenticated else None,
+            user=request.user.email if request.user.is_authenticated else None,
             detail=f'Rescanned {len(domains)} domain(s)',
         )
     except Exception as e:
@@ -424,7 +424,7 @@ def dashboard_shell(request: HttpRequest) -> JsonResponse:
     """Disabled: shell execution from the web UI is not production-safe."""
     AuditService.record(
         action='shell_disabled',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail='Blocked web shell invocation',
         severity='warning',
     )
@@ -450,7 +450,7 @@ def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
             deleted, _ = audit_event.objects.exclude(id__in=keep_ids).delete()
             AuditService.record(
                 action='log_purge',
-                user=request.user.username if request.user.is_authenticated else None,
+                user=request.user.email if request.user.is_authenticated else None,
                 detail=f'Purged {deleted} audit entries (before={total_before})',
             )
             return JsonResponse(
@@ -483,7 +483,7 @@ def dashboard_reboot(request: HttpRequest) -> JsonResponse:
     """Disabled: service restarts must go through deployment automation."""
     AuditService.record(
         action='service_reboot_disabled',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail='Blocked web-triggered service restart',
         severity='warning',
     )

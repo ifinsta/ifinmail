@@ -65,6 +65,7 @@
 
 <div id="add-provider-form" style="display:none" class="ifinmail-inline-form-panel">
     <form onsubmit="event.preventDefault(); addProvider()" style="display:flex;gap:12px;align-items:flex-end">
+        {% csrf_token %}
         <div style="flex:1">
             <label class="ifinmail-label">{% trans 'Provider Host' %}</label>
             <input id="provider-host" type="text" placeholder="dnsbl.example.com" style="width:100%;padding:8px 12px" required>
@@ -86,15 +87,8 @@
 <script>
 (function() {
     function getCSRFToken() {
-        var name = 'csrftoken';
-        var cookies = document.cookie.split(';');
-        for (var i = 0; i < cookies.length; i++) {
-            var c = cookies[i].trim();
-            if (c.indexOf(name + '=') === 0) {
-                return decodeURIComponent(c.substring(name.length + 1));
-            }
-        }
-        return '';
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
     }
 
     window.toggleAddProvider = function() {

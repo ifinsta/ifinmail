@@ -113,7 +113,7 @@ def users_export(request: HttpRequest) -> HttpResponse:
         )
     AuditService.record(
         action='users_export',
-        user=request.user.username if request.user.is_authenticated else None,
+        user=request.user.email if request.user.is_authenticated else None,
         detail=f'Exported {len(users)} users',
     )
     return response
@@ -137,7 +137,7 @@ def users_kill_sessions(request: HttpRequest) -> JsonResponse:
 
         AuditService.record(
             action='sessions_killed',
-            user=request.user.username if request.user.is_authenticated else None,
+            user=request.user.email if request.user.is_authenticated else None,
             detail=f'Terminated {killed} sessions',
             severity='warning',
         )

@@ -133,26 +133,50 @@ html {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--ifinmail-space-1_5) var(--ifinmail-space-2);
+    padding: var(--ifinmail-space-1) var(--ifinmail-space-2) var(--ifinmail-space-4);
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    gap: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 200ms ease;
+}
+
+.ifinmail-admin-nav-list:hover {
+    scrollbar-color: var(--ifinmail-color-border-light) transparent;
 }
 
 .ifinmail-admin-nav-list::-webkit-scrollbar {
-    display: none;
+    width: 4px;
 }
 
-/* Nav items — ifinsta sidebar__link pattern */
+.ifinmail-admin-nav-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ifinmail-admin-nav-list::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 10px;
+    transition: background-color 200ms ease;
+}
+
+.ifinmail-admin-nav-list:hover::-webkit-scrollbar-thumb {
+    background: var(--ifinmail-color-border-light);
+}
+
+.ifinmail-admin-nav-list::-webkit-scrollbar-thumb:hover {
+    background: var(--ifinmail-color-text-muted);
+}
+
+/* Nav items — floating capsule design */
 .ifinmail-admin-nav-item {
     display: flex;
     align-items: center;
-    gap: var(--ifinmail-space-2_5);
+    gap: var(--ifinmail-space-3);
     min-height: var(--ifinmail-sidebar-nav-item-height);
-    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
-    border-radius: var(--ifinmail-radius-md);
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-4);
+    margin: 0 var(--ifinmail-space-1);
+    border-radius: 20px; /* Modern capsule shape */
     color: var(--ifinmail-sidebar-text);
     font-size: var(--ifinmail-font-size-body);
     font-weight: var(--ifinmail-font-weight-medium);
@@ -189,11 +213,11 @@ html {
     opacity: 1;
 }
 
-/* Active state — ifinsta 3px accent bar */
+/* Active state — floating highlighted capsule with zero left borders */
 .ifinmail-admin-nav-item--active {
     background: var(--ifinmail-sidebar-active-bg);
     color: var(--ifinmail-sidebar-active-color);
-    font-weight: var(--ifinmail-font-weight-semibold);
+    font-weight: var(--ifinmail-font-weight-bold); /* Emphasized active weight */
 }
 
 .ifinmail-admin-nav-item--active .ifinmail-icon {
@@ -201,27 +225,15 @@ html {
     stroke: var(--ifinmail-sidebar-active-color);
 }
 
-.ifinmail-admin-nav-item--active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 20px;
-    background: var(--ifinmail-sidebar-active-color);
-    border-radius: 0 var(--ifinmail-radius-sm) var(--ifinmail-radius-sm) 0;
-}
-
-/* Section label */
+/* Section label — tight, elegant section headers */
 .ifinmail-admin-nav-section {
-    padding: var(--ifinmail-space-2) var(--ifinmail-space-3) var(--ifinmail-space-1);
+    padding: var(--ifinmail-space-3) var(--ifinmail-space-4) var(--ifinmail-space-1);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ifinmail-color-text-muted);
-    opacity: 0.7;
+    opacity: 0.75;
     margin-top: var(--ifinmail-space-1);
 }
 

@@ -886,15 +886,44 @@
     align-items: center !important;
     justify-content: center !important;
     padding: var(--ifinmail-space-4) !important;
+    background-color: var(--ifinmail-color-surface-1) !important;
+    background-image:
+        linear-gradient(var(--ifinmail-color-border-light) 1px, transparent 1px),
+        linear-gradient(90deg, var(--ifinmail-color-border-light) 1px, transparent 1px) !important;
+    background-size: 32px 32px !important;
 }
 
 .ifinmail-reg-card {
+    width: 100% !important;
+    max-width: 440px !important; /* wizard layout spacing breathing room */
+    padding: var(--ifinmail-space-8) var(--ifinmail-space-7) !important;
+    background: #ffffff !important;
+    border: 1px solid var(--ifinmail-color-border) !important;
+    border-radius: var(--ifinmail-radius-lg) !important;
+    box-shadow: none !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
     box-sizing: border-box;
     max-height: calc(100vh - var(--ifinmail-space-8)) !important;
     overflow-y: auto !important; /* Safeguard scroll for tiny screens */
+    transition: all 0.2s ease-in-out;
+}
+
+/* Align wizard typography with login cards */
+.ifinmail-reg-card__title {
+    text-align: center !important;
+    font-size: var(--ifinmail-font-size-h1) !important;
+    font-weight: var(--ifinmail-font-weight-bold) !important;
+    color: var(--ifinmail-color-text-primary) !important;
+    margin: 0 0 var(--ifinmail-space-1) !important;
+    letter-spacing: -0.02em !important;
+}
+
+.ifinmail-reg-card__subtitle {
+    text-align: center !important;
+    font-size: var(--ifinmail-font-size-body) !important;
+    color: var(--ifinmail-color-text-muted) !important;
+    margin: 0 0 var(--ifinmail-space-5) !important;
 }
 
 /* Ensure focus states on registration forms have no outlines or offsets */
@@ -920,8 +949,21 @@
         max-height: 100vh !important;
         border: none !important;
         border-radius: 0 !important;
-        padding: var(--ifinmail-space-6) var(--ifinmail-space-5) !important;
+        padding: var(--ifinmail-space-8) var(--ifinmail-space-6) !important;
         overflow-y: auto !important;
+    }
+
+    .ifinmail-reg-stepper__steps {
+        display: none !important; /* Hide cluttered horizontal dots on mobile viewports */
+    }
+
+    .ifinmail-reg-stepper__counter {
+        display: block !important;
+        text-align: center !important;
+        font-size: var(--ifinmail-font-size-body) !important;
+        font-weight: var(--ifinmail-font-weight-semibold) !important;
+        color: var(--ifinmail-color-primary) !important;
+        margin-bottom: var(--ifinmail-space-4) !important;
     }
 }
 

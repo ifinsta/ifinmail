@@ -7,7 +7,9 @@ Total: 50 files found via `**/*.html`.
 All 50 templates are redesigned in one canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (private; ask the owner for access). It borrows the compact ifinsta system (https://claude.ai/artifact/SLYdVZjTPp1W1S69kfsrbf).
 
 - Board for each template: `.agents/skills/ifinmail-design-system/references/template-map.md`
-- Rules, tokens and patterns: `.agents/skills/ifinmail-design-system/`
+- Short guide: `DESIGN.md`. Rules, tokens and patterns: `.agents/skills/ifinmail-design-system/`
+- Phone-width (390 px) boards: `PhoneDashboard`, `PhoneNav`, `PhoneUsers`, `PhoneSpam`, `PhoneDomainConfig`, `PhoneBranding`, `PhoneLogs`, `PhoneLogin`, `PhoneLanding`, `PhoneLegal`, `PhoneAccess`
+- Implementation: `frontend/static/css/ifinmail-redesign.css`
 - Workflow for building or changing a template: `.agents/skills/ifinmail-template-builder/`
 - Checks before you finish: `.agents/skills/ifinmail-design-audit/` (`scripts/audit.sh`)
 

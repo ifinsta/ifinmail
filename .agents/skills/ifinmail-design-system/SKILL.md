@@ -26,6 +26,19 @@ One system covers the admin console, sign-in and registration, the setup wizard,
 6. **One next action.** Empty, error and success states say what happened and offer a single button or link. A page is never blanked while loading: show a thin bar and soft placeholders.
 7. **Same words, same shape.** Reuse the patterns in `references/patterns.md` (PageHead, stat strip, panel, table, form card, stepper, pill, banner, dialog, empty state). Do not invent a second version of a pattern that exists.
 
+## Small screens (up to 767 px)
+
+One continuous surface, edge to edge. This is a different composition, not a squeezed desktop.
+
+- **No bordered cards.** Panels, tables, stat cards, auth cards, wizard cards, pricing and feature cards lose their border, radius and background. Sections are separated by a 1 px `border-light` hairline on top. The ground is one white (`surface-container-lowest`), no grey page behind white cards, no grid backdrop.
+- **Full width.** Content runs to both screen edges. Padding lives inside sections (16 px), not around them. Page header padding 16, no max-width.
+- **Wordmark, not logo.** Show the text "ifinmail" (`{{ brand.name }}`) in navy 700, never the square logo icon: header, drawer, sign-in, landing nav and footer. Class `ifinmail-wordmark`.
+- **Short pages start from the centre.** When the content is shorter than the viewport (sign-in, reset, registration, setup wizard, error pages, loading splash) centre it vertically with `min-height: 100dvh` and `justify-content: center`. Long pages (admin lists, landing, legal) start at the top.
+- **Navigation.** Sidebar is a drawer behind the hamburger (it also drops its logo mark). Header = hamburger, wordmark, actions; search leaves the bar.
+- **Lists, not grids.** Stat strips become label-left, value-right rows. Wide tables scroll inside their own box with the first column readable.
+- **44 px targets** for buttons, inputs, nav links and icon buttons. Inline links inside prose are exempt.
+- Implemented in `frontend/static/css/ifinmail-redesign.css` (`@media (max-width: 767px)`); drawn in the canvas "Phone widths" row.
+
 ## Core values (quick reference)
 
 | Area | Value |
@@ -45,6 +58,7 @@ One system covers the admin console, sign-in and registration, the setup wizard,
 
 ## Hard rules for implementation
 
+- Redesign styles live in `frontend/static/css/ifinmail-redesign.css` (loaded last, scoped under `html.ifinmail-shell`). Add to it rather than to the legacy layout, components or admin files, and delete legacy duplicates once a block is verified.
 - Colours, spacing, radii and type come from `--ifinmail-*` variables. No new hex values in templates or component CSS. If a value is missing, add a token to `ifinmail-variables.css` first.
 - No inline `style=` in templates except for genuinely dynamic values (a progress width, a chart bar height). Everything else is a class.
 - Icons are inline stroke SVG (stroke 2, round caps, `currentColor`, `aria-hidden="true"`). Never emoji or icon fonts, never raster icons.

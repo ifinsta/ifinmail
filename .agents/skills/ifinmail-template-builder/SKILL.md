@@ -47,9 +47,14 @@ Page scripts live in `frontend/static/js/ifinmail-<page>.js`, are loaded from `{
 
 Views never touch models directly: `web.py -> views -> forms -> services -> models`. Template context comes from the view; do not reach into services from a template tag. Types and enums are imported from `types/`.
 
-## 6. Verify
+## 6. Small screens
+
+Follow "Small screens" in `ifinmail-design-system`: borderless, edge to edge, one white surface, wordmark instead of logo, short pages vertically centred, 44 px targets. Put the rules in the `@media (max-width: 767px)` block of `ifinmail-redesign.css`. Markup needs a `.ifinmail-wordmark` element wherever a logo mark appears.
+
+## 7. Verify
 
 1. Render at 1280, 768 and 360 px wide. Sidebar collapses, toolbars wrap, tables scroll inside their box, nothing overflows the page.
 2. Tab through the page: every control reachable, focus ring visible, order matches reading order.
 3. Run `.agents/skills/ifinmail-design-audit/scripts/audit.sh <changed files>` and fix findings.
-4. Update `docs/html_templates.md` if you added, removed or renamed a template.
+4. Run the app (`USE_SQLITE=1 DJANGO_SETTINGS_MODULE=backend.config.settings.development python manage.py runserver --noreload`, restart after template edits) and load each affected page at 1280 and 390 px. Confirm no horizontal overflow and no console errors. Template names that need DEBUG off (404, 500) render with `DEBUG=False --insecure`.
+5. Update `docs/html_templates.md` if you added, removed or renamed a template.

@@ -75,7 +75,9 @@ for f in "${FILES[@]}"; do
     grep -nE 'font-size:\s*(([0-9]|10|11)(\.[0-9]+)?px|0?\.(5|6)[0-9]*rem|0\.6875rem)' "$f" | grep -vE 'overline|caption' \
       | while IFS= read -r l; do report "small-type" "$f:$l"; done
     # Uppercase outside overlines, pills and badges
-    grep -nE 'text-transform:\s*uppercase' "$f" | while IFS= read -r l; do report "uppercase" "$f:$l"; done
+    # (allowed when the same rule sets overline tracking, 0.06-0.08em, or its selector names an overline, badge or pill)
+    awk '/\{/ {blk=""; sel=$0} {blk=blk"\n"$0} /text-transform:[ ]*uppercase/ {ln=NR; txt=$0; want=1} /\}/ { if (want && blk !~ /letter-spacing:[ ]*0\.0[6-8]/ && sel !~ /overline|badge|pill/) print ln":"txt; want=0 }' "$f" \
+      | while IFS= read -r l; do report "uppercase" "$f:$l"; done
   fi
 done
 

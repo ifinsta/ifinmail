@@ -4,6 +4,8 @@
         <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
 
+    <a class="ifinmail-wordmark ifinmail-wordmark--header" href="{% url 'accounts:dashboard' %}">{{ brand.name|default:'ifinmail' }}</a>
+
     <form class="ifinmail-global-search" role="search" action="{% url 'accounts:logs' %}" method="get">
         <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <label class="ifinmail-sr-only" for="ifinmail-global-search">{% trans 'Search' %}</label>

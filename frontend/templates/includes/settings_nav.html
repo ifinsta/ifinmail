@@ -1,9 +1,17 @@
 {% load i18n %}{% load settings_nav %}
-<nav class="ifinmail-settings__nav" aria-label="{% trans 'Settings' %}" data-settings-nav>
+<nav class="ifinmail-settings__nav" id="ifinmail-settings-nav" aria-label="{% trans 'Settings' %}" data-settings-nav>
+    <div class="ifinmail-settings__toolbar">
     <div class="ifinmail-settings__search" role="search">
         {% settings_icon 'search' %}
         <label class="ifinmail-sr-only" for="settings-search">{% trans 'Search settings' %}</label>
         <input id="settings-search" type="search" placeholder="{% trans 'Search settings' %}" autocomplete="off" data-settings-search>
+    </div>
+    <button type="button" class="ifinmail-icon-button ifinmail-collapse-toggle" data-collapse-toggle="settings"
+            aria-expanded="true" aria-controls="ifinmail-settings-nav"
+            data-label-collapse="{% trans 'Minimize settings list' %}" data-label-expand="{% trans 'Maximize settings list' %}"
+            title="{% trans 'Minimize settings list' %}" aria-label="{% trans 'Minimize settings list' %}">
+        <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+    </button>
     </div>
     {% for entry in nav_groups %}
     <div class="ifinmail-settings__group" data-settings-group role="group" aria-labelledby="settings-group-{{ entry.group.key }}">
@@ -11,7 +19,7 @@
         <ul class="ifinmail-settings__list">
             {% for row in entry.items %}
             <li data-settings-item data-search="{{ row.item.title|lower }} {{ row.item.description|lower }} {{ row.item.keywords|join:' ' }}">
-                <a class="ifinmail-settings__link{% if row.active %} ifinmail-settings__link--active{% endif %}" href="{{ row.url }}"{% if row.active %} aria-current="page"{% endif %}>
+                <a class="ifinmail-settings__link{% if row.active %} ifinmail-settings__link--active{% endif %}" href="{{ row.url }}" title="{{ row.item.title }}"{% if row.active %} aria-current="page"{% endif %}>
                     {% settings_icon row.item.icon %}
                     <span>{{ row.item.title }}</span>
                 </a>

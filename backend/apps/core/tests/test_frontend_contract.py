@@ -157,3 +157,53 @@ def test_component_css_does_not_hardcode_white_text_on_primary() -> None:
     for rule in re.findall(r'[^{}]+\{[^{}]*\}', css):
         if re.search(r'background(-color)?:\s*var\(--ifinmail-color-primary\)', rule):
             assert 'color: var(--ifinmail-color-white)' not in rule, rule.strip()[:80]
+
+
+def test_sidebars_can_be_minimized_and_state_applies_before_first_paint() -> None:
+    base = _read(FRONTEND / 'templates' / 'base.html')
+    init = base.index('ifinmail-layout-init.js')
+    styles = base.index("versioned_css 'css/ifinmail-variables.css'")
+    assert init < styles, 'rail state must apply before first paint'
+    assert '<script src=' in base[init - 40 : init], 'layout bootstrap must be external'
+    source = _read(FRONTEND / 'static' / 'js' / 'ifinmail-layout-init.js')
+    tokens = ('data-sidebar', 'data-settings-rail', 'ifinmail-sidebar', 'ifinmail-settings-nav')
+    for token in (*tokens, 'aria-expanded'):
+        assert token in source, token
+
+    # Each toggle announces its state, names what it controls, and carries both labels.
+    for template, pane, target in (
+        ('includes/sidebar.html', 'sidebar', 'ifinmail-app-sidebar'),
+        ('includes/settings_nav.html', 'settings', 'ifinmail-settings-nav'),
+    ):
+        html = _read(FRONTEND / 'templates' / template)
+        assert f'data-collapse-toggle="{pane}"' in html
+        assert f'id="{target}"' in html and f'aria-controls="{target}"' in html
+        for attribute in ('aria-expanded=', 'data-label-collapse=', 'data-label-expand='):
+            assert attribute in html, f'{template} lacks {attribute}'
+
+
+def test_minimized_rails_keep_tooltips_and_use_the_rail_token() -> None:
+    """With labels hidden every link needs a title; rail width comes from the token."""
+    for template in ('includes/sidebar.html', 'includes/settings_nav.html'):
+        html = _read(FRONTEND / 'templates' / template)
+        pattern = r'<a [^>]*class="[^"]*(?:nav-item|settings__link)[^"]*"[^>]*>'
+        for anchor in re.findall(pattern, html):
+            assert 'title=' in anchor, f'{template}: {anchor[:80]}'
+    css = _read(CSS / 'ifinmail-redesign.css')
+    assert 'width: var(--ifinmail-sidebar-rail-width)' in css
+    assert 'grid-template-columns: var(--ifinmail-sidebar-rail-width)' in css
+    assert 'width: var(--ifinmail-sidebar-width)' in _read(CSS / 'ifinmail-components.css')
+
+
+def test_chrome_stays_compact() -> None:
+    """Header, sidebar and nav items are deliberately dense; wider looks loose."""
+    tokens = _read(CSS / 'ifinmail-variables.css')
+    limits = {
+        '--ifinmail-header-height': 48,
+        '--ifinmail-sidebar-width': 208,
+        '--ifinmail-sidebar-rail-width': 52,
+        '--ifinmail-sidebar-nav-item-height': 32,
+    }
+    for name, maximum in limits.items():
+        found = re.search(rf'{re.escape(name)}:\s*(\d+)px', tokens)
+        assert found and int(found.group(1)) <= maximum, f'{name} must stay <= {maximum}px'

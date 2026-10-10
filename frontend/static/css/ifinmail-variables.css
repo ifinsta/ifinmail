@@ -148,7 +148,7 @@
 
     /* Type scale — compact enterprise (ifinsta-aligned) */
     --ifinmail-font-size-display: 1.375rem;    /* 22px */
-    --ifinmail-font-size-page-title: 1.25rem;  /* 20px — admin page titles */
+    --ifinmail-font-size-page-title: 1.125rem; /* 18px — admin page titles */
     --ifinmail-font-size-h1: 1.125rem;         /* 18px */
     --ifinmail-font-size-h2: 0.9375rem;        /* 15px */
     --ifinmail-font-size-h3: 0.875rem;         /* 14px */
@@ -192,18 +192,18 @@
     --ifinmail-space-16:  4rem;      /* 64px */
 
     /* Layout tokens */
-    --ifinmail-sidebar-width: 224px;
-    --ifinmail-sidebar-rail-width: 64px;
+    --ifinmail-sidebar-width: 208px;
+    --ifinmail-sidebar-rail-width: 52px;
     --ifinmail-container-max-width: 1280px;
     --ifinmail-gutter: 20px;
     --ifinmail-margin-mobile: 16px;
     --ifinmail-stack-gap: 12px;
     --ifinmail-section-gap: 20px;
-    --ifinmail-header-height: 56px;
+    --ifinmail-header-height: 48px;
     --ifinmail-footer-height: 32px;
 
     /* Sidebar nav */
-    --ifinmail-sidebar-nav-item-height: 36px;
+    --ifinmail-sidebar-nav-item-height: 32px;
     --ifinmail-sidebar-active-bg: #E8F0FE;
     --ifinmail-sidebar-active-color: #1A56DB;
     --ifinmail-sidebar-hover-bg: #F9FAFB;

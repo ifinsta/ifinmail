@@ -4,11 +4,11 @@ Each pattern has a live version in the redesign canvas (components row and the p
 
 ## Page shell (`base.html`)
 
-`sidebar 224 | header 56 / main (gutter 32, max 1280) / footer 32`. Public, error, setup and sign-in templates blank `sidebar_wrapper`, `header` and `footer`. Sidebar items are 36 px, 14/500; active = `primary-tint` fill, `primary` text, 600, `aria-current="page"`. Section labels are overlines. Footer of the sidebar holds server status, Support, More options. Rail mode (64 px) hides labels, keeps `title` tooltips. Alt+C toggles.
+`sidebar 208 | header 48 / main (gutter 24, max 1280) / footer 32`. Public, error, setup and sign-in templates blank `sidebar_wrapper`, `header` and `footer`. Sidebar items are 32 px, 13/500, icons 16 px, no padding around the nav (the brand row is 48 px, one line, tagline hidden); active = `primary-tint` fill, `primary` text, 600, `aria-current="page"`. Section labels are overlines. Footer of the sidebar holds server status, Support, More options. Minimize / Maximize: the footer button (and Alt+C) collapses the sidebar to a 52 px icon rail (`html[data-sidebar="collapsed"]`); labels, brand name and status text hide, section labels become hairlines, every item keeps a `title` tooltip. The Settings category list has its own toggle beside its search (`html[data-settings-rail="collapsed"]`, 13rem to 52 px, desktop >= 1200 px only). State is saved per browser (`ifinmail-sidebar`, `ifinmail-settings-nav`) and applied by `ifinmail-layout-init.js` in `<head>`. The phone drawer ignores both.
 
 ## Header (`includes/header.html`)
 
-Hamburger (visible below 960 px), search field 36 px with `/` hint, then notifications, settings, divider, profile button (avatar 32, name 13/600, role as 11 px caps). The profile menu is a 220 px floating card, radius 12, 36 px items, Sign Out in danger text after a divider.
+Hamburger (visible below 960 px), search field 32 px with `/` hint, then notifications, settings, divider, profile button (avatar 28, name 13/600, role as 11 px caps). The profile menu is a 220 px floating card, radius 12, 36 px items, Sign Out in danger text after a divider.
 
 ## PageHead
 

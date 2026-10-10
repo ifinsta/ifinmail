@@ -15,6 +15,7 @@
     <link rel="apple-touch-icon" href="{{ brand.favicon_url|default:default_icon_url }}">
     <title>{% block title %}{{ brand.name|default:'ifinmail' }}{% endblock %}</title>
     <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>
+    <script src="{% static 'js/ifinmail-layout-init.js' %}"></script>
     {% if brand.css_overrides %}{{ brand.css_overrides|safe }}{% endif %}
     {% if USE_GOOGLE_FONTS|default:"1" %}
     <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -20,7 +20,7 @@ One system covers the admin console, sign-in and registration, the setup wizard,
 
 1. **Blue means interactive.** `primary` (#1a56db) is for the one primary action per screen, links, focus rings and the active nav item. Never use it for decoration or status.
 2. **Borders lift, shadows float.** Cards and tables are white with a 1 px `border` (#d1d5db) on the `surface-1` (#f9fafb) page. Shadows exist only for things that float above the page: menus, dialogs and the landing-page product window.
-3. **Compact by default.** Controls are 36 px tall (40 px on sign-in, registration and wizard forms, 44 px for landing CTAs). Page gutter 32, panel padding 16, gap 16, 4 px base grid.
+3. **Compact by default.** Controls are 36 px tall (40 px on sign-in, registration and wizard forms, 44 px for landing CTAs). Chrome (header, sidebars, nav items) is denser: 48 px header, 32 px nav items. Page gutter 24, panel padding 16, gap 12, 4 px base grid.
 4. **Status is a word on a tint.** Pills are 20 px, radius 5, 12/600, text always accompanied by a label (PASS, Deferred, Offline). Never colour alone, never a bare dot without text nearby.
 5. **Data is mono.** Numbers, hosts, IPs, DNS values, timestamps, log lines, selectors: JetBrains Mono. Numeric columns are right-aligned.
 6. **One next action.** Empty, error and success states say what happened and offer a single button or link. A page is never blanked while loading: show a thin bar and soft placeholders.
@@ -53,7 +53,7 @@ One continuous surface, edge to edge. This is a different composition, not a squ
 | Radius | 8 cards, inputs, buttons; 5 pills; 12 dialogs and auth cards; full avatars |
 | Colours | primary #1a56db, brand navy #0f2b5b, text #111827 / #374151 / #656d7a, border #d1d5db, divider #e5e7eb, tint #e8f0fe |
 | Status text on tint | ok #047857 on #d1fae5, warn #b45309 on #fef3c7, danger #b91c1c on #fee2e2, info #1a56db on #e8f0fe, idle #374151 on #f3f4f6 |
-| Layout | sidebar 224 (rail 64), header 56, content max 1280, footer 32 |
+| Layout | sidebar 208 (minimizes to a 52 rail), header 48, nav item 32, content max 1280, footer 32 |
 | Motion | 100-250 ms, standard easing, `prefers-reduced-motion` respected |
 
 ## Hard rules for implementation

@@ -1745,3 +1745,323 @@ html.ifinmail-shell .ifinmail-flash--error {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* ─── Compact density (desktop and tablet) ───
+   Header 48, sidebar 208 / rail 52, nav items 32, page title 18.
+   Phone keeps its own 44px touch targets above, so this block starts at 768px. */
+@media (min-width: 768px) {
+    html.ifinmail-shell .ifinmail-admin-content {
+        padding: var(--ifinmail-space-4) var(--ifinmail-space-6) var(--ifinmail-space-6);
+    }
+
+    html.ifinmail-shell .ifinmail-admin-page {
+        gap: var(--ifinmail-space-3);
+    }
+
+    /* Header */
+    html.ifinmail-shell .ifinmail-header {
+        padding: 0 var(--ifinmail-space-4);
+        gap: var(--ifinmail-space-2);
+    }
+
+    html.ifinmail-shell .ifinmail-global-search {
+        max-width: 360px;
+    }
+
+    html.ifinmail-shell .ifinmail-icon-button .ifinmail-icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    html.ifinmail-shell .ifinmail-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: var(--ifinmail-font-size-caption);
+    }
+
+    /* Sidebar: one-row brand, tight list, slim footer */
+    html.ifinmail-shell .ifinmail-admin-nav {
+        padding: 0;
+        transition: width 150ms var(--ifinmail-easing-standard);
+    }
+
+    html.ifinmail-shell .ifinmail-admin-brand {
+        padding: 0;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-brand-top {
+        align-items: center;
+        gap: var(--ifinmail-space-2);
+        padding: 0 var(--ifinmail-space-3);
+        min-height: var(--ifinmail-header-height);
+    }
+
+    html.ifinmail-shell .ifinmail-admin-brand-mark {
+        width: 28px;
+        height: 28px;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-brand-name {
+        font-size: var(--ifinmail-font-size-body-large);
+    }
+
+    html.ifinmail-shell .ifinmail-admin-brand-tagline {
+        display: none;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-nav-list {
+        padding: var(--ifinmail-space-1) var(--ifinmail-space-2);
+        gap: 1px;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-nav-section {
+        padding: var(--ifinmail-space-2_5) var(--ifinmail-space-2) var(--ifinmail-space-1);
+        margin-top: 0;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-nav-item {
+        gap: var(--ifinmail-space-2);
+        min-height: var(--ifinmail-sidebar-nav-item-height);
+        margin: 0;
+        padding: 0 var(--ifinmail-space-2);
+        font-size: var(--ifinmail-font-size-body);
+    }
+
+    html.ifinmail-shell .ifinmail-admin-nav-item .ifinmail-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-nav-footer {
+        padding: var(--ifinmail-space-2);
+        gap: 1px !important;
+    }
+
+    html.ifinmail-shell .ifinmail-server-status {
+        min-height: 28px;
+        padding: 0 var(--ifinmail-space-2) !important;
+        font-size: var(--ifinmail-font-size-caption);
+    }
+
+    html.ifinmail-shell .ifinmail-server-status__label {
+        font-weight: inherit;
+    }
+
+    html.ifinmail-shell .ifinmail-admin-footer-action {
+        min-height: 28px !important;
+        padding: 0 var(--ifinmail-space-2) !important;
+        font-size: var(--ifinmail-font-size-body-small);
+    }
+
+    html.ifinmail-shell .ifinmail-collapse-toggle .ifinmail-icon {
+        transition: transform 150ms var(--ifinmail-easing-standard);
+    }
+
+    /* Stacked content sections (settings pages with an extra block) share the page gap */
+    html.ifinmail-shell .ifinmail-settings__body > .ifinmail-admin-content:not(:last-child) {
+        padding-bottom: var(--ifinmail-space-3);
+    }
+
+    /* Tables and rows */
+    html.ifinmail-shell .ifinmail-admin-table th,
+    html.ifinmail-shell .ifinmail-admin-table td {
+        padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    }
+
+    html.ifinmail-shell .ifinmail-table-panel-header {
+        padding: var(--ifinmail-space-2_5) var(--ifinmail-space-3);
+    }
+
+    html.ifinmail-shell .ifinmail-settings-row {
+        padding: var(--ifinmail-space-2) 0;
+    }
+
+    html.ifinmail-shell .ifinmail-settings-overview__item {
+        min-height: var(--ifinmail-space-10);
+        padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    }
+
+    /* Minimized app sidebar: icon rail with tooltips (title attributes) */
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav {
+        width: var(--ifinmail-sidebar-rail-width);
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-brand-top {
+        justify-content: center;
+        padding: 0;
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-brand-top > div {
+        display: none;
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-list {
+        padding: var(--ifinmail-space-1) var(--ifinmail-space-1_5);
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-section {
+        height: 0;
+        margin: var(--ifinmail-space-2) var(--ifinmail-space-1) var(--ifinmail-space-1);
+        padding: 0;
+        overflow: hidden;
+        font-size: 0;
+        border-top: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-section:first-child {
+        display: none;
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-item,
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-footer-action {
+        justify-content: center;
+        margin: 0;
+        padding: 0 !important;
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-item > span,
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-footer-action > span,
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-server-status__label {
+        display: none;
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-footer {
+        padding: var(--ifinmail-space-2) var(--ifinmail-space-1_5);
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-server-status {
+        justify-content: center;
+        padding: 0 !important;
+    }
+
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-footer .ifinmail-collapse-toggle .ifinmail-icon {
+        transform: rotate(180deg);
+    }
+}
+
+/* Settings category list: compact, and minimizable to an icon rail */
+@media (min-width: 1200px) {
+    html.ifinmail-shell .ifinmail-settings {
+        grid-template-columns: 13rem minmax(0, 1fr);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__nav {
+        padding: var(--ifinmail-space-3) var(--ifinmail-space-2);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__toolbar {
+        display: flex;
+        align-items: center;
+        gap: var(--ifinmail-space-1);
+        margin-bottom: var(--ifinmail-space-1);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__toolbar .ifinmail-settings__search {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+    }
+
+    html.ifinmail-shell .ifinmail-settings__toolbar .ifinmail-collapse-toggle {
+        flex: none;
+        color: var(--ifinmail-color-text-muted);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__toolbar .ifinmail-icon-button:hover {
+        background: var(--ifinmail-sidebar-hover-bg);
+        color: var(--ifinmail-color-text-primary);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__search input {
+        height: var(--ifinmail-sidebar-nav-item-height);
+        padding-left: var(--ifinmail-space-8);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__group {
+        margin-top: var(--ifinmail-space-2);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__group-title {
+        padding: var(--ifinmail-space-1) var(--ifinmail-space-2);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__link {
+        min-height: var(--ifinmail-sidebar-nav-item-height);
+        gap: var(--ifinmail-space-2);
+        padding: 0 var(--ifinmail-space-2);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__link .ifinmail-icon {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    html.ifinmail-shell .ifinmail-settings__link > span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings {
+        grid-template-columns: var(--ifinmail-sidebar-rail-width) minmax(0, 1fr);
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__nav {
+        padding: var(--ifinmail-space-3) var(--ifinmail-space-1_5);
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar {
+        justify-content: center;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar .ifinmail-settings__search {
+        display: none;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar .ifinmail-icon {
+        transform: rotate(180deg);
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__group-title {
+        height: 0;
+        margin: var(--ifinmail-space-2) var(--ifinmail-space-1) 0;
+        padding: 0;
+        overflow: hidden;
+        font-size: 0;
+        border-top: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__group {
+        margin-top: 0;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__link {
+        justify-content: center;
+        padding: 0;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__link > span {
+        display: none;
+    }
+}
+
+/* The collapse controls only exist where the sidebar is a column; the phone uses the drawer */
+@media (max-width: 767px) {
+    html.ifinmail-shell .ifinmail-admin-nav-footer .ifinmail-collapse-toggle {
+        display: none;
+    }
+}
+
+@media (max-width: 1199px) {
+    html.ifinmail-shell .ifinmail-settings__toolbar .ifinmail-collapse-toggle {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.ifinmail-shell .ifinmail-admin-nav,
+    html.ifinmail-shell .ifinmail-collapse-toggle .ifinmail-icon {
+        transition: none;
+    }
+}

@@ -22,7 +22,7 @@
     <div class="ifinmail-dns-providers">
       {% for provider in providers %}
       <div class="ifinmail-dns-provider-card">
-        <h3 class="ifinmail-dns-provider-name">{{ provider.name|default:'' }}</h3>
+        <h2 class="ifinmail-dns-provider-name">{{ provider.name|default:'' }}</h2>
         <p class="ifinmail-dns-provider-help">
           {{ provider.help|default:'' }}
           {% if provider.help_url %}
@@ -33,9 +33,9 @@
           {% csrf_token %}
           <input type="hidden" name="current_step" value="dns">
           <input type="hidden" name="provider" value="{{ provider.id|default:'' }}">
-          <input type="password" name="api_token" placeholder="{{ provider.placeholder|default:'' }}" class="ifinmail-input">
+          <input type="password" id="api-token-{{ provider.id|default:forloop.counter }}" name="api_token" placeholder="{{ provider.placeholder|default:'' }}" aria-label="{{ provider.placeholder|default:_('API token') }}" autocomplete="off" class="ifinmail-input">
           {% if provider.second_field %}
-          <input type="password" name="{{ provider.second_field.name|default:'' }}" placeholder="{{ provider.second_field.placeholder|default:'' }}" class="ifinmail-input">
+          <input type="password" id="api-secret-{{ provider.id|default:forloop.counter }}" name="{{ provider.second_field.name|default:'' }}" placeholder="{{ provider.second_field.placeholder|default:'' }}" aria-label="{{ provider.second_field.placeholder|default:_('Secret key') }}" autocomplete="off" class="ifinmail-input">
           {% endif %}
           <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% blocktrans trimmed with name=provider.name|default:'' %}Auto-Configure with {{ name }}{% endblocktrans %}</button>
         </form>
@@ -46,8 +46,8 @@
     </div>
 
     <div class="ifinmail-setup-actions ifinmail-mt-4">
-      <button type="button" onclick="location.href='{% url 'accounts:setup_step' step='dns-manual' %}'"
-              class="ifinmail-btn ifinmail-btn--outline">{% trans "I'll configure DNS manually" %}</button>
+      <a href="{% url 'accounts:setup_step' step='dns-manual' %}"
+         class="ifinmail-btn ifinmail-btn--outline">{% trans "I'll configure DNS manually" %}</a>
       <form method="post" action="{% url 'accounts:setup_advance' %}" class="ifinmail-inline">
         {% csrf_token %}
         <input type="hidden" name="current_step" value="dns">

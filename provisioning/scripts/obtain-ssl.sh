@@ -71,7 +71,7 @@ if "${COMPOSE[@]}" run --rm certbot \
 
     echo ""
     echo "Auto-renewal is handled by the certbot service:"
-    echo "  docker compose --profile certbot up -d certbot"
+    echo "  docker compose up -d certbot"
 else
     # Restore self-signed cert on failure
     if [ -n "${BACKUP_DIR:-}" ] && [ -d "$BACKUP_DIR" ]; then

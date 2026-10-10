@@ -55,11 +55,11 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = os.environ.get(
 )
 
 # Content Security Policy
-# Tightened incrementally as inline scripts/styles are extracted.
+# Scripts are fully extracted (no inline scripts or on* handlers). Styles still need
+# unsafe-inline for brand overrides and a few JS-set style attributes.
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = (
-    "'self'",
-    "'unsafe-inline'",  # Required while inline scripts are being extracted
+    "'self'",  # All templates ship scripts as static files; no inline scripts or handlers
 )
 CSP_STYLE_SRC = (
     "'self'",

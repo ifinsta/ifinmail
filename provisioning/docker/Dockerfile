@@ -22,7 +22,8 @@ COPY provisioning/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 RUN useradd -m -u 1000 -s /bin/bash app && \
-    chown -R app:app /app
+    mkdir -p /var/lib/ifinmail/runtime /etc/dkim && \
+    chown -R app:app /app /var/lib/ifinmail /etc/dkim
 
 EXPOSE 8000
 

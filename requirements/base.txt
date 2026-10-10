@@ -8,3 +8,6 @@ psycopg[binary]>=3.2,<4.0
 celery[redis]>=5.4,<6.0
 redis>=5.2,<6.0
 sentry-sdk[django]>=2.0,<3.0
+cryptography>=43,<46
+passlib>=1.7.4,<2
+dnspython>=2.6,<3

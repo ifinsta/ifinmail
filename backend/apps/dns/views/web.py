@@ -4,6 +4,7 @@ import csv
 import logging
 import os
 import re
+from collections.abc import Callable
 from contextlib import suppress
 
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -14,6 +15,11 @@ from django.views.decorators.http import require_POST
 
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
 from backend.apps.domains.services import DomainService
+from backend.apps.domains.services.provisioning import (
+    DomainProvisioningError,
+    ProvisioningService,
+)
+from backend.apps.mail.services.postfix_runtime import OutboundConfigError, PostfixRuntime
 from backend.services.audit import AuditService
 from backend.services.monitoring import MonitoringService
 
@@ -37,6 +43,7 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
     """Render the DNS configuration page."""
     domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
     server_ip = _get_server_ip()
+    outbound = PostfixRuntime.state()
     provider_meta: dict[str, dict[str, object]] = {
         'cloudflare': {
             'help': str(_('Requires an API token with DNS:Edit permission.')),
@@ -133,9 +140,9 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
         'toolbox_spf_record': toolbox_spf_record,
         'active_section': 'dns',
         'header_search_placeholder': 'Search domains or records...',
-        'smtp_proxy_enabled': os.environ.get('MAIL_SMTP_PROXY', '').lower() in ('1', 'true', 'yes'),
-        'smart_host_enabled': os.environ.get('MAIL_SMART_HOST', '').lower() in ('1', 'true', 'yes'),
-        'max_hop_count': int(os.environ.get('MAIL_MAX_HOP_COUNT', '10')),
+        'smtp_proxy_enabled': outbound.smtp_proxy_enabled,
+        'smart_host_enabled': outbound.smart_host_enabled,
+        'max_hop_count': outbound.max_hops,
     }
     return render(request, 'admin/dns_config.html', context)
 
@@ -198,30 +205,35 @@ def dns_register_domain(request: HttpRequest) -> JsonResponse:
         ip_address = None  # root domains use auto-detected server IP
 
     try:
-        domain, created = DomainService.get_or_create_domain(
-            name=domain_name,
+        outcome = ProvisioningService.add_domain(
+            domain_name,
             ip_address=ip_address,
-        )
-        server_ip = _get_server_ip()
-        records = _build_records(domain_name, server_ip, ip_address=ip_address)
-        AuditService.record(
-            action='domain_registered',
-            user=request.user.email if request.user.is_authenticated else None,
-            detail=f'{domain_name} (created={created}, records={len(records)})',
+            actor=request.user.email if request.user.is_authenticated else None,
         )
         return JsonResponse(
             {
-                'status': 'ok',
+                'status': 'ok' if outcome.ok else 'partial',
                 'domain': domain_name,
-                'created': created,
-                'records': [{'type': r.type, 'name': r.name, 'value': r.value} for r in records],
+                'created': outcome.created,
+                'records': outcome.dns_records,
+                'steps': [
+                    {'name': st.name, 'status': str(st.status), 'detail': st.detail}
+                    for st in outcome.steps
+                ],
+                'verification': outcome.verification.as_dict() if outcome.verification else None,
             },
+            content_type='application/json; charset=utf-8',
+        )
+    except DomainProvisioningError as e:
+        return JsonResponse(
+            {'status': 'err', 'error': str(e)},
+            status=400,
             content_type='application/json; charset=utf-8',
         )
     except Exception as e:
         logger.exception('Failed to register domain %s: %s', domain_name, e)
         return JsonResponse(
-            {'status': 'err', 'error': str(e)},
+            {'status': 'err', 'error': 'Could not provision the domain. See the server log.'},
             status=500,
             content_type='application/json; charset=utf-8',
         )
@@ -253,21 +265,41 @@ def dns_export_records(request: HttpRequest) -> HttpResponse:
     return response
 
 
+def _outbound_response(
+    request: HttpRequest, action: str, detail: str, change: Callable[[], bool]
+) -> JsonResponse:
+    """Apply an outbound-mail change, audit it, and report the new state."""
+    try:
+        enabled = change()
+    except OutboundConfigError as exc:
+        return JsonResponse(
+            {'status': 'err', 'error': str(exc)},
+            status=400,
+            content_type='application/json; charset=utf-8',
+        )
+    AuditService.record(
+        action=action,
+        user=request.user.email if request.user.is_authenticated else None,
+        detail=f'{detail} {"enabled" if enabled else "disabled"}',
+    )
+    return JsonResponse(
+        {'status': 'ok', 'enabled': enabled, 'note': 'Applied to Postfix within about 15 seconds.'},
+        content_type='application/json; charset=utf-8',
+    )
+
+
 @login_required
 @user_passes_test(_is_staff, login_url='accounts:login')
 @require_POST
 def dns_toggle_proxy(request: HttpRequest) -> JsonResponse:
-    """Toggle Global SMTP Proxy setting."""
-    current = os.environ.get('MAIL_SMTP_PROXY', '').lower() in ('1', 'true', 'yes')
-    # In production this would persist to a config file; here we note the intended change.
-    AuditService.record(
-        action='smtp_proxy_toggle',
-        user=request.user.email if request.user.is_authenticated else None,
-        detail=f'SMTP Proxy {"disabled" if current else "enabled"}',
-    )
-    return JsonResponse(
-        {'status': 'ok', 'enabled': not current, 'note': 'Restart postfix to apply'},
-        content_type='application/json; charset=utf-8',
+    """Toggle the global SMTP proxy (all outbound mail goes through MAIL_SMTP_PROXY)."""
+    return _outbound_response(
+        request,
+        'smtp_proxy_toggle',
+        'SMTP Proxy',
+        lambda: PostfixRuntime.set_smtp_proxy(
+            not PostfixRuntime.state().smtp_proxy_enabled
+        ).smtp_proxy_enabled,
     )
 
 
@@ -275,16 +307,14 @@ def dns_toggle_proxy(request: HttpRequest) -> JsonResponse:
 @user_passes_test(_is_staff, login_url='accounts:login')
 @require_POST
 def dns_toggle_relay(request: HttpRequest) -> JsonResponse:
-    """Toggle Smart Host Relay setting."""
-    current = os.environ.get('MAIL_SMART_HOST', '').lower() in ('1', 'true', 'yes')
-    AuditService.record(
-        action='smart_host_toggle',
-        user=request.user.email if request.user.is_authenticated else None,
-        detail=f'Smart Host Relay {"disabled" if current else "enabled"}',
-    )
-    return JsonResponse(
-        {'status': 'ok', 'enabled': not current, 'note': 'Restart postfix to apply'},
-        content_type='application/json; charset=utf-8',
+    """Toggle the smart-host relay (outbound via MAIL_SMART_HOST)."""
+    return _outbound_response(
+        request,
+        'smart_host_toggle',
+        'Smart Host Relay',
+        lambda: PostfixRuntime.set_smart_host(
+            not PostfixRuntime.state().smart_host_enabled
+        ).smart_host_enabled,
     )
 
 
@@ -292,22 +322,26 @@ def dns_toggle_relay(request: HttpRequest) -> JsonResponse:
 @user_passes_test(_is_staff, login_url='accounts:login')
 @require_POST
 def dns_set_hop_count(request: HttpRequest) -> JsonResponse:
-    """Update max hop count for mail routing."""
+    """Update Postfix hopcount_limit."""
     try:
-        value = int(request.POST.get('value', '10'))
-        value = max(5, min(30, value))
-    except (ValueError, TypeError):
+        value = int(request.POST.get('value', ''))
+        state = PostfixRuntime.set_max_hops(value)
+    except (ValueError, TypeError, OutboundConfigError):
         return JsonResponse(
-            {'status': 'err', 'error': 'Invalid hop count'},
+            {'status': 'err', 'error': 'Hop count must be a number from 5 to 30'},
             status=400,
             content_type='application/json; charset=utf-8',
         )
     AuditService.record(
         action='hop_count_update',
         user=request.user.email if request.user.is_authenticated else None,
-        detail=f'Set max hop count to {value}',
+        detail=f'Set max hop count to {state.max_hops}',
     )
     return JsonResponse(
-        {'status': 'ok', 'value': value, 'note': 'Restart postfix to apply'},
+        {
+            'status': 'ok',
+            'value': state.max_hops,
+            'note': 'Applied to Postfix within about 15 seconds.',
+        },
         content_type='application/json; charset=utf-8',
     )

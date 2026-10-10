@@ -48,9 +48,9 @@
         <!-- ROW C & D: Main Content Grid -->
         <div class="ifinmail-admin-grid">
             <!-- ROW C: Domain Directory & Health (8 columns) -->
-            <article class="ifinmail-table-panel ifinmail-span-8">
+            <article class="ifinmail-table-panel ifinmail-span-8" tabindex="0" role="region" aria-labelledby="dashboard-table-title">
                 <div class="ifinmail-table-panel-header">
-                    <h2 class="ifinmail-panel-title">{% trans 'Domain Directory & Health' %}</h2>
+                    <h2 class="ifinmail-panel-title" id="dashboard-table-title">{% trans 'Domain Directory & Health' %}</h2>
                     <span class="ifinmail-overline">{% trans 'Live Resolver Validation' %}</span>
                 </div>
                 <table class="ifinmail-admin-table">
@@ -91,7 +91,7 @@
             </article>
 
             <!-- ROW C: Quick Actions (4 columns) -->
-            <aside class="ifinmail-panel ifinmail-span-4">
+            <section class="ifinmail-panel ifinmail-span-4">
                 <h2 class="ifinmail-panel-title">{% trans 'Quick Actions' %}</h2>
                 <div>
                     <a href="{% url 'accounts:user_management' %}" class="ifinmail-quick-action">
@@ -116,10 +116,10 @@
                         </span>
                     </a>
                 </div>
-            </aside>
+            </section>
 
             <!-- ROW D: Recent Activity & Audits (7 columns) -->
-            <aside class="ifinmail-panel ifinmail-span-7">
+            <section class="ifinmail-panel ifinmail-span-7">
                 <h2 class="ifinmail-panel-title">{% trans 'Recent Activity & Audits' %}</h2>
                 <div class="ifinmail-timeline">
                     {% for item in events %}
@@ -137,7 +137,7 @@
                 <div class="ifinmail-audit-more">
                     <a class="ifinmail-link-strong" href="{% url 'accounts:logs' %}">{% trans 'View All Logs →' %}</a>
                 </div>
-            </aside>
+            </section>
 
             <!-- ROW D: System Telemetry & SSL (5 columns) -->
             <article class="ifinmail-panel ifinmail-span-5">
@@ -159,20 +159,20 @@
                     <div>
                         <span class="ifinmail-overline">{% trans 'Active SSL/TLS Certificate' %}</span>
                         {% if tls_info.issuer %}
-                        <div style="font-size:12px;display:flex;flex-direction:column;gap:5px">
+                        <div class="ifinmail-kv-list">
                             <div><span class="ifinmail-text--muted">{% trans 'Host' %}:</span> <code>{{ mail_hostname|default:'Not configured' }}</code></div>
-                            <div><span class="ifinmail-text--muted">{% trans 'Issuer' %}:</span> <code style="font-size:11px">{{ tls_info.issuer }}</code></div>
+                            <div><span class="ifinmail-text--muted">{% trans 'Issuer' %}:</span> <code>{{ tls_info.issuer }}</code></div>
                             <div>
                                 <span class="ifinmail-text--muted">{% trans 'Expiry' %}:</span>
                                 <span class="ifinmail-badge {% if tls_info.expiry_status == 'ok' %}ifinmail-badge--success{% elif tls_info.expiry_status == 'warn' %}ifinmail-badge--warning{% else %}ifinmail-badge--danger{% endif %}">{{ tls_info.expiry_days }}d</span>
                             </div>
                             {% if tls_info.sans %}
-                            <div style="word-break:break-all"><span class="ifinmail-text--muted">{% trans 'SANs' %}:</span> <code style="font-size:11px">{{ tls_info.sans|join:', ' }}</code></div>
+                            <div class="ifinmail-break-all"><span class="ifinmail-text--muted">{% trans 'SANs' %}:</span> <code>{{ tls_info.sans|join:', ' }}</code></div>
                             {% endif %}
                         </div>
                         {% else %}
-                        <div class="ifinmail-empty-state ifinmail-empty-state--compact" style="padding: 12px; border: 1px dashed var(--ifinmail-color-danger)">
-                            <p style="color: var(--ifinmail-color-danger); margin: 0">{% trans 'No SSL/TLS certificate found on this server.' %}</p>
+                        <div class="ifinmail-empty-state ifinmail-empty-state--compact ifinmail-empty-state--danger">
+                            <p>{% trans 'No SSL/TLS certificate found on this server.' %}</p>
                         </div>
                         {% endif %}
                     </div>

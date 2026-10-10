@@ -61,6 +61,16 @@ class DeliverabilityService:
         return results
 
     @staticmethod
+    def resolvers() -> list[str]:
+        """Configured DNS resolvers (public accessor for settings pages)."""
+        return DeliverabilityService._get_resolvers()
+
+    @staticmethod
+    def blocklists() -> list[str]:
+        """Configured DNS blocklists (public accessor for settings pages)."""
+        return DeliverabilityService._get_rbls()
+
+    @staticmethod
     def _get_resolvers() -> list[str]:
         raw = os.environ.get('DELIVERABILITY_DNS_RESOLVERS', '')
         if raw:

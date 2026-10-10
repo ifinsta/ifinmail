@@ -21,6 +21,7 @@
     <form method="post" action="{% url 'accounts:setup_advance' %}">
       {% csrf_token %}
       <input type="hidden" name="current_step" value="account">
+      {% if error %}<div class="ifinmail-login-error" role="alert">{{ error }}</div>{% endif %}
 
       <label class="ifinmail-setup-label" for="email">{% trans 'Email address' %}</label>
       <input type="email" id="email" name="email" class="ifinmail-input"

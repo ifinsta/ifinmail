@@ -19,7 +19,7 @@
   <div class="ifinmail-error-actions">
     {% block error_actions %}
     <a href="{% url 'accounts:dashboard' %}" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Return to Dashboard' %}</a>
-    <button type="button" class="ifinmail-btn" onclick="window.history.back()">{% trans 'Go Back' %}</button>
+    <button type="button" class="ifinmail-btn" data-action="history-back">{% trans 'Go Back' %}</button>
     {% endblock %}
   </div>
 </div>

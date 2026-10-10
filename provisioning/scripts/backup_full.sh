@@ -155,6 +155,15 @@ find /backups -name "ifinmail_backup_*.tar.gz*" -mtime +$RETENTION_DAYS -delete 
 SIZE=$(du -h "$ARCHIVE_NAME" | cut -f1)
 echo "=== Backup complete: $ARCHIVE_NAME ($SIZE) ==="
 
+# Tell the console when the last successful backup finished (shown under Settings).
+record_backup_status() {
+    local volume="${COMPOSE_PROJECT_NAME:-docker}_runtime_data"
+    docker run --rm -v "${volume}:/runtime" alpine:3.20 \
+        sh -c 'date -u +%Y-%m-%dT%H:%M:%SZ > /runtime/last-backup-at' >/dev/null 2>&1 \
+        || echo "  (could not record backup status in the runtime volume)"
+}
+record_backup_status
+
 # Verify checksums
 echo "Verifying backup integrity..."
 TMP_VERIFY=$(mktemp -d)

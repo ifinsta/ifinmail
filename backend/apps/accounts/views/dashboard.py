@@ -1,6 +1,5 @@
 """Dashboard view — live stats, service health, DNS status, activity."""
 
-import json
 import logging
 import os
 import shutil

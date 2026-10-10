@@ -46,16 +46,52 @@ After provisioning, create these DNS records for your domain. The provisioning s
 
 **Porkbun**: go to Domain Management → DNS → Edit. Use the empty/blank host field for root records.
 
-## Logging In
+## First sign-in and setup
 
-After provisioning, the admin panel is at `https://mail.yourdomain.com/django-admin/`. Log in with the admin username and password printed during setup (also stored in `provisioning/.env`).
+After provisioning, open `https://mail.yourdomain.com/accounts/login/` and sign in with the administrator email and password printed during setup (also in `provisioning/.env`). The first time, you land in the **setup wizard**:
 
-### Creating Your First Mailbox
+1. **Domain**: confirms your domain. Adding a domain creates its DKIM key, the `postmaster@`/`abuse@` aliases and queues its hostnames for the TLS certificate.
+2. **DNS**: connect Cloudflare, Porkbun or DigitalOcean to publish every record automatically, or copy the records shown and add them at your DNS host.
+3. **Account**: creates your own mailbox and administrator login in one step.
 
-1. Go to Domains → Add domain (your domain should already be listed)
-2. Go to Mailboxes → Add mailbox (choose your domain, enter the local part like `hello`)
-3. Go to Users → Add mail user (email must match the mailbox)
-4. Configure your email client using the settings from the admin dashboard's "Email Setup" page
+Everything after that lives under **Settings** (`/accounts/settings/`):
+
+| Page | What it does |
+| --- | --- |
+| Mailboxes | Create mailboxes (login and mailbox together), change passwords, set quotas, disable or delete. Also the switch for public self-registration (off by default). |
+| Aliases | Forward an address to one or more others. |
+| Domains & DNS | Add domains, connect a DNS provider, see which records are verified. |
+| Mail server, Deliverability, Security, Storage | Read-only view of the effective environment configuration. |
+| Backups & scheduled jobs | When the last backup ran and when DNS was last verified. |
+
+Adding another domain later is one action (**Domains & DNS > Register New Domain**); it runs the same pipeline and reports each step.
+
+## How a new domain becomes live
+
+`ProvisioningService.add_domain` runs these idempotent steps (re-running repairs whatever is missing):
+
+1. Domain row.
+2. DKIM key for that domain (stored in the database and written to `/etc/dkim/<domain>.<selector>.key`, which Rspamd signs from; no per-domain Rspamd config).
+3. `postmaster@` and `abuse@` aliases to the administrator.
+4. DNS: if a provider is connected, A, MX, SPF, DMARC, DKIM, MTA-STS and `autoconfig`/`autodiscover` records are published; otherwise they are listed for you to add. Existing TXT records of other purposes (for example a site-verification token) are never overwritten.
+5. Certificates: the hostnames the certificate must cover are written for the certbot container, which re-issues the certificate as soon as each name resolves to this server.
+6. Verification: DNS is checked against public resolvers. **Postfix only accepts mail for a domain once its MX points at this server**; the console switches that on automatically and re-checks every 15 minutes. A DNS outage never turns a working domain off.
+
+Clients configure themselves: `autoconfig.<domain>` and `autodiscover.<domain>` (Thunderbird, Outlook, Apple Mail) and the MTA-STS policy at `https://mta-sts.<domain>/.well-known/mta-sts.txt` are served for every hosted domain. MTA-STS starts in `testing` mode.
+
+## Scheduled jobs and backups
+
+A `worker` and a `beat` container run the periodic jobs: DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days) and re-publishing the outbound settings. `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
+
+## Outbound relay settings
+
+Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. The console publishes them to a file that the postfix container applies with `postconf` and reloads within seconds (only an allow-list of keys is ever applied). The relay hostnames themselves come from `MAIL_SMART_HOST` and `MAIL_SMTP_PROXY` in the environment.
+
+## Limits to know about
+
+- There is no webmail. Mailbox owners use an email app (IMAP 993, SMTP 587); signing in to the console with a plain mailbox shows these settings.
+- Quotas are enforced by Dovecot from the mailbox table; deleting a mailbox leaves its stored mail on disk (the console mounts the mail volume read-only).
+- Admin multi-factor authentication is not implemented yet.
 
 ## Managing the Stack
 

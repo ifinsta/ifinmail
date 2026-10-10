@@ -1,11 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin/settings_base.html" %}
 {% load i18n %}{% load static %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Spam Filtering — {{ name }}{% endblocktrans %}{% endblock %}
-{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
-{% block header %}{% include "includes/header.html" %}{% endblock %}
 
-{% block content %}
+{% block settings_content %}
 <section class="ifinmail-admin-content">
     <div class="ifinmail-admin-page">
         <div class="ifinmail-page-header">
@@ -35,13 +33,13 @@
                 <div class="ifinmail-action-row ifinmail-sensitivity-header">
                     <span>{% trans 'Heuristic Aggression Level' %}</span><strong id="sensitivity-label" class="ifinmail-sensitivity-value">{{ heuristic_level|default:'5.0' }}</strong>
                 </div>
-                <input type="range" id="sensitivity-slider" min="1" max="10" step="0.5" value="{{ heuristic_level|default:'5.0' }}" data-action="set-sensitivity" data-url="{% url 'accounts:spam_sensitivity' %}" class="ifinmail-sensitivity-slider">
+                <input type="range" id="sensitivity-slider" aria-label="{% trans 'Heuristic Aggression Level' %}" min="1" max="10" step="0.5" value="{{ heuristic_level|default:'5.0' }}" data-action="set-sensitivity" data-url="{% url 'accounts:spam_sensitivity' %}" class="ifinmail-sensitivity-slider">
                 <div class="ifinmail-action-row ifinmail-sensitivity-labels">
                     <span>{% trans 'Permissive' %}</span><span>{% trans 'Standard' %}</span><span>{% trans 'Strict' %}</span><span>{% trans 'Zero-Tolerance' %}</span>
                 </div>
                 <div class="ifinmail-quote">{% trans 'Higher values increase the likelihood of catching sophisticated spam but may elevate false positive risks for encrypted attachments.' %}</div>
             </article>
-            <aside class="ifinmail-panel ifinmail-span-4">
+            <section class="ifinmail-panel ifinmail-span-4">
                 <h2 class="ifinmail-panel-title">{% trans 'Engines' %}</h2>
                 <div class="ifinmail-engine-list">
                     {% for engine in filter_engines %}
@@ -50,11 +48,11 @@
                     <p class="ifinmail-text--muted">{% trans 'No filter engines configured.' %}</p>
                     {% endfor %}
                 </div>
-            </aside>
+            </section>
 
-            <article class="ifinmail-table-panel ifinmail-span-12">
+            <article class="ifinmail-table-panel ifinmail-span-12" tabindex="0" role="region" aria-labelledby="spam-table-title">
                 <div class="ifinmail-table-panel-header">
-                    <div><h2 class="ifinmail-panel-title">{% trans 'DNSBL Blacklist Settings' %}</h2><p>{% trans 'Real-time domain reputation checking across global providers.' %}</p></div>
+                    <div><h2 class="ifinmail-panel-title" id="spam-table-title">{% trans 'DNSBL Blacklist Settings' %}</h2><p>{% trans 'Real-time domain reputation checking across global providers.' %}</p></div>
                     <button class="ifinmail-btn ifinmail-btn--primary" type="button" data-action="toggle-add-provider">{% trans 'Add Provider' %}</button>
                 </div>
                 {% include "includes/admin_table.html" with span=None title=None headers=provider_headers|default:'' rows=providers|default:'' row_template="admin/partials/provider_row.html" %}

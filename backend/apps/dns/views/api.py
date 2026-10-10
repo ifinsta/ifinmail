@@ -9,9 +9,15 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
+from backend.apps.domains.models import Domain
+from backend.apps.domains.services.provisioning import (
+    DomainProvisioningError,
+    ProvisioningService,
+)
+from backend.apps.domains.services.verification import DomainVerificationService
 from backend.services.monitoring import MonitoringService
 
-from ._helpers import _build_records, _get_server_ip, _is_staff
+from ._helpers import _is_staff
 
 logger = logging.getLogger('backend')
 
@@ -43,27 +49,41 @@ def dns_configure(request: HttpRequest) -> JsonResponse:
         credentials=creds,
     )
 
-    server_ip = _get_server_ip()
-    records = _build_records(domain, server_ip)
-
+    # The pipeline creates the DKIM key first, then pushes records through the
+    # provider that was just saved, so the DKIM record is never a placeholder.
     try:
-        provider = cls(**creds)
-        result = provider.configure_domain(domain, records)
-        return JsonResponse(
-            {
-                'success': result.success,
-                'message': result.message,
-                'records_created': result.records_created,
-                'records_failed': result.records_failed,
-                'propagation_note': (
-                    'DNS changes may take up to 48 hours to propagate. '
-                    'Verify after a few minutes.'
-                ),
-            }
+        outcome = ProvisioningService.add_domain(
+            domain,
+            actor=request.user.email if request.user.is_authenticated else None,
         )
-    except Exception as e:
+    except DomainProvisioningError as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+    except Exception:
         logger.exception('DNS configuration failed for %s via %s', domain, provider_name)
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+        return JsonResponse(
+            {'success': False, 'message': 'DNS configuration failed. See the server log.'},
+            status=500,
+        )
+    dns_step = next(st for st in outcome.steps if st.name == 'DNS records')
+    success = str(dns_step.status) == 'ok'
+    return JsonResponse(
+        {
+            'success': success,
+            'message': dns_step.detail,
+            'records_created': [f'{r["type"]} {r["name"]}' for r in outcome.dns_records]
+            if success
+            else [],
+            'records_failed': [] if success else [dns_step.detail],
+            'steps': [
+                {'name': st.name, 'status': str(st.status), 'detail': st.detail}
+                for st in outcome.steps
+            ],
+            'propagation_note': (
+                'DNS changes may take up to 48 hours to propagate. '
+                'The server re-checks automatically and starts accepting mail once MX resolves.'
+            ),
+        }
+    )
 
 
 @login_required
@@ -72,7 +92,13 @@ def dns_status(request: HttpRequest) -> JsonResponse:
     """GET endpoint: return current DNS record verification status."""
     domain = request.GET.get('domain', os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', '')))
     try:
-        status = MonitoringService.check_dns(domain)
+        row = Domain.objects.filter(name=domain).first()
+        # Persist the outcome for hosted domains so the dashboard reflects it.
+        status = (
+            DomainVerificationService.verify(row).as_dict()
+            if row is not None
+            else MonitoringService.check_dns(domain)
+        )
         return JsonResponse({'domain': domain, 'records': status})
     except Exception as e:
         return JsonResponse({'domain': domain, 'error': str(e)}, status=500)

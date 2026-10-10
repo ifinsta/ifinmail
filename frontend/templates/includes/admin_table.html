@@ -1,5 +1,5 @@
 {% load i18n %}
-<article class="ifinmail-table-panel{% if span is not None %} ifinmail-span-{{ span }}{% endif %}{% if extra_class %} {{ extra_class }}{% endif %}">
+<article class="ifinmail-table-panel{% if span is not None %} ifinmail-span-{{ span }}{% endif %}{% if extra_class %} {{ extra_class }}{% endif %}"{% if title or aria_label %} tabindex="0" role="region" aria-label="{{ title|default:aria_label }}"{% endif %}>
     {% if title or title_extra %}
     <div class="ifinmail-table-panel-header">
         {% if title %}

@@ -95,71 +95,14 @@ class MonitoringService:
 
     @staticmethod
     def check_dns(domain: str) -> dict[str, Any]:
-        """Validate DNS records for a domain. Returns per-record status."""
-        records = {
-            'mx': {'status': 'unchecked', 'detail': ''},
-            'spf': {'status': 'unchecked', 'detail': ''},
-            'dkim': {'status': 'unchecked', 'detail': ''},
-            'dmarc': {'status': 'unchecked', 'detail': ''},
-        }
-        dkim_selector = os.environ.get('DKIM_SELECTOR', 'default')
+        """Validate DNS records for a domain. Returns per-record status.
 
-        if not shutil.which('dig'):
-            return {k: {'status': 'err', 'detail': 'dig not found on PATH'} for k in records}
+        Uses the in-process resolver (dnspython), so it works in the api container
+        which has no ``dig``, and it checks that records point at *this* server.
+        """
+        from backend.apps.domains.services.verification import DomainVerificationService
 
-        # MX check
-        try:
-            result = subprocess.run(
-                ['dig', '+short', 'MX', domain], capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                records['mx'] = {'status': 'pass', 'detail': result.stdout.strip().split('\n')[0]}
-            else:
-                records['mx'] = {'status': 'fail', 'detail': 'No MX record found'}
-        except Exception as e:
-            records['mx'] = {'status': 'fail', 'detail': str(e)}
-
-        # SPF check
-        try:
-            result = subprocess.run(
-                ['dig', '+short', 'TXT', domain], capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0 and 'v=spf1' in result.stdout.lower():
-                records['spf'] = {'status': 'pass', 'detail': 'SPF record found'}
-            else:
-                records['spf'] = {'status': 'fail', 'detail': 'No SPF record found'}
-        except Exception as e:
-            records['spf'] = {'status': 'fail', 'detail': str(e)}
-
-        # DKIM check
-        dkim_domain = f'{dkim_selector}._domainkey.{domain}'
-        try:
-            result = subprocess.run(
-                ['dig', '+short', 'TXT', dkim_domain], capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0 and 'v=DKIM1' in result.stdout.upper():
-                records['dkim'] = {'status': 'pass', 'detail': 'DKIM record found'}
-            else:
-                records['dkim'] = {'status': 'fail', 'detail': 'No DKIM record found'}
-        except Exception as e:
-            records['dkim'] = {'status': 'fail', 'detail': str(e)}
-
-        # DMARC check
-        try:
-            result = subprocess.run(
-                ['dig', '+short', 'TXT', f'_dmarc.{domain}'],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if result.returncode == 0 and 'v=DMARC1' in result.stdout.upper():
-                records['dmarc'] = {'status': 'pass', 'detail': 'DMARC record found'}
-            else:
-                records['dmarc'] = {'status': 'fail', 'detail': 'No DMARC record found'}
-        except Exception as e:
-            records['dmarc'] = {'status': 'fail', 'detail': str(e)}
-
-        return records
+        return DomainVerificationService.check(domain).as_dict()
 
     @staticmethod
     def get_full_health() -> dict[str, Any]:

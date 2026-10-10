@@ -1,5 +1,6 @@
 """Public registration flow — create profile, set password, verify email, choose username."""
 
+import functools
 import logging
 import re
 import time
@@ -15,90 +16,38 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from backend.apps.accounts.services import UserService
+from backend.apps.accounts.services.registration_policy import registration_open
 from backend.apps.domains.services import DomainService
-from backend.apps.mail.services import MailService
+from backend.apps.mail.services import MailboxService
+from backend.apps.mail.types.provisioning import MailboxError
+from backend.apps.mail.types.reserved import RESERVED_LOCAL_PARTS
 from backend.services.audit import AuditService
 
 logger = logging.getLogger('backend')
 token_generator = PasswordResetTokenGenerator()
 
-_RESERVED_USERNAMES: frozenset[str] = frozenset(
-    {
-        'admin',
-        'root',
-        'postmaster',
-        'abuse',
-        'noreply',
-        'mailer-daemon',
-        'hostmaster',
-        'webmaster',
-        'security',
-        'support',
-        'info',
-        'help',
-        'contact',
-        'sales',
-        'marketing',
-        'spam',
-        'mail',
-        'email',
-        'dmarc',
-        'dkim',
-        'spf',
-        'bounce',
-        'return',
-        'mailer',
-        'mta',
-        'smtp',
-        'imap',
-        'pop3',
-        'pop',
-        'autodiscover',
-        'autoconfig',
-        'webmail',
-        'cpanel',
-        'whm',
-        'plesk',
-        'roundcube',
-        'squirrelmail',
-        'rainloop',
-        'snappymail',
-        'test',
-        'dev',
-        'stage',
-        'staging',
-        'prod',
-        'production',
-        'api',
-        'www',
-        'ftp',
-        'ssh',
-        'git',
-        'mysql',
-        'database',
-        'server',
-        'status',
-        'health',
-        'monitor',
-        'alert',
-        'team',
-        'manager',
-        'staff',
-        'official',
-        'ifinmail',
-        'sysadmin',
-        'administrator',
-        'host',
-        'dns',
-        'ns1',
-        'ns2',
-        'mx',
-        'mx1',
-        'mx2',
-        'cloud',
-        'service',
-    }
-)
+_RESERVED_USERNAMES = RESERVED_LOCAL_PARTS
+
+
+def _closed_response(request: HttpRequest) -> HttpResponse:
+    return render(
+        request,
+        'admin/login.html',
+        {'error': 'Registration is closed. Ask your administrator to create a mailbox for you.'},
+        status=403,
+    )
+
+
+def requires_open_registration(view):
+    """Block the sign-up pages (but not email verification links) when registration is closed."""
+
+    @functools.wraps(view)
+    def wrapper(request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        if not registration_open():
+            return _closed_response(request)
+        return view(request, *args, **kwargs)
+
+    return wrapper
 
 
 def _get_primary_domain() -> str:
@@ -145,6 +94,7 @@ def _send_verification_email(request: HttpRequest, email: str) -> tuple[bool, st
         return False, verify_url
 
 
+@requires_open_registration
 def step_profile(request: HttpRequest) -> HttpResponse:
     """Step 1: Collect email to create a profile."""
     if request.method == 'POST':
@@ -177,6 +127,7 @@ def step_profile(request: HttpRequest) -> HttpResponse:
     )
 
 
+@requires_open_registration
 def step_password(request: HttpRequest) -> HttpResponse:
     """Step 2: Set a password for the account."""
     email = request.session.get('reg_email', '')
@@ -224,6 +175,7 @@ def step_password(request: HttpRequest) -> HttpResponse:
     return render(request, 'registration/step_password.html')
 
 
+@requires_open_registration
 def step_verify(request: HttpRequest) -> HttpResponse:
     """Step 3: Show verification sent status with resend option."""
     email = request.session.get('reg_email', '') or request.POST.get('email', '')
@@ -296,6 +248,7 @@ def step_verify_confirm(request: HttpRequest, uidb64: str, token: str) -> HttpRe
     return redirect('accounts:reg_username')
 
 
+@requires_open_registration
 def step_username(request: HttpRequest) -> HttpResponse:
     """Step 4: Choose a username (local part) for the email address."""
     email = request.session.get('reg_email', '')
@@ -319,17 +272,26 @@ def step_username(request: HttpRequest) -> HttpResponse:
             error = 'This username is reserved and cannot be used.'
         else:
             try:
-                if domain:
-                    from backend.apps.domains.models import Domain
+                from django.contrib.auth import get_user_model
 
-                    domain_obj = DomainService.get_domain_by_name(domain) or Domain(name=domain)
-                    MailService.get_or_create_mailbox(domain=domain_obj, local_part=chosen_username)
-                full_address = f'{chosen_username}@{domain}' if domain else chosen_username
-                request.session['reg_username'] = chosen_username
-                AuditService.record(
-                    'registration_username_chosen', user=email, detail=full_address, severity='info'
-                )
-                success = True
+                user = get_user_model().objects.filter(email=email, is_active=True).first()
+                if user is None or not domain:
+                    error = 'Your sign-up session expired. Please start again.'
+                else:
+                    MailboxService.claim_for_login(user, domain, chosen_username)
+                    full_address = f'{chosen_username}@{domain}'
+                    request.session['reg_contact_email'] = email
+                    request.session['reg_email'] = full_address
+                    request.session['reg_username'] = chosen_username
+                    AuditService.record(
+                        'registration_username_chosen',
+                        user=full_address,
+                        detail=f'contact={email}',
+                        severity='info',
+                    )
+                    success = True
+            except MailboxError as exc:
+                error = str(exc)
             except IntegrityError:
                 error = 'This username is already taken. Try another.'
             except Exception as e:
@@ -350,6 +312,7 @@ def step_username(request: HttpRequest) -> HttpResponse:
     )
 
 
+@requires_open_registration
 def step_complete(request: HttpRequest) -> HttpResponse:
     """Step 5: Registration complete — auto-login and redirect."""
     email = request.session.get('reg_email', '')
@@ -379,6 +342,7 @@ def step_complete(request: HttpRequest) -> HttpResponse:
         'reg_email_sent',
         'reg_verify_url',
         'reg_resent_at',
+        'reg_contact_email',
     ]:
         request.session.pop(key, None)
 
@@ -393,15 +357,18 @@ def step_complete(request: HttpRequest) -> HttpResponse:
     )
 
 
+@requires_open_registration
 def check_username_availability(request: HttpRequest) -> JsonResponse:
     """JSON endpoint for real-time username availability checking."""
     username = request.GET.get('username', '').strip().lower()
     if not username or not re.match(r'^[a-z0-9][a-z0-9._-]{1,30}[a-z0-9]$', username):
         return JsonResponse({'available': False, 'reason': 'invalid'})
+    if username in _RESERVED_USERNAMES:
+        return JsonResponse({'available': False, 'reason': 'reserved'})
+    domain = _get_primary_domain()
     try:
-        from backend.apps.mail.models import Mailbox
-
-        taken = Mailbox.objects.filter(local_part=username).exists()
-        return JsonResponse({'available': not taken})
+        taken = bool(domain) and MailboxService.is_taken(f'{username}@{domain}')
     except Exception:
-        return JsonResponse({'available': True})
+        logger.exception('Username availability check failed')
+        return JsonResponse({'available': False, 'reason': 'error'})
+    return JsonResponse({'available': not taken})

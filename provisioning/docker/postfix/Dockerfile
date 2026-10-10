@@ -16,11 +16,12 @@ COPY main.cf /etc/postfix/main.cf.template
 COPY master.cf /etc/postfix/master.cf
 COPY pgsql/ /etc/postfix/pgsql-templates/
 COPY entrypoint.sh /usr/local/bin/ifinmail-postfix-entrypoint
+COPY sync-overrides.sh /usr/local/bin/ifinmail-postfix-sync
 
 RUN mkdir -p /etc/postfix/pgsql \
     && chmod 640 /etc/postfix/pgsql-templates/*.cf \
     && chown root:postfix /etc/postfix/pgsql-templates/*.cf \
-    && chmod +x /usr/local/bin/ifinmail-postfix-entrypoint \
+    && chmod +x /usr/local/bin/ifinmail-postfix-entrypoint /usr/local/bin/ifinmail-postfix-sync \
     && mkdir -p /var/spool/postfix \
     && chown root:root /var/spool/postfix \
     && mkdir -p /var/mail/vhosts

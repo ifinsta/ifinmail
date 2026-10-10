@@ -6,20 +6,24 @@ default_pass_scheme = SHA512-CRYPT
 
 # Password query: returns password hash and user metadata during auth
 password_query = \
-    SELECT email AS user, password_hash AS password, \
+    SELECT u.email AS user, u.password_hash AS password, \
            'vmail' AS userdb_uid, 'vmail' AS userdb_gid, \
            '/var/mail/vhosts/%d/%n' AS userdb_home, \
-           'maildir:/var/mail/vhosts/%d/%n' AS userdb_mail \
-    FROM users \
-    WHERE email = '%u' AND is_active = TRUE
+           'maildir:/var/mail/vhosts/%d/%n' AS userdb_mail, \
+           '*:bytes=' || COALESCE(m.quota_bytes, 0) AS userdb_quota_rule \
+    FROM users u \
+    LEFT JOIN domains d ON d.name = '%d' \
+    LEFT JOIN mailboxes m ON m.domain_id = d.id AND m.local_part = '%n' \
+    WHERE u.email = '%u' AND u.is_active = TRUE
 
-# User query: returns user info after successful auth
 user_query = \
     SELECT '/var/mail/vhosts/%d/%n' AS home, \
            'maildir:/var/mail/vhosts/%d/%n' AS mail, \
-           5000 AS uid, 5000 AS gid \
-    FROM users \
-    WHERE email = '%u' AND is_active = TRUE
+           5000 AS uid, 5000 AS gid, \
+           '*:bytes=' || COALESCE(m.quota_bytes, 0) AS quota_rule \
+    FROM users u \
+    LEFT JOIN domains d ON d.name = '%d' \
+    LEFT JOIN mailboxes m ON m.domain_id = d.id AND m.local_part = '%n' \
+    WHERE u.email = '%u' AND u.is_active = TRUE
 
-# Iterate over all active users (for doveadm)
 iterate_query = SELECT email AS user FROM users WHERE is_active = TRUE

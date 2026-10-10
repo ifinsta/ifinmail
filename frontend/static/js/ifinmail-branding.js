@@ -37,8 +37,8 @@
     function previewFonts() {
         var heading = document.getElementById('heading-font');
         var body = document.getElementById('body-font');
-        var previewHeading = document.querySelector('.ifinmail-codebox h3');
-        var previewBody = document.querySelector('.ifinmail-codebox p');
+        var previewHeading = document.querySelector('.ifinmail-type-preview h3');
+        var previewBody = document.querySelector('.ifinmail-type-preview p');
         if (previewHeading && heading) previewHeading.style.fontFamily = heading.value + ', sans-serif';
         if (previewBody && body) previewBody.style.fontFamily = body.value + ', sans-serif';
     }

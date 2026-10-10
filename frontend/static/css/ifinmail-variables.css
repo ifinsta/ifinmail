@@ -40,6 +40,27 @@
     --ifinmail-color-info-tint: #E0F2FE;
 
     /* ════════════════════════════════════════════════════════════
+       Neutrals, overlays and patterns (so no literal colours leak
+       into component CSS)
+       ════════════════════════════════════════════════════════════ */
+    --ifinmail-color-white: #FFFFFF;
+    --ifinmail-color-black: #000000;
+    --ifinmail-overlay-scrim: rgba(17, 24, 39, 0.5);
+    --ifinmail-surface-glass: rgba(255, 255, 255, 0.85);
+    --ifinmail-on-dark-muted: rgba(255, 255, 255, 0.8);
+    --ifinmail-sheen: rgba(255, 255, 255, 0.4);
+    --ifinmail-spinner-track-on-light: rgba(17, 24, 39, 0.15);
+    --ifinmail-spinner-track-on-dark: rgba(255, 255, 255, 0.3);
+    --ifinmail-focus-ring-danger: rgba(220, 38, 38, 0.16);
+    --ifinmail-watermark: rgba(15, 23, 42, 0.04);
+    --ifinmail-bg-grid-image:
+        linear-gradient(var(--ifinmail-bg-grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--ifinmail-bg-grid-color) 1px, transparent 1px);
+    --ifinmail-bg-grid-size: 32px 32px;
+    --ifinmail-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23656d7a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ifinmail-skeleton-shimmer: linear-gradient(90deg, transparent, var(--ifinmail-sheen), transparent);
+
+    /* ════════════════════════════════════════════════════════════
        Working tokens (consumed by component CSS)
        ════════════════════════════════════════════════════════════ */
     --ifinmail-surface: var(--ifinmail-color-surface-1);

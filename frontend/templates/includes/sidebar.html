@@ -3,7 +3,7 @@
 <nav class="ifinmail-admin-nav" role="navigation" aria-label="{% trans 'Admin navigation' %}">
     <div class="ifinmail-admin-brand">
         <div class="ifinmail-admin-brand-top">
-            <a href="{% url 'accounts:dashboard' %}" class="ifinmail-admin-brand-mark" aria-label="{{ brand.name }} dashboard" style="background:transparent;">
+            <a href="{% url 'accounts:dashboard' %}" class="ifinmail-admin-brand-mark" aria-label="{{ brand.name }} dashboard">
                 {% if brand.logo_url %}
                 <img src="{{ brand.logo_url }}" alt="" width="32" height="32" class="ifinmail-admin-brand-icon">
                 {% else %}
@@ -66,7 +66,7 @@
             <span></span>
             {% blocktrans with status=server_status|default:'Active' %}{{ status }}{% endblocktrans %}
         </div>
-        <button class="ifinmail-admin-footer-action" type="button" id="sidebar-more-trigger" style="background:transparent;border:none;cursor:pointer;width:100%;text-align:left;display:flex;align-items:center;">
+        <button class="ifinmail-admin-footer-action ifinmail-admin-footer-action--button" type="button" id="sidebar-more-trigger">
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
             <span>{% trans 'More Options' %}</span>
         </button>
@@ -83,7 +83,7 @@
         <div class="ifinmail-modal-header">
             <h3 class="ifinmail-modal-title">{% trans 'System Information' %}</h3>
             <button class="ifinmail-modal-close" id="system-info-modal-close" aria-label="{% trans 'Close modal' %}">
-                <svg class="ifinmail-icon" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                <svg class="ifinmail-icon ifinmail-icon--md" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
         </div>
         <div class="ifinmail-modal-body">

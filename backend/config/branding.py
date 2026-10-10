@@ -9,16 +9,21 @@ import json
 import os
 from dataclasses import dataclass
 
+# Defaults mirror the design system (see DESIGN.md): primary blue, brand navy, success green.
+DEFAULT_PRIMARY = '#1a56db'
+DEFAULT_SECONDARY = '#0f2b5b'
+DEFAULT_ACCENT = '#059669'
+
 
 @dataclass(frozen=True)
 class BrandingConfig:
     name: str = 'ifinmail'
     tagline: str = 'mail infrastructure'
-    color: str = '#0051d5'  # primary accent (hex, no spaces)
+    color: str = DEFAULT_PRIMARY  # primary accent (hex, no spaces)
     logo_url: str = ''  # if empty, use inline SVG default
     favicon_url: str = ''  # if empty, use default icon
-    secondary_color: str = '#ECEEF0'
-    accent_color: str = '#4EDEA3'
+    secondary_color: str = DEFAULT_SECONDARY
+    accent_color: str = DEFAULT_ACCENT
     heading_font: str = 'Inter'
     body_font: str = 'Inter'
 
@@ -45,9 +50,9 @@ class BrandingConfig:
         except Exception:
             pass
 
-        raw_color = overrides.get('primary_color') or os.environ.get('BRAND_COLOR', '#0051d5').strip() or '#0051d5'
-        raw_secondary = overrides.get('secondary_color') or os.environ.get('BRAND_SECONDARY_COLOR', '#ECEEF0').strip()
-        raw_accent = overrides.get('accent_color') or os.environ.get('BRAND_ACCENT_COLOR', '#4EDEA3').strip()
+        raw_color = overrides.get('primary_color') or os.environ.get('BRAND_COLOR', DEFAULT_PRIMARY).strip() or DEFAULT_PRIMARY
+        raw_secondary = overrides.get('secondary_color') or os.environ.get('BRAND_SECONDARY_COLOR', DEFAULT_SECONDARY).strip()
+        raw_accent = overrides.get('accent_color') or os.environ.get('BRAND_ACCENT_COLOR', DEFAULT_ACCENT).strip()
         heading_font = overrides.get('heading_font') or os.environ.get('BRAND_HEADING_FONT', 'Inter').strip()
         body_font = overrides.get('body_font') or os.environ.get('BRAND_BODY_FONT', 'Inter').strip()
 
@@ -86,7 +91,7 @@ class BrandingConfig:
 
         # Primary color overrides
         safe_color = self._sanitize_hex_color(self.color)
-        if safe_color != '#0051d5':
+        if safe_color != DEFAULT_PRIMARY:
             rgba_focus = self._hex_to_rgba(safe_color, 0.15)
             rgba_hover = self._hex_to_rgba(safe_color, 0.85)
             rgba_tint = self._hex_to_rgba(safe_color, 0.05)
@@ -104,7 +109,7 @@ class BrandingConfig:
             
         # Accent color overrides
         safe_accent = self._sanitize_hex_color(self.accent_color)
-        if safe_accent != '#4edea3':
+        if safe_accent != DEFAULT_ACCENT:
             rgba_success_tint = self._hex_to_rgba(safe_accent, 0.1)
             styles.append(
                 f'--ifinmail-success: {safe_accent} !important;\n'
@@ -181,7 +186,7 @@ class BrandingConfig:
         """Sanitize a hex color value to prevent XSS in inline styles."""
         h = color.lstrip('#').strip()
         if not h or len(h) not in (3, 6) or not all(c in '0123456789abcdefABCDEF' for c in h):
-            return '#0051d5'
+            return DEFAULT_PRIMARY
         return f'#{h.lower()}'
 
     @staticmethod

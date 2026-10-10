@@ -2,10 +2,11 @@
   "name": "ifinmail — Mail Server Admin",
   "short_name": "ifinmail",
   "description": "Manage your self-hosted mail server",
-  "start_url": "/admin/dashboard/",
+  "start_url": "/accounts/dashboard/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f6f8fa",
-  "theme_color": "#0969da",
+  "background_color": "#F9FAFB",
+  "theme_color": "#0F2B5B",
   "orientation": "any",
   "icons": [
     {

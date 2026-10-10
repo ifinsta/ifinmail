@@ -41,29 +41,16 @@
 
 /* ─── Panel ─── */
 .ifinmail-panel {
-    background: #ffffff;
-    border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-lg);
     padding: var(--ifinmail-space-4);
-    box-shadow: none !important;
 }
 
 .ifinmail-panel-title {
-    font-size: var(--ifinmail-font-size-h3);
-    font-weight: var(--ifinmail-font-weight-semibold);
     color: var(--ifinmail-color-text-primary);
-    margin: 0 0 var(--ifinmail-space-3);
-    line-height: 1.3;
-    letter-spacing: -0.01em;
 }
 
 /* ─── Table panel ─── */
 .ifinmail-table-panel {
-    background: #ffffff;
-    border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-lg);
     overflow: hidden;
-    box-shadow: none !important;
 }
 
 .ifinmail-table-panel-header {
@@ -71,20 +58,11 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--ifinmail-space-3);
-    padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
-    border-bottom: 1px solid var(--ifinmail-color-border);
 }
-
-.ifinmail-table-panel-header .ifinmail-panel-title { margin: 0; }
 
 /* ─── Overline ─── */
 .ifinmail-overline {
     display: block;
-    font-size: var(--ifinmail-font-size-caption);
-    font-weight: var(--ifinmail-font-weight-semibold);
-    color: var(--ifinmail-color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
     margin-bottom: var(--ifinmail-space-1);
 }
 
@@ -92,12 +70,6 @@
 .ifinmail-health-banner {
     display: flex;
     align-items: center;
-    gap: var(--ifinmail-space-3);
-    padding: var(--ifinmail-space-2_5) var(--ifinmail-space-4);
-    background: #ffffff;
-    border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-lg);
-    margin-bottom: var(--ifinmail-space-3);
     flex-wrap: wrap;
 }
 
@@ -110,48 +82,20 @@
 .ifinmail-health-pill {
     display: inline-flex;
     align-items: center;
-    gap: var(--ifinmail-space-1);
-    padding: 2px var(--ifinmail-space-2);
-    border-radius: var(--ifinmail-radius-xs);
-    font-size: var(--ifinmail-font-size-caption);
-    font-weight: var(--ifinmail-font-weight-medium);
     white-space: nowrap;
 }
 
-.ifinmail-health-pill--ok    { background: var(--ifinmail-color-success-tint); color: var(--ifinmail-color-success); }
-.ifinmail-health-pill--warn  { background: var(--ifinmail-color-warning-tint); color: var(--ifinmail-color-warning); }
-.ifinmail-health-pill--err,
-.ifinmail-health-pill--error { background: var(--ifinmail-color-danger-tint);  color: var(--ifinmail-color-danger); }
-.ifinmail-health-pill--info  { background: var(--ifinmail-color-primary-tint); color: var(--ifinmail-color-primary); }
-
 /* ─── Stat row (horizontal inline stats bar) ─── */
 .ifinmail-stat-row {
-    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    background: #ffffff;
-    border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-lg);
-    margin-bottom: var(--ifinmail-space-3);
-    overflow: hidden;
 }
 
 .ifinmail-stat-cell {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
-    border-right: 1px solid var(--ifinmail-color-border);
 }
 
 .ifinmail-stat-cell:last-child { border-right: none; }
-
-.ifinmail-stat-cell__label {
-    font-size: var(--ifinmail-font-size-caption);
-    color: var(--ifinmail-color-text-muted);
-    font-weight: var(--ifinmail-font-weight-medium);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
 
 .ifinmail-stat-cell__value-wrapper {
     display: flex;
@@ -160,8 +104,6 @@
 }
 
 .ifinmail-stat-cell__dot {
-    width: 6px;
-    height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -173,35 +115,23 @@
 .ifinmail-stat-cell__dot--info { background: var(--ifinmail-color-primary); }
 
 .ifinmail-stat-cell__value {
-    font-size: var(--ifinmail-font-size-h2);
-    font-weight: var(--ifinmail-font-weight-semibold);
     color: var(--ifinmail-color-text-primary);
-    line-height: 1.2;
-    letter-spacing: -0.02em;
 }
 
 /* ─── Stat panel (large number cards) ─── */
 .ifinmail-stat-panel {
-    background: #ffffff;
-    border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-lg);
     padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
     display: flex;
     flex-direction: column;
     gap: var(--ifinmail-space-1);
-    box-shadow: none !important;
 }
 
 .ifinmail-stat-panel--warning { border-left: 3px solid var(--ifinmail-color-warning); }
 
 .ifinmail-stat-big {
     display: block;
-    font-family: var(--ifinmail-font-mono); /* §4.1 — numeric data always in JetBrains Mono */
-    font-size: var(--ifinmail-font-size-display);
-    font-weight: var(--ifinmail-font-weight-bold);
+ /* §4.1 — numeric data always in JetBrains Mono */
     color: var(--ifinmail-color-text-primary);
-    letter-spacing: -0.03em;
-    line-height: 1.1;
 }
 
 .ifinmail-stat-detail,
@@ -242,19 +172,10 @@
 .ifinmail-badge {
     display: inline-flex;
     align-items: center;
-    padding: 2px var(--ifinmail-space-1_5);
-    border-radius: var(--ifinmail-radius-xs);
-    font-size: var(--ifinmail-font-size-caption);
-    font-weight: var(--ifinmail-font-weight-semibold);
-    letter-spacing: 0.02em;
     white-space: nowrap;
     line-height: 1.4;
 }
 
-.ifinmail-badge--info    { background: var(--ifinmail-color-primary-tint); color: var(--ifinmail-color-primary); }
-.ifinmail-badge--success { background: var(--ifinmail-color-success-tint); color: var(--ifinmail-color-success); }
-.ifinmail-badge--warning { background: var(--ifinmail-color-warning-tint); color: var(--ifinmail-color-warning); }
-.ifinmail-badge--danger  { background: var(--ifinmail-color-danger-tint);  color: var(--ifinmail-color-danger); }
 .ifinmail-badge--neutral { background: var(--ifinmail-color-surface-2);    color: var(--ifinmail-color-text-secondary); }
 
 /* ─── Status dot ─── */
@@ -274,13 +195,6 @@
 
 /* ─── Quick actions ─── */
 .ifinmail-quick-action {
-    display: flex;
-    align-items: center;
-    gap: var(--ifinmail-space-3);
-    padding: var(--ifinmail-space-2_5) var(--ifinmail-space-3);
-    border-radius: var(--ifinmail-radius-md);
-    border: 1px solid var(--ifinmail-color-border);
-    background: #ffffff;
     color: var(--ifinmail-color-text-primary);
     text-decoration: none;
     font-size: var(--ifinmail-font-size-body);
@@ -291,7 +205,6 @@
 .ifinmail-quick-action:last-child { margin-bottom: 0; }
 
 .ifinmail-quick-action:hover {
-    background: var(--ifinmail-color-surface-1);
     border-color: var(--ifinmail-color-text-muted);
     text-decoration: none;
 }
@@ -306,9 +219,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--ifinmail-radius-md);
     background: var(--ifinmail-color-primary-tint);
     color: var(--ifinmail-color-primary);
     font-size: 14px;
@@ -326,22 +236,18 @@
 
 .ifinmail-timeline-item {
     position: relative;
-    padding: var(--ifinmail-space-2_5) var(--ifinmail-space-3) var(--ifinmail-space-2_5) var(--ifinmail-space-6);
-    border-bottom: 1px solid var(--ifinmail-color-border-light);
     transition: background var(--ifinmail-transition-fast);
 }
 
-.ifinmail-timeline-item:last-child { border-bottom: none; }
 .ifinmail-timeline-item:hover { background: var(--ifinmail-color-surface-1); }
 
 .ifinmail-timeline-item .ifinmail-status-dot {
-    position: absolute;
     left: var(--ifinmail-space-2_5);
     top: calc(var(--ifinmail-space-2_5) + 5px);
 }
 
 .ifinmail-timeline-type {
-    font-size: 9px;
+    font-size: var(--ifinmail-font-size-overline);
     letter-spacing: 0.08em;
     font-weight: 700;
     text-transform: uppercase;
@@ -350,24 +256,12 @@
 }
 
 .ifinmail-timeline-item strong {
-    font-size: var(--ifinmail-font-size-body);
-    font-weight: var(--ifinmail-font-weight-semibold);
     color: var(--ifinmail-color-text-primary);
-    display: block;
     line-height: 1.3;
 }
 
-.ifinmail-timeline-item p {
-    font-size: var(--ifinmail-font-size-caption);
-    color: var(--ifinmail-color-text-secondary);
-    margin: 2px 0 0;
-}
-
 .ifinmail-timeline-item small {
-    display: flex;
     justify-content: space-between;
-    font-size: var(--ifinmail-font-size-caption);
-    color: var(--ifinmail-color-text-muted);
     margin-top: var(--ifinmail-space-1);
 }
 
@@ -386,18 +280,7 @@
 
 /* ─── Progress bar ─── */
 .ifinmail-progress {
-    height: 4px;
-    background: var(--ifinmail-color-surface-2);
-    border-radius: 2px;
-    overflow: hidden;
     margin-top: var(--ifinmail-space-1_5);
-}
-
-.ifinmail-progress span {
-    display: block;
-    height: 100%;
-    background: var(--ifinmail-color-primary);
-    border-radius: 2px;
 }
 
 .ifinmail-progress .bg-danger  { background: var(--ifinmail-color-danger); }
@@ -426,13 +309,7 @@
 
 /* ─── Empty state ─── */
 .ifinmail-empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    padding: var(--ifinmail-space-8) var(--ifinmail-space-4);
-    text-align: center;
-    color: var(--ifinmail-color-text-muted);
 }
 
 .ifinmail-empty-state--compact { padding: var(--ifinmail-space-4) var(--ifinmail-space-3); }
@@ -450,8 +327,6 @@
 }
 
 .ifinmail-empty-state p {
-    font-size: var(--ifinmail-font-size-body);
-    margin: 0 0 var(--ifinmail-space-2);
     color: var(--ifinmail-color-text-muted);
 }
 
@@ -465,7 +340,7 @@
     border-radius: var(--ifinmail-radius-md);
     border: 1px solid var(--ifinmail-color-border);
     margin-bottom: var(--ifinmail-space-2);
-    background: #ffffff;
+    background: var(--ifinmail-surface-container-lowest);
 }
 
 .ifinmail-engine-row strong {
@@ -501,7 +376,7 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #ffffff;
+    background: var(--ifinmail-color-white);
     transition: left var(--ifinmail-transition-fast);
 }
 
@@ -525,7 +400,6 @@
     display: flex;
     align-items: flex-end;
     gap: 3px;
-    height: 120px;
     padding: var(--ifinmail-space-2) 0 0;
 }
 
@@ -549,7 +423,7 @@
     border-radius: var(--ifinmail-radius-md);
     border: 1px solid var(--ifinmail-color-border);
     margin-bottom: var(--ifinmail-space-2);
-    background: #ffffff;
+    background: var(--ifinmail-surface-container-lowest);
 }
 
 .ifinmail-role-card strong {
@@ -713,7 +587,7 @@
 /* Keyboard badge — replaces inline code styles */
 .ifinmail-kbd {
     font-family: var(--ifinmail-font-mono);
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--ifinmail-color-surface-2);
     padding: 1px var(--ifinmail-space-1); /* 1px 4px */
     border-radius: var(--ifinmail-radius-sm);
     font-weight: var(--ifinmail-font-weight-bold);
@@ -742,11 +616,9 @@
     font-size: var(--ifinmail-font-size-body);
 }
 
-
-
 /* ─── Audit panel ─── */
 .ifinmail-audit-panel {
-    background: #ffffff;
+    background: var(--ifinmail-surface-container-lowest);
     border: 1px solid var(--ifinmail-color-border);
     border-radius: var(--ifinmail-radius-lg);
     padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
@@ -809,99 +681,51 @@
 /* ─── Login refinements ─── */
 .ifinmail-login {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     flex: 1;
-    min-height: 100vh;
-    padding: var(--ifinmail-space-6);
-    background-color: var(--ifinmail-color-surface-1);
-    background-image:
-        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0) 10%, var(--ifinmail-color-surface-1) 80%),
-        linear-gradient(var(--ifinmail-bg-grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--ifinmail-bg-grid-color) 1px, transparent 1px);
-    background-size: 100% 100%, 32px 32px, 32px 32px;
-}
-
-.ifinmail-login-card {
-    width: 100%;
-    max-width: 380px;
-    padding: var(--ifinmail-space-8) var(--ifinmail-space-7);
-    background: #ffffff;
-    border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-lg);
-    box-shadow: none !important;
-    transition: all 0.2s ease-in-out;
 }
 
 .ifinmail-login-card__brand {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: var(--ifinmail-space-6);
 }
 
 .ifinmail-login-card__title {
     text-align: center;
-    font-size: var(--ifinmail-font-size-h1);
     font-weight: var(--ifinmail-font-weight-bold);
     color: var(--ifinmail-color-text-primary);
-    margin: 0 0 var(--ifinmail-space-1);
-    letter-spacing: -0.02em;
 }
 
 .ifinmail-login-card__subtitle {
     text-align: center;
-    font-size: var(--ifinmail-font-size-body);
     color: var(--ifinmail-color-text-muted);
-    margin: 0 0 var(--ifinmail-space-5);
 }
 
 .ifinmail-login-form__input {
     display: block;
     width: 100%;
-    height: 44px !important; /* Spacious visual height - no compactness */
-    padding: 0 var(--ifinmail-space-4) !important;
+ /* Spacious visual height - no compactness */
     border: 1px solid var(--ifinmail-color-border);
-    border-radius: var(--ifinmail-radius-md);
-    background: #ffffff;
+    background: var(--ifinmail-surface-container-lowest);
     font-family: var(--ifinmail-font-ui);
     font-size: var(--ifinmail-font-size-body);
     color: var(--ifinmail-color-text-primary);
-    transition: border-color var(--ifinmail-transition-fast);
     box-sizing: border-box;
     box-shadow: none !important;
 }
 
-.ifinmail-login-form__input:focus,
-.ifinmail-login-form__input:focus-visible {
-    outline: var(--ifinmail-focus-ring-width) solid var(--ifinmail-focus-ring-color); /* §20 WCAG 2.1 §2.4.7 — focus must be visible */
-    border-color: var(--ifinmail-color-primary) !important;
-}
-
 .ifinmail-login-form__submit {
-    height: 44px !important; /* Spacious submit button */
+ /* Spacious submit button */
     font-size: var(--ifinmail-font-size-body) !important;
     font-weight: var(--ifinmail-font-weight-semibold) !important;
-    margin-top: var(--ifinmail-space-3);
 }
 
 /* On mobile viewports, let the auth cards take full screen with no borders */
 @media (max-width: 850px) {
-    .ifinmail-login {
-        padding: 0 !important;
-        background-color: #ffffff !important;
-        background-image: none !important; /* Remove background grids */
-    }
 
     .ifinmail-login-card {
-        max-width: 100% !important;
-        width: 100% !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        border: none !important;
-        border-radius: 0 !important;
-        padding: var(--ifinmail-space-8) var(--ifinmail-space-6) !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -911,7 +735,7 @@
 
 /* ─── Inline form panel ─── */
 .ifinmail-inline-form-panel {
-    background: #ffffff;
+    background: var(--ifinmail-surface-container-lowest);
     border: 1px solid var(--ifinmail-color-border);
     border-radius: var(--ifinmail-radius-lg);
     padding: var(--ifinmail-space-4);
@@ -959,17 +783,7 @@
         padding: var(--ifinmail-space-4);
     }
     
-    .ifinmail-setup-progress {
-        flex-direction: column;
-        gap: var(--ifinmail-space-1_5);
-    }
     
-    .ifinmail-setup-step {
-        text-align: left;
-        padding: var(--ifinmail-space-2) var(--ifinmail-space-3_5);
-        font-size: var(--ifinmail-font-size-body);
-        border-radius: var(--ifinmail-radius-md);
-    }
 
     .ifinmail-setup-card {
         padding: var(--ifinmail-space-4);
@@ -1026,13 +840,13 @@
 /* Primary Button High-Contrast Focus & active enhancements */
 .ifinmail-btn--primary {
     background-color: var(--ifinmail-color-primary) !important;
-    color: #ffffff !important; /* Exceeds 6.3:1 contrast ratio against primary brand blue */
+    color: var(--ifinmail-color-white) !important; /* Exceeds 6.3:1 contrast ratio against primary brand blue */
     border: 1px solid transparent !important;
 }
 
 .ifinmail-btn--primary:hover {
     background-color: var(--ifinmail-color-primary-hover) !important; /* >8.0:1 contrast ratio */
-    color: #ffffff !important;
+    color: var(--ifinmail-color-white) !important;
 }
 
 /* Outline Button High-Contrast Focus & Active enhancements */
@@ -1061,78 +875,37 @@
    Immersive Registration Flow (Max Height 100vh)
    ══════════════════════════════════════════════════════════════ */
 .ifinmail-reg {
-    height: 100vh !important;
-    max-height: 100vh !important;
-    overflow: hidden !important;
     box-sizing: border-box;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: var(--ifinmail-space-4) !important;
-    background-color: var(--ifinmail-color-surface-1) !important;
-    background-image:
-        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0) 10%, var(--ifinmail-color-surface-1) 80%),
-        linear-gradient(var(--ifinmail-bg-grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--ifinmail-bg-grid-color) 1px, transparent 1px) !important;
-    background-size: 100% 100%, 32px 32px, 32px 32px !important;
 }
 
 .ifinmail-reg-card {
-    width: 100% !important;
-    max-width: 440px !important; /* wizard layout spacing breathing room */
-    padding: var(--ifinmail-space-8) var(--ifinmail-space-7) !important;
-    background: #ffffff !important;
-    border: 1px solid var(--ifinmail-color-border) !important;
-    border-radius: var(--ifinmail-radius-lg) !important;
-    box-shadow: none !important;
+ /* wizard layout spacing breathing room */
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box;
-    max-height: calc(100vh - var(--ifinmail-space-8)) !important;
     overflow-y: auto !important; /* Safeguard scroll for tiny screens */
-    transition: all 0.2s ease-in-out;
 }
 
 /* Align wizard typography with login cards */
 .ifinmail-reg-card__title {
     text-align: center !important;
-    font-size: var(--ifinmail-font-size-h1) !important;
     font-weight: var(--ifinmail-font-weight-bold) !important;
     color: var(--ifinmail-color-text-primary) !important;
-    margin: 0 0 var(--ifinmail-space-1) !important;
-    letter-spacing: -0.02em !important;
 }
 
 .ifinmail-reg-card__subtitle {
     text-align: center !important;
-    font-size: var(--ifinmail-font-size-body) !important;
     color: var(--ifinmail-color-text-muted) !important;
-    margin: 0 0 var(--ifinmail-space-5) !important;
 }
 
 /* Ensure focus states on registration forms have no outlines or offsets */
-.ifinmail-reg .ifinmail-form-group input:focus,
-.ifinmail-reg .ifinmail-login-form__input:focus {
-    outline: none !important;
-    border-color: var(--ifinmail-color-primary) !important;
-}
 
 @media (max-width: 850px) {
-    .ifinmail-reg {
-        padding: 0 !important;
-        background-color: #ffffff !important;
-        background-image: none !important;
-    }
     
     .ifinmail-reg-card {
-        max-width: 100% !important;
-        width: 100% !important;
-        height: 100vh !important;
-        min-height: 100vh !important;
-        max-height: 100vh !important;
-        border: none !important;
-        border-radius: 0 !important;
-        padding: var(--ifinmail-space-8) var(--ifinmail-space-6) !important;
         overflow-y: auto !important;
     }
 
@@ -1162,11 +935,8 @@
     gap: var(--ifinmail-space-3) !important;
     padding: var(--ifinmail-space-5) !important;
     background-color: var(--ifinmail-color-surface-1) !important;
-    background-image:
-        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0) 10%, var(--ifinmail-color-surface-1) 80%),
-        linear-gradient(var(--ifinmail-bg-grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--ifinmail-bg-grid-color) 1px, transparent 1px) !important;
-    background-size: 100% 100%, 32px 32px, 32px 32px !important;
+    background-image: var(--ifinmail-bg-grid-image) !important;
+    background-size: var(--ifinmail-bg-grid-size) !important;
 }
 
 .ifinmail-login-card,
@@ -1177,27 +947,17 @@
     min-height: 0 !important;
     max-height: none !important;
     padding: var(--ifinmail-space-6) !important;
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border: 1px solid rgba(15, 43, 91, 0.08) !important;
-    border-radius: var(--ifinmail-radius-lg) !important;
-    box-shadow: 0 24px 64px -16px rgba(15, 43, 91, 0.08), 0 8px 24px -8px rgba(15, 43, 91, 0.04) !important;
+    background: var(--ifinmail-surface-container-lowest) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid var(--ifinmail-color-border) !important;
+    border-radius: var(--ifinmail-radius-dialog) !important;
+    box-shadow: none !important;
     overflow: visible !important; /* Prevent internal scrollbars */
     transition:
         border-color var(--ifinmail-transition-fast),
         background-color var(--ifinmail-transition-fast),
         box-shadow var(--ifinmail-transition-fast) !important;
-}
-
-/* Dark mode adjustments for glassmorphism */
-@media (prefers-color-scheme: dark) {
-    .ifinmail-login-card,
-    .ifinmail-reg-card {
-        background: rgba(31, 41, 55, 0.85) !important;
-        border-color: rgba(255, 255, 255, 0.08) !important;
-        box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.2) !important;
-    }
 }
 
 .ifinmail-reg-card {

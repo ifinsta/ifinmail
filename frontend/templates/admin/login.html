@@ -8,6 +8,7 @@
 
   <div class="ifinmail-login-card ifinmail-fade-in">
     <div class="ifinmail-login-card__brand">
+      <span class="ifinmail-wordmark">{{ brand.name|default:'ifinmail' }}</span>
       {% if brand.logo_url %}
         <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
       {% else %}

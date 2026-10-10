@@ -22,6 +22,8 @@ Canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (board = artboard file
 | `error_base.html`, `400.html`, `403.html`, `404.html`, `500.html`, `502.html`, `503.html`, `504.html`, `static/error-pages/40x.html`, `50x.html` | `ErrorPages` | Eight error cards and the static fallback note |
 | `clients/android/.../webMain/resources/index.html` | `AndroidShell` | Loading splash |
 
+Phone-width boards (390 px, "Phone widths" row): `PhoneDashboard`, `PhoneNav` (drawer open), `PhoneUsers`, `PhoneSpam`, `PhoneDomainConfig`, `PhoneBranding`, `PhoneLogs`, `PhoneLogin`, `PhoneLanding`, `PhoneLegal`, and `PhoneAccess` (registration, setup, error, email). They render the same boards with the `phone` prop, so a change to a desktop board shows up there too.
+
 Shared components in the canvas (components row): `Icon`, `Pill`, `Btn`, `Field`, `Stepper`, `TopBar`, `PageHead`, `Sidebar`. Foundations sheet: `Main`.
 
 ## Mapping notes

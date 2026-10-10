@@ -2,6 +2,26 @@
 
 Total: 50 files found via `**/*.html`.
 
+## Redesign
+
+All 50 templates are redesigned in one canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (private; ask the owner for access). It borrows the compact ifinsta system (https://claude.ai/artifact/SLYdVZjTPp1W1S69kfsrbf).
+
+- Board for each template: `.agents/skills/ifinmail-design-system/references/template-map.md`
+- Rules, tokens and patterns: `.agents/skills/ifinmail-design-system/`
+- Workflow for building or changing a template: `.agents/skills/ifinmail-template-builder/`
+- Checks before you finish: `.agents/skills/ifinmail-design-audit/` (`scripts/audit.sh`)
+
+| Group | Board |
+| --- | --- |
+| Shell: `base.html`, `includes/header.html`, `includes/sidebar.html` | `ShellParts` |
+| Tables: `includes/admin_table.html`, `includes/setup_table.html`, `admin/partials/*` | `TablesRows` |
+| Admin: `dashboard`, `user_management`, `spam_filtering`, `dns_config`, `branding_identity`, `logs` | `Dashboard`, `Users`, `Spam`, `DomainConfig`, `Branding`, `Logs` |
+| Access: `admin/login`, `admin/password_reset_*`, `registration/*`, `setup/*` | `Login`, `PasswordReset`, `Registration`, `Setup`, `Emails` |
+| Public: `landing`, `privacy`, `terms` | `Landing`, `Privacy`, `Terms` |
+| System: `error_base`, `400`-`504`, `static/error-pages/*`, Android `index.html` | `ErrorPages`, `AndroidShell` |
+
+When you add, remove or rename a template, update the list below and the template map.
+
 ## frontend/templates/ (root)
 
 - `frontend/templates/base.html`

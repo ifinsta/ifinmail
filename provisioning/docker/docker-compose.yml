@@ -94,6 +94,7 @@ services:
       - mail_data:/var/mail/vhosts
       - ./certs/live/${MAIL_HOSTNAME}:/etc/postfix/certs:ro
       - rundir:/var/run/dovecot
+      - runtime_data:/var/lib/ifinmail/runtime:ro   # outbound settings from the console
     ports:
       - "25:25"
       - "465:465"
@@ -204,16 +205,17 @@ services:
   certbot:
     image: ifinmail/certbot:latest
     build: ./certbot
-    profiles:
-      - certbot
     environment:
       - TZ=${TZ:-UTC}
+      - MAIL_HOSTNAME=${MAIL_HOSTNAME}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - COMPOSE_FILE=/config/docker-compose.yml
       - ENV_FILE=/config/.env
       - RENEWAL_INTERVAL=12h
     volumes:
       - ./certs:/etc/letsencrypt
       - ./nginx/www:/var/www/certbot
+      - runtime_data:/runtime:ro   # hostnames the console wants covered
       - /var/run/docker.sock:/var/run/docker.sock
       - ./docker-compose.yml:/config/docker-compose.yml:ro
       - ../../provisioning/.env:/config/.env:ro
@@ -298,10 +300,19 @@ services:
       DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL}
       DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
       DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:?run make provision first}
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME}
+      DOMAIN: ${DOMAIN:-${MAIL_DOMAIN}}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
+      DKIM_KEY_DIR: /etc/dkim
+      IFINMAIL_RUNTIME_DIR: /var/lib/ifinmail/runtime
     volumes:
       - mail_data:/var/mail/vhosts:ro   # read Dovecot's Maildir
       - ./certs:/etc/letsencrypt:ro
       - static_data:/app/staticfiles
+      - ./dkim:/etc/dkim                 # per-domain DKIM keys (Rspamd mounts this read-only)
+      - runtime_data:/var/lib/ifinmail/runtime   # settings and hostname list for postfix/certbot
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -329,6 +340,85 @@ services:
       retries: 3
       start_period: 30s
       timeout: 10s
+
+  # --- Background jobs: DNS verification, certificate monitoring, outbound settings ---
+  worker:
+    image: ifinmail/api:latest
+    environment:
+      TZ: ${TZ:-UTC}
+      DB_NAME: ifinmail
+      DB_USER: ifinmail_app
+      DB_PASSWORD: ${APP_DB_PASSWORD:?run make provision first}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_SSLMODE: prefer
+      REDIS_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/1
+      DJANGO_SECRET_KEY: ${SECRET_KEY:?run make provision first}
+      DJANGO_SETTINGS_MODULE: backend.config.settings.production
+      ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME}
+      DOMAIN: ${DOMAIN:-${MAIL_DOMAIN}}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
+      DKIM_KEY_DIR: /etc/dkim
+      IFINMAIL_RUNTIME_DIR: /var/lib/ifinmail/runtime
+    entrypoint: []
+    command: ["celery", "-A", "backend.config.celery", "worker", "--loglevel=INFO", "--concurrency=2"]
+    user: app
+    volumes:
+      - mail_data:/var/mail/vhosts:ro
+      - ./certs:/etc/letsencrypt:ro
+      - ./dkim:/etc/dkim
+      - runtime_data:/var/lib/ifinmail/runtime
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+    mem_limit: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A backend.config.celery inspect ping -d celery@$$HOSTNAME --timeout 5 >/dev/null 2>&1 || exit 1"]
+      interval: 60s
+      retries: 3
+      start_period: 60s
+      timeout: 15s
+
+  beat:
+    image: ifinmail/api:latest
+    environment:
+      TZ: ${TZ:-UTC}
+      DB_NAME: ifinmail
+      DB_USER: ifinmail_app
+      DB_PASSWORD: ${APP_DB_PASSWORD:?run make provision first}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_SSLMODE: prefer
+      REDIS_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/1
+      DJANGO_SECRET_KEY: ${SECRET_KEY:?run make provision first}
+      DJANGO_SETTINGS_MODULE: backend.config.settings.production
+      ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+    entrypoint: []
+    command: ["celery", "-A", "backend.config.celery", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+    user: app
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 10s
+    mem_limit: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # --- Reverse Proxy ---
   nginx:
@@ -377,6 +467,7 @@ volumes:
   rspamd_data:
   rundir:
   static_data:
+  runtime_data:   # files the console publishes for postfix and certbot
 
 networks:
   default:

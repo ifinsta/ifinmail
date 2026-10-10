@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.http import Http404
-from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import resolve, reverse
 
 from ..services.effective_config import EffectiveConfig
@@ -60,7 +60,7 @@ class CatalogueTests(SimpleTestCase):
             assert all(k == k.lower() for k in item.keywords), item.key
 
 
-class ViewTests(SimpleTestCase):
+class ViewTests(TestCase):
     def test_hub_renders_every_group_and_item(self) -> None:
         response = settings_hub(_staff_request(reverse('accounts:settings')))
         html = response.content.decode()
@@ -96,7 +96,7 @@ class ViewTests(SimpleTestCase):
         assert response.status_code == 302
 
 
-class EffectiveConfigTests(SimpleTestCase):
+class EffectiveConfigTests(TestCase):
     @staticmethod
     def _values(sections: list) -> str:
         return ' '.join(f'{r.label} {r.value}' for s in sections for r in s.rows)

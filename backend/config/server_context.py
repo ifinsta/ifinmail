@@ -16,7 +16,10 @@ def server_context(request: object) -> dict[str, object]:
     support_email = os.environ.get('SUPPORT_EMAIL', 'support@ifinmail.io')
     docs_url = os.environ.get('DOCS_URL', 'https://ifinmail.dev/docs')
     server_status = os.environ.get('SERVER_STATUS', 'Online')
+    from backend.apps.accounts.services.registration_policy import registration_open
+
     return {
+        'registration_open': registration_open,  # callable: only evaluated if a template asks
         'server_version': version,
         'CSS_VERSION': settings.CSS_VERSION,
         'support_email': support_email,

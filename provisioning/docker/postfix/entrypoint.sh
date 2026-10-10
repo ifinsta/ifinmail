@@ -54,4 +54,9 @@ for i in $(seq 1 30); do
     fi
 done
 
+# Apply outbound settings published by the console (relay, proxy, hop limit).
+if [ -x /usr/local/bin/ifinmail-postfix-sync ]; then
+    /usr/local/bin/ifinmail-postfix-sync &
+fi
+
 exec "$@"

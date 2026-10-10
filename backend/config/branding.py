@@ -41,10 +41,10 @@ class BrandingConfig:
             if env_path:
                 paths.append(env_path)
             paths.append(os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json'))
-            
+
             for p in paths:
                 if os.path.isfile(p):
-                    with open(p, "r", encoding="utf-8") as f:
+                    with open(p, encoding="utf-8") as f:
                         overrides = json.load(f)
                         break
         except Exception:
@@ -77,14 +77,14 @@ class BrandingConfig:
         """Return a <style> block when brand configurations are customized."""
         styles = []
         imports = []
-        
+
         # Determine fonts to load from Google Fonts
         fonts_to_load = set()
         if self.heading_font and self.heading_font != 'Inter' and self.heading_font != 'system-ui':
             fonts_to_load.add(self.heading_font)
         if self.body_font and self.body_font != 'Inter' and self.body_font != 'system-ui':
             fonts_to_load.add(self.body_font)
-            
+
         for font in fonts_to_load:
             font_url = font.replace(' ', '+')
             imports.append(f"@import url('https://fonts.googleapis.com/css2?family={font_url}:wght@400;500;600;700&display=swap');")
@@ -106,7 +106,7 @@ class BrandingConfig:
                 f'  --ifinmail-sidebar-active-color: {safe_color} !important;\n'
                 f'  --ifinmail-sidebar-active-bg: {rgba_tint} !important;'
             )
-            
+
         # Accent color overrides
         safe_accent = self._sanitize_hex_color(self.accent_color)
         if safe_accent != DEFAULT_ACCENT:
@@ -117,7 +117,7 @@ class BrandingConfig:
                 f'  --ifinmail-color-success-tint: {rgba_success_tint} !important;\n'
                 f'  --ifinmail-success-container: {rgba_success_tint} !important;'
             )
-            
+
         # Font family overrides
         font_parts = []
         if self.body_font and self.body_font != 'Inter':
@@ -125,16 +125,16 @@ class BrandingConfig:
                 font_parts.append('--ifinmail-font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;')
             else:
                 font_parts.append(f'--ifinmail-font-ui: "{self.body_font}", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;')
-        
+
         if font_parts:
             styles.append('\n  '.join(font_parts))
-            
+
         if not styles and not imports:
             return ''
-            
+
         import_str = '\n'.join(imports) + '\n' if imports else ''
         inner_style = '\n  '.join(styles)
-        
+
         extra_rules = ""
         if self.heading_font and self.heading_font != 'Inter' and self.heading_font != 'system-ui':
             extra_rules = (
@@ -142,7 +142,7 @@ class BrandingConfig:
                 f"  font-family: \"{self.heading_font}\", var(--ifinmail-font-ui) !important;\n"
                 f"}}\n"
             )
-            
+
         return (
             f'<style>\n'
             f'{import_str}'

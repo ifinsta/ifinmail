@@ -73,6 +73,8 @@ When you add, remove or rename a template, update the list below and the templat
 - `frontend/templates/admin/settings_appearance.html`
 - `frontend/templates/admin/settings_maintenance.html`
 - `frontend/templates/admin/settings_about.html`
+- `frontend/templates/admin/settings_mailboxes.html`
+- `frontend/templates/admin/settings_aliases.html`
 - `frontend/templates/admin/password_reset_form.html`
 - `frontend/templates/admin/password_reset_email.html`
 - `frontend/templates/admin/password_reset_done.html`
@@ -82,6 +84,7 @@ When you add, remove or rename a template, update the list below and the templat
 ## frontend/templates/admin/partials/
 
 - `frontend/templates/admin/partials/admin_row.html`
+- `frontend/templates/admin/partials/mailbox_row.html`
 - `frontend/templates/admin/partials/dns_row.html`
 - `frontend/templates/admin/partials/log_row.html`
 - `frontend/templates/admin/partials/provider_row.html`

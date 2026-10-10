@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from .base import DNSRecord, DNSResult
+from .base import DNSRecord, DNSResult, record_key
 
 logger = logging.getLogger('backend')
 
@@ -86,16 +86,18 @@ class DigitalOceanProvider:
         except Exception as e:
             return DNSResult(success=False, message=str(e))
 
-        existing_map: dict[tuple[str, str], dict] = {}
+        existing_map: dict[tuple[str, str, str], dict] = {}
         for r in existing:
-            key = (r['type'], self._normalize_name(r.get('name', ''), domain))
+            key = record_key(
+                r['type'], self._normalize_name(r.get('name', ''), domain), r.get('data', '')
+            )
             existing_map[key] = r
 
         created = []
         failed = []
 
         for rec in records:
-            key = (rec.type, rec.name)
+            key = record_key(rec.type, rec.name, rec.value)
             try:
                 payload = self._record_payload(rec, domain)
                 if key in existing_map:
@@ -120,10 +122,15 @@ class DigitalOceanProvider:
         )
 
     def _record_payload(self, rec: DNSRecord, domain: str) -> dict:
+        data = rec.value
+        if rec.type in ('MX', 'CNAME') and not data.endswith('.'):
+            # DigitalOcean treats an undotted hostname as relative to the zone
+            # ("mail.example.com" would become "mail.example.com.example.com").
+            data = f'{data}.'
         payload: dict[str, object] = {
             'type': rec.type,
             'name': rec.name if rec.name != '@' else '@',
-            'data': rec.value,
+            'data': data,
             'ttl': rec.ttl,
         }
         if rec.type == 'MX':

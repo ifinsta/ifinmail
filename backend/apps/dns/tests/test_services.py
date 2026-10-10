@@ -187,9 +187,20 @@ class DNSServiceBuildRecordsTests(SimpleTestCase):
     def tearDown(self) -> None:
         self.env_patcher.stop()
 
-    def test_build_records_returns_eight_records(self) -> None:
+    def test_build_records_returns_ten_records(self) -> None:
         records = DNSService.build_records('example.com', '203.0.113.42')
-        self.assertEqual(len(records), 8)
+        self.assertEqual(len(records), 10)
+
+    def test_build_records_client_autoconfig_cnames(self) -> None:
+        records = DNSService.build_records('example.com', '203.0.113.42')
+        cnames = {r.name: r.value for r in records if r.type == 'CNAME'}
+        self.assertEqual(
+            cnames, {'autoconfig': 'mail.ifinmail.test', 'autodiscover': 'mail.ifinmail.test'}
+        )
+
+    def test_placeholder_dkim_is_detected(self) -> None:
+        records = DNSService.build_records('example.com', '203.0.113.42')
+        self.assertTrue(DNSService.has_placeholder(records))
 
     def test_build_records_a_records(self) -> None:
         records = DNSService.build_records('example.com', '203.0.113.42')

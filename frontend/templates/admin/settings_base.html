@@ -14,6 +14,13 @@
             <span>{% trans 'Settings' %}</span>
         </a>
         {% endif %}
+        {% if messages %}
+        <ul class="ifinmail-flash-list" role="status">
+            {% for message in messages %}
+            <li class="ifinmail-flash ifinmail-flash--{% if message.level_tag == 'error' %}error{% else %}success{% endif %}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
         {% block settings_content %}{% endblock %}
     </div>
 </div>

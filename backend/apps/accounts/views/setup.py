@@ -4,16 +4,19 @@ import logging
 import os
 import re
 
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db import transaction
-from django.db.utils import IntegrityError, OperationalError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
-from backend.apps.accounts.services import UserService
+from backend.apps.accounts.services.setup_state import SetupState
 from backend.apps.dns.services import DNSService
-from backend.apps.domains.services import DomainService
-from backend.apps.mail.services import MailService
+from backend.apps.domains.services.provisioning import (
+    DomainProvisioningError,
+    ProvisioningService,
+)
+from backend.apps.mail.services import MailboxService
+from backend.apps.mail.types.provisioning import MailboxError
 from backend.services.audit import AuditService
 
 from ._constants import _DOMAIN_RE, _IPIFY_URL
@@ -34,12 +37,8 @@ def _validate_domain(name: str) -> str:
 
 
 def _setup_is_complete() -> bool:
-    """Check if setup has been completed (DB-backed flag, EC-11)."""
-    try:
-        return UserService.has_staff_users()
-    except OperationalError as e:
-        logger.warning('Database not ready for setup check: %s', e)
-        return False
+    """True once setup was finished (or an install already has mailboxes)."""
+    return SetupState.is_complete()
 
 
 def _setup_server_ip() -> str:
@@ -64,34 +63,35 @@ def _setup_server_ip() -> str:
         return '0.0.0.0'
 
 
-def _create_first_account(email: str, password: str, request: HttpRequest) -> None:
-    """Create the first mailbox and user account during setup."""
+def _create_first_account(email: str, password: str, request: HttpRequest) -> str:
+    """Create the first mailbox and its administrator login. Returns an error message or ''."""
+    local_part, _, domain_name = email.strip().lower().partition('@')
+    if not domain_name:
+        return 'Enter a full email address such as you@example.com.'
     try:
-        local_part, _, domain_name = email.partition('@')
-        if not domain_name:
-            return
-
-        with transaction.atomic():
-            domain, _ = DomainService.get_or_create_domain(name=domain_name)
-            MailService.get_or_create_mailbox(domain=domain, local_part=local_part)
-
-            if not UserService.get_user_by_email(email):
-                UserService.create_user(
-                    email=email, password=password, is_active=True, is_staff=True
-                )
-
-        AuditService.record(
-            'account_created',
-            user=request.user.email,
-            detail=email,
-            severity='info',
+        ProvisioningService.add_domain(domain_name, actor=request.user.email, verify=False)
+        _, user = MailboxService.create(
+            domain_name,
+            local_part,
+            password,
+            is_admin=True,
+            adopt_existing_login=True,
         )
-    except IntegrityError:
-        logger.warning(
-            'IntegrityError during account creation for %s — likely race condition', email
-        )
-    except Exception as e:
-        logger.exception('Failed to create first account during setup: %s', e)
+        if user.pk == request.user.pk:
+            # The administrator just set their own password: keep them signed in.
+            update_session_auth_hash(request, user)
+    except (MailboxError, DomainProvisioningError) as exc:
+        return str(exc)
+    except Exception:
+        logger.exception('Failed to create first account during setup')
+        return 'Could not create the account. See the server log for details.'
+    AuditService.record(
+        'account_created',
+        user=request.user.email,
+        detail=email,
+        severity='info',
+    )
+    return ''
 
 
 @login_required
@@ -107,7 +107,7 @@ def setup_wizard(request: HttpRequest) -> HttpResponse:
 @user_passes_test(_is_staff, login_url='accounts:login')
 def setup_step(request: HttpRequest, step: str) -> HttpResponse:
     """Render a setup wizard step."""
-    if _setup_is_complete():
+    if SetupState.is_marked_complete():
         return redirect('accounts:dashboard')
 
     domain = request.session.get('setup_domain') or os.environ.get('DOMAIN', '')
@@ -125,8 +125,9 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
         template = 'setup/welcome.html'
     elif step == 'dns':
         template = 'setup/dns_provider.html'
-        from backend.apps.dns.services import PROVIDER_MAP
         from django.utils.translation import gettext_lazy as _
+
+        from backend.apps.dns.services import PROVIDER_MAP
         provider_meta = {
             'cloudflare': {
                 'help': str(_('Requires an API token with DNS:Edit permission.')),
@@ -192,6 +193,7 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
             context['dns_records'] = dns_records
     elif step == 'account':
         template = 'setup/create_account.html'
+        context['error'] = request.session.pop('setup_error', '')
     elif step == 'done':
         template = 'setup/done.html'
     else:
@@ -207,7 +209,7 @@ def setup_advance(request: HttpRequest) -> HttpResponse:
     if request.method != 'POST':
         return redirect('accounts:setup_step', step='welcome')
 
-    if _setup_is_complete():
+    if SetupState.is_marked_complete():
         return redirect('accounts:dashboard')
 
     current = request.POST.get('current_step', 'welcome')
@@ -227,11 +229,9 @@ def setup_advance(request: HttpRequest) -> HttpResponse:
                 return redirect('accounts:setup_step', step='welcome')
             request.session['setup_domain'] = valid_domain
             try:
-                DomainService.get_or_create_domain(name=valid_domain)
-            except IntegrityError:
-                logger.warning('Race condition on domain get_or_create for %s', valid_domain)
+                ProvisioningService.add_domain(valid_domain, actor=request.user.email, verify=False)
             except Exception as e:
-                logger.exception('Failed to create domain %s during setup: %s', valid_domain, e)
+                logger.exception('Failed to provision domain %s during setup: %s', valid_domain, e)
         next_step = 'dns'
 
     elif current == 'dns':
@@ -250,13 +250,17 @@ def setup_advance(request: HttpRequest) -> HttpResponse:
             email = request.POST.get('email', '').strip()
             password = request.POST.get('password', '')
             if email and password:
-                _create_first_account(email, password, request)
+                error = _create_first_account(email, password, request)
+                if error:
+                    request.session['setup_error'] = error
+                    return redirect('accounts:setup_step', step='account')
         next_step = 'done'
 
     elif current == 'done':
         # Clear session state on completion
         request.session.pop('setup_domain', None)
         request.session.pop('setup_dns_provider', None)
+        SetupState.mark_complete()
         response = redirect('accounts:dashboard')
         return response
 

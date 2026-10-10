@@ -8,8 +8,6 @@ Self-hosted email platform — run your own mail server on a single VPS. Handles
 
 ### Option 1: One-Click Deploy
 
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/droplets/new?size=s-2vcpu-4gb&region=nyc1&image=ubuntu-24-04-x64&user_data=<cloud-init-url>)
-
 Copy the [cloud-init.yaml](provisioning/cloud-init.yaml) content into your cloud provider's "User data" field when creating a server. Set the `DOMAIN` and `ADMIN_EMAIL` environment variables. Works with DigitalOcean, Hetzner Cloud, AWS EC2, Linode, and any provider that supports cloud-init.
 
 ### Option 2: Terminal (one command)

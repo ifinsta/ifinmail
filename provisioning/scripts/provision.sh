@@ -180,30 +180,10 @@ ensure_bootstrap_cert() {
 }
 
 ensure_mta_sts() {
-    local www_dir="$DOCKER_DIR/nginx/www"
-    local policy_file="$www_dir/.well-known/mta-sts.json"
-    local policy_dir
-    policy_dir="$(dirname "$policy_file")"
-
-    mkdir -p "$policy_dir"
-
-    # Write policy body without id, then compute stable id from content hash
-    cat > "$policy_file" <<INNEREOF
-{
-  "version": "STSv1",
-  "mode": "testing",
-  "mx": ["$MAIL_HOSTNAME"],
-  "max_age": 1209600
-}
-INNEREOF
-
-    local mta_sts_id
-    mta_sts_id="$(sha256sum "$policy_file" 2>/dev/null | cut -d' ' -f1 | head -c 16 || date +%Y%m%dT%H%M%SZ)"
-
-    echo "MTA-STS policy created in TESTING mode (id: $mta_sts_id)"
-    echo "  After verifying TLS delivery for 2+ weeks, change mode to 'enforce' in:"
-    echo "  $policy_file"
-    echo "  Update the _mta-sts DNS TXT record with the new id after changes."
+    # The policy is rendered by the api for every hosted domain (https://mta-sts.<domain>/
+    # .well-known/mta-sts.txt). It starts in "testing" mode; switch to "enforce" with
+    # MTA_STS_MODE after TLS delivery has been verified for a couple of weeks.
+    echo "MTA-STS: policy is served by the console in testing mode (set MTA_STS_MODE=enforce later)."
 }
 
 ensure_dkim() {
@@ -214,22 +194,16 @@ ensure_dkim() {
         echo "Generating DKIM key for $DKIM_SELECTOR._domainkey.$DOMAIN..."
         openssl genrsa -out "$key_path" 2048 >/dev/null 2>&1
         openssl rsa -in "$key_path" -pubout -out "$pub_path" >/dev/null 2>&1
-        chmod 600 "$key_path"
     fi
 
-    cat > "$DOCKER_DIR/rspamd/local.d/dkim_signing.conf" <<EOF
-allow_username_mismatch = true;
-sign_local = true;
-use_esld = false;
-try_fallback = true;
+    # The api (uid 1000) creates and reads per-domain keys here; Rspamd mounts the
+    # directory read-only and runs as another user, so key files must be readable.
+    chown -R 1000:1000 "$DOCKER_DIR/dkim"
+    chmod 755 "$DOCKER_DIR/dkim"
+    find "$DOCKER_DIR/dkim" -type f -exec chmod 644 {} +
 
-domain {
-  $DOMAIN {
-    selector = "$DKIM_SELECTOR";
-    path = "/etc/dkim/$DKIM_SELECTOR.$DOMAIN.key";
-  }
-}
-EOF
+    # Rspamd signs every domain from /etc/dkim/<domain>.<selector>.key (generic config in
+    # rspamd/local.d/dkim_signing.conf); the console adopts this key and creates others.
 }
 
 ensure_backup_gpg_key() {
@@ -325,7 +299,7 @@ DNS records to publish:
   A      $MAIL_HOSTNAME           <this server IPv4>
   MX     $DOMAIN                  10 $MAIL_HOSTNAME.
   TXT    $DOMAIN                  "v=spf1 mx ~all"
-  TXT    _dmarc.$DOMAIN           "v=DMARC1; p=none; rua=mailto:postmaster@$DOMAIN"
+  TXT    _dmarc.$DOMAIN           "v=DMARC1; p=${DMARC_POLICY:-quarantine}; rua=mailto:postmaster@$DOMAIN"
   TXT    $DKIM_SELECTOR._domainkey.$DOMAIN $dkim_chunks
   TXT    _mta-sts.$DOMAIN          "v=STSv1; id=$(sha256sum "$DOCKER_DIR/nginx/www/.well-known/mta-sts.json" 2>/dev/null | cut -d' ' -f1 | head -c 16 || date +%Y%m%dT%H%M%SZ)"
   A      mta-sts.$DOMAIN           <this server IPv4>
@@ -348,6 +322,50 @@ Useful commands:
   make logs
   make down
 EOF
+}
+
+ensure_db_grants() {
+    # init-db.sh only runs when the database is first created; apply newer grants too.
+    echo "Applying database grants..."
+    (cd "$DOCKER_DIR" && "${COMPOSE[@]}" exec -T postgres sh -c \
+        'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$DOCKER_DIR/db-upgrade.sql" >/dev/null) \
+        || echo "WARNING: could not apply db-upgrade.sql; run 'make provision' again once postgres is healthy."
+}
+
+ensure_backup_schedule() {
+    # Daily encrypted backup via cron; the console shows when it last succeeded.
+    local cron_file="/etc/cron.d/ifinmail-backup"
+    local repo_root
+    repo_root="$(cd "$PROVISIONING_DIR/.." && pwd)"
+    if [ ! -d /etc/cron.d ] || [ ! -w /etc/cron.d ]; then
+        echo "WARNING: /etc/cron.d is not writable; schedule 'make backup' yourself (daily)."
+        return 0
+    fi
+    cat > "$cron_file" <<CRON
+# Installed by ifinmail provision.sh. Runs a full backup every day.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+15 3 * * * root cd $repo_root && set -a && . provisioning/.env && set +a && BACKUP_ENCRYPT=true make backup >> /var/log/ifinmail-backup.log 2>&1
+CRON
+    chmod 644 "$cron_file"
+    echo "Daily backup scheduled in $cron_file (03:15)."
+}
+
+ensure_unattended_upgrades() {
+    # Automatic OS security updates (Debian/Ubuntu). Container images are updated with `make reload`.
+    if ! command -v apt-get >/dev/null 2>&1 || [ "$(id -u)" != "0" ]; then
+        echo "Skipping unattended-upgrades (not a root Debian/Ubuntu host)."
+        return 0
+    fi
+    if ! dpkg -s unattended-upgrades >/dev/null 2>&1; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unattended-upgrades >/dev/null 2>&1 \
+            || { echo "WARNING: could not install unattended-upgrades"; return 0; }
+    fi
+    cat > /etc/apt/apt.conf.d/20auto-upgrades <<APT
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT
+    echo "Automatic OS security updates enabled."
 }
 
 preflight_checks() {
@@ -427,6 +445,8 @@ main() {
     ensure_mta_sts
     ensure_dkim
     ensure_backup_gpg_key
+    ensure_backup_schedule
+    ensure_unattended_upgrades
 
     echo "Building images..."
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" build --pull)
@@ -441,8 +461,7 @@ main() {
     obtain_certificate
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" restart postfix dovecot nginx)
 
-    echo "Starting certbot auto-renewal service..."
-    (cd "$DOCKER_DIR" && "${COMPOSE[@]}" --profile certbot up -d certbot) || true
+    ensure_db_grants
 
     echo "Current service status:"
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" ps)

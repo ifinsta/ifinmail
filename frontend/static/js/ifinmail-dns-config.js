@@ -152,13 +152,23 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 registerBtn.disabled = false;
-                if (data.status === 'ok') {
-                    var lines = ['Domain: ' + data.domain, 'Created: ' + (data.created ? 'Yes (new)' : 'No (existing)'), 'Records:'];
-                    data.records.forEach(function (r) {
+                if (data.status === 'ok' || data.status === 'partial') {
+                    var lines = ['Domain: ' + data.domain, 'Created: ' + (data.created ? 'Yes (new)' : 'No (existing)'), '', 'Setup steps:'];
+                    (data.steps || []).forEach(function (st) {
+                        lines.push('  [' + st.status + '] ' + st.name + (st.detail ? ' \u2014 ' + st.detail : ''));
+                    });
+                    lines.push('', 'DNS records:');
+                    (data.records || []).forEach(function (r) {
                         lines.push('  ' + r.type + ' ' + r.name + ' \u2192 ' + r.value);
                     });
                     result.textContent = lines.join('\n');
-                    setTimeout(function () { location.reload(); }, 2000);
+                    // Reload automatically only when nothing needs the person's attention.
+                    var needsAttention = data.status !== 'ok' || (data.steps || []).some(function (st) {
+                        return st.status === 'manual' || st.status === 'warn';
+                    });
+                    if (!needsAttention) {
+                        setTimeout(function () { location.reload(); }, 2000);
+                    }
                 } else {
                     result.textContent = 'Error: ' + (data.error || 'Unknown');
                 }

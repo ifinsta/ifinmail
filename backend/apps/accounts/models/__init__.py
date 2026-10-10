@@ -67,12 +67,14 @@ class MailUser(AbstractBaseUser):
 
 
 def _make_dovecot_password_hash(raw_password: str | None) -> str:
+    """Return a Dovecot ``SHA512-CRYPT`` hash (``$6$...``) for the given password.
+
+    Uses passlib's implementation because the stdlib ``crypt`` module was removed
+    in Python 3.13. An empty password yields an empty (unusable) hash so Dovecot
+    rejects the login instead of accepting a blank credential.
+    """
     if not raw_password:
         return ''
-    try:
-        import crypt
+    from passlib.hash import sha512_crypt
 
-        return crypt.crypt(raw_password, crypt.mksalt(crypt.METHOD_SHA512))
-    except (AttributeError, ImportError, OSError):
-        # Dovecot must reject auth rather than silently accepting an unusable hash.
-        return ''
+    return sha512_crypt.using(rounds=5000).hash(raw_password)

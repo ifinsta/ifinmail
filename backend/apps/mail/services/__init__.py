@@ -57,3 +57,8 @@ class MailService:
             return deleted > 0
         except OperationalError:
             return False
+
+
+from .mailboxes import AliasService, MailboxService  # noqa: E402
+
+__all__ = ['AliasService', 'MailService', 'MailboxService']

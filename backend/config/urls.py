@@ -10,7 +10,7 @@ from django.shortcuts import redirect, render
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook
+from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
 
 logger = logging.getLogger('backend')
 
@@ -148,6 +148,8 @@ urlpatterns = [
     ),
     path('mail/config-v1.1.xml', autoconfig_mozilla, name='autoconfig-mozilla-alt'),
     path('autodiscover/autodiscover.xml', autoconfig_outlook, name='autoconfig-outlook'),
+    path('Autodiscover/Autodiscover.xml', autoconfig_outlook, name='autoconfig-outlook-ci'),
+    path('.well-known/mta-sts.txt', mta_sts_policy, name='mta-sts-policy'),
 ]
 
 # Custom error handlers

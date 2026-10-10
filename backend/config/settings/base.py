@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from celery.schedules import crontab
 from django.core.checks import Error, register
 
 from backend.config.branding import BrandingConfig
@@ -162,6 +163,22 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_ACKS_LATE = True
+CELERY_BEAT_SCHEDULE = {
+    'verify-domains': {'task': 'domains.verify_all', 'schedule': crontab(minute='*/15')},
+    'sync-dkim-files': {'task': 'domains.sync_dkim_files', 'schedule': crontab(minute='5,35')},
+    'sync-certificate-hosts': {
+        'task': 'domains.sync_certificate_hosts',
+        'schedule': crontab(minute=20),
+    },
+    'check-certificate-expiry': {
+        'task': 'core.check_certificate_expiry',
+        'schedule': crontab(hour=6, minute=10),
+    },
+    'apply-postfix-overrides': {
+        'task': 'mail.apply_postfix_overrides',
+        'schedule': crontab(minute='2,12,22,32,42,52'),
+    },
+}
 
 # Axes — brute-force protection
 AXES_FAILURE_LIMIT = int(os.environ.get('AXES_FAILURE_LIMIT', '5'))

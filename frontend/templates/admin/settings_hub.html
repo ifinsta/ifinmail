@@ -1,0 +1,36 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}{% load settings_nav %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Settings — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Settings' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Everything that configures this mail server, grouped by what you are trying to do.' %}</p>
+            </div>
+        </div>
+        {% for group in settings_groups %}
+        <div class="ifinmail-settings-overview">
+            <h2 class="ifinmail-overline">{{ group.title }}</h2>
+            <ul class="ifinmail-settings-overview__list">
+                {% for item in group.items %}
+                <li>
+                    <a class="ifinmail-settings-overview__item" href="{% settings_url item %}">
+                        <span class="ifinmail-settings-overview__icon">{% settings_icon item.icon %}</span>
+                        <span class="ifinmail-settings-overview__text">
+                            <strong>{{ item.title }}</strong>
+                            <small>{{ item.description }}</small>
+                        </span>
+                        <svg class="ifinmail-icon ifinmail-icon--sm ifinmail-settings-overview__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

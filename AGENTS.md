@@ -122,6 +122,7 @@ result = StorageService.upload(
 
 # ifinmail - Frontend Design Guide (Remediation)
 - Please refer to [DESIGN.md] for any new design or remediation of existing design when checking against compliance requirements for frontend designs.
+- Agent skills in `.agents/skills/` encode the approved template redesign. Load `ifinmail-design-system` before any UI work, follow `ifinmail-template-builder` when touching `frontend/templates` or `frontend/static`, and finish with `ifinmail-design-audit`. The template-to-board map is in `docs/html_templates.md`.
 
 
 

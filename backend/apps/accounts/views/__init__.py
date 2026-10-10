@@ -10,6 +10,15 @@ from .dashboard import (
     dashboard_shell,
 )
 from .logs import logs, logs_export, logs_full_history, logs_live_data
+from .mailboxes import (
+    aliases_create,
+    aliases_delete,
+    aliases_page,
+    mailboxes_action,
+    mailboxes_create,
+    mailboxes_page,
+    registration_toggle,
+)
 from .password_reset import (
     password_reset,
     password_reset_complete,
@@ -25,11 +34,20 @@ from .registration import (
     step_verify,
     step_verify_confirm,
 )
+from .settings_hub import settings_hub, settings_page
 from .setup import setup_advance, setup_step, setup_wizard
 from .spam import spam_add_provider, spam_filtering, spam_set_sensitivity
 from .users import user_management, users_export, users_kill_sessions
 
 __all__ = [
+    'aliases_create',
+    'aliases_delete',
+    'aliases_page',
+    'mailboxes_action',
+    'mailboxes_create',
+    'mailboxes_page',
+    'registration_toggle',
+
     'branding_identity',
     'branding_reset',
     'branding_save',
@@ -49,6 +67,8 @@ __all__ = [
     'password_reset_complete',
     'password_reset_confirm',
     'password_reset_done',
+    'settings_hub',
+    'settings_page',
     'setup_advance',
     'setup_step',
     'setup_wizard',

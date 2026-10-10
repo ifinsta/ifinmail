@@ -10,6 +10,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from backend.config.branding import DEFAULT_ACCENT, DEFAULT_PRIMARY, DEFAULT_SECONDARY
 from backend.services.audit import AuditService
 
 from .auth import _is_staff
@@ -71,11 +72,13 @@ def _save_overrides(data: dict) -> None:
 def branding_identity(request: HttpRequest) -> HttpResponse:
     """Branding and identity settings screen."""
     overrides = _load_overrides()
-    primary_color = overrides.get('primary_color') or os.environ.get('BRAND_COLOR', '#0051D5')
+    primary_color = overrides.get('primary_color') or os.environ.get('BRAND_COLOR', DEFAULT_PRIMARY)
     secondary_color = overrides.get('secondary_color') or os.environ.get(
-        'BRAND_SECONDARY_COLOR', '#ECEEF0'
+        'BRAND_SECONDARY_COLOR', DEFAULT_SECONDARY
     )
-    accent_color = overrides.get('accent_color') or os.environ.get('BRAND_ACCENT_COLOR', '#4EDEA3')
+    accent_color = overrides.get('accent_color') or os.environ.get(
+        'BRAND_ACCENT_COLOR', DEFAULT_ACCENT
+    )
     heading_font = overrides.get('heading_font', 'Inter')
     body_font = overrides.get('body_font', 'Inter')
     favicon_url = overrides.get('favicon_url', '')
@@ -151,7 +154,7 @@ def branding_save(request: HttpRequest) -> HttpResponse:
             # Dynamic hot-reload of branding config
             from backend.config.branding import BrandingConfig
             django_settings.BRAND_CONFIG = BrandingConfig.from_env()
-            
+
             AuditService.record(
                 action='branding_saved',
                 user=request.user.email if request.user.is_authenticated else None,
@@ -183,11 +186,11 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
         favicon_path = os.path.join(_MEDIA_ROOT, 'branding', 'favicon.ico')
         if os.path.isfile(favicon_path):
             os.remove(favicon_path)
-            
+
         # Dynamic hot-reload of branding config to reset defaults
         from backend.config.branding import BrandingConfig
         django_settings.BRAND_CONFIG = BrandingConfig.from_env()
-        
+
         AuditService.record(
             action='branding_reset',
             user=request.user.email if request.user.is_authenticated else None,

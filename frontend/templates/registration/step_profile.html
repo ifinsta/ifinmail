@@ -5,7 +5,7 @@
 {% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Create Your Account — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block body_layout %}
-<div class="ifinmail-reg">
+<main class="ifinmail-reg">
 
   <div class="ifinmail-reg-card ifinmail-fade-in">
     {% include "registration/_stepper.html" with current=1 %}
@@ -37,60 +37,7 @@
     </p>
   </div>
 
-</div>
-
-<style>
-.ifinmail-field-hint {
-  display: block;
-  font-size: 12px;
-  margin-top: 2px;
-  min-height: 16px;
-}
-.ifinmail-field-hint--ok {
-  color: var(--ifinmail-color-success, #16a34a);
-}
-.ifinmail-field-hint--err {
-  color: var(--ifinmail-color-error, #dc2626);
-}
-.ifinmail-error-banner {
-  background: var(--ifinmail-error-container, #fef2f2);
-  border: 1px solid var(--ifinmail-color-error, #dc2626);
-  border-radius: var(--ifinmail-border-radius-md);
-  padding: 10px 14px;
-  margin-bottom: var(--ifinmail-space-4);
-  font-size: 14px;
-  color: var(--ifinmail-color-error, #dc2626);
-}
-.ifinmail-btn--loading .ifinmail-btn__spinner {
-  display: inline-block;
-}
-.ifinmail-btn--loading .ifinmail-btn__text {
-  opacity: 0.7;
-}
-.ifinmail-btn__spinner {
-  display: none;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top: 2px solid #fff;
-  border-radius: 50%;
-  animation: ifinmail-spin 0.6s linear infinite;
-}
-@keyframes ifinmail-spin {
-  to { transform: rotate(360deg); }
-}
-.ifinmail-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.ifinmail-reg-card.ifinmail-fade-in {
-  animation: ifinmail-fade-up 0.35s ease-out;
-}
-@keyframes ifinmail-fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-</style>
+</main>
 
 {% endblock %}
 

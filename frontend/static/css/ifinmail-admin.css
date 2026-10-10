@@ -840,13 +840,13 @@
 /* Primary Button High-Contrast Focus & active enhancements */
 .ifinmail-btn--primary {
     background-color: var(--ifinmail-color-primary) !important;
-    color: var(--ifinmail-color-white) !important; /* Exceeds 6.3:1 contrast ratio against primary brand blue */
+    color: var(--ifinmail-on-primary) !important; /* 6.5:1 against primary in light, dark text on the lighter dark-theme primary */
     border: 1px solid transparent !important;
 }
 
 .ifinmail-btn--primary:hover {
     background-color: var(--ifinmail-color-primary-hover) !important; /* >8.0:1 contrast ratio */
-    color: var(--ifinmail-color-white) !important;
+    color: var(--ifinmail-on-primary) !important;
 }
 
 /* Outline Button High-Contrast Focus & Active enhancements */

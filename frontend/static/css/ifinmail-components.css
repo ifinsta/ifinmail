@@ -445,7 +445,7 @@ select.ifinmail-input {
     transform: translateX(-50%);
     padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
     background: var(--ifinmail-color-text-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-color-surface-1);
     font-size: var(--ifinmail-font-size-caption);
     font-weight: var(--ifinmail-font-weight-normal);
     border-radius: 6px;
@@ -538,7 +538,7 @@ select.ifinmail-input {
 
 .ifinmail-pill--active {
     background: var(--ifinmail-color-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-primary);
     border-color: transparent;
 }
 
@@ -676,7 +676,7 @@ select.ifinmail-input {
 
 .ifinmail-pagination__btn--active {
     background: var(--ifinmail-color-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-primary);
     border-color: var(--ifinmail-color-primary);
 }
 
@@ -1812,7 +1812,7 @@ select.ifinmail-input {
     align-items: center;
     justify-content: center;
     background: var(--ifinmail-color-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-primary);
 }
 
 .ifinmail-avatar-button,
@@ -2278,7 +2278,7 @@ select.ifinmail-input {
     width: 32px;
     height: 32px;
     background: var(--ifinmail-color-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-primary);
     font-weight: var(--ifinmail-font-weight-bold);
     font-size: var(--ifinmail-font-size-body);
     border-radius: var(--ifinmail-radius-md);
@@ -2614,7 +2614,7 @@ select.ifinmail-input {
     transform: translateX(-50%);
     padding: var(--ifinmail-space-1) var(--ifinmail-space-3);
     background: var(--ifinmail-color-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-primary);
     font-size: var(--ifinmail-font-size-caption);
     font-weight: var(--ifinmail-font-weight-semibold);
     border-radius: var(--ifinmail-radius-full);
@@ -2750,7 +2750,7 @@ select.ifinmail-input {
    ══════════════════════════════════════════════════════════════ */
 .ifinmail-landing-cta {
     padding: var(--ifinmail-space-16) var(--ifinmail-space-6);
-    background: var(--ifinmail-color-brand);
+    background: var(--ifinmail-band-bg);
     text-align: center;
 }
 
@@ -2762,7 +2762,7 @@ select.ifinmail-input {
 .ifinmail-landing-cta__title {
     font-size: var(--ifinmail-font-size-3xl);
     font-weight: var(--ifinmail-font-weight-bold);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-band);
     margin-bottom: var(--ifinmail-space-3);
 }
 
@@ -2775,7 +2775,7 @@ select.ifinmail-input {
 
 .ifinmail-landing-cta .ifinmail-btn--primary {
     background: var(--ifinmail-color-white);
-    color: var(--ifinmail-color-brand);
+    color: var(--ifinmail-band-bg);
 }
 
 .ifinmail-landing-cta .ifinmail-btn--primary:hover {
@@ -2812,7 +2812,7 @@ select.ifinmail-input {
     width: 28px;
     height: 28px;
     background: var(--ifinmail-color-primary);
-    color: var(--ifinmail-color-white);
+    color: var(--ifinmail-on-primary);
     font-weight: var(--ifinmail-font-weight-bold);
     font-size: var(--ifinmail-font-size-caption);
     border-radius: var(--ifinmail-radius-sm);

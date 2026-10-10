@@ -11,6 +11,9 @@ Canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (board = artboard file
 | `admin/spam_filtering.html` | `Spam` | Stats, sensitivity slider, engines, DNSBL table, add-provider dialog |
 | `admin/dns_config.html` | `DomainConfig` | Zone health strip, registry, empty cluster, toolbox, routing toggles, register-domain dialog |
 | `admin/branding_identity.html` | `Branding` | Logo upload, typography, palette with live preview, brand application toggles |
+| `admin/settings_hub.html`, `includes/settings_nav.html` | `Settings` | Grouped category list (Workspace, Access, Personalization, System) plus overview; the nav is generated from `SettingsCatalogue` |
+| `admin/settings_config.html`, `settings_about.html`, `settings_maintenance.html` | `SettingsMail` | Read-only effective config rows with the env variable beside each value; secrets show only "Configured" |
+| `admin/settings_appearance.html` | `SettingsAppearance`, `SettingsAppearanceDark`, `SettingsAppearanceContrast` | Theme picker cards and the Current panel, shown in each theme |
 | `admin/logs.html` | `Logs` | Level filter chips, live log table, empty audit trail |
 | `admin/login.html` | `Login` | Auth card with `state` tweak: default, error, inactive |
 | `admin/password_reset_form.html`, `_done.html`, `_confirm.html` (valid and invalid), `_complete.html` | `PasswordReset` | Five reset states |
@@ -22,7 +25,7 @@ Canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (board = artboard file
 | `error_base.html`, `400.html`, `403.html`, `404.html`, `500.html`, `502.html`, `503.html`, `504.html`, `static/error-pages/40x.html`, `50x.html` | `ErrorPages` | Eight error cards and the static fallback note |
 | `clients/android/.../webMain/resources/index.html` | `AndroidShell` | Loading splash |
 
-Phone-width boards (390 px, "Phone widths" row): `PhoneDashboard`, `PhoneNav` (drawer open), `PhoneUsers`, `PhoneSpam`, `PhoneDomainConfig`, `PhoneBranding`, `PhoneLogs`, `PhoneLogin`, `PhoneLanding`, `PhoneLegal`, and `PhoneAccess` (registration, setup, error, email). They render the same boards with the `phone` prop, so a change to a desktop board shows up there too.
+Phone-width boards (390 px, "Phone widths" row): `PhoneDashboard`, `PhoneNav` (drawer open), `PhoneUsers`, `PhoneSpam`, `PhoneDomainConfig`, `PhoneBranding`, `PhoneLogs`, `PhoneSettings` (hub, category page, dark appearance), `PhoneLogin`, `PhoneLanding`, `PhoneLegal`, and `PhoneAccess` (registration, setup, error, email). They render the same boards with the `phone` prop, so a change to a desktop board shows up there too.
 
 Shared components in the canvas (components row): `Icon`, `Pill`, `Btn`, `Field`, `Stepper`, `TopBar`, `PageHead`, `Sidebar`. Foundations sheet: `Main`.
 

@@ -17,6 +17,7 @@ Pair this with `ifinmail-design-system` (what it should look like) and finish wi
 
 | Screen type | Extend | Blank these blocks |
 | --- | --- | --- |
+| Settings page (anything an admin configures) | `admin/settings_base.html` | none; define `settings_content`, pass `active_section` equal to the page's `SettingsCatalogue` key, and register the page in `backend/apps/accounts/services/settings_catalogue.py` |
 | Admin page | `base.html` | none; set `sidebar_wrapper` to `{% include "includes/sidebar.html" %}` and `header` to `{% include "includes/header.html" %}`, pass `active_section` |
 | Sign-in, reset, registration | `base.html` with its own `body_layout` | `sidebar_wrapper`, `header`, `footer` via `body_layout` override |
 | Setup wizard | `setup/base.html` | standalone layout |
@@ -57,4 +58,5 @@ Follow "Small screens" in `ifinmail-design-system`: borderless, edge to edge, on
 2. Tab through the page: every control reachable, focus ring visible, order matches reading order.
 3. Run `.agents/skills/ifinmail-design-audit/scripts/audit.sh <changed files>` and fix findings.
 4. Run the app (`USE_SQLITE=1 DJANGO_SETTINGS_MODULE=backend.config.settings.development python manage.py runserver --noreload`, restart after template edits) and load each affected page at 1280 and 390 px. Confirm no horizontal overflow and no console errors. Template names that need DEBUG off (404, 500) render with `DEBUG=False --insecure`.
-5. Update `docs/html_templates.md` if you added, removed or renamed a template.
+5. Repeat steps 1-4 with the Dark and High contrast themes (`localStorage.setItem('ifinmail-theme', 'dark')` or `'contrast'`) and at 768 px.
+6. Update `docs/html_templates.md` if you added, removed or renamed a template.

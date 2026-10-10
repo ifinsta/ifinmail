@@ -22,6 +22,23 @@ This file is the short form. The full guide, tokens, patterns and per-template b
 - Sidebar becomes a drawer; header is hamburger, wordmark, actions.
 - 44 px touch targets.
 
+## Settings hub
+
+All configuration lives under **Settings** (`/accounts/settings/`), grouped as Workspace, Access, Personalization and System. The catalogue is one typed list in `backend/apps/accounts/services/settings_catalogue.py`; the left list, the hub overview and the sidebar highlight are all generated from it.
+
+- A page that edits or shows settings extends `admin/settings_base.html`, defines `settings_content`, and sets `active_section` to its catalogue key.
+- A new page without its own view is added to the catalogue with `url_kwargs={'slug': ...}` and either a builder in `views/settings_hub.py` (read-only values from `EffectiveConfig`, secrets shown only as "Configured") or its own template.
+- Below 1200 px the category list is replaced by the hub overview and a back link; on phones the overview is one borderless list.
+- Read-only pages state that values come from the deployment environment and name the variable beside each value.
+
+## Themes
+
+Light (default), Dark, Auto and High contrast. `ifinmail-theme-init.js` runs in `<head>` and sets `html[data-theme]` (the choice, stored in `localStorage`) and `html[data-scheme]` (what renders: light, dark or contrast). Theme blocks live at the end of `ifinmail-variables.css` and change token values only.
+
+- Never write a literal colour in component CSS. A new literal-colour token in `:root` must also be defined in the `dark` and `contrast` blocks (a test enforces this).
+- Text on a primary fill uses `--ifinmail-on-primary`, never white.
+- Text contrast must hold in all three schemes; check with axe in each (`localStorage.setItem('ifinmail-theme', 'dark')`).
+
 ## Where things live
 
 | What | Where |

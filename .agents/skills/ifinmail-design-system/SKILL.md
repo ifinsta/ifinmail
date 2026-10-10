@@ -66,7 +66,8 @@ One continuous surface, edge to edge. This is a different composition, not a squ
 - Text contrast 4.5:1 minimum (3:1 at 24 px and up). `text-muted` is #656d7a, not #6b7280, so it holds on `surface-2`.
 - All copy goes through `{% trans %}` / `{% blocktrans %}`.
 - Pages work at 360 px wide: sidebar collapses behind the header toggle, toolbars wrap, wide tables scroll inside their own box.
-- Dark and high-contrast themes: tokens only, never literal colours, so a theme swap works.
+- Dark and high-contrast themes are real (`html[data-scheme]`, blocks at the end of `ifinmail-variables.css`). Tokens only, never literal colours; a new literal-colour token needs a value in both the `dark` and `contrast` blocks; text on a primary fill uses `--ifinmail-on-primary`. Verify every UI change in light, dark and contrast.
+- Settings screens use `admin/settings_base.html` and are registered in `SettingsCatalogue` (see `DESIGN.md`, "Settings hub").
 
 ## Never
 

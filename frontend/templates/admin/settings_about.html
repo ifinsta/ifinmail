@@ -1,0 +1,25 @@
+{% extends "admin/settings_config.html" %}
+{% load i18n %}
+
+{% block settings_content %}
+{{ block.super }}
+<section class="ifinmail-admin-content ifinmail-settings-extra">
+    <div class="ifinmail-admin-page">
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="about-shortcuts">
+            <h2 class="ifinmail-panel-title" id="about-shortcuts">{% trans 'Keyboard shortcuts' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Go to Dashboard' %}</dt><dd><code class="ifinmail-kbd">G</code> <code class="ifinmail-kbd">D</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Go to Logs' %}</dt><dd><code class="ifinmail-kbd">G</code> <code class="ifinmail-kbd">L</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Go to Branding' %}</dt><dd><code class="ifinmail-kbd">G</code> <code class="ifinmail-kbd">B</code></dd></div>
+            </dl>
+        </section>
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="about-help">
+            <h2 class="ifinmail-panel-title" id="about-help">{% trans 'Help' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Documentation' %}</dt><dd><a class="ifinmail-link-strong" href="{{ docs_url }}" rel="noopener noreferrer" target="_blank">{{ docs_url }}</a></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Support' %}</dt><dd><a class="ifinmail-link-strong" href="mailto:{{ support_email }}">{{ support_email }}</a></dd></div>
+            </dl>
+        </section>
+    </div>
+</section>
+{% endblock %}

@@ -69,6 +69,22 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
         _('Access'),
         (
             SettingsItem(
+                'mailboxes',
+                _('Mailboxes'),
+                _('Create mailboxes, passwords and quotas.'),
+                SettingsIcon.MAIL,
+                'accounts:mailboxes',
+                ('mailbox', 'account', 'password', 'quota', 'registration', 'sign up'),
+            ),
+            SettingsItem(
+                'aliases',
+                _('Aliases'),
+                _('Forward addresses to other addresses.'),
+                SettingsIcon.DELIVERABILITY,
+                'accounts:aliases',
+                ('alias', 'forward', 'postmaster', 'abuse'),
+            ),
+            SettingsItem(
                 'users',
                 _('Users'),
                 _('Mailboxes, roles and active sessions.'),
@@ -140,6 +156,15 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 _PAGE,
                 ('disk', 'tls', 'certificate', 'letsencrypt', 'media', 'vhosts'),
                 {'slug': 'storage'},
+            ),
+            SettingsItem(
+                'backups',
+                _('Backups & scheduled jobs'),
+                _('Backup status and automatic checks.'),
+                SettingsIcon.STORAGE,
+                _PAGE,
+                ('backup', 'restore', 'gpg', 'schedule', 'job', 'cron', 'verify'),
+                {'slug': 'backups'},
             ),
             SettingsItem(
                 'maintenance',

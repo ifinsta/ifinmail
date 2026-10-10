@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(128) NOT NULL DEFAULT '';
+-- The Domain model maps this column, so a SELECT without it fails everywhere.
+ALTER TABLE domains ADD COLUMN IF NOT EXISTS ip_address INET;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_superuser BOOLEAN DEFAULT FALSE;
@@ -127,6 +129,8 @@ END
 GRANT CONNECT ON DATABASE ifinmail TO dovecot;
 GRANT USAGE ON SCHEMA public TO dovecot;
 GRANT SELECT ON users TO dovecot;
+GRANT SELECT ON domains TO dovecot;
+GRANT SELECT ON mailboxes TO dovecot;
 
 GRANT CONNECT ON DATABASE ifinmail TO postfix;
 GRANT USAGE ON SCHEMA public TO postfix;
@@ -137,8 +141,9 @@ GRANT SELECT ON aliases TO postfix;
 -- App role grants (Django needs full CRUD on all app tables)
 GRANT CONNECT ON DATABASE ifinmail TO ifinmail_app;
 GRANT USAGE, CREATE ON SCHEMA public TO ifinmail_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ifinmail_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ifinmail_app;
+-- REFERENCES lets Django's admin/session migrations add foreign keys to the users table.
+GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON ALL TABLES IN SCHEMA public TO ifinmail_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE, REFERENCES ON TABLES TO ifinmail_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ifinmail_app;
 
 -- Database-level timeouts (prevent hanging queries)

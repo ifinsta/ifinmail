@@ -1,0 +1,74 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Mailboxes — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Mailboxes' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Create the mailbox and its login in one step. People sign in to IMAP and SMTP with the full address.' %}</p>
+            </div>
+        </div>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mb-add">
+            <h2 class="ifinmail-panel-title" id="mb-add">{% trans 'Add a mailbox' %}</h2>
+            {% if not domains %}
+            <p class="ifinmail-settings-section__lede">{% trans 'Add a domain first.' %} <a class="ifinmail-link-strong" href="{% url 'dns:config' %}">{% trans 'Go to Domains & DNS' %}</a></p>
+            {% else %}
+            <form method="post" action="{% url 'accounts:mailboxes_create' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field-grid">
+                    <div class="ifinmail-field">
+                        <label for="mb-local">{% trans 'Name' %}</label>
+                        <input class="ifinmail-input" id="mb-local" name="local_part" required maxlength="64" autocomplete="off" placeholder="{% trans 'hello' %}">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="mb-domain">{% trans 'Domain' %}</label>
+                        <select class="ifinmail-input" id="mb-domain" name="domain" required>
+                            {% for d in domains %}<option value="{{ d }}">@{{ d }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="mb-password">{% trans 'Password' %}</label>
+                        <input class="ifinmail-input" id="mb-password" name="password" type="password" required minlength="8" autocomplete="new-password">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="mb-quota">{% trans 'Quota (MB, 0 = unlimited)' %}</label>
+                        <input class="ifinmail-input" id="mb-quota" name="quota_mb" type="number" min="0" value="0">
+                    </div>
+                </div>
+                <label class="ifinmail-check"><input type="checkbox" name="is_admin"> <span>{% trans 'Can sign in to this admin console' %}</span></label>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Create mailbox' %}</button></div>
+            </form>
+            {% endif %}
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Mailboxes' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'All mailboxes' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Address' %}</th><th>{% trans 'Quota' %}</th><th>{% trans 'Role' %}</th><th>{% trans 'Status' %}</th><th>{% trans 'Manage' %}</th></tr></thead>
+                <tbody>
+                {% for item in mailboxes %}
+                    {% include "admin/partials/mailbox_row.html" with item=item %}
+                {% empty %}
+                    <tr><td colspan="5" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No mailboxes yet. Add the first one above.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mb-reg">
+            <h2 class="ifinmail-panel-title" id="mb-reg">{% trans 'Self-registration' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'When open, anyone who can reach the sign-in page can request a mailbox on the primary domain after verifying an email address. Keep it closed unless you want public sign-up.' %}</p>
+            <form method="post" action="{% url 'accounts:registration_toggle' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <label class="ifinmail-check"><input type="checkbox" name="open"{% if registration_open %} checked{% endif %}> <span>{% trans 'Allow people to register' %}</span></label>
+                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Save' %}</button></div>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

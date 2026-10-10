@@ -15,6 +15,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from backend.services.runtime import read_runtime_file
+
 from ..types.settings import ConfigRow, ConfigSection
 
 
@@ -365,6 +367,50 @@ class EffectiveConfig:
                         'Certificate expiry is monitored from here; see the dashboard '
                         'for the current status.'
                     )
+                ),
+            ),
+        ]
+
+    @staticmethod
+    def backups() -> list[ConfigSection]:
+        from backend.apps.core.services import SystemSettings
+        from backend.apps.core.types import SettingKey
+
+        def when(key: SettingKey) -> str:
+            raw = SystemSettings.get(key)
+            if key == SettingKey.LAST_BACKUP_AT:
+                # Written by backup_full.sh into the shared runtime volume.
+                raw = (read_runtime_file('last-backup-at') or '').strip() or raw
+            return str(raw)[:19].replace('T', ' ') + ' UTC' if raw else str(_('Never'))
+
+        return [
+            ConfigSection(
+                str(_('Backups')),
+                (
+                    ConfigRow(str(_('Last successful backup')), when(SettingKey.LAST_BACKUP_AT)),
+                    ConfigRow(
+                        str(_('Schedule')),
+                        _env('BACKUP_SCHEDULE', str(_('Daily at 03:15 (server cron)'))),
+                        'BACKUP_SCHEDULE',
+                    ),
+                    ConfigRow(
+                        str(_('Destination')), _unset(_env('BACKUP_DIR')), 'BACKUP_DIR', mono=True
+                    ),
+                    ConfigRow(
+                        str(_('Encrypted for')),
+                        _unset(_env('BACKUP_GPG_RECIPIENT')),
+                        'BACKUP_GPG_RECIPIENT',
+                        mono=True,
+                    ),
+                ),
+                str(_('Restore with provisioning/scripts/restore_test.sh or your own procedure.')),
+            ),
+            ConfigSection(
+                str(_('Automatic checks')),
+                (
+                    ConfigRow(str(_('Last DNS verification')), when(SettingKey.LAST_VERIFY_AT)),
+                    ConfigRow(str(_('DNS verification')), str(_('Every 15 minutes'))),
+                    ConfigRow(str(_('Certificate expiry check')), str(_('Daily'))),
                 ),
             ),
         ]

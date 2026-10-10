@@ -23,6 +23,18 @@
       <div class="ifinmail-login-error">{{ error }}</div>
     {% endif %}
 
+    {% if mailbox_notice %}
+      <div class="ifinmail-login-notice" role="status">
+        <strong>{% blocktrans %}{{ mailbox_address }} is a mailbox.{% endblocktrans %}</strong>
+        <span>{% trans 'Your password is correct, but this page is only for server administrators. Add the mailbox to your email app with:' %}</span>
+        <ul>
+          <li>{% trans 'Incoming (IMAP)' %}: <code>{{ mail_host }}</code>, {% trans 'port' %} 993, SSL/TLS</li>
+          <li>{% trans 'Outgoing (SMTP)' %}: <code>{{ mail_host }}</code>, {% trans 'port' %} 587, STARTTLS</li>
+          <li>{% trans 'Username: your full email address' %}</li>
+        </ul>
+      </div>
+    {% endif %}
+
     {% if inactive %}
       <div class="ifinmail-login-inactive">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -74,9 +86,11 @@
     </p>
   </div>
 
+  {% if registration_open %}
   <p class="ifinmail-login-card__register">
     {% trans "Don't have an account?" %} <a href="{% url 'accounts:reg_profile' %}">{% trans 'Create account' %}</a>
   </p>
+  {% endif %}
 
 </main>
 

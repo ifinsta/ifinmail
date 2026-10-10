@@ -21,6 +21,7 @@ _BUILDERS: dict[str, Callable[[], list[ConfigSection]]] = {
     'security': EffectiveConfig.security,
     'monitoring': EffectiveConfig.monitoring,
     'storage': EffectiveConfig.storage,
+    'backups': EffectiveConfig.backups,
     'language': EffectiveConfig.language,
     'about': EffectiveConfig.about,
 }

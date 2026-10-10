@@ -1,10 +1,14 @@
 """DNS provider service layer."""
 
+import base64
 import hashlib
+import json
 import logging
 import os
 import socket
 
+from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
 from django.core import signing
 from django.db.utils import OperationalError
 
@@ -25,6 +29,34 @@ PROVIDER_MAP = {
 _IPIFY_URL = 'https://api.ipify.org'
 _DEFAULT_DNS_TTL = int(os.environ.get('DNS_TTL', '3600'))
 _DKIM_KEY_DIR = os.environ.get('DKIM_KEY_DIR', '/etc/dkim')
+_CRED_PREFIX = 'fernet:'
+DKIM_PLACEHOLDER = '<add-dkim-key>'
+
+
+def _fernet() -> Fernet:
+    """Cipher for stored provider credentials, derived from the Django secret key."""
+    seed = f'dns-credentials:{settings.SECRET_KEY}'.encode()
+    key = base64.urlsafe_b64encode(hashlib.sha256(seed).digest())
+    return Fernet(key)
+
+
+def encrypt_credentials(credentials: dict) -> str:
+    return _CRED_PREFIX + _fernet().encrypt(json.dumps(credentials).encode()).decode()
+
+
+def decrypt_credentials(stored: object) -> dict:
+    """Read credentials stored encrypted, or in the older signed/plain formats."""
+    if isinstance(stored, str) and stored.startswith(_CRED_PREFIX):
+        try:
+            return json.loads(_fernet().decrypt(stored[len(_CRED_PREFIX) :].encode()))
+        except (InvalidToken, ValueError) as exc:
+            raise ValueError('Stored DNS credentials cannot be decrypted') from exc
+    try:
+        return signing.loads(stored)  # legacy: signed but readable
+    except (signing.BadSignature, TypeError):
+        if isinstance(stored, dict):
+            return stored
+        raise ValueError('Stored DNS credentials are unreadable') from None
 
 
 class DNSService:
@@ -44,11 +76,10 @@ class DNSService:
         provider_name: str,
         credentials: dict,
     ) -> tuple[DNSProviderConfig, bool]:
-        # Sign credentials before DB write so tampering is detected on read.
-        signed_credentials = signing.dumps(credentials)
+        # Encrypt before the DB write: the table holds API tokens that can edit DNS.
         config, created = DNSProviderConfig.objects.update_or_create(
             provider=provider_name,
-            defaults={'credentials': signed_credentials},
+            defaults={'credentials': encrypt_credentials(credentials)},
         )
         # Return the usable in-memory shape while keeping the stored value signed.
         config.credentials = credentials
@@ -104,14 +135,38 @@ class DNSService:
             return None
         cls, _, _ = PROVIDER_MAP[provider_name]
         try:
-            decrypted = signing.loads(config.credentials)
-        except (signing.BadSignature, TypeError):
-            logger.exception(
-                'Failed to decrypt credentials for %s; falling back to raw value',
-                provider_name,
-            )
-            decrypted = config.credentials
+            decrypted = decrypt_credentials(config.credentials)
+        except ValueError:
+            logger.exception('Cannot read stored credentials for %s', provider_name)
+            return None
         return cls(**decrypted)
+
+    @staticmethod
+    def _dkim_public_value(domain: str, selector: str) -> str:
+        """Published DKIM value: database key first, then a key file from older installs."""
+        try:
+            from backend.apps.domains.services.dkim import DKIMService
+
+            value = DKIMService.txt_value_for(domain, selector)
+            if value:
+                return value
+        except Exception:  # database unavailable (e.g. before migrations): fall back to files
+            logger.debug('DKIM lookup in the database failed for %s', domain, exc_info=True)
+        for name in (f'{domain}.{selector}.pub', f'{selector}.{domain}.pub'):
+            path = os.path.join(_DKIM_KEY_DIR, name)
+            if os.path.isfile(path):
+                try:
+                    with open(path) as handle:
+                        body = ''.join(line.strip() for line in handle if not line.startswith('-'))
+                except OSError:
+                    continue
+                if body:
+                    return f'v=DKIM1; k=rsa; p={body}'
+        return ''
+
+    @staticmethod
+    def has_placeholder(records: list[DNSRecord]) -> bool:
+        return any(DKIM_PLACEHOLDER in r.value for r in records)
 
     @staticmethod
     def build_records(
@@ -122,37 +177,34 @@ class DNSService:
         resolved_ip = ip_address or server_ip
         mail_hostname = os.environ.get('MAIL_HOSTNAME', f'mail.{domain}')
         dkim_selector = os.environ.get('DKIM_SELECTOR', 'default')
+        dmarc_policy = os.environ.get('DMARC_POLICY', 'quarantine')
         ttl = _DEFAULT_DNS_TTL
 
-        dkim_value = ''
-        dkim_pub_path = os.path.join(_DKIM_KEY_DIR, f'{dkim_selector}.{domain}.pub')
-        if os.path.isfile(dkim_pub_path):
-            try:
-                with open(dkim_pub_path) as f:
-                    dkim_value = ''.join(line.strip() for line in f if not line.startswith('-'))
-            except OSError:
-                pass
-
-        mta_sts_id = (
-            os.environ.get('MTA_STS_ID')
-            or hashlib.sha256(f'mta-sts:{domain}:{mail_hostname}'.encode()).hexdigest()[:16]
+        dkim_txt_value = DNSService._dkim_public_value(domain, dkim_selector) or (
+            f'v=DKIM1; k=rsa; p={DKIM_PLACEHOLDER}'
         )
 
-        dkim_txt_prefix = 'v=DKIM1; k=rsa; p='
-        dkim_txt_value = (
-            dkim_txt_prefix + dkim_value if dkim_value else 'v=DKIM1; k=rsa; p=<add-dkim-key>'
+        # The id changes whenever the policy mode changes so receivers re-fetch it.
+        mta_sts_mode = os.environ.get('MTA_STS_MODE', 'testing')
+        mta_sts_id = (
+            os.environ.get('MTA_STS_ID')
+            or hashlib.sha256(
+                f'mta-sts:{domain}:{mail_hostname}:{mta_sts_mode}'.encode()
+            ).hexdigest()[:16]
         )
 
         return [
             DNSRecord(type='A', name='@', value=resolved_ip, ttl=ttl),
             DNSRecord(type='A', name='mail', value=resolved_ip, ttl=ttl),
             DNSRecord(type='A', name='mta-sts', value=resolved_ip, ttl=ttl),
+            DNSRecord(type='CNAME', name='autoconfig', value=mail_hostname, ttl=ttl),
+            DNSRecord(type='CNAME', name='autodiscover', value=mail_hostname, ttl=ttl),
             DNSRecord(type='MX', name='@', value=mail_hostname, priority=10, ttl=ttl),
             DNSRecord(type='TXT', name='@', value='v=spf1 mx -all', ttl=ttl),
             DNSRecord(
                 type='TXT',
                 name='_dmarc',
-                value=f'v=DMARC1; p=quarantine; rua=mailto:postmaster@{domain}',
+                value=f'v=DMARC1; p={dmarc_policy}; rua=mailto:postmaster@{domain}',
                 ttl=ttl,
             ),
             DNSRecord(type='TXT', name='_mta-sts', value=f'v=STSv1; id={mta_sts_id}', ttl=ttl),

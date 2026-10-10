@@ -1,6 +1,9 @@
 """accounts — web.py: re-export layer for urls.py → web.py → views/ contract."""
 
 from .views import (
+    aliases_create,
+    aliases_delete,
+    aliases_page,
     branding_identity,
     branding_reset,
     branding_save,
@@ -16,10 +19,14 @@ from .views import (
     logs_export,
     logs_full_history,
     logs_live_data,
+    mailboxes_action,
+    mailboxes_create,
+    mailboxes_page,
     password_reset,
     password_reset_complete,
     password_reset_confirm,
     password_reset_done,
+    registration_toggle,
     settings_hub,
     settings_page,
     setup_advance,
@@ -40,6 +47,14 @@ from .views import (
 )
 
 __all__ = [
+    'aliases_create',
+    'aliases_delete',
+    'aliases_page',
+    'mailboxes_action',
+    'mailboxes_create',
+    'mailboxes_page',
+    'registration_toggle',
+
     'branding_identity',
     'branding_reset',
     'branding_save',

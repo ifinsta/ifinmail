@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from .base import DNSRecord, DNSResult
+from .base import DNSRecord, DNSResult, record_key
 
 logger = logging.getLogger('backend')
 
@@ -49,16 +49,18 @@ class PorkbunProvider:
             return DNSResult(success=False, message=str(e))
 
         # Build lookup: (type, name) → record dict
-        existing_map: dict[tuple[str, str], dict] = {}
+        existing_map: dict[tuple[str, str, str], dict] = {}
         for r in existing:
-            key = (r['type'], self._normalize_name(r.get('name', ''), domain))
+            key = record_key(
+                r['type'], self._normalize_name(r.get('name', ''), domain), r.get('content', '')
+            )
             existing_map[key] = r
 
         created = []
         failed = []
 
         for rec in records:
-            key = (rec.type, rec.name)
+            key = record_key(rec.type, rec.name, rec.value)
             try:
                 body = self._record_body(rec, domain)
                 if key in existing_map:

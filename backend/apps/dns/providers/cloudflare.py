@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from .base import DNSRecord, DNSResult
+from .base import DNSRecord, DNSResult, record_key
 
 logger = logging.getLogger('backend')
 
@@ -67,8 +67,8 @@ class CloudflareProvider:
             )
         return zones[0]['id']
 
-    def _existing_records(self, zone_id: str, domain: str) -> dict[tuple[str, str], str]:
-        """Fetch existing DNS records. Returns {(type, name): record_id}."""
+    def _existing_records(self, zone_id: str, domain: str) -> dict[tuple[str, str, str], str]:
+        """Fetch existing DNS records. Returns {record_key: record_id}."""
         existing = {}
         page = 1
         while True:
@@ -76,7 +76,9 @@ class CloudflareProvider:
                 'GET', f'/zones/{zone_id}/dns_records', params={'page': page, 'per_page': 100}
             )
             for rec in data.get('result', []):
-                key = (rec['type'], self._normalize_name(rec['name'], domain))
+                key = record_key(
+                    rec['type'], self._normalize_name(rec['name'], domain), rec.get('content', '')
+                )
                 existing[key] = rec['id']
             if not data.get('result_info', {}).get('total_count', 0) > page * 100:
                 break
@@ -116,7 +118,7 @@ class CloudflareProvider:
         failed = []
 
         for rec in records:
-            key = (rec.type, rec.name)
+            key = record_key(rec.type, rec.name, rec.value)
             try:
                 payload = self._record_payload(rec, domain)
                 if key in existing:

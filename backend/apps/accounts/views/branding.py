@@ -154,7 +154,7 @@ def branding_save(request: HttpRequest) -> HttpResponse:
             # Dynamic hot-reload of branding config
             from backend.config.branding import BrandingConfig
             django_settings.BRAND_CONFIG = BrandingConfig.from_env()
-            
+
             AuditService.record(
                 action='branding_saved',
                 user=request.user.email if request.user.is_authenticated else None,
@@ -186,11 +186,11 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
         favicon_path = os.path.join(_MEDIA_ROOT, 'branding', 'favicon.ico')
         if os.path.isfile(favicon_path):
             os.remove(favicon_path)
-            
+
         # Dynamic hot-reload of branding config to reset defaults
         from backend.config.branding import BrandingConfig
         django_settings.BRAND_CONFIG = BrandingConfig.from_env()
-        
+
         AuditService.record(
             action='branding_reset',
             user=request.user.email if request.user.is_authenticated else None,

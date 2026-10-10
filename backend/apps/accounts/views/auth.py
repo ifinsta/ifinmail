@@ -1,6 +1,7 @@
 """Authentication views: login, logout, staff check."""
 
 import logging
+import os
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.cache import cache
@@ -10,6 +11,7 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 
+from backend.apps.accounts.services.setup_state import SetupState
 from backend.services.audit import AuditService
 
 from ._constants import _ALLOWED_HOST_NAMES
@@ -113,6 +115,25 @@ def login_view(request: HttpRequest) -> HttpResponse:
             # Clear rate-limit on success
             cache.delete(rate_key)
 
+            if not (user.is_staff or user.is_superuser):
+                # Correct credentials for an ordinary mailbox: there is no webmail or console
+                # for them, so say where to use the mailbox instead of bouncing back silently.
+                AuditService.record(
+                    'login_mailbox_only',
+                    user=user.email,
+                    detail=f'IP: {client_ip}',
+                    severity='info',
+                )
+                return render(
+                    request,
+                    'admin/login.html',
+                    {
+                        'mailbox_notice': True,
+                        'mailbox_address': user.email,
+                        'mail_host': os.environ.get('MAIL_HOSTNAME', ''),
+                    },
+                )
+
             request.session.cycle_key()
             login(request, user)
 
@@ -129,6 +150,8 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 allowed_hosts=_ALLOWED_HOST_NAMES or None,
             ):
                 return redirect(next_url)
+            if (user.is_staff or user.is_superuser) and not SetupState.is_complete():
+                return redirect('accounts:setup_wizard')
             return redirect('accounts:dashboard')
 
         # Increment rate-limit on failure

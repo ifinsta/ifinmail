@@ -70,6 +70,9 @@ else
     echo "WARNING: DJANGO_SUPERUSER_USERNAME or DJANGO_SUPERUSER_PASSWORD not set — no superuser created."
 fi
 
+# Make sure every hosted domain has a DKIM key, system aliases and runtime files
+run_as_app python manage.py provision_domains || echo "WARNING: provision_domains failed; run it manually"
+
 # Collect static files
 echo "Collecting static files..."
 if [ "$(id -u)" = "0" ]; then

@@ -115,6 +115,9 @@ class LoginViewTests(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_login_success(self) -> None:
+        from backend.apps.accounts.services.setup_state import SetupState
+
+        SetupState.mark_complete()
         MailUser.objects.create_user(
             email='admin@ifinmail.test',
             password='testpass123',
@@ -125,6 +128,21 @@ class LoginViewTests(TransactionTestCase):
             {'email': 'admin@ifinmail.test', 'password': 'testpass123'},
         )
         self.assertRedirects(response, reverse('accounts:dashboard'))
+
+    def test_first_admin_login_goes_to_setup_wizard(self) -> None:
+        """Until setup is finished the administrator lands in the wizard, not the dashboard."""
+        MailUser.objects.create_user(
+            email='admin@ifinmail.test',
+            password='testpass123',
+            is_staff=True,
+        )
+        response = self.client.post(
+            reverse('accounts:login'),
+            {'email': 'admin@ifinmail.test', 'password': 'testpass123'},
+        )
+        self.assertRedirects(
+            response, reverse('accounts:setup_wizard'), fetch_redirect_response=False
+        )
 
     def test_login_invalid_credentials(self) -> None:
         response = self.client.post(

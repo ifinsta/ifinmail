@@ -87,8 +87,8 @@
                 var isPw = pw.type === 'password';
                 pw.type = isPw ? 'text' : 'password';
                 if (pw2) pw2.type = isPw ? 'text' : 'password';
-                if (eye) eye.style.display = isPw ? 'none' : '';
-                if (eyeOff) eyeOff.style.display = isPw ? '' : 'none';
+                if (eye) eye.hidden = isPw;
+                if (eyeOff) eyeOff.hidden = !isPw;
             });
         }
 

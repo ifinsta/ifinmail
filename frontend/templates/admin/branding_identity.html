@@ -18,87 +18,107 @@
         <div class="ifinmail-admin-grid">
             <article class="ifinmail-panel ifinmail-span-7">
                 <h2 class="ifinmail-panel-title">{% trans 'Logo Management' %}</h2>
-                <div class="ifinmail-admin-grid" style="margin-top:20px">
+                <div class="ifinmail-admin-grid ifinmail-section-gap">
                     <div class="ifinmail-span-6">
                         <span class="ifinmail-overline">{% trans 'Primary Logo' %}</span>
-                        <div class="ifinmail-codebox" style="height:190px;display:flex;align-items:center;justify-content:center;text-align:center;border-style:dashed">ifinmail<br>{% trans 'Click to upload or drag and drop' %}<br>{% trans 'SVG, PNG (max 400x120px)' %}</div>
+                        <div class="ifinmail-dropzone">
+                            <strong class="ifinmail-wordmark ifinmail-wordmark--static">ifinmail</strong>
+                            <span>{% trans 'Click to upload or drag and drop' %}</span>
+                            <span class="ifinmail-text--muted">{% trans 'SVG, PNG (max 400x120px)' %}</span>
+                        </div>
                     </div>
                     <div class="ifinmail-span-6">
                         <span class="ifinmail-overline">{% trans 'Email Header Logo' %}</span>
-                        <div class="ifinmail-codebox" style="height:160px;display:flex;align-items:center;justify-content:center">✉</div>
-                        <p><strong>{% trans 'Current:' %}</strong> {{ current_logo_filename|default:'—' }} <a class="ifinmail-link-strong">{% trans 'Change' %}</a></p>
+                        <div class="ifinmail-dropzone ifinmail-dropzone--compact">
+                            <svg class="ifinmail-icon ifinmail-icon--lg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                        </div>
+                        <p class="ifinmail-file-note"><strong>{% trans 'Current:' %}</strong> {{ current_logo_filename|default:'—' }} <a class="ifinmail-link-strong" href="#favicon-file">{% trans 'Change' %}</a></p>
                     </div>
                 </div>
-                <span class="ifinmail-overline" style="margin-top:18px">{% trans 'Favicon' %}</span>
-                <form id="favicon-form" style="display:flex;align-items:center;gap:10px;margin-top:8px">
-                    <input type="file" name="favicon" accept=".ico,.png,.svg">
-                    {% if favicon_url %}<img src="{{ favicon_url }}" alt="Favicon preview" width="16" height="16" style="margin-left:8px">{% endif %}
+                <span class="ifinmail-overline ifinmail-mt-5">{% trans 'Favicon' %}</span>
+                <form id="favicon-form" class="ifinmail-file-row">
+                    <label class="ifinmail-sr-only" for="favicon-file">{% trans 'Favicon file' %}</label>
+                    <input type="file" id="favicon-file" name="favicon" accept=".ico,.png,.svg">
+                    {% if favicon_url %}<img class="ifinmail-file-row__preview" src="{{ favicon_url }}" alt="{% trans 'Favicon preview' %}" width="16" height="16">{% endif %}
                 </form>
             </article>
 
-            <aside class="ifinmail-panel ifinmail-span-5">
+            <section class="ifinmail-panel ifinmail-span-5">
                 <h2 class="ifinmail-panel-title">{% trans 'Typography' %}</h2>
-                <label class="ifinmail-label" style="margin-top:20px">{% trans 'Headings Font' %}</label>
-                <select id="heading-font" style="width:100%;padding:8px 12px;margin-top:6px">
-                    {% for value, label in web_fonts %}
-                    <option value="{{ value }}"{% if heading_font == value %} selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <label class="ifinmail-label" style="margin-top:16px">{% trans 'Body Text Font' %}</label>
-                <select id="body-font" style="width:100%;padding:8px 12px;margin-top:6px">
-                    {% for value, label in web_fonts %}
-                    <option value="{{ value }}"{% if body_font == value %} selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="ifinmail-codebox" style="margin-top:18px">
+                <div class="ifinmail-form-group">
+                    <label class="ifinmail-label" for="heading-font">{% trans 'Headings Font' %}</label>
+                    <select id="heading-font" class="ifinmail-input">
+                        {% for value, label in web_fonts %}
+                        <option value="{{ value }}"{% if heading_font == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="ifinmail-form-group">
+                    <label class="ifinmail-label" for="body-font">{% trans 'Body Text Font' %}</label>
+                    <select id="body-font" class="ifinmail-input">
+                        {% for value, label in web_fonts %}
+                        <option value="{{ value }}"{% if body_font == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="ifinmail-codebox ifinmail-type-preview">
                     <h3>{% trans 'Bold Heading' %}</h3>
                     <strong>{% trans 'Medium Subheader' %}</strong>
                     <p>{% trans 'Regular paragraph text with technical details.' %}</p>
                 </div>
-            </aside>
+            </section>
 
             <article class="ifinmail-panel ifinmail-span-7">
                 <h2 class="ifinmail-panel-title">{% trans 'Color Palette' %}</h2>
-                <div class="ifinmail-admin-grid" style="margin-top:20px">
+                <div class="ifinmail-admin-grid ifinmail-section-gap">
                     <div class="ifinmail-span-4">
-                        <span class="ifinmail-overline">{% trans 'Primary Color' %}</span>
-                        <div class="ifinmail-codebox" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
-                            <input type="color" id="primary-color-picker" value="{{ primary_color|default:'#0051D5' }}" style="border:none;background:transparent;width:34px;height:34px;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;">
-                            <input type="text" id="primary-color-input" value="{{ primary_color|default:'#0051D5' }}" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--ifinmail-color-border);font-family:var(--ifinmail-font-mono);font-size:12px;border-radius:4px;background:var(--ifinmail-bg);">
+                        <span class="ifinmail-overline" id="primary-color-label">{% trans 'Primary Color' %}</span>
+                        <div class="ifinmail-color-field">
+                            <input type="color" id="primary-color-picker" value="{{ primary_color }}" aria-labelledby="primary-color-label">
+                            <input type="text" id="primary-color-input" value="{{ primary_color }}" aria-labelledby="primary-color-label" maxlength="7" spellcheck="false">
                         </div>
                     </div>
                     <div class="ifinmail-span-4">
-                        <span class="ifinmail-overline">{% trans 'Secondary Color' %}</span>
-                        <div class="ifinmail-codebox" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
-                            <input type="color" id="secondary-color-picker" value="{{ secondary_color|default:'#ECEEF0' }}" style="border:none;background:transparent;width:34px;height:34px;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;">
-                            <input type="text" id="secondary-color-input" value="{{ secondary_color|default:'#ECEEF0' }}" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--ifinmail-color-border);font-family:var(--ifinmail-font-mono);font-size:12px;border-radius:4px;background:var(--ifinmail-bg);">
+                        <span class="ifinmail-overline" id="secondary-color-label">{% trans 'Secondary Color' %}</span>
+                        <div class="ifinmail-color-field">
+                            <input type="color" id="secondary-color-picker" value="{{ secondary_color }}" aria-labelledby="secondary-color-label">
+                            <input type="text" id="secondary-color-input" value="{{ secondary_color }}" aria-labelledby="secondary-color-label" maxlength="7" spellcheck="false">
                         </div>
                     </div>
                     <div class="ifinmail-span-4">
-                        <span class="ifinmail-overline">{% trans 'Accent/Tertiary' %}</span>
-                        <div class="ifinmail-codebox" style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
-                            <input type="color" id="accent-color-picker" value="{{ accent_color|default:'#4EDEA3' }}" style="border:none;background:transparent;width:34px;height:34px;padding:0;cursor:pointer;border-radius:4px;overflow:hidden;">
-                            <input type="text" id="accent-color-input" value="{{ accent_color|default:'#4EDEA3' }}" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--ifinmail-color-border);font-family:var(--ifinmail-font-mono);font-size:12px;border-radius:4px;background:var(--ifinmail-bg);">
+                        <span class="ifinmail-overline" id="accent-color-label">{% trans 'Accent/Tertiary' %}</span>
+                        <div class="ifinmail-color-field">
+                            <input type="color" id="accent-color-picker" value="{{ accent_color }}" aria-labelledby="accent-color-label">
+                            <input type="text" id="accent-color-input" value="{{ accent_color }}" aria-labelledby="accent-color-label" maxlength="7" spellcheck="false">
                         </div>
                     </div>
                 </div>
-                <div class="ifinmail-codebox" style="margin-top:22px">
+                <div class="ifinmail-codebox ifinmail-live-preview">
                     <span class="ifinmail-overline">{% trans 'Live Preview' %}</span>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+                    <div class="ifinmail-preview-row">
                         <button class="ifinmail-btn ifinmail-btn--primary" id="preview-primary-btn" type="button">{% trans 'Primary Action' %}</button>
                         <button class="ifinmail-btn" type="button">{% trans 'Secondary Action' %}</button>
-                        <a class="ifinmail-link-strong" id="preview-link">{% trans 'Sample Hyperlink' %}</a>
+                        <a class="ifinmail-link-strong" id="preview-link" href="#">{% trans 'Sample Hyperlink' %}</a>
                         <span class="ifinmail-badge ifinmail-badge--success" id="preview-accent-badge">{% trans 'Accent Badge' %}</span>
                     </div>
                 </div>
             </article>
 
-            <aside class="ifinmail-panel ifinmail-span-5">
+            <section class="ifinmail-panel ifinmail-span-5">
                 <h2 class="ifinmail-panel-title">{% trans 'Brand Application' %}</h2>
-                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:22px"><span><strong>{% trans 'Mail Clients' %}</strong><br>{% trans 'Apply to user-facing webmail' %}</span><span class="ifinmail-switch ifinmail-switch--on"></span></div>
-                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:22px"><span><strong>{% trans 'Admin Login' %}</strong><br>{% trans 'Apply to administrative portal' %}</span><span class="ifinmail-switch ifinmail-switch--on"></span></div>
-                <div class="ifinmail-action-row" style="justify-content:space-between;margin-top:22px"><span><strong>{% trans 'White-labeling' %}</strong><br>{% trans 'Hide all ifinmail references' %}</span><span class="ifinmail-switch"></span></div>
-            </aside>
+                <div class="ifinmail-toggle-row">
+                    <span id="apply-mail-label"><strong>{% trans 'Mail Clients' %}</strong><small>{% trans 'Apply to user-facing webmail' %}</small></span>
+                    <button type="button" class="ifinmail-switch ifinmail-switch--on" role="switch" aria-checked="true" aria-labelledby="apply-mail-label" disabled></button>
+                </div>
+                <div class="ifinmail-toggle-row">
+                    <span id="apply-admin-label"><strong>{% trans 'Admin Login' %}</strong><small>{% trans 'Apply to administrative portal' %}</small></span>
+                    <button type="button" class="ifinmail-switch ifinmail-switch--on" role="switch" aria-checked="true" aria-labelledby="apply-admin-label" disabled></button>
+                </div>
+                <div class="ifinmail-toggle-row">
+                    <span id="apply-white-label"><strong>{% trans 'White-labeling' %}</strong><small>{% trans 'Hide all ifinmail references' %}</small></span>
+                    <button type="button" class="ifinmail-switch" role="switch" aria-checked="false" aria-labelledby="apply-white-label" disabled></button>
+                </div>
+            </section>
 
             <div class="ifinmail-span-12 ifinmail-page-actions">
                 <button class="ifinmail-btn ifinmail-btn--primary" type="button" data-action="save-branding" data-url="{% url 'accounts:branding_save' %}">{% trans 'Save Branding' %}</button>
@@ -106,14 +126,14 @@
             </div>
 
             <article class="ifinmail-panel ifinmail-span-6">
-                <span class="ifinmail-overline" style="color:var(--ifinmail-color-primary)">{% trans 'Design System Strategy' %}</span>
+                <span class="ifinmail-overline ifinmail-overline--accent">{% trans 'Design System Strategy' %}</span>
                 <h3>{% trans 'Visual Consistency at Scale' %}</h3>
                 <p>{% trans 'Your branding tokens are automatically converted into a structured CSS architecture, ensuring every system-generated email and dashboard component maintains alignment with your corporate identity.' %}</p>
             </article>
             <article class="ifinmail-panel ifinmail-span-6">
-                <div class="ifinmail-action-row" style="justify-content:flex-start">
-                    <span class="ifinmail-icon-tile">✦</span>
-                    <div><strong>{% trans 'Smart Generation' %}</strong><p>{% trans 'AI-driven contrast checking ensures your color palette choices meet WCAG 2.1 accessibility standards before deployment.' %}</p><a class="ifinmail-link-strong">{% trans 'Run accessibility audit →' %}</a></div>
+                <div class="ifinmail-action-row ifinmail-action-row--start">
+                    <span class="ifinmail-icon-tile"><svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.9 8.6 7 10 4.1-1.4 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
+                    <div><strong>{% trans 'Smart Generation' %}</strong><p>{% trans 'AI-driven contrast checking ensures your color palette choices meet WCAG 2.1 accessibility standards before deployment.' %}</p><a class="ifinmail-link-strong" href="#">{% trans 'Run accessibility audit →' %}</a></div>
                 </div>
             </article>
         </div>

@@ -60,6 +60,7 @@ html.ifinmail-shell .ifinmail-admin-nav-list {
 }
 
 html.ifinmail-shell .ifinmail-admin-nav-section {
+    opacity: 1;
     padding: var(--ifinmail-space-3_5) var(--ifinmail-space-2_5) var(--ifinmail-space-1_5);
     font-size: var(--ifinmail-font-size-overline);
     font-weight: var(--ifinmail-font-weight-semibold);
@@ -218,6 +219,13 @@ html.ifinmail-shell .ifinmail-stat-row {
 
 html.ifinmail-shell .ifinmail-table-panel {
     overflow-x: auto;
+}
+
+/* A table panel nested in another panel only adds its table; the outer panel scrolls */
+html.ifinmail-shell .ifinmail-table-panel .ifinmail-table-panel {
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
 }
 
 html.ifinmail-shell .ifinmail-table-panel-header {
@@ -547,6 +555,406 @@ html.ifinmail-shell .ifinmail-landing-hero__dot--red,
 html.ifinmail-shell .ifinmail-landing-hero__dot--yellow,
 html.ifinmail-shell .ifinmail-landing-hero__dot--green {
     background: var(--ifinmail-color-border);
+}
+
+/* ─── Shared utilities extracted from inline styles ─── */
+html.ifinmail-shell .ifinmail-btn-reset {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+}
+
+html.ifinmail-shell .ifinmail-icon--sm { width: 14px; height: 14px; }
+html.ifinmail-shell .ifinmail-icon--md { width: 16px; height: 16px; }
+html.ifinmail-shell .ifinmail-icon--lg { width: 24px; height: 24px; }
+
+html.ifinmail-shell .ifinmail-mt-5 { margin-top: var(--ifinmail-space-5); }
+html.ifinmail-shell .ifinmail-section-gap { margin-top: var(--ifinmail-space-5); }
+
+html.ifinmail-shell .ifinmail-admin-brand-mark {
+    background: transparent;
+}
+
+html.ifinmail-shell .ifinmail-admin-footer-action--button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+}
+
+html.ifinmail-shell .ifinmail-avatar--inline {
+    margin-right: var(--ifinmail-space-3_5);
+}
+
+html.ifinmail-shell .ifinmail-overline--accent {
+    color: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-action-row--start {
+    justify-content: flex-start;
+}
+
+html.ifinmail-shell .ifinmail-wordmark--static {
+    display: block;
+    font-size: var(--ifinmail-font-size-3xl);
+}
+
+html.ifinmail-shell .ifinmail-cell-center {
+    text-align: center;
+    padding: var(--ifinmail-space-6);
+}
+
+html.ifinmail-shell .ifinmail-break-all {
+    word-break: break-all;
+}
+
+/* Key / value lists (TLS details, metadata) */
+html.ifinmail-shell .ifinmail-kv-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ifinmail-space-1_5);
+    font-size: var(--ifinmail-font-size-body-small);
+}
+
+html.ifinmail-shell .ifinmail-kv-list code {
+    font-family: var(--ifinmail-font-mono);
+    font-size: var(--ifinmail-font-size-body-small);
+}
+
+html.ifinmail-shell .ifinmail-empty-state--danger {
+    padding: var(--ifinmail-space-3);
+    border: 1px dashed var(--ifinmail-color-danger);
+    border-radius: var(--ifinmail-radius);
+    color: var(--ifinmail-color-danger-text);
+}
+
+html.ifinmail-shell .ifinmail-empty-state--danger p {
+    color: var(--ifinmail-color-danger-text);
+}
+
+/* ─── Form groups, selects, file rows, colour fields, drop zones ─── */
+html.ifinmail-shell .ifinmail-form-group + .ifinmail-form-group,
+html.ifinmail-shell .ifinmail-panel > .ifinmail-form-group:first-of-type {
+    margin-top: var(--ifinmail-space-4);
+}
+
+html.ifinmail-shell select.ifinmail-input {
+    appearance: none;
+    padding-right: var(--ifinmail-space-8);
+    background-image: var(--ifinmail-chevron-image);
+    background-repeat: no-repeat;
+    background-position: right var(--ifinmail-space-3) center;
+    background-size: 14px 14px;
+}
+
+html.ifinmail-shell .ifinmail-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ifinmail-space-1_5);
+    min-height: 160px;
+    margin-top: var(--ifinmail-space-1_5);
+    padding: var(--ifinmail-space-4);
+    border: 1.5px dashed var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-surface-1);
+    text-align: center;
+    font-size: var(--ifinmail-font-size-body);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+html.ifinmail-shell .ifinmail-dropzone--compact {
+    min-height: 120px;
+    border-style: solid;
+}
+
+html.ifinmail-shell .ifinmail-file-note {
+    margin: var(--ifinmail-space-2) 0 0;
+    font-size: var(--ifinmail-font-size-body-small);
+}
+
+html.ifinmail-shell .ifinmail-file-row {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-2_5);
+    margin-top: var(--ifinmail-space-2);
+}
+
+html.ifinmail-shell .ifinmail-file-row__preview {
+    margin-left: var(--ifinmail-space-2);
+}
+
+html.ifinmail-shell .ifinmail-color-field {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-2_5);
+    margin-top: var(--ifinmail-space-1_5);
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-surface-container-lowest);
+}
+
+html.ifinmail-shell .ifinmail-color-field input[type="color"] {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--ifinmail-radius-xs);
+    background: transparent;
+    cursor: pointer;
+}
+
+html.ifinmail-shell .ifinmail-color-field input[type="text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 32px;
+    padding: 0 var(--ifinmail-space-2_5);
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius-xs);
+    background: var(--ifinmail-surface-container-lowest);
+    font-family: var(--ifinmail-font-mono);
+    font-size: var(--ifinmail-font-size-body-small);
+    color: var(--ifinmail-color-text-primary);
+}
+
+html.ifinmail-shell .ifinmail-live-preview,
+html.ifinmail-shell .ifinmail-type-preview {
+    margin-top: var(--ifinmail-space-5);
+}
+
+html.ifinmail-shell .ifinmail-preview-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ifinmail-space-2_5);
+    margin-top: var(--ifinmail-space-2_5);
+}
+
+html.ifinmail-shell .ifinmail-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-4);
+    padding: var(--ifinmail-space-3) 0;
+    border-bottom: 1px solid var(--ifinmail-color-surface-2);
+}
+
+html.ifinmail-shell .ifinmail-toggle-row:last-child {
+    border-bottom: 0;
+}
+
+html.ifinmail-shell .ifinmail-toggle-row small {
+    display: block;
+    font-size: var(--ifinmail-font-size-body-small);
+    color: var(--ifinmail-color-text-muted);
+}
+
+html.ifinmail-shell button.ifinmail-switch {
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+html.ifinmail-shell button.ifinmail-switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* ─── Auth and registration: states extracted from inline <style> blocks ─── */
+@keyframes ifinmail-fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ifinmail-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ifinmail-bounce {
+    0% { opacity: 0; transform: scale(0.8); }
+    60% { transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+html.ifinmail-shell .ifinmail-fade-in,
+html.ifinmail-shell .ifinmail-reg-card.ifinmail-fade-in {
+    animation: ifinmail-fade-up 0.35s ease-out;
+}
+
+html.ifinmail-shell .ifinmail-bounce-in,
+html.ifinmail-shell .ifinmail-celebrate {
+    animation: ifinmail-bounce 0.4s ease-out;
+}
+
+html.ifinmail-shell .ifinmail-btn__spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--ifinmail-spinner-track-on-dark);
+    border-top-color: var(--ifinmail-color-white);
+    border-radius: var(--ifinmail-radius-full);
+    animation: ifinmail-spin 0.6s linear infinite;
+}
+
+html.ifinmail-shell .ifinmail-btn--ghost .ifinmail-btn__spinner,
+html.ifinmail-shell .ifinmail-btn:not(.ifinmail-btn--primary) .ifinmail-btn__spinner {
+    border-color: var(--ifinmail-spinner-track-on-light);
+    border-top-color: var(--ifinmail-color-text-secondary);
+}
+
+html.ifinmail-shell .ifinmail-btn--loading .ifinmail-btn__spinner {
+    display: inline-block;
+}
+
+html.ifinmail-shell .ifinmail-btn--loading .ifinmail-btn__text {
+    opacity: 0.7;
+}
+
+html.ifinmail-shell .ifinmail-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+html.ifinmail-shell .ifinmail-login-inactive,
+html.ifinmail-shell .ifinmail-verify-tip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ifinmail-space-1_5);
+    margin-bottom: var(--ifinmail-space-4);
+    padding: var(--ifinmail-space-2_5) var(--ifinmail-space-3_5);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-primary-tint);
+    font-size: var(--ifinmail-font-size-body);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+html.ifinmail-shell .ifinmail-login-inactive svg,
+html.ifinmail-shell .ifinmail-verify-tip svg,
+html.ifinmail-shell .ifinmail-reg-complete-note svg {
+    flex-shrink: 0;
+    color: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-login-inactive__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-color-primary);
+    cursor: pointer;
+}
+
+html.ifinmail-shell .ifinmail-login-inactive__link:hover {
+    text-decoration: underline;
+}
+
+html.ifinmail-shell .ifinmail-verify-success {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-1_5);
+    margin-bottom: var(--ifinmail-space-4);
+    padding: var(--ifinmail-space-2_5) var(--ifinmail-space-3_5);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-success-tint);
+    font-size: var(--ifinmail-font-size-body);
+    color: var(--ifinmail-color-success-text);
+}
+
+html.ifinmail-shell .ifinmail-verify-success svg {
+    flex-shrink: 0;
+    color: var(--ifinmail-color-success-text);
+}
+
+html.ifinmail-shell .ifinmail-verify-fallback {
+    margin-bottom: var(--ifinmail-space-4);
+    padding: var(--ifinmail-space-3) var(--ifinmail-space-3_5);
+    border: 1px solid var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-surface-1);
+    word-break: break-all;
+}
+
+html.ifinmail-shell .ifinmail-verify-fallback__label {
+    margin-bottom: var(--ifinmail-space-1);
+    font-size: var(--ifinmail-font-size-body-small);
+    color: var(--ifinmail-color-text-muted);
+}
+
+html.ifinmail-shell .ifinmail-verify-fallback__link {
+    font-family: var(--ifinmail-font-mono);
+    font-size: var(--ifinmail-font-size-body-small);
+    color: var(--ifinmail-color-primary);
+    text-decoration: underline;
+}
+
+html.ifinmail-shell .ifinmail-error-banner {
+    margin-bottom: var(--ifinmail-space-4);
+    padding: var(--ifinmail-space-2_5) var(--ifinmail-space-3_5);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-danger-tint);
+    font-size: var(--ifinmail-font-size-body);
+    color: var(--ifinmail-color-danger-text);
+}
+
+html.ifinmail-shell .ifinmail-field-hint {
+    display: block;
+    min-height: 16px;
+    margin-top: var(--ifinmail-space-0_5);
+    font-size: var(--ifinmail-font-size-body-small);
+}
+
+html.ifinmail-shell .ifinmail-field-hint--ok { color: var(--ifinmail-color-success-text); }
+html.ifinmail-shell .ifinmail-field-hint--err { color: var(--ifinmail-color-danger-text); }
+
+html.ifinmail-shell .ifinmail-reg-complete-actions {
+    margin-top: var(--ifinmail-space-4);
+}
+
+html.ifinmail-shell .ifinmail-reg-complete-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ifinmail-space-1_5);
+    margin-top: var(--ifinmail-space-3);
+    font-size: var(--ifinmail-font-size-body-small);
+    color: var(--ifinmail-color-text-muted);
+}
+
+html.ifinmail-shell .ifinmail-pw-toggle__eye-off[hidden] {
+    display: none;
+}
+
+/* Links inside running text are underlined so they are not colour-only */
+html.ifinmail-shell p a:not(.ifinmail-btn),
+html.ifinmail-shell .ifinmail-legal__content a,
+html.ifinmail-shell .ifinmail-login-card__terms a,
+html.ifinmail-shell .ifinmail-login-card__register a,
+html.ifinmail-shell .ifinmail-reg-card__footer-link a,
+html.ifinmail-shell .ifinmail-setup-description a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+html.ifinmail-shell .ifinmail-landing-hero__mock-status {
+    color: var(--ifinmail-color-success-text);
+}
+
+/* Focusable scroll regions show a clear focus ring */
+html.ifinmail-shell .ifinmail-table-panel:focus-visible {
+    outline: var(--ifinmail-focus-ring-width) solid var(--ifinmail-focus-ring-color);
+    outline-offset: -2px;
 }
 
 /* ─── Wordmark (text-only brand, shown on small screens) ─── */

@@ -4,7 +4,7 @@
 {% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Sign In — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block body_layout %}
-<div class="ifinmail-login">
+<main class="ifinmail-login">
 
   <div class="ifinmail-login-card ifinmail-fade-in">
     <div class="ifinmail-login-card__brand">
@@ -30,7 +30,7 @@
           <span>{% blocktrans %}Verification email resent to {{ resent_email }}.{% endblocktrans %}</span>
         {% else %}
           <span>{% trans "Didn't receive the verification email?" %}</span>
-          <form method="post" action="{% url 'accounts:login' %}" style="display:inline">
+          <form method="post" action="{% url 'accounts:login' %}" class="ifinmail-inline">
             {% csrf_token %}
             <input type="hidden" name="resend" value="1">
             <input type="hidden" name="email" value="{{ inactive_email }}">
@@ -78,69 +78,7 @@
     {% trans "Don't have an account?" %} <a href="{% url 'accounts:reg_profile' %}">{% trans 'Create account' %}</a>
   </p>
 
-</div>
-
-<style>
-.ifinmail-fade-in {
-  animation: ifinmail-fade-up 0.35s ease-out;
-}
-@keyframes ifinmail-fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.ifinmail-login-inactive {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--ifinmail-on-surface-variant);
-  background: var(--ifinmail-surface-container-high, #f3f4f6);
-  border: 1px solid var(--ifinmail-outline-variant);
-  border-radius: var(--ifinmail-border-radius-md);
-  padding: 10px 14px;
-  margin-bottom: var(--ifinmail-space-4);
-  flex-wrap: wrap;
-}
-.ifinmail-login-inactive svg {
-  flex-shrink: 0;
-  color: var(--ifinmail-color-primary);
-}
-.ifinmail-login-inactive__link {
-  background: none;
-  border: none;
-  color: var(--ifinmail-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  font-family: inherit;
-}
-.ifinmail-login-inactive__link:hover {
-  text-decoration: underline;
-}
-.ifinmail-btn--loading .ifinmail-btn__spinner {
-  display: inline-block;
-}
-.ifinmail-btn--loading .ifinmail-btn__text {
-  opacity: 0.7;
-}
-.ifinmail-btn__spinner {
-  display: none;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top: 2px solid #fff;
-  border-radius: 50%;
-  animation: ifinmail-spin 0.6s linear infinite;
-}
-@keyframes ifinmail-spin {
-  to { transform: rotate(360deg); }
-}
-.ifinmail-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-</style>
+</main>
 
 {% endblock %}
 

@@ -25,9 +25,9 @@
             <article class="ifinmail-stat-panel ifinmail-span-3"><span class="ifinmail-overline">{% trans 'Failed Logins' %}</span><span class="ifinmail-stat-big">{{ failed_logins|default:'0' }}</span><p class="ifinmail-trend--danger">{% trans 'Last 24 hours' %}</p></article>
             <article class="ifinmail-stat-panel ifinmail-span-3"><span class="ifinmail-overline">{% trans 'RBAC Integrity' %}</span><span class="ifinmail-stat-big">{{ rbac_status|default:'—' }}</span><p class="ifinmail-trend">{{ unassigned_roles|default:'' }}</p></article>
 
-            <article class="ifinmail-table-panel ifinmail-span-8">
+            <article class="ifinmail-table-panel ifinmail-span-8" tabindex="0" role="region" aria-labelledby="user_management-table-title">
                 <div class="ifinmail-table-panel-header">
-                    <h2 class="ifinmail-panel-title">{% trans 'Admin Directory' %}</h2>
+                    <h2 class="ifinmail-panel-title" id="user_management-table-title">{% trans 'Admin Directory' %}</h2>
                     <div class="ifinmail-panel-icon-row">
                         <button class="ifinmail-icon-button" type="button" aria-label="{% trans 'Filter directory' %}" title="{% trans 'Filter' %}">
                             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
@@ -39,7 +39,7 @@
                 </div>
                 {% include "includes/admin_table.html" with span=None title=None headers=admin_headers|default:'' rows=admins|default:'' row_template="admin/partials/admin_row.html" %}
             </article>
-            <aside class="ifinmail-span-4">
+            <section class="ifinmail-span-4">
                 <article class="ifinmail-panel">
                     <h2 class="ifinmail-panel-title">{% trans 'RBAC Overview' %}</h2>
                     <div class="ifinmail-role-list">
@@ -59,7 +59,7 @@
                     {% endfor %}
                     <a class="ifinmail-link-strong ifinmail-session-terminate" data-action="kill-sessions" data-url="{% url 'accounts:users_kill_sessions' %}">{% trans 'Terminate All Other Sessions' %}</a>
                 </article>
-            </aside>
+            </section>
 
             <article class="ifinmail-panel ifinmail-span-12">
                 <div class="ifinmail-admin-grid">

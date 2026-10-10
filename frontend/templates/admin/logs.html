@@ -16,7 +16,7 @@
                         <p class="ifinmail-page-subtitle">{% trans 'Real-time infrastructure and application telemetry' %}</p>
                     </div>
                     <div class="ifinmail-page-actions ifinmail-logs-actions">
-                        <select id="log-level-filter" class="ifinmail-input ifinmail-input--compact" data-action="filter-level">
+                        <select id="log-level-filter" aria-label="{% trans 'Filter Level' %}" class="ifinmail-input ifinmail-input--compact" data-action="filter-level">
                             <option value="">{% trans 'Filter Level' %}</option>
                             <option value="ERROR"{% if current_level == 'ERROR' %} selected{% endif %}>ERROR</option>
                             <option value="WARNING"{% if current_level == 'WARNING' %} selected{% endif %}>WARNING</option>
@@ -26,9 +26,9 @@
                         <button class="ifinmail-btn ifinmail-btn--sm" type="button" id="live-toggle" data-action="live-logs" data-url="{% url 'accounts:logs_live' %}">{% trans 'Live View' %}</button>
                     </div>
                 </div>
-                {% include "includes/admin_table.html" with span=None title=None headers=log_headers|default:'' rows=log_rows|default:'' row_template="admin/partials/log_row.html" empty_message=log_empty_message extra_class="ifinmail-logs-table" %}
+                {% include "includes/admin_table.html" with span=None title=None aria_label=_("System Logs") headers=log_headers|default:'' rows=log_rows|default:'' row_template="admin/partials/log_row.html" empty_message=log_empty_message extra_class="ifinmail-logs-table" %}
             </div>
-            <aside class="ifinmail-panel ifinmail-audit-panel ifinmail-span-3">
+            <section class="ifinmail-panel ifinmail-audit-panel ifinmail-span-3">
                 <h2 class="ifinmail-panel-title">{% trans 'Audit Trail' %}</h2>
                 <div class="ifinmail-timeline{% if not audit_items %} ifinmail-timeline--empty{% endif %}">
                     {% for item in audit_items %}
@@ -47,7 +47,7 @@
                 {% if has_more %}
                 <a class="ifinmail-link-strong ifinmail-audit-more" href="{% url 'accounts:logs_full' %}?page={{ current_page|add:'1' }}{% if current_level %}&level={{ current_level }}{% endif %}">{% trans 'View Full History' %}</a>
                 {% endif %}
-            </aside>
+            </section>
         </div>
     </div>
 </section>

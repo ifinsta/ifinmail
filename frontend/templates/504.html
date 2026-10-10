@@ -6,5 +6,5 @@
 {% block error_detail %}{% trans 'If this issue persists, please contact support.' %}{% endblock %}
 {% block error_actions %}
 <a href="{% url 'accounts:dashboard' %}" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Return to Dashboard' %}</a>
-<button type="button" class="ifinmail-btn" onclick="window.location.reload()">{% trans 'Retry' %}</button>
+<button type="button" class="ifinmail-btn" data-action="reload">{% trans 'Retry' %}</button>
 {% endblock %}

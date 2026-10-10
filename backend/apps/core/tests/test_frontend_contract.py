@@ -111,3 +111,49 @@ def test_design_audit_script_reports_no_findings() -> None:
     script = ROOT / '.agents' / 'skills' / 'ifinmail-design-audit' / 'scripts' / 'audit.sh'
     result = subprocess.run(['bash', str(script)], capture_output=True, text=True, cwd=ROOT, check=False)
     assert result.returncode == 0, result.stdout[-2000:]
+
+
+# ── Themes ────────────────────────────────────────────────────────────────────
+
+# Tokens that are deliberately identical in every theme.
+_THEME_INDEPENDENT = re.compile(
+    r'preview|color-white|color-black|on-dark-muted|on-band|spinner-track-on-dark|bg-grid-size|skeleton-shimmer|bg-grid-image'
+)
+
+
+def _block(css: str, selector: str) -> str:
+    start = css.index(selector + ' {')
+    return css[start : css.index('\n}', start)]
+
+
+def _themed_tokens() -> list[str]:
+    """Custom properties in :root whose value is a literal colour (or an image literal)."""
+    root = _block(_read(CSS / 'ifinmail-variables.css'), ':root')
+    names = re.findall(r'(--ifinmail-[\w-]+):\s*(?:#[0-9A-Fa-f]{3,8}|rgba?\(|url\()', root)
+    return sorted({n for n in names if not _THEME_INDEPENDENT.search(n)})
+
+
+@pytest.mark.parametrize('scheme', ['dark', 'contrast'])
+def test_every_literal_colour_token_has_a_value_in_each_theme(scheme: str) -> None:
+    """A token missing from a theme block silently keeps its light value."""
+    block = _block(_read(CSS / 'ifinmail-variables.css'), f'html[data-scheme="{scheme}"]')
+    missing = [t for t in _themed_tokens() if f'{t}:' not in block]
+    assert not missing, f'{scheme} theme is missing: {missing}'
+
+
+def test_theme_bootstrap_runs_before_styles_and_is_csp_safe() -> None:
+    base = _read(FRONTEND / 'templates' / 'base.html')
+    script = base.index('ifinmail-theme-init.js')
+    assert script < base.index("versioned_css 'css/ifinmail-variables.css'"), 'theme must apply before first paint'
+    assert '<script src=' in base[script - 40 : script], 'theme bootstrap must be an external script'
+    source = _read(FRONTEND / 'static' / 'js' / 'ifinmail-theme-init.js')
+    for choice in ('light', 'dark', 'auto', 'contrast'):
+        assert f"'{choice}'" in source
+
+
+def test_component_css_does_not_hardcode_white_text_on_primary() -> None:
+    """On dark themes the primary is light, so text on it must use --ifinmail-on-primary."""
+    css = _read(CSS / 'ifinmail-components.css') + _read(CSS / 'ifinmail-admin.css')
+    for rule in re.findall(r'[^{}]+\{[^{}]*\}', css):
+        if re.search(r'background(-color)?:\s*var\(--ifinmail-color-primary\)', rule):
+            assert 'color: var(--ifinmail-color-white)' not in rule, rule.strip()[:80]

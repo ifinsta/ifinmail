@@ -1,11 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin/settings_base.html" %}
 {% load i18n %}{% load static %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}User Management — {{ name }}{% endblocktrans %}{% endblock %}
-{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
-{% block header %}{% include "includes/header.html" %}{% endblock %}
 
-{% block content %}
+{% block settings_content %}
 <section class="ifinmail-admin-content">
     <div class="ifinmail-admin-page">
         <div class="ifinmail-page-header">

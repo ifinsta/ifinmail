@@ -18,6 +18,7 @@ All 50 templates are redesigned in one canvas: https://claude.ai/artifact/D9asdX
 | Shell: `base.html`, `includes/header.html`, `includes/sidebar.html` | `ShellParts` |
 | Tables: `includes/admin_table.html`, `includes/setup_table.html`, `admin/partials/*` | `TablesRows` |
 | Admin: `dashboard`, `user_management`, `spam_filtering`, `dns_config`, `branding_identity`, `logs` | `Dashboard`, `Users`, `Spam`, `DomainConfig`, `Branding`, `Logs` |
+| Settings: `settings_base`, `settings_hub`, `settings_config`, `settings_appearance`, `settings_maintenance`, `settings_about`, `includes/settings_nav` | `Settings`, `SettingsAppearance`, `PhoneSettings` |
 | Access: `admin/login`, `admin/password_reset_*`, `registration/*`, `setup/*` | `Login`, `PasswordReset`, `Registration`, `Setup`, `Emails` |
 | Public: `landing`, `privacy`, `terms` | `Landing`, `Privacy`, `Terms` |
 | System: `error_base`, `400`-`504`, `static/error-pages/*`, Android `index.html` | `ErrorPages`, `AndroidShell` |
@@ -42,6 +43,7 @@ When you add, remove or rename a template, update the list below and the templat
 ## frontend/templates/includes/
 
 - `frontend/templates/includes/header.html`
+- `frontend/templates/includes/settings_nav.html`
 - `frontend/templates/includes/sidebar.html`
 - `frontend/templates/includes/admin_table.html`
 - `frontend/templates/includes/setup_table.html`
@@ -65,6 +67,12 @@ When you add, remove or rename a template, update the list below and the templat
 - `frontend/templates/admin/dns_config.html`
 - `frontend/templates/admin/branding_identity.html`
 - `frontend/templates/admin/logs.html`
+- `frontend/templates/admin/settings_base.html` (layout shared by every settings page)
+- `frontend/templates/admin/settings_hub.html`
+- `frontend/templates/admin/settings_config.html` (read-only effective config: mail, deliverability, security, monitoring, storage, language)
+- `frontend/templates/admin/settings_appearance.html`
+- `frontend/templates/admin/settings_maintenance.html`
+- `frontend/templates/admin/settings_about.html`
 - `frontend/templates/admin/password_reset_form.html`
 - `frontend/templates/admin/password_reset_email.html`
 - `frontend/templates/admin/password_reset_done.html`

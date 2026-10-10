@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}{% load static %}{% load settings_nav %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" with hide_search=True %}{% endblock %}
+
+{% block content %}
+<div class="ifinmail-settings{% if active_section == 'settings' %} ifinmail-settings--hub{% endif %}">
+    {% settings_nav %}
+    <div class="ifinmail-settings__body">
+        {% if active_section != 'settings' %}
+        <a class="ifinmail-settings__back" href="{% url 'accounts:settings' %}">
+            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            <span>{% trans 'Settings' %}</span>
+        </a>
+        {% endif %}
+        {% block settings_content %}{% endblock %}
+    </div>
+</div>
+<script src="{% static 'js/ifinmail-settings.js' %}"></script>
+{% endblock %}

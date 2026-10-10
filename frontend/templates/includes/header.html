@@ -6,11 +6,13 @@
 
     <a class="ifinmail-wordmark ifinmail-wordmark--header" href="{% url 'accounts:dashboard' %}">{{ brand.name|default:'ifinmail' }}</a>
 
+    {% if not hide_search %}
     <form class="ifinmail-global-search" role="search" action="{% url 'accounts:logs' %}" method="get">
         <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <label class="ifinmail-sr-only" for="ifinmail-global-search">{% trans 'Search' %}</label>
         <input id="ifinmail-global-search" type="search" name="q" placeholder="{{ header_search_placeholder|default:_('Search settings...') }}" autocomplete="off">
     </form>
+    {% endif %}
 
     <div class="ifinmail-header-actions">
         <button class="ifinmail-icon-button" type="button" aria-label="{% trans 'Notifications' %}" title="{% trans 'No new notifications' %}">
@@ -20,7 +22,7 @@
             {% endif %}
         </button>
         {% if show_settings_icon %}
-        <a class="ifinmail-icon-button" href="{% url 'accounts:branding_identity' %}" aria-label="{% trans 'Settings' %}">
+        <a class="ifinmail-icon-button" href="{% url 'accounts:settings' %}" aria-label="{% trans 'Settings' %}">
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.3 7A2 2 0 1 1 7.1 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
         </a>
         {% endif %}
@@ -45,9 +47,9 @@
             {% endif %}
             
             <div class="ifinmail-dropdown-menu" id="profile-dropdown-menu">
-                <a class="ifinmail-dropdown-item" href="{% url 'accounts:branding_identity' %}">
+                <a class="ifinmail-dropdown-item" href="{% url 'accounts:settings' %}">
                     <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.3 7A2 2 0 1 1 7.1 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
-                    <span>{% trans 'Account Settings' %}</span>
+                    <span>{% trans 'Settings' %}</span>
                 </a>
                 <a class="ifinmail-dropdown-item" href="{% url 'accounts:user_management' %}">
                     <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>

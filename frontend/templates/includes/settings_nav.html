@@ -1,0 +1,24 @@
+{% load i18n %}{% load settings_nav %}
+<nav class="ifinmail-settings__nav" aria-label="{% trans 'Settings' %}" data-settings-nav>
+    <div class="ifinmail-settings__search" role="search">
+        {% settings_icon 'search' %}
+        <label class="ifinmail-sr-only" for="settings-search">{% trans 'Search settings' %}</label>
+        <input id="settings-search" type="search" placeholder="{% trans 'Search settings' %}" autocomplete="off" data-settings-search>
+    </div>
+    {% for entry in nav_groups %}
+    <div class="ifinmail-settings__group" data-settings-group role="group" aria-labelledby="settings-group-{{ entry.group.key }}">
+        <h2 class="ifinmail-settings__group-title" id="settings-group-{{ entry.group.key }}">{{ entry.group.title }}</h2>
+        <ul class="ifinmail-settings__list">
+            {% for row in entry.items %}
+            <li data-settings-item data-search="{{ row.item.title|lower }} {{ row.item.description|lower }} {{ row.item.keywords|join:' ' }}">
+                <a class="ifinmail-settings__link{% if row.active %} ifinmail-settings__link--active{% endif %}" href="{{ row.url }}"{% if row.active %} aria-current="page"{% endif %}>
+                    {% settings_icon row.item.icon %}
+                    <span>{{ row.item.title }}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+    <p class="ifinmail-settings__empty" data-settings-empty hidden>{% trans 'No matching settings' %}</p>
+</nav>

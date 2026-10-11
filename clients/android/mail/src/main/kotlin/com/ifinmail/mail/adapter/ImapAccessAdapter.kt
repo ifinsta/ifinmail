@@ -37,6 +37,8 @@ class ImapAccessAdapter(
             ImapSession.connect(transportFactory, incoming, credentials, email, steps).use { session ->
                 session.client.select(session.inbox())
                 steps += VerifyStep("INBOX opened", true, "Mailbox accessible")
+                // The pre-login list omits extensions such as MOVE; ask again now that we are in.
+                session.client.refreshCapabilities()
                 ProbeOutcome(
                     success = true,
                     steps = steps,

@@ -71,6 +71,7 @@ class ImapClient(
         if (result.status == "NO" || result.status == "BAD") {
             throw error("XOAUTH2 rejected: ${result.untaggedLines.joinToString(" ")} ${result.rest}")
         }
+        adoptCapabilitiesFrom(result.line)
     }
 
     suspend fun login(email: String, password: String) {
@@ -84,6 +85,23 @@ class ImapClient(
         if (result.status != "OK") {
             throw error("Authentication failed for $email: ${result.rest.ifBlank { result.untaggedLines.lastOrNull() ?: "" }}")
         }
+        adoptCapabilitiesFrom(result.line)
+    }
+
+    /**
+     * Servers list more capabilities (MOVE, UIDPLUS, ...) after authentication than before it, and
+     * announce them in the tagged OK as `[CAPABILITY ...]`; use that instead of the stale pre-login set.
+     */
+    private fun adoptCapabilitiesFrom(taggedLine: String) {
+        val announced = Regex("\\[CAPABILITY ([^\\]]+)]", RegexOption.IGNORE_CASE).find(taggedLine)?.groupValues?.get(1)
+            ?: return
+        capabilities.clear()
+        capabilities.addAll(announced.trim().split(' ').map { it.trim() }.filter { it.isNotEmpty() })
+    }
+
+    /** Re-reads CAPABILITY; call after authentication, when servers list more (MOVE, UIDPLUS, ...). */
+    suspend fun refreshCapabilities() {
+        capability()
     }
 
     suspend fun listFolders(): List<String> {

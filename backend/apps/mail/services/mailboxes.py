@@ -12,9 +12,12 @@ import logging
 import re
 
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from backend.apps.accounts.models import MailUser
 from backend.apps.domains.models import Domain
@@ -93,7 +96,7 @@ class MailboxService:
     def create(
         domain_name: str,
         local_part: str,
-        password: str,
+        password: str | None = None,
         *,
         quota_bytes: int = 0,
         is_admin: bool = False,
@@ -101,6 +104,11 @@ class MailboxService:
         adopt_existing_login: bool = False,
     ) -> tuple[Mailbox, MailUser]:
         """Create the mailbox and its login together (all or nothing).
+
+        ``password=None`` creates an invite-pending login with an unusable
+        password (Dovecot rejects auth until the owner sets one via the
+        setup link). The setup wizard and self-registration pass a real
+        password; the admin console passes ``None``.
 
         ``adopt_existing_login`` lets the first-run wizard attach a mailbox to the
         administrator login that bootstrap created with the same address.
@@ -112,7 +120,8 @@ class MailboxService:
             raise MailboxError('That address is too long.')
         if quota_bytes < 0:
             raise MailboxError('Quota cannot be negative.')
-        _validate_password(password, address)
+        if password is not None:
+            _validate_password(password, address)
         existing_login = MailUser.objects.filter(email=address).first()
         adopt = (
             adopt_existing_login
@@ -127,11 +136,19 @@ class MailboxService:
                 domain=domain, local_part=local, quota_bytes=quota_bytes
             )
             if adopt:
+                assert existing_login is not None
                 user = existing_login
-                user.set_password(password)
+                if password is not None:
+                    user.set_password(password)
                 user.is_active = True
                 user.is_staff = user.is_staff or is_admin
                 user.save()
+            elif password is None:
+                user = MailUser.objects.create_user(
+                    email=address, password=None, is_active=True, is_staff=is_admin
+                )
+                user.set_unusable_password()
+                user.save(update_fields=['password'])
             else:
                 user = MailUser.objects.create_user(
                     email=address, password=password, is_active=True, is_staff=is_admin
@@ -256,9 +273,50 @@ class MailboxService:
                     is_active=bool(user and user.is_active),
                     is_admin=bool(user and (user.is_staff or user.is_superuser)),
                     created_at=m.created_at.date().isoformat() if m.created_at else '',
+                    invite_pending=bool(user is None or not user.has_usable_password()),
                 )
             )
         return rows
+
+
+class MailboxInviteService:
+    """Single-use setup links so admins never handle plaintext passwords."""
+
+    _generator = PasswordResetTokenGenerator()
+
+    @staticmethod
+    def make_token(address: str) -> tuple[str, str]:
+        """Return ``(uidb64, token)`` for ``address``; raises MailboxError if unknown."""
+        user = MailboxService.get_user(address)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        return uid, MailboxInviteService._generator.make_token(user)
+
+    @staticmethod
+    def check_token(uidb64: str, token: str) -> MailUser | None:
+        """Return the user if ``(uidb64, token)`` is valid, else None (no DB write)."""
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = MailUser.objects.filter(pk=uid).first()
+        except (ValueError, TypeError):
+            return None
+        if user is None:
+            return None
+        if MailboxInviteService._generator.check_token(user, token):
+            return user
+        return None
+
+    @staticmethod
+    @transaction.atomic
+    def accept(uidb64: str, token: str, password: str) -> MailUser:
+        """Validate the link and set the owner's password (single-use)."""
+        user = MailboxInviteService.check_token(uidb64, token)
+        if user is None:
+            raise MailboxError('This setup link is invalid or has expired.')
+        _validate_password(password, user.email)
+        user.set_password(password)
+        user.is_active = True
+        user.save()
+        return user
 
 
 class AliasService:

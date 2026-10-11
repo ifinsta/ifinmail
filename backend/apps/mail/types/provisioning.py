@@ -18,6 +18,7 @@ class MailboxRow:
     is_active: bool
     is_admin: bool
     created_at: str
+    invite_pending: bool = False
 
 
 @dataclass(frozen=True)

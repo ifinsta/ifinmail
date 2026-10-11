@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Set up your mailbox — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block body_layout %}
+<main class="ifinmail-login">
+
+  <div class="ifinmail-login-card">
+    <div class="ifinmail-login-card__brand">
+      <span class="ifinmail-wordmark">{{ brand.name|default:'ifinmail' }}</span>
+      {% if brand.logo_url %}
+        <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
+      {% else %}
+        <span class="ifinmail-login-card__logo">{{ brand.logo_svg|safe }}</span>
+      {% endif %}
+    </div>
+
+    {% if valid %}
+
+      <h1 class="ifinmail-login-card__title">{% trans 'Set up your mailbox' %}</h1>
+      <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed with address=address %}Choose a password for <strong>{{ address }}</strong>. Use it for IMAP, SMTP and the sign-in page.{% endblocktrans %}</p>
+
+      {% if error %}
+        <div class="ifinmail-login-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="" class="ifinmail-login-form">
+        {% csrf_token %}
+
+        <div class="ifinmail-login-form__group">
+          <label class="ifinmail-login-form__label" for="id_password">{% trans 'New password' %}</label>
+          <input type="password" name="password" id="id_password" class="ifinmail-login-form__input" required minlength="8" autocomplete="new-password" placeholder="{% trans 'At least 8 characters' %}">
+        </div>
+
+        <div class="ifinmail-login-form__group">
+          <label class="ifinmail-login-form__label" for="id_password2">{% trans 'Confirm password' %}</label>
+          <input type="password" name="password2" id="id_password2" class="ifinmail-login-form__input" required minlength="8" autocomplete="new-password" placeholder="{% trans 'Repeat your password' %}">
+        </div>
+
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Set password & finish' %}</button>
+      </form>
+
+    {% else %}
+
+      <div class="ifinmail-pw-reset-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+      </div>
+
+      <h1 class="ifinmail-login-card__title">{% trans 'Invalid setup link' %}</h1>
+      <p class="ifinmail-login-card__subtitle">{% trans 'This setup link is invalid, already used, or has expired. Ask your administrator for a fresh one.' %}</p>
+
+      <a href="{% url 'accounts:login' %}" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Back to sign in' %}</a>
+
+    {% endif %}
+  </div>
+
+</main>
+{% endblock %}

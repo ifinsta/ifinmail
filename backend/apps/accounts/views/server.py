@@ -111,6 +111,7 @@ def certificates_upload(request: HttpRequest) -> HttpResponse:
 @require_GET
 def network_page(request: HttpRequest) -> HttpResponse:
     probes = EntryPointService.probe_all()
+    enabled = EntryPointService.enabled_map()
     rows = []
     for entry in CATALOGUE:
         probe = probes[entry.key]
@@ -118,7 +119,7 @@ def network_page(request: HttpRequest) -> HttpResponse:
             {
                 'entry': entry,
                 'ports': ', '.join(f'{port}/{proto.value}' for proto, port in entry.ports),
-                'enabled': EntryPointService.is_enabled(entry.key),
+                'enabled': enabled.get(entry.key, True),
                 'up': probe.up,
                 'millis': probe.millis,
             }

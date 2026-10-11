@@ -1,5 +1,5 @@
 {% extends "admin/settings_base.html" %}
-{% load i18n %}
+{% load i18n %}{% load static %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Mailboxes — {{ name }}{% endblocktrans %}{% endblock %}
 
@@ -9,7 +9,7 @@
         <div class="ifinmail-page-header">
             <div>
                 <h1 class="ifinmail-page-title">{% trans 'Mailboxes' %}</h1>
-                <p class="ifinmail-page-subtitle">{% trans 'Create the mailbox and its login in one step. People sign in to IMAP and SMTP with the full address.' %}</p>
+                <p class="ifinmail-page-subtitle">{% trans 'Create the mailbox and share a one-time setup link. The owner sets their own password — admins never see it.' %}</p>
             </div>
         </div>
 
@@ -23,7 +23,8 @@
                 <div class="ifinmail-field-grid">
                     <div class="ifinmail-field">
                         <label for="mb-local">{% trans 'Name' %}</label>
-                        <input class="ifinmail-input" id="mb-local" name="local_part" required maxlength="64" autocomplete="off" placeholder="{% trans 'hello' %}">
+                        <input class="ifinmail-input" id="mb-local" name="local_part" required maxlength="64" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="{% trans 'hello' %}" pattern="[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?" title="{% trans 'Letters, numbers, dots, hyphens, underscores or plus signs; start and end with a letter or number. No @ — pick the domain on the right.' %}">
+                        <small class="ifinmail-help-text">{% trans 'Just the name, without @. Pasting a full address keeps the part before @.' %}</small>
                     </div>
                     <div class="ifinmail-field">
                         <label for="mb-domain">{% trans 'Domain' %}</label>
@@ -32,16 +33,12 @@
                         </select>
                     </div>
                     <div class="ifinmail-field">
-                        <label for="mb-password">{% trans 'Password' %}</label>
-                        <input class="ifinmail-input" id="mb-password" name="password" type="password" required minlength="8" autocomplete="new-password">
-                    </div>
-                    <div class="ifinmail-field">
                         <label for="mb-quota">{% trans 'Quota (MB, 0 = unlimited)' %}</label>
                         <input class="ifinmail-input" id="mb-quota" name="quota_mb" type="number" min="0" value="0">
                     </div>
                 </div>
                 <label class="ifinmail-check"><input type="checkbox" name="is_admin"> <span>{% trans 'Can sign in to this admin console' %}</span></label>
-                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Create mailbox' %}</button></div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Create mailbox & get setup link' %}</button></div>
             </form>
             {% endif %}
         </section>
@@ -71,4 +68,8 @@
         </section>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ifinmail-mailboxes.js' %}"></script>
 {% endblock %}

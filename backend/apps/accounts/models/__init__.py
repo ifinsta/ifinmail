@@ -75,6 +75,15 @@ def _make_dovecot_password_hash(raw_password: str | None) -> str:
     """
     if not raw_password:
         return ''
-    from passlib.hash import sha512_crypt
+    try:
+        from passlib.hash import sha512_crypt
+    except ImportError as exc:
+        raise RuntimeError(
+            'Password hashing needs the "passlib" package '
+            '(requirements/base.txt), which is not installed in the Python '
+            'running this server. Install project dependencies '
+            '(pip install -r requirements/base.txt) or run the server from '
+            'the project virtualenv.'
+        ) from exc
 
     return sha512_crypt.using(rounds=5000).hash(raw_password)

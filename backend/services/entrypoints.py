@@ -19,9 +19,12 @@ import json
 import logging
 import socket
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+
+from django.core.cache import cache
 
 from backend.apps.core.services import SystemSettings
 from backend.apps.core.types import SettingKey
@@ -34,6 +37,10 @@ STATUS_FILE = 'firewall-status.json'
 DEFAULT_RATE_PER_MINUTE = 120
 MAX_BLOCKLIST = 500
 _MIN_PREFIX = {4: 8, 6: 16}
+_PROBE_CACHE_KEY = 'entrypoints:probes'
+_PROBE_CACHE_SECONDS = 20
+_PROBE_TIMEOUT = 1.0
+_PROBE_WORKERS = 10
 
 
 class Proto(StrEnum):
@@ -167,13 +174,25 @@ def parse_network(text: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
 
 class EntryPointService:
     @staticmethod
-    def is_enabled(key: str) -> bool:
+    def enabled_map() -> dict[str, bool]:
+        """One DB read for every entry point (avoids N queries on the page)."""
+        stored = SystemSettings.get(SettingKey.ENTRYPOINTS, {})
+        if not isinstance(stored, dict):
+            stored = {}
+        return {
+            key: True if entry.locked else bool(stored.get(key, True))
+            for key, entry in BY_KEY.items()
+        }
+
+    @staticmethod
+    def is_enabled(key: str, _stored: dict | None = None) -> bool:
         entry = BY_KEY[key]
         if entry.locked:
             return True
-        stored = SystemSettings.get(SettingKey.ENTRYPOINTS, {})
-        if isinstance(stored, dict) and key in stored:
-            return bool(stored[key])
+        if not isinstance(_stored, dict):
+            _stored = SystemSettings.get(SettingKey.ENTRYPOINTS, {})
+        if isinstance(_stored, dict) and key in _stored:
+            return bool(_stored[key])
         return True
 
     @staticmethod
@@ -258,11 +277,12 @@ class EntryPointService:
         rate: int | None = None,
     ) -> str:
         """nftables rule set (applied atomically, replacing the previous one)."""
+        enabled = EntryPointService.enabled_map()
         if disabled is None:
             disabled = [
                 (proto.value, port)
                 for e in CATALOGUE
-                if not EntryPointService.is_enabled(e.key)
+                if not enabled.get(e.key, True)
                 for proto, port in e.ports
             ]
         if blocked is None:
@@ -275,7 +295,7 @@ class EntryPointService:
             {
                 port
                 for e in CATALOGUE
-                if e.rate_limited and EntryPointService.is_enabled(e.key)
+                if e.rate_limited and enabled.get(e.key, True)
                 for proto, port in e.ports
                 if proto == Proto.TCP
             }
@@ -373,7 +393,7 @@ class EntryPointService:
 
     # -- probes -------------------------------------------------------------
     @staticmethod
-    def probe(entry: EntryPoint, timeout: float = 1.5) -> Probe:
+    def probe(entry: EntryPoint, timeout: float = _PROBE_TIMEOUT) -> Probe:
         """Does the service accept connections from inside the stack?"""
         proto, port = entry.ports[0]
         started = time.monotonic()
@@ -396,5 +416,28 @@ class EntryPointService:
         return Probe(entry.key, True, int((time.monotonic() - started) * 1000))
 
     @staticmethod
-    def probe_all() -> dict[str, Probe]:
-        return {e.key: EntryPointService.probe(e) for e in CATALOGUE}
+    def probe_all(
+        timeout: float = _PROBE_TIMEOUT,
+        *,
+        use_cache: bool = True,
+        max_workers: int = _PROBE_WORKERS,
+    ) -> dict[str, Probe]:
+        """Probe every entry point concurrently (was sequential: 10 x timeout).
+
+        Results are cached for ``_PROBE_CACHE_SECONDS`` so repeated page loads
+        do not re-probe the stack. ``use_cache=False`` forces a fresh check.
+        """
+        if use_cache:
+            try:
+                cached = cache.get(_PROBE_CACHE_KEY)
+            except Exception:
+                cached = None
+            if isinstance(cached, dict) and set(cached) == {e.key for e in CATALOGUE}:
+                return cached
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            probes = list(pool.map(lambda e: EntryPointService.probe(e, timeout), CATALOGUE))
+        result = {p.key: p for p in probes}
+        if use_cache:
+            with contextlib.suppress(Exception):
+                cache.set(_PROBE_CACHE_KEY, result, _PROBE_CACHE_SECONDS)
+        return result

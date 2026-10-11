@@ -36,6 +36,11 @@ echo "Allowing Submission..."
 ufw allow 587/tcp comment 'Submission (Postfix)'
 ufw allow 465/tcp comment 'SMTPS (Postfix legacy)'
 
+# DNS (authoritative server)
+echo "Allowing DNS..."
+ufw allow 53/tcp comment 'DNS (ifinmail)'
+ufw allow 53/udp comment 'DNS (ifinmail)'
+
 # IMAP
 echo "Allowing IMAP..."
 ufw allow 143/tcp comment 'IMAP (Dovecot)'
@@ -52,7 +57,7 @@ if [ -n "$PUBLIC_IFACE" ]; then
     # DOCKER-USER chain is persistent (Docker doesn't overwrite it)
     iptables -I DOCKER-USER 1 -i "$PUBLIC_IFACE" -m state --state ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     iptables -I DOCKER-USER 2 -i "$PUBLIC_IFACE" -p tcp -m multiport \
-        --dports 25,80,143,443,465,587,993 -j ACCEPT 2>/dev/null || true
+        --dports 25,53,80,143,443,465,587,993 -j ACCEPT 2>/dev/null || true
     iptables -I DOCKER-USER 3 -i "$PUBLIC_IFACE" -p tcp -j DROP 2>/dev/null || true
     echo "  Docker-proxied ports on $PUBLIC_IFACE: only mail/web ports allowed."
     echo "  Save with: iptables-save > /etc/iptables/rules.v4"

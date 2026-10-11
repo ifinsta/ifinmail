@@ -1,0 +1,87 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}DNS server — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'DNS server' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'This server answers DNS for your domains and signs them with DNSSEC. Point a domain’s nameservers here and its mail records, certificates and custom records are all managed in one place.' %}</p>
+            </div>
+        </div>
+
+        {% if not enabled %}
+        <p class="ifinmail-settings-note" role="note">
+            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <span>{% trans 'The DNS server is turned off (DNS_SERVER_ENABLED=0). Domains keep using the DNS provider you connected.' %}</span>
+        </p>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="dns-status">
+            <h2 class="ifinmail-panel-title" id="dns-status">{% trans 'This nameserver' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Status' %}</dt>
+                    <dd>
+                        {% if server_up %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Answering queries' %}</span>
+                        {% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Not answering' %}</span>{% if server_detail %} <span class="ifinmail-settings-row__value">{{ server_detail }}</span>{% endif %}{% endif %}
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Nameserver names' %}<code class="ifinmail-settings-row__env">DNS_NS_HOSTS</code></dt>
+                    <dd><code class="ifinmail-settings-row__value">{{ ns_hosts|join:", " }}</code></dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Public address' %}<code class="ifinmail-settings-row__env">SERVER_IP</code></dt>
+                    <dd><code class="ifinmail-settings-row__value">{{ server_ip }}</code>{% if server_ipv6 %} <code class="ifinmail-settings-row__value">{{ server_ipv6 }}</code>{% endif %}</dd>
+                </div>
+            </dl>
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Zones' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Zones' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Domain' %}</th><th>{% trans 'Hosted by' %}</th><th>{% trans 'Records' %}</th><th>{% trans 'DNSSEC' %}</th><th><span class="ifinmail-sr-only">{% trans 'Manage' %}</span></th></tr></thead>
+                <tbody>
+                {% for z in zones %}
+                <tr>
+                    <td><code class="ifinmail-text--mono">{{ z.zone }}</code></td>
+                    <td>{% if z.mode == 'authoritative' %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'This server' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'External DNS' %}</span>{% endif %}</td>
+                    <td>{% if z.mode == 'authoritative' %}{{ z.records }}{% else %}&mdash;{% endif %}</td>
+                    <td>{% if z.mode != 'authoritative' %}&mdash;{% elif z.ds %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Signed' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Signing…' %}</span>{% endif %}</td>
+                    <td><a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'dns:zone' zone=z.zone %}"><span class="ifinmail-sr-only">{{ z.zone }} </span>{% trans 'Manage' %}</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No domains yet.' %} <a class="ifinmail-link-strong" href="{% url 'dns:config' %}">{% trans 'Add a domain' %}</a></p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="dns-secondaries">
+            <h2 class="ifinmail-panel-title" id="dns-secondaries">{% trans 'Secondary nameservers' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Optional. IP addresses of other nameservers that may copy your zones (zone transfer) and are notified of changes. List one per line.' %}</p>
+            <form method="post" action="{% url 'dns:secondaries' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="dns-sec">{% trans 'Secondary server addresses' %}</label>
+                    <textarea class="ifinmail-input" id="dns-sec" name="addresses" rows="3" autocomplete="off" placeholder="198.51.100.7">{{ secondaries|join:"&#10;" }}</textarea>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save' %}</button></div>
+            </form>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="dns-publish">
+            <h2 class="ifinmail-panel-title" id="dns-publish">{% trans 'Publish now' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Zones are published automatically after every change and every 15 minutes. Use this after changing the server address or nameserver names.' %}</p>
+            <form method="post" action="{% url 'dns:publish' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Publish all zones' %}</button></div>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

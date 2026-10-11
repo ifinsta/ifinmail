@@ -27,7 +27,7 @@ curl -sSL https://raw.githubusercontent.com/ifinmail/ifinmail/main/provisioning/
 
 ## DNS Records
 
-After provisioning, create these DNS records for your domain. The provisioning script prints the exact values — especially the DKIM public key, which is unique to your installation.
+If this server answers DNS for the domain (the default), you do not create any of these by hand; see the next section. If you keep DNS elsewhere, create these DNS records for your domain. The provisioning script prints the exact values — especially the DKIM public key, which is unique to your installation.
 
 | Type | Name | Value |
 |------|------|-------|
@@ -45,6 +45,27 @@ After provisioning, create these DNS records for your domain. The provisioning s
 **Namecheap**: go to Domain List → Manage → Advanced DNS. Use `@` for the root domain and `mail` for the mail subdomain.
 
 **Porkbun**: go to Domain Management → DNS → Edit. Use the empty/blank host field for root records.
+
+## DNS, certificates and entry points: this server is the authority
+
+ifinmail answers DNS for your domains itself (Knot DNS, with DNSSEC), manages its TLS certificate, and controls every port it listens on, all from **Settings** in the console.
+
+### DNS server (Settings → DNS server)
+
+* Every domain you add is published by this server: MX, SPF, DKIM, DMARC, MTA-STS, `autoconfig`/`autodiscover`, mail client SRV records, CAA and the nameserver records are generated and kept current. You only add your own extras (a website, a verification token) as custom records.
+* **One step at your registrar:** set the domain's nameservers to `ns1.mail.yourdomain.com` and `ns2.mail.yourdomain.com` and add them as *glue* (child nameservers) pointing at the server IP. The page shows exactly what is missing and re-checks live (answering, delegated, DNSSEC).
+* **DNSSEC** is on by default. Once the zone is delegated, add the DS record shown on the zone page at your registrar.
+* **Keep DNS elsewhere?** Connect a DNS provider (Cloudflare, Porkbun, DigitalOcean) or switch a domain to *External DNS* on its zone page; the same mail records are then pushed or exported instead. Set `DNS_SERVER_ENABLED=0` to turn the DNS server off completely.
+* Secondary nameservers (zone transfer) can be listed on the DNS server page. Port 53 must be free: if `systemd-resolved` holds it, `make provision` binds the DNS server to the public address (`DNS_BIND_IP`).
+* Back up the `dns_data` volume (included in `make backup`): it holds the DNSSEC keys that the registrar's DS record refers to.
+
+### TLS certificates (Settings → TLS certificates)
+
+One certificate covers the mail hostname and every domain's `mta-sts`, `autoconfig` and `autodiscover` names. The page shows its issuer, expiry and which hostnames are covered and pointing here, and lets you **issue now**, **renew now**, or **install your own certificate** (PEM, validated: key must match, chain must cover the mail hostname, not expired). An uploaded certificate is kept if switching back to Let's Encrypt fails. Requests are carried out by the certbot container; results show on the page.
+
+### Network & entry points (Settings → Network & entry points)
+
+Lists every published port (SMTP, submission, SMTPS, IMAP, IMAPS, HTTP, HTTPS, DNS) with a live check that the service answers. You can close ports you do not use (IMAP on 143, SMTPS, DNS), block networks, and cap new mail connections per address per minute. Rules are applied by the `firewall` container with nftables, for Docker-published ports and host traffic alike, and the page shows whether they are in force. Ports the server cannot work without (25, 80, 443) stay open, and you cannot block the address you are using. SSH and the host firewall are not touched.
 
 ## First sign-in and setup
 

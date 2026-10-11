@@ -56,6 +56,16 @@ rand_urlsafe() {
     openssl rand -base64 "$1" | tr '+/' '-_' | tr -d '=\n'
 }
 
+detect_public_ip() {
+    # Public IPv4 of this server (used for the DNS zone and for the nameserver glue records).
+    local ip=""
+    ip="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true)"
+    if ! [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        ip="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1 || true)"
+    fi
+    echo "$ip"
+}
+
 ensure_env() {
     if [ -f "$ENV_FILE" ]; then
         # Strip Windows CRLF line endings if present
@@ -77,6 +87,8 @@ ensure_env() {
         grep -q '^DKIM_SELECTOR=' "$ENV_FILE" || echo "DKIM_SELECTOR=$DKIM_SELECTOR" >> "$ENV_FILE"
         grep -q '^BACKUP_GPG_PASSPHRASE=' "$ENV_FILE" || echo "BACKUP_GPG_PASSPHRASE=$(rand_b64 32)" >> "$ENV_FILE"
         grep -q '^RSPAMD_CONTROLLER_PASSWORD=' "$ENV_FILE" || echo "RSPAMD_CONTROLLER_PASSWORD=$(rand_b64 24)" >> "$ENV_FILE"
+        grep -q '^SERVER_IP=' "$ENV_FILE" || echo "SERVER_IP=$(detect_public_ip)" >> "$ENV_FILE"
+        grep -q '^DNS_NS_HOSTS=' "$ENV_FILE" || echo "DNS_NS_HOSTS=ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME" >> "$ENV_FILE"
         normalize_vars
         return
     fi
@@ -106,6 +118,11 @@ REDIS_PASSWORD=$(rand_urlsafe 24)
 RSPAMD_CONTROLLER_PASSWORD=$(rand_b64 24)
 
 DKIM_SELECTOR=$DKIM_SELECTOR
+
+# Authoritative DNS: this server's public address and the nameserver names it answers as.
+SERVER_IP=$(detect_public_ip)
+DNS_NS_HOSTS=ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME
+# DNS_BIND_IP=       # set to the server IP if another service (systemd-resolved) holds port 53
 
 BACKUP_RETENTION_DAYS=30
 BACKUP_ENCRYPT=true
@@ -307,6 +324,16 @@ DNS records to publish:
   AAAA   $DOMAIN                  <this server IPv6>  (if available)
   AAAA   $MAIL_HOSTNAME           <this server IPv6>  (if available)
 
+Authoritative DNS (this server answers for $DOMAIN itself):
+  Set the nameservers of $DOMAIN at your registrar to:
+      ${DNS_NS_HOSTS:-ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME}
+  The registrar also needs "glue" for them, because they live inside the zone:
+      ns1.$MAIL_HOSTNAME  ->  ${SERVER_IP:-<this server IPv4>}
+      ns2.$MAIL_HOSTNAME  ->  ${SERVER_IP:-<this server IPv4>}
+  Then open the console (Settings > DNS server) to see the DNSSEC DS record to add at the
+  registrar. The records above are published by this server; you only add them by hand if you
+  keep DNS at another provider (switch the domain to "External DNS" in the console).
+
 Reverse DNS (PTR) is critical for mail deliverability. Without it, many
 providers (Gmail, Outlook) will reject or spam-folder your messages.
 Set reverse DNS for your server's IPv4 address to point to $MAIL_HOSTNAME
@@ -398,6 +425,19 @@ preflight_checks() {
             echo "WARNING: Port $port is already in use. The stack may fail to bind."
         fi
     done
+
+    # DNS (port 53): systemd-resolved's stub listens on 127.0.0.53, which blocks a wildcard bind.
+    # Binding the DNS container to the public address alone avoids the clash.
+    if ss -lnup 2>/dev/null | grep -qE '(^|[ *])(0\.0\.0\.0|\*|\[::\]):53 '; then
+        echo "WARNING: Something else already answers DNS on port 53; the DNS server cannot start."
+        echo "         Stop it, or set DNS_SERVER_ENABLED=0 in $ENV_FILE to keep DNS elsewhere."
+    elif ss -lnup 2>/dev/null | grep -q '127\.0\.0\.53:53' && [ -z "${DNS_BIND_IP:-}" ]; then
+        if [ -n "${SERVER_IP:-}" ]; then
+            echo "systemd-resolved holds 127.0.0.53:53; binding the DNS server to $SERVER_IP only."
+            echo "DNS_BIND_IP=$SERVER_IP" >> "$ENV_FILE"
+            DNS_BIND_IP="$SERVER_IP"
+        fi
+    fi
 
     echo "Pre-flight checks complete."
 }

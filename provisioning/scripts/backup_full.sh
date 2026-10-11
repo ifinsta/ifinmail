@@ -86,6 +86,17 @@ else
     exit 1
 fi
 
+# DNSSEC signing keys (the DS record at the registrar stops matching if they are lost)
+mkdir -p "$BACKUP_ROOT/dnssec"
+for volume in ifinmail_dns_data docker_dns_data "${COMPOSE_PROJECT_NAME:-docker}_dns_data"; do
+    if docker volume ls --format '{{.Name}}' | grep -qx "$volume"; then
+        docker run --rm -v "$volume:/source_dns:ro" -v "$BACKUP_ROOT/dnssec:/backup_dns" \
+            alpine:latest sh -c "cp -a /source_dns/. /backup_dns/ && chmod -R go-rwx /backup_dns" 2>/dev/null \
+            || echo "  Warning: could not copy the DNSSEC keys from $volume"
+        break
+    fi
+done
+
 # 5. Manifest with SHA256 checksums
 echo "[5/6] Backing up TLS certificates..."
 mkdir -p "$BACKUP_ROOT/certs"

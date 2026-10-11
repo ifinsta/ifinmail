@@ -9,6 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_URL="${REPO_URL:-https://github.com/ifinsta/ifinmail.git}"
 INSTALL_DIR="${INSTALL_DIR:-${HOME:-/root}/ifinmail}"
 
+manifest_note() { # what uninstall.sh may undo (see provision.sh)
+    mkdir -p /var/lib/ifinmail
+    grep -qxF "$1" /var/lib/ifinmail/manifest 2>/dev/null || echo "$1" >> /var/lib/ifinmail/manifest
+}
+
 die() {
     echo "ERROR: $*" >&2
     exit 1
@@ -81,6 +86,7 @@ install_docker() {
 
     apt-get update -qq
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    manifest_note "installed docker"
     systemctl enable --now docker >/dev/null 2>&1 || true
 
     echo "  Docker installed: $(docker --version)"
@@ -100,6 +106,7 @@ install_tools() {
     if [ ${#missing[@]} -gt 0 ]; then
         apt-get update -qq
         apt-get install -y -qq "${missing[@]}"
+        for pkg in "${missing[@]}"; do manifest_note "installed $pkg"; done
     fi
 
     echo "  All system tools available."
@@ -107,11 +114,18 @@ install_tools() {
 
 clone_or_update() {
     if [ -d "$INSTALL_DIR/.git" ]; then
-        echo "Updating existing ifinmail repository..."
-        (cd "$INSTALL_DIR" && git pull --ff-only)
+        if git -C "$INSTALL_DIR" symbolic-ref -q HEAD >/dev/null; then
+            echo "Updating existing ifinmail repository..."
+            (cd "$INSTALL_DIR" && git pull --ff-only)
+        else
+            # 'make update' pins a release (detached HEAD); keep it rather than jumping versions.
+            echo "Keeping the installed release $(git -C "$INSTALL_DIR" describe --tags --always)."
+            echo "  To move to a newer release: cd $INSTALL_DIR && make update"
+        fi
     else
         echo "Cloning ifinmail repository to $INSTALL_DIR..."
         git clone "$REPO_URL" "$INSTALL_DIR"
+        manifest_note "created $INSTALL_DIR"
     fi
 }
 

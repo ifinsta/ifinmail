@@ -443,7 +443,7 @@ class EffectiveConfig:
                 (
                     ConfigRow(
                         str(_('Version')),
-                        _env('APP_VERSION') or ('dev' if settings.DEBUG else 'v2.4.0-stable'),
+                        _env('APP_VERSION') or 'dev',
                         'APP_VERSION',
                         mono=True,
                     ),

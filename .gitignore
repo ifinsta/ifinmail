@@ -110,6 +110,7 @@ test-report.xml
 # --- ifinmail provisioning ---
 # Environment (contains secrets)
 provisioning/.env
+provisioning/.updates/
 provisioning/.env.*
 !provisioning/.env.example
 

@@ -73,6 +73,16 @@
                 {% for check in report.good %}{% include "includes/health_check.html" %}{% endfor %}
             </ol>
         </details>
+
+        <form method="post" action="{% url 'accounts:system_health_updates' %}" class="ifinmail-health-updates">
+            {% csrf_token %}
+            <span>
+                {% if updates.enabled %}{% blocktrans trimmed with repo=updates.repo %}Every six hours this server asks GitHub ({{ repo }}) whether a newer release exists. Nothing else is sent.{% endblocktrans %}
+                {% else %}{% trans 'Update checks are off: this server never asks GitHub about new releases.' %}{% endif %}
+            </span>
+            <input type="hidden" name="enabled" value="{% if updates.enabled %}0{% else %}1{% endif %}">
+            <button type="submit" class="ifinmail-btn ifinmail-btn--ghost">{% if updates.enabled %}{% trans 'Turn update checks off' %}{% else %}{% trans 'Turn update checks on' %}{% endif %}</button>
+        </form>
     </div>
 </section>
 {% endblock %}

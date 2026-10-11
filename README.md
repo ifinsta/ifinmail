@@ -128,6 +128,40 @@ make backup      # Run a full backup (schedule this daily via cron)
 make firewall    # Configure ufw firewall rules
 ```
 
+## Updating, rolling back and uninstalling
+
+The console checks GitHub for new releases every six hours (System health → Software version;
+switch it off at the bottom of that page or with `UPDATE_CHECK_ENABLED=0`). When a release is
+available the dashboard says so.
+
+```bash
+cd ~/ifinmail
+sudo make version            # installed version, latest release, update history
+sudo make update             # latest release (or: sudo make update TO=v0.0.4)
+sudo make rollback           # back to the version before the last update
+```
+
+`make update` snapshots the database and `provisioning/.env` into `provisioning/.updates/`
+before switching, and rolls back by itself if the new console is not healthy within five
+minutes. `make rollback` restores that snapshot together with the previous code, because a newer
+version may already have changed the database schema. Mail, DNSSEC keys and certificates are in
+volumes every version shares. The last five snapshots are kept.
+
+Re-running the one-line installer on an installed server keeps its configuration and secrets,
+and keeps a release pinned by `make update`.
+
+```bash
+sudo make uninstall                              # everything, including all mail and data
+sudo make uninstall UNINSTALL_ARGS=--keep-data   # keep mail, database, keys and certificates
+provisioning/scripts/uninstall.sh --check        # list anything left of an install
+```
+
+Uninstall removes the containers, volumes, images, backup cron job, system settings, backup
+key, logs, backups and the install directory, and undoes only what the installer recorded
+creating in `/var/lib/ifinmail/manifest`. Docker stays unless `--remove-docker` is given.
+Records at your registrar (nameservers, glue, DS) and the reverse DNS at your VPS provider are
+yours to remove.
+
 ## Troubleshooting
 
 ### "Port 25 is blocked"

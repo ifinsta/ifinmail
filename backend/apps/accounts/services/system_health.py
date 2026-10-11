@@ -607,6 +607,44 @@ def _background_jobs() -> HealthCheck:
     )
 
 
+def _software_version() -> HealthCheck:
+    from backend.apps.core.platform.services.updates import UpdateService
+
+    title = 'Software version'
+    status = UpdateService.status()
+    if not status.enabled:
+        return HealthCheck(
+            'version', GROUP_SERVER, title, INFO,
+            f'Running {status.current}. Update checks are switched off.',
+            'Switch them on at the bottom of this page to hear about new releases.',
+        )
+    stale = True
+    if status.checked_at:
+        checked = datetime.fromisoformat(status.checked_at)
+        stale = (datetime.now(UTC) - checked).total_seconds() > 6 * 3600
+    if stale:
+        status = UpdateService.check()
+    install_dir = os.environ.get('IFINMAIL_INSTALL_DIR', '') or 'the install directory'
+    if status.available:
+        return HealthCheck(
+            'version', GROUP_SERVER, title, WARNING,
+            f'{status.latest} is available; this server runs {status.current}.',
+            'Updating takes a database snapshot first and rolls back by itself if the new version '
+            'does not come up healthy. Run on the server:',
+            [('Update', f'cd {install_dir} && sudo make update'),
+             ('Undo the update', f'cd {install_dir} && sudo make rollback')],
+            link=status.changes_url, link_label=f'What changed in {status.latest}',
+        )
+    if status.error and not status.latest:
+        return HealthCheck('version', GROUP_SERVER, title, UNKNOWN, f'Running {status.current}. {status.error}')
+    return HealthCheck(
+        'version', GROUP_SERVER, title, OK,
+        f'Running {status.current}, the latest release.'
+        if status.latest
+        else f'Running {status.current}; no release published yet.',
+    )
+
+
 # ── Security ───────────────────────────────────────────────────────────────────────────────
 
 
@@ -681,6 +719,7 @@ def _collect() -> HealthReport:
     checks += _check(_memory)
     checks += _check(_backups)
     checks += _check(_background_jobs)
+    checks += _check(_software_version)
     checks += _check(_security)
     return HealthReport(checked_at=datetime.now(UTC), checks=checks)
 

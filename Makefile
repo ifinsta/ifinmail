@@ -1,6 +1,6 @@
 .PHONY: migrate makemigrations run shell shell_plus dbshell check test coverage lint lint-fix \
         format fmt format-check collectstatic deploy createsuperuser audit clean lock \
-        provision reload rebuild up down build restart pull logs ps shell-api migrate-api manage \
+        provision update rollback version uninstall reload rebuild up down build restart pull logs ps shell-api migrate-api manage \
         health backup restore-test firewall makemessages compilemessages
 
 # --- Django targets (local development) ---
@@ -144,6 +144,18 @@ backup:
 
 restore-test:
 	provisioning/scripts/restore_test.sh
+
+update:
+	provisioning/scripts/update.sh $(if $(TO),--to $(TO),)
+
+rollback:
+	provisioning/scripts/update.sh --rollback
+
+version:
+	provisioning/scripts/update.sh --status
+
+uninstall:
+	provisioning/scripts/uninstall.sh $(UNINSTALL_ARGS)
 
 firewall:
 	provisioning/scripts/firewall.sh

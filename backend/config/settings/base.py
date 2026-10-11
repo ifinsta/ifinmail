@@ -235,6 +235,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'telemetry.purge',
         'schedule': crontab(hour=3, minute=30),
     },
+    'check-for-updates': {
+        'task': 'core.check_for_updates',
+        'schedule': crontab(minute=40, hour='*/6'),
+    },
     'telemetry-digest': {
         'task': 'telemetry.digest',
         'schedule': crontab(hour=7, minute=0),

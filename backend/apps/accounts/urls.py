@@ -30,6 +30,7 @@ from .web import (
     first_password,
     system_health,
     system_health_recheck,
+    system_health_updates,
     login_view,
     logout_view,
     logs,
@@ -91,6 +92,7 @@ urlpatterns = [
     path('first-password/', first_password, name='first_password'),
     path('health/', system_health, name='system_health'),
     path('health/recheck/', system_health_recheck, name='system_health_recheck'),
+    path('health/updates/', system_health_updates, name='system_health_updates'),
     path('mfa/setup/', mfa_setup, name='mfa_setup'),
     path('mfa/verify/', mfa_verify, name='mfa_verify'),
     path(

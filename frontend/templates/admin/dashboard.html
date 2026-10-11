@@ -20,6 +20,14 @@
             </div>
         </div>
 
+        {% if update_status.available %}
+        <div class="ifinmail-update-banner" role="status">
+            <span>{% blocktrans trimmed with latest=update_status.latest current=update_status.current %}<strong>{{ latest }}</strong> is available. This server runs {{ current }}.{% endblocktrans %}</span>
+            <a href="{{ update_status.changes_url }}" target="_blank" rel="noopener">{% trans 'What changed' %}</a>
+            <a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'accounts:system_health' %}">{% trans 'How to update' %}</a>
+        </div>
+        {% endif %}
+
         <!-- ROW A: Health Banner -->
         <div class="ifinmail-health-banner">
             <span class="ifinmail-overline">{% trans 'System status' %}</span>

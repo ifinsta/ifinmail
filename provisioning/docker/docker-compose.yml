@@ -390,6 +390,9 @@ services:
       DNS_SERVER_ENABLED: ${DNS_SERVER_ENABLED:-1}
       DNS_SERVER_HOST: dns
       IFINMAIL_INSTALL_DIR: ${IFINMAIL_INSTALL_DIR:-}   # shown in the first sign-in hint
+      APP_VERSION: ${APP_VERSION:-dev}                  # recorded by provision.sh (git describe)
+      UPDATE_CHECK_ENABLED: ${UPDATE_CHECK_ENABLED:-1}  # 0: never ask GitHub for new releases
+      UPDATE_REPO: ${UPDATE_REPO:-ifinsta/ifinmail}
     volumes:
       - mail_data:/var/mail/vhosts:ro   # read Dovecot's Maildir
       - ./certs:/etc/letsencrypt:ro
@@ -454,6 +457,9 @@ services:
       DNS_NS_HOSTS: ${DNS_NS_HOSTS:-}
       DNS_SERVER_ENABLED: ${DNS_SERVER_ENABLED:-1}
       DNS_SERVER_HOST: dns
+      APP_VERSION: ${APP_VERSION:-dev}
+      UPDATE_CHECK_ENABLED: ${UPDATE_CHECK_ENABLED:-1}
+      UPDATE_REPO: ${UPDATE_REPO:-ifinsta/ifinmail}
     entrypoint: []
     command: ["celery", "-A", "backend.config.celery", "worker", "--loglevel=INFO", "--concurrency=2"]
     user: app
@@ -495,6 +501,7 @@ services:
       DJANGO_SECRET_KEY: ${SECRET_KEY:?run make provision first}
       DJANGO_SETTINGS_MODULE: backend.config.settings.production
       ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      APP_VERSION: ${APP_VERSION:-dev}
     entrypoint: []
     command: ["celery", "-A", "backend.config.celery", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
     user: app

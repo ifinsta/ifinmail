@@ -49,3 +49,12 @@ def check_certificate_expiry() -> dict[str, object]:
         except Exception:
             logger.exception('Could not send the certificate expiry warning')
     return result
+
+
+@shared_task(name='core.check_for_updates')
+def check_for_updates() -> dict[str, object]:
+    """Every six hours: is a newer ifinmail release published? (off when disabled)."""
+    from backend.apps.core.platform.services.updates import UpdateService
+
+    status = UpdateService.check()
+    return {'current': status.current, 'latest': status.latest, 'available': status.available}

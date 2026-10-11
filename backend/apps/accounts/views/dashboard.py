@@ -317,6 +317,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     tls_days = _get_tls_expiry_days()
     tls_info = _get_tls_info()
     is_mock = not any([stats, services, domains, events])
+    from backend.apps.core.platform.services.updates import UpdateService
+
+    update_status = UpdateService.status()  # stored answer only; never waits on GitHub
     return render(
         request,
         'admin/dashboard.html',
@@ -338,6 +341,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             'active_section': 'dashboard',
             'header_search_placeholder': 'Search mail server logs...',
             'is_mock': is_mock,
+            'update_status': update_status,
         },
     )
 

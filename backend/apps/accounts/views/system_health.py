@@ -18,12 +18,15 @@ _CONSOLE = require_perm(PermissionCode.CONSOLE_ACCESS)
 @login_required
 @_CONSOLE
 def system_health(request: HttpRequest) -> HttpResponse:
+    from backend.apps.core.platform.services.updates import UpdateService
+
     report = SystemHealth.report()
     return render(
         request,
         'admin/system_health.html',
         {
             'report': report,
+            'updates': UpdateService.status(),
             'active_section': 'health',
             'header_search_placeholder': 'Search mail server logs...',
         },
@@ -34,5 +37,22 @@ def system_health(request: HttpRequest) -> HttpResponse:
 @_CONSOLE
 @require_POST
 def system_health_recheck(request: HttpRequest) -> HttpResponse:
+    SystemHealth.report(refresh=True)
+    return redirect('accounts:system_health')
+
+
+@login_required
+@_CONSOLE
+@require_POST
+def system_health_updates(request: HttpRequest) -> HttpResponse:
+    """Switch the six-hourly GitHub release check on or off."""
+    from backend.apps.core.platform.services.audit import AuditService
+    from backend.apps.core.platform.services.updates import UpdateService
+
+    enabled = request.POST.get('enabled') == '1'
+    UpdateService.set_enabled(enabled)
+    AuditService.record(
+        action='update_check_toggled', user=request.user.email, detail='on' if enabled else 'off'
+    )
     SystemHealth.report(refresh=True)
     return redirect('accounts:system_health')

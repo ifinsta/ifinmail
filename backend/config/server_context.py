@@ -12,7 +12,7 @@ from django.conf import settings
 
 def server_context(request: object) -> dict[str, object]:
     """Context processor — injects server metadata into every template context."""
-    version = os.environ.get('APP_VERSION', 'v2.4.0-stable')
+    version = os.environ.get('APP_VERSION', 'dev')
     support_email = os.environ.get('SUPPORT_EMAIL', 'support@ifinmail.io')
     docs_url = os.environ.get('DOCS_URL', 'https://ifinmail.dev/docs')
     server_status = os.environ.get('SERVER_STATUS', 'Online')

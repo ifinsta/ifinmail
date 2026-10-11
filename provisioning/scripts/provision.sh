@@ -94,6 +94,7 @@ ensure_env() {
         grep -q '^SERVER_IP=' "$ENV_FILE" || echo "SERVER_IP=$(detect_public_ip)" >> "$ENV_FILE"
         grep -q '^DNS_NS_HOSTS=' "$ENV_FILE" || echo "DNS_NS_HOSTS=ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME" >> "$ENV_FILE"
         record_install_dir
+        record_version
         normalize_vars
         return
     fi
@@ -150,7 +151,20 @@ EOF
     umask "$old_umask"
 
     record_install_dir
+    record_version
     echo "Created production environment: $ENV_FILE"
+}
+
+record_version() {
+    # The console shows this version and compares it with the latest release on GitHub.
+    local version
+    version="$(git -C "$PROVISIONING_DIR/.." describe --tags --always 2>/dev/null || echo dev)"
+    if grep -q '^APP_VERSION=' "$ENV_FILE"; then
+        sed -i "s|^APP_VERSION=.*|APP_VERSION=$version|" "$ENV_FILE"
+    else
+        echo "APP_VERSION=$version" >> "$ENV_FILE"
+    fi
+    APP_VERSION="$version"
 }
 
 record_install_dir() {
@@ -436,6 +450,7 @@ ensure_backup_schedule() {
         echo "WARNING: /etc/cron.d is not writable; schedule 'make backup' yourself (daily)."
         return 0
     fi
+    manifest_note "created $cron_file"
     cat > "$cron_file" <<CRON
 # Installed by ifinmail provision.sh. Runs a full backup every day.
 SHELL=/bin/bash
@@ -448,6 +463,14 @@ CRON
     echo "Daily backup scheduled in $cron_file (03:15); weekly restore drill on Sundays (04:30)."
 }
 
+MANIFEST_DIR="${IFINMAIL_STATE_DIR:-/var/lib/ifinmail}"
+MANIFEST="$MANIFEST_DIR/manifest"
+
+manifest_note() { # "created <path>" | "installed <package>": what uninstall.sh may undo
+    mkdir -p "$MANIFEST_DIR" 2>/dev/null || return 0
+    grep -qxF "$1" "$MANIFEST" 2>/dev/null || echo "$1" >> "$MANIFEST"
+}
+
 ensure_unattended_upgrades() {
     # Automatic OS security updates (Debian/Ubuntu). Container images are updated with `make reload`.
     if ! command -v apt-get >/dev/null 2>&1 || [ "$(id -u)" != "0" ]; then
@@ -457,7 +480,10 @@ ensure_unattended_upgrades() {
     if ! dpkg -s unattended-upgrades >/dev/null 2>&1; then
         DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unattended-upgrades >/dev/null 2>&1 \
             || { echo "WARNING: could not install unattended-upgrades"; return 0; }
+        manifest_note "installed unattended-upgrades"
     fi
+    # Ubuntu ships this file; uninstall only removes it when the installer created it.
+    [ -e /etc/apt/apt.conf.d/20auto-upgrades ] || manifest_note "created /etc/apt/apt.conf.d/20auto-upgrades"
     cat > /etc/apt/apt.conf.d/20auto-upgrades <<APT
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
@@ -514,6 +540,10 @@ preflight_checks() {
 }
 
 ensure_kernel_settings() {
+    # Remember the value before the first change so uninstall.sh can put it back.
+    if ! grep -q '^sysctl vm.overcommit_memory=' "$MANIFEST" 2>/dev/null; then
+        manifest_note "sysctl vm.overcommit_memory=$(cat /proc/sys/vm/overcommit_memory 2>/dev/null || echo 0)"
+    fi
     if [ -r /proc/sys/vm/overcommit_memory ] && [ "$(cat /proc/sys/vm/overcommit_memory)" != "1" ]; then
         echo "Enabling vm.overcommit_memory=1 for Redis background saves..."
         sysctl -w vm.overcommit_memory=1 >/dev/null 2>&1 || \
@@ -521,6 +551,7 @@ ensure_kernel_settings() {
     fi
 
     if [ -d /etc/sysctl.d ] && [ -w /etc/sysctl.d ]; then
+        manifest_note "created /etc/sysctl.d/99-ifinmail.conf"
         cat > /etc/sysctl.d/99-ifinmail.conf <<EOF
 vm.overcommit_memory = 1
 EOF

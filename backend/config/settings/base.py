@@ -70,6 +70,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'backend.apps.accounts.middleware.PasswordChangeEnforcementMiddleware',
+    'backend.apps.accounts.middleware.SetupRequiredMiddleware',
     'backend.apps.accounts.middleware.MFAEnforcementMiddleware',
     'backend.apps.accounts.middleware.SessionIdleTimeoutMiddleware',
     'csp.middleware.CSPMiddleware',

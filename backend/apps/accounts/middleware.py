@@ -1,5 +1,8 @@
 """Staff session guards: first-password change, MFA enforcement + idle timeout.
 
+SetupRequiredMiddleware sends every web page to the setup wizard until first-run setup is
+finished (signing in first when needed). Mail clients, health checks and the API are unaffected.
+
 PasswordChangeEnforcementMiddleware routes a login flagged ``password_change_required`` (the
 administrator the installer created, whose password was printed) to the first-password page
 before anything else, including MFA enrollment.
@@ -49,6 +52,54 @@ class PasswordChangeEnforcementMiddleware(MiddlewareMixin):
         if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
             return None
         return redirect('accounts:first_password')
+
+
+class SetupRequiredMiddleware(MiddlewareMixin):
+    """Until setup is finished, every page leads to the setup wizard.
+
+    The wizard requires an administrator, so a visitor who is not signed in lands on the login
+    page first (``?next=`` the wizard). Paths that machines use (mail client autoconfiguration,
+    MTA-STS, health checks, the API) and the steps of signing in are never redirected.
+    """
+
+    exempt_prefixes = (
+        '/accounts/setup/',
+        '/accounts/login/',
+        '/accounts/logout/',
+        FIRST_PASSWORD_PATH,
+        '/accounts/mfa/',
+        '/accounts/password-reset/',
+        '/accounts/mailbox-setup/',
+        '/health',
+        '/static/',
+        '/media/',
+        '/api/',
+        '/csp-report/',
+        '/telemetry/',
+        '/manifest.webmanifest',
+        '/.well-known/',
+        '/mail/config-v1.1.xml',
+        '/autodiscover/',
+        '/Autodiscover/',
+    )
+
+    def __init__(self, get_response: object) -> None:
+        super().__init__(get_response)
+        self._setup_done = False  # setup never becomes unfinished again; stop asking once done
+
+    def process_view(
+        self, request: HttpRequest, view_func: object, view_args: object, view_kwargs: object
+    ) -> HttpResponse | None:
+        if self._setup_done or not getattr(settings, 'SETUP_REQUIRED_REDIRECT', True):
+            return None
+        if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
+            return None
+        from backend.apps.accounts.services.setup_state import SetupState
+
+        if SetupState.is_complete():
+            self._setup_done = True
+            return None
+        return redirect('accounts:setup_wizard')
 
 
 class MFAEnforcementMiddleware(MiddlewareMixin):

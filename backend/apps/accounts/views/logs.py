@@ -19,7 +19,7 @@ _AUDIT_PAGE_SIZE = 20
 
 
 def _admin_log_rows(level: str = '') -> list[dict[str, str]]:
-    """Return audit events filtered by level for the logs table."""
+    """Return audit + telemetry error events for the logs table."""
     events = AuditService.get_recent(50)
     rows = []
     for e in reversed(events):
@@ -34,7 +34,28 @@ def _admin_log_rows(level: str = '') -> list[dict[str, str]]:
                 'message': e.get('detail', '') or e.get('action', ''),
             }
         )
-    return rows
+    # Merge persisted error telemetry (DB first, memory fallback) so real
+    # errors replace the "telemetry not yet integrated" placeholder.
+    try:
+        from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+
+        for e in TelemetryService.get_recent(50):
+            severity = e.get('severity', 'ERROR')
+            if level and severity.lower() != level.lower():
+                continue
+            rows.append(
+                {
+                    'timestamp': e.get('time', '').replace('T', ' ')[:19] if e.get('time') else '',
+                    'level': severity.upper(),
+                    'service': e.get('service', 'telemetry'),
+                    'message': e.get('detail', '') or e.get('action', ''),
+                }
+            )
+    except Exception as exc:
+        logger.warning('Telemetry merge for logs page failed: %s', exc)
+    # Newest-first by timestamp string (ISO-derived) — stable without parsing.
+    rows.sort(key=lambda r: r.get('timestamp', ''), reverse=True)
+    return rows[:100]
 
 
 def _admin_audit_items(page: int = 1, level: str = '') -> list[dict[str, str]]:
@@ -75,6 +96,12 @@ def logs(request: HttpRequest) -> HttpResponse:
 
     log_rows = _admin_log_rows(level=level)
     audit_items = _admin_audit_items(page=page_num, level=level)
+    try:
+        from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+
+        telemetry_stats = TelemetryService.get_stats()
+    except Exception:
+        telemetry_stats = {}
     is_mock = len(log_rows) == 0 and len(audit_items) == 0
 
     return render(
@@ -88,6 +115,7 @@ def logs(request: HttpRequest) -> HttpResponse:
             'log_empty_message': _('No log data available — telemetry not yet integrated'),
             'audit_items': audit_items,
             'is_mock': is_mock,
+            'telemetry_stats': telemetry_stats,
             'current_level': level,
             'current_page': page_num,
             'has_more': len(audit_items) >= _AUDIT_PAGE_SIZE,

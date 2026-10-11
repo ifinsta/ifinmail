@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     # ifinmail core (cross-cutting foundation)
     'backend.apps.core.apps.CoreConfig',
     'backend.apps.core.storage.apps.StorageConfig',
+    'backend.apps.core.telemetry.apps.TelemetryConfig',
     # ifinmail services (audit trail, etc.)
     'backend.services.apps.ServicesConfig',
     # ifinmail apps
@@ -46,6 +47,8 @@ LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 MIDDLEWARE = [
+    'backend.apps.core.telemetry.middleware.CorrelationIdMiddleware',
+    'backend.apps.core.telemetry.middleware.ErrorCaptureMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.gzip.GZipMiddleware',
@@ -178,6 +181,14 @@ CELERY_BEAT_SCHEDULE = {
     'apply-postfix-overrides': {
         'task': 'mail.apply_postfix_overrides',
         'schedule': crontab(minute='2,12,22,32,42,52'),
+    },
+    'telemetry-purge': {
+        'task': 'telemetry.purge',
+        'schedule': crontab(hour=3, minute=30),
+    },
+    'telemetry-digest': {
+        'task': 'telemetry.digest',
+        'schedule': crontab(hour=7, minute=0),
     },
 }
 

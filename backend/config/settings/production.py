@@ -77,11 +77,21 @@ CSP_REPORT_ONLY = os.environ.get('CSP_REPORT_ONLY', 'True').lower() == 'true'
 CSP_REPORT_URI = os.environ.get('CSP_REPORT_URI', '/csp-report/')
 CSP_REPORT_PERCENTAGE = float(os.environ.get('CSP_REPORT_PERCENTAGE', '0.1'))
 
-# Sentry
+# Sentry — external forwarder; DB telemetry remains the system of record.
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
+
+    def _telemetry_before_send(event: dict, hint: dict) -> dict | None:
+        """Enrich Sentry events with correlation id; never break the request."""
+        try:
+            from backend.apps.core.telemetry.services.telemetry_service import get_correlation_id
+
+            event.setdefault('tags', {})['correlation_id'] = get_correlation_id()
+        except Exception:
+            pass
+        return event
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -89,6 +99,8 @@ if SENTRY_DSN:
         traces_sample_rate=float(os.environ.get('SENTRY_TRACES_RATE', '0.1')),
         send_default_pii=False,
         environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+        release=os.environ.get('APP_VERSION', os.environ.get('CSS_VERSION', 'dev')),
+        before_send=_telemetry_before_send,
     )
 
 # Logging
@@ -110,6 +122,10 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
+        'telemetry': {
+            'class': 'backend.apps.core.telemetry.services.logging_handler.TelemetryHandler',
+            'level': 'ERROR',
+        },
     },
     'root': {
         'handlers': ['console'],
@@ -122,7 +138,7 @@ LOGGING = {
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['console'],
+            'handlers': ['console', 'telemetry'],
             'level': os.environ.get('LOG_LEVEL_DJANGO_REQUEST', 'WARNING'),
             'propagate': False,
         },
@@ -132,7 +148,7 @@ LOGGING = {
             'propagate': False,
         },
         'backend': {
-            'handlers': ['console'],
+            'handlers': ['console', 'telemetry'],
             'level': os.environ.get('LOG_LEVEL_BACKEND', 'INFO'),
             'propagate': False,
         },

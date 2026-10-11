@@ -45,12 +45,21 @@
       </div>
     {% endif %}
 
+    {% if first_signin_email %}
+    <div class="ifinmail-login-firstrun" role="note">
+      <p><strong>{% trans 'First sign-in' %}</strong></p>
+      <p>{% blocktrans trimmed %}Sign in as <code>{{ first_signin_email }}</code> with the password the installer printed at the end of setup. To see it again, run on the server:{% endblocktrans %}</p>
+      <p><code>sudo grep DJANGO_SUPERUSER_PASSWORD {% if install_dir %}{{ install_dir }}/{% endif %}provisioning/.env</code></p>
+      <p>{% if not install_dir %}{% trans 'Run it in the directory ifinmail was installed in. ' %}{% endif %}{% trans 'You will choose your own password right after signing in.' %}</p>
+    </div>
+    {% endif %}
+
     <form method="post" action="{% url 'accounts:login' %}" class="ifinmail-login-form ifinmail-form-submit">
       {% csrf_token %}
 
       <div class="ifinmail-login-form__group">
         <label class="ifinmail-login-form__label" for="email">{% trans 'Email' %}</label>
-        <input type="email" name="email" id="email" class="ifinmail-login-form__input" required autofocus autocomplete="email" placeholder="you@example.com">
+        <input type="email" name="email" id="email" class="ifinmail-login-form__input" required autofocus autocomplete="email" placeholder="you@example.com"{% if first_signin_email %} value="{{ first_signin_email }}"{% endif %}>
       </div>
 
       <div class="ifinmail-login-form__group">

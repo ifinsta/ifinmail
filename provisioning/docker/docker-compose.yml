@@ -388,6 +388,7 @@ services:
       DNS_NS_HOSTS: ${DNS_NS_HOSTS:-}
       DNS_SERVER_ENABLED: ${DNS_SERVER_ENABLED:-1}
       DNS_SERVER_HOST: dns
+      IFINMAIL_INSTALL_DIR: ${IFINMAIL_INSTALL_DIR:-}   # shown in the first sign-in hint
     volumes:
       - mail_data:/var/mail/vhosts:ro   # read Dovecot's Maildir
       - ./certs:/etc/letsencrypt:ro

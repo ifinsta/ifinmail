@@ -49,6 +49,43 @@ def branding_overrides_path(
     return os.path.join(app_dir, 'branding_overrides.json') if app_dir else None
 
 
+def _media_root(base_dir: str | os.PathLike[str] | None) -> str | None:
+    """Where uploaded branding files live (``MEDIA_ROOT`` or ``<base_dir>/media``)."""
+    env_root = os.environ.get('MEDIA_ROOT')
+    if env_root:
+        return env_root
+    if base_dir is None:
+        try:
+            from django.conf import settings as django_settings
+
+            if django_settings.configured:
+                return os.fspath(getattr(django_settings, 'MEDIA_ROOT', '') or '') or None
+        except Exception:
+            return None
+        return None
+    return os.path.join(os.fspath(base_dir), 'media')
+
+
+def _existing_upload(url: str, base_dir: str | os.PathLike[str] | None) -> str:
+    """``url`` unless it names an uploaded file (under MEDIA_URL) that is not there.
+
+    A logo that points at a missing upload (a fresh install, a lost media volume, an overrides
+    file copied from another server) would render as a broken image; with no logo the pages
+    show the brand name instead.
+    """
+    media_url = os.environ.get('MEDIA_URL', '/media/')
+    if not url or not url.startswith(media_url):
+        return url
+    root = _media_root(base_dir)
+    if not root:
+        return url
+    relative = url[len(media_url) :].lstrip('/')
+    path = os.path.normpath(os.path.join(root, relative))
+    if not path.startswith(os.path.normpath(root) + os.sep) or not os.path.isfile(path):
+        return ''
+    return url
+
+
 @dataclass(frozen=True)
 class BrandingConfig:
     name: str = 'ifinmail'
@@ -86,7 +123,7 @@ class BrandingConfig:
             name=_brand('name', 'BRAND_NAME', 'ifinmail'),
             tagline=_brand('tagline', 'BRAND_TAGLINE', 'mail infrastructure'),
             color=cls._sanitize_hex_color(raw_color),
-            logo_url=_brand('logo_url', 'BRAND_LOGO_URL', ''),
+            logo_url=_existing_upload(_brand('logo_url', 'BRAND_LOGO_URL', ''), base_dir),
             favicon_url=_brand('favicon_url', 'BRAND_FAVICON_URL', ''),
             secondary_color=cls._sanitize_hex_color(raw_secondary),
             accent_color=cls._sanitize_hex_color(raw_accent),

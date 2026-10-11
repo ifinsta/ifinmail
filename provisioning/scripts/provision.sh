@@ -93,6 +93,7 @@ ensure_env() {
         grep -q '^RSPAMD_CONTROLLER_PASSWORD=' "$ENV_FILE" || echo "RSPAMD_CONTROLLER_PASSWORD=$(rand_b64 24)" >> "$ENV_FILE"
         grep -q '^SERVER_IP=' "$ENV_FILE" || echo "SERVER_IP=$(detect_public_ip)" >> "$ENV_FILE"
         grep -q '^DNS_NS_HOSTS=' "$ENV_FILE" || echo "DNS_NS_HOSTS=ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME" >> "$ENV_FILE"
+        record_install_dir
         normalize_vars
         return
     fi
@@ -148,7 +149,19 @@ DJANGO_SUPERUSER_PASSWORD=$(rand_b64 16)
 EOF
     umask "$old_umask"
 
+    record_install_dir
     echo "Created production environment: $ENV_FILE"
+}
+
+record_install_dir() {
+    # The console's first sign-in hint names the file that holds the installer's password.
+    local dir
+    dir="$(cd "$PROVISIONING_DIR/.." && pwd)"
+    if grep -q '^IFINMAIL_INSTALL_DIR=' "$ENV_FILE"; then
+        sed -i "s|^IFINMAIL_INSTALL_DIR=.*|IFINMAIL_INSTALL_DIR=$dir|" "$ENV_FILE"
+    else
+        echo "IFINMAIL_INSTALL_DIR=$dir" >> "$ENV_FILE"
+    fi
 }
 
 validate_env() {

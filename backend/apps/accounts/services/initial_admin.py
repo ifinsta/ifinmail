@@ -8,6 +8,7 @@ for a new password at first sign-in, before anything else (MFA enrollment comes 
 from __future__ import annotations
 
 from django.db import transaction
+from django.db.utils import DatabaseError
 from django.utils.translation import gettext as _
 
 from ..models import MailUser
@@ -35,6 +36,26 @@ class InitialAdminService:
             email, password, password_change_required=True
         )
         return user, True
+
+    @staticmethod
+    def pending_signin_email() -> str:
+        """The administrator still on the installer's password, if any ('' otherwise).
+
+        The login page names it (never the password) so whoever just installed the server knows
+        which address to sign in with; once the password is replaced it is no longer shown.
+        """
+        try:
+            user = (
+                MailUser.objects.filter(
+                    is_superuser=True, password_change_required=True, is_active=True
+                )
+                .order_by('created_at')
+                .only('email')
+                .first()
+            )
+        except DatabaseError:  # a hint must never keep the login page from rendering
+            return ''
+        return user.email if user else ''
 
     @staticmethod
     def set_first_password(user: MailUser, new_password: str, confirm: str) -> None:

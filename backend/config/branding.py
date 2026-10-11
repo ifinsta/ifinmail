@@ -33,6 +33,7 @@ class BrandingConfig:
         overrides = {}
         try:
             from django.conf import settings as django_settings
+
             base_dir = getattr(django_settings, 'BASE_DIR', None)
             paths = []
             if base_dir:
@@ -40,28 +41,32 @@ class BrandingConfig:
             env_path = os.environ.get('BRANDING_OVERRIDES_PATH')
             if env_path:
                 paths.append(env_path)
-            paths.append(os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json'))
+            app_dir = os.environ.get('APP_DIR', '/app')
+            paths.append(os.path.join(app_dir, 'branding_overrides.json'))
 
             for p in paths:
                 if os.path.isfile(p):
-                    with open(p, encoding="utf-8") as f:
+                    with open(p, encoding='utf-8') as f:
                         overrides = json.load(f)
                         break
         except Exception:
             pass
 
-        raw_color = overrides.get('primary_color') or os.environ.get('BRAND_COLOR', DEFAULT_PRIMARY).strip() or DEFAULT_PRIMARY
-        raw_secondary = overrides.get('secondary_color') or os.environ.get('BRAND_SECONDARY_COLOR', DEFAULT_SECONDARY).strip()
-        raw_accent = overrides.get('accent_color') or os.environ.get('BRAND_ACCENT_COLOR', DEFAULT_ACCENT).strip()
-        heading_font = overrides.get('heading_font') or os.environ.get('BRAND_HEADING_FONT', 'Inter').strip()
-        body_font = overrides.get('body_font') or os.environ.get('BRAND_BODY_FONT', 'Inter').strip()
+        def _brand(key: str, env: str, default: str) -> str:
+            return (overrides.get(key) or os.environ.get(env, default)).strip() or default
+
+        raw_color = _brand('primary_color', 'BRAND_COLOR', DEFAULT_PRIMARY)
+        raw_secondary = _brand('secondary_color', 'BRAND_SECONDARY_COLOR', DEFAULT_SECONDARY)
+        raw_accent = _brand('accent_color', 'BRAND_ACCENT_COLOR', DEFAULT_ACCENT)
+        heading_font = _brand('heading_font', 'BRAND_HEADING_FONT', 'Inter')
+        body_font = _brand('body_font', 'BRAND_BODY_FONT', 'Inter')
 
         return cls(
-            name=overrides.get('name') or os.environ.get('BRAND_NAME', 'ifinmail').strip() or 'ifinmail',
-            tagline=overrides.get('tagline') or os.environ.get('BRAND_TAGLINE', 'mail infrastructure').strip(),
+            name=_brand('name', 'BRAND_NAME', 'ifinmail'),
+            tagline=_brand('tagline', 'BRAND_TAGLINE', 'mail infrastructure'),
             color=cls._sanitize_hex_color(raw_color),
-            logo_url=overrides.get('logo_url') or os.environ.get('BRAND_LOGO_URL', '').strip(),
-            favicon_url=overrides.get('favicon_url') or os.environ.get('BRAND_FAVICON_URL', '').strip(),
+            logo_url=_brand('logo_url', 'BRAND_LOGO_URL', ''),
+            favicon_url=_brand('favicon_url', 'BRAND_FAVICON_URL', ''),
             secondary_color=cls._sanitize_hex_color(raw_secondary),
             accent_color=cls._sanitize_hex_color(raw_accent),
             heading_font=heading_font,
@@ -87,7 +92,9 @@ class BrandingConfig:
 
         for font in fonts_to_load:
             font_url = font.replace(' ', '+')
-            imports.append(f"@import url('https://fonts.googleapis.com/css2?family={font_url}:wght@400;500;600;700&display=swap');")
+            imports.append(
+                f"@import url('https://fonts.googleapis.com/css2?family={font_url}:wght@400;500;600;700&display=swap');"
+            )
 
         # Primary color overrides
         safe_color = self._sanitize_hex_color(self.color)
@@ -119,12 +126,20 @@ class BrandingConfig:
             )
 
         # Font family overrides
+        _system_stack = (
+            'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", '
+            'Helvetica, Arial, sans-serif !important;'
+        )
         font_parts = []
         if self.body_font and self.body_font != 'Inter':
             if self.body_font == 'system-ui':
-                font_parts.append('--ifinmail-font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;')
+                font_parts.append(f'--ifinmail-font-ui: {_system_stack}')
             else:
-                font_parts.append(f'--ifinmail-font-ui: "{self.body_font}", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;')
+                font_parts.append(
+                    f'--ifinmail-font-ui: "{self.body_font}", "Inter", '
+                    f'-apple-system, BlinkMacSystemFont, "Segoe UI", '
+                    f'Helvetica, Arial, sans-serif !important;'
+                )
 
         if font_parts:
             styles.append('\n  '.join(font_parts))
@@ -135,23 +150,15 @@ class BrandingConfig:
         import_str = '\n'.join(imports) + '\n' if imports else ''
         inner_style = '\n  '.join(styles)
 
-        extra_rules = ""
+        extra_rules = ''
         if self.heading_font and self.heading_font != 'Inter' and self.heading_font != 'system-ui':
             extra_rules = (
-                f"\nh1, h2, h3, h4, h5, h6, .ifinmail-page-title, .ifinmail-panel-title {{\n"
-                f"  font-family: \"{self.heading_font}\", var(--ifinmail-font-ui) !important;\n"
-                f"}}\n"
+                f'\nh1, h2, h3, h4, h5, h6, .ifinmail-page-title, .ifinmail-panel-title {{\n'
+                f'  font-family: "{self.heading_font}", var(--ifinmail-font-ui) !important;\n'
+                f'}}\n'
             )
 
-        return (
-            f'<style>\n'
-            f'{import_str}'
-            f':root {{\n'
-            f'  {inner_style}\n'
-            f'}}\n'
-            f'{extra_rules}'
-            f'</style>'
-        )
+        return f'<style>\n{import_str}:root {{\n  {inner_style}\n}}\n{extra_rules}</style>'
 
     @property
     def logo_svg(self) -> str:

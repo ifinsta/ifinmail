@@ -1,20 +1,15 @@
-"""Read-only service status (monitoring bots, status pages). Scope: console.access."""
+"""Service status viewset (monitoring bots, status pages). Scope: console.access."""
 
 from __future__ import annotations
 
-from ninja import Router, Schema
+from ninja import Router
 
-from backend.apps.accounts.api.auth import require_scope
+from backend.apps.accounts.serializers import StatusOut
+from backend.apps.accounts.viewsets.auth import require_scope
 from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import MailService
 
 router = Router(tags=['status'])
-
-
-class StatusOut(Schema):
-    ok: bool
-    domains: int
-    mailboxes: int
 
 
 @router.get('/status', response=StatusOut)
@@ -26,3 +21,6 @@ def status_detail(request) -> StatusOut:
         domains=DomainService.get_domain_count(),
         mailboxes=MailService.get_mailbox_count(),
     )
+
+
+__all__ = ['router']

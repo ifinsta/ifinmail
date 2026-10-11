@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 from unittest.mock import patch
@@ -16,6 +17,17 @@ from backend.apps.mail.types.provisioning import MailboxError
 from backend.services.runtime import read_runtime_file
 
 GOOD = 'Correct-Horse-9'
+
+
+def _bash_works() -> bool:
+    exe = shutil.which('bash')
+    if not exe:
+        return False
+    try:
+        result = subprocess.run([exe, '--version'], capture_output=True, text=True, timeout=10)
+        return result.returncode == 0 and 'GNU' in (result.stdout + result.stderr)
+    except Exception:
+        return False
 
 
 class MailboxServiceTests(MailTablesTestCase):
@@ -34,12 +46,14 @@ class MailboxServiceTests(MailTablesTestCase):
     def test_dovecot_hash_is_sha512_crypt_and_verifies_with_openssl(self) -> None:
         _, user = MailboxService.create('ifinmail.test', 'alice', GOOD)
         self.assertTrue(user.password_hash.startswith('$6$'))
+        self.assertTrue(user.check_password(GOOD))
+        if shutil.which('openssl') is None:
+            self.skipTest('needs openssl')
         salt = user.password_hash.split('$')[2]
         expected = subprocess.run(
             ['openssl', 'passwd', '-6', '-salt', salt, GOOD], capture_output=True, text=True
         ).stdout.strip()
         self.assertEqual(user.password_hash, expected)
-        self.assertTrue(user.check_password(GOOD))
 
     def test_nothing_is_left_behind_when_creation_fails_half_way(self) -> None:
         with (
@@ -248,6 +262,11 @@ class SyncScriptTests(MailTablesTestCase):
         'postfix',
         'sync-overrides.sh',
     )
+
+    def setUp(self) -> None:
+        super().setUp()
+        if not _bash_works():
+            self.skipTest('needs working bash')
 
     def _run(self, content: str) -> list[str]:
         work = tempfile.mkdtemp(dir=self.tmp)

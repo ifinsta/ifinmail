@@ -1,5 +1,5 @@
 .PHONY: migrate makemigrations run shell shell_plus dbshell check test coverage lint lint-fix \
-        format fmt format-check collectstatic deploy createsuperuser audit clean \
+        format fmt format-check collectstatic deploy createsuperuser audit clean lock \
         provision reload rebuild up down build restart pull logs ps shell-api migrate-api manage \
         health backup restore-test firewall makemessages compilemessages
 

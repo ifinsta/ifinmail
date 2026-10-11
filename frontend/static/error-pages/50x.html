@@ -15,20 +15,22 @@
 :root {
   --ifinmail-color-primary: #1A56DB;
   --ifinmail-color-primary-hover: #1648c0;
-  --ifinmail-color-primary-tint: #EFF6FF;
+  --ifinmail-color-primary-tint: #E8F0FE;
   --ifinmail-color-brand: #0F2B5B;
   --ifinmail-color-text-primary: #111827;
   --ifinmail-color-text-secondary: #374151;
-  --ifinmail-color-text-muted: #6B7280;
+  --ifinmail-color-text-muted: #656d7a;
   --ifinmail-color-border: #D1D5DB;
   --ifinmail-color-border-light: #E5E7EB;
   --ifinmail-color-surface-1: #F9FAFB;
   --ifinmail-color-surface-2: #F3F4F6;
+  --ifinmail-color-white: #FFFFFF;
+  --ifinmail-on-primary: #FFFFFF;
   --ifinmail-color-danger: #DC2626;
   --ifinmail-color-danger-tint: #FEE2E2;
   --ifinmail-font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
-  --ifinmail-radius-md: 0.375rem;
-  --ifinmail-radius-lg: 0.5rem;
+  --ifinmail-radius: 0.5rem;        /* 8px — buttons, cards */
+  --ifinmail-radius-dialog: 0.75rem; /* 12px — auth cards */
   --ifinmail-space-4: 1rem;
   --ifinmail-space-6: 1.5rem;
 }
@@ -71,7 +73,7 @@ p {
 
 p.sub {
   font-size: 0.8125rem;
-  color: var(--ifinmail-color-border);
+  color: var(--ifinmail-color-text-muted);
   margin-bottom: 2rem;
 }
 
@@ -88,12 +90,12 @@ p.sub a {
 }
 
 /* Buttons — matches .ifinmail-btn spec */
-a.btn, button.btn {
+a.btn {
   display: inline-flex;
   align-items: center;
   height: 40px;
   padding: 0 1.25rem;
-  border-radius: var(--ifinmail-radius-lg);
+  border-radius: var(--ifinmail-radius);
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
@@ -103,22 +105,22 @@ a.btn, button.btn {
   border: none;
 }
 
-a.btn-primary, button.btn-primary {
+a.btn-primary {
   background: var(--ifinmail-color-primary);
-  color: #fff;
+  color: var(--ifinmail-on-primary);
 }
 
-a.btn-primary:hover, button.btn-primary:hover {
+a.btn-primary:hover {
   background: var(--ifinmail-color-primary-hover);
 }
 
-a.btn-secondary, button.btn-secondary {
-  background: #fff;
+a.btn-secondary {
+  background: var(--ifinmail-color-white);
   color: var(--ifinmail-color-text-secondary);
   border: 1px solid var(--ifinmail-color-border);
 }
 
-a.btn-secondary:hover, button.btn-secondary:hover {
+a.btn-secondary:hover {
   background: var(--ifinmail-color-surface-2);
   border-color: var(--ifinmail-color-text-muted);
 }
@@ -137,7 +139,7 @@ a.btn-secondary:hover, button.btn-secondary:hover {
 <p>The server is currently unable to handle your request due to maintenance or capacity issues. Please try again shortly.</p>
 <p class="sub">If this issue persists, please contact your server administrator.</p>
 <div class="actions">
-  <button class="btn btn-primary" onclick="location.reload()">Retry Now</button>
+  <a href="" class="btn btn-primary">Try Again</a>
 </div>
 <div class="brand">ifinmail</div>
 </body>

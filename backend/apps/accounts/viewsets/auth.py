@@ -41,3 +41,6 @@ def require_scope(code: str):
         return wrapper
 
     return decorator
+
+
+__all__ = ['TokenBearer', 'require_scope']

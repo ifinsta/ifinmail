@@ -339,9 +339,11 @@ def dns_toggle_proxy(request: HttpRequest) -> JsonResponse:
         request,
         'smtp_proxy_toggle',
         'SMTP Proxy',
-        lambda: PostfixRuntime.set_smtp_proxy(
-            not PostfixRuntime.state().smtp_proxy_enabled
-        ).smtp_proxy_enabled,
+        lambda: (
+            PostfixRuntime.set_smtp_proxy(
+                not PostfixRuntime.state().smtp_proxy_enabled
+            ).smtp_proxy_enabled
+        ),
     )
 
 
@@ -354,9 +356,11 @@ def dns_toggle_relay(request: HttpRequest) -> JsonResponse:
         request,
         'smart_host_toggle',
         'Smart Host Relay',
-        lambda: PostfixRuntime.set_smart_host(
-            not PostfixRuntime.state().smart_host_enabled
-        ).smart_host_enabled,
+        lambda: (
+            PostfixRuntime.set_smart_host(
+                not PostfixRuntime.state().smart_host_enabled
+            ).smart_host_enabled
+        ),
     )
 
 

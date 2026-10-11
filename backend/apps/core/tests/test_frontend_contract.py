@@ -33,12 +33,15 @@ def _read(path: Path) -> str:
 
 
 def _token(name: str) -> str:
-    match = re.search(rf'--ifinmail-{name}:\s*(#[0-9A-Fa-f]{{6}})', _read(CSS / 'ifinmail-variables.css'))
+    css = _read(CSS / 'ifinmail-variables.css')
+    match = re.search(rf'--ifinmail-{name}:\s*(#[0-9A-Fa-f]{{6}})', css)
     assert match, f'token --ifinmail-{name} missing'
     return match.group(1).lower()
 
 
-@pytest.mark.parametrize('path', TEMPLATES, ids=lambda p: str(p.relative_to(FRONTEND / 'templates')))
+@pytest.mark.parametrize(
+    'path', TEMPLATES, ids=lambda p: str(p.relative_to(FRONTEND / 'templates'))
+)
 def test_template_compiles(path: Path) -> None:
     name = str(path.relative_to(FRONTEND / 'templates')).replace('\\', '/')
     try:
@@ -47,15 +50,20 @@ def test_template_compiles(path: Path) -> None:
         pytest.fail(f'{name} cannot be loaded')
 
 
-@pytest.mark.parametrize('path', TEMPLATES, ids=lambda p: str(p.relative_to(FRONTEND / 'templates')))
+@pytest.mark.parametrize(
+    'path', TEMPLATES, ids=lambda p: str(p.relative_to(FRONTEND / 'templates'))
+)
 def test_template_has_no_inline_script_style_block_or_handler(path: Path) -> None:
     """CSP forbids inline scripts, and styles live in the stylesheets."""
     if path.name in EMAIL_TEMPLATES:
         pytest.skip('email templates must inline their styles')
     source = _read(path)
-    assert not re.search(r'<script(?![^>]*\bsrc=)(?![^>]*type="application/json")[^>]*>', source), 'inline <script>'
-    assert not re.search(r'\son(click|change|submit|load|input|keydown)\s*=', source, re.I), 'inline event handler'
-    assert '<style' not in source, 'inline <style> block (move it to ifinmail-redesign.css)'
+    script_re = r'<script(?![^>]*\bsrc=)(?![^>]*type="application/json")[^>]*>'
+    handler_re = r'\son(click|change|submit|load|input|keydown)\s*='
+    assert not re.search(script_re, source), 'inline <script>'
+    assert not re.search(handler_re, source, re.I), 'inline event handler'
+    msg = 'inline <style> block (move it to ifinmail-redesign.css)'
+    assert '<style' not in source, msg
 
 
 def test_base_template_loads_redesign_layer_last_and_registers_it_for_offline_use() -> None:
@@ -76,8 +84,8 @@ def test_production_csp_forbids_inline_scripts() -> None:
 
 
 def test_brand_defaults_match_design_tokens() -> None:
-    assert DEFAULT_PRIMARY == _token('color-primary')
-    assert DEFAULT_SECONDARY == _token('color-brand')
+    assert _token('color-primary') == DEFAULT_PRIMARY
+    assert _token('color-brand') == DEFAULT_SECONDARY
 
 
 def test_manifest_matches_brand_and_points_at_a_real_route() -> None:
@@ -102,14 +110,26 @@ def test_phone_rules_use_wordmark_and_continuous_surface() -> None:
 
 
 def test_standalone_pages_expose_a_main_landmark() -> None:
-    for name in ('admin/login.html', 'admin/password_reset_form.html', 'registration/step_profile.html'):
-        assert '<main' in _read(FRONTEND / 'templates' / name), f'{name} needs a <main> landmark'
+    pages = (
+        'admin/login.html',
+        'admin/password_reset_form.html',
+        'registration/step_profile.html',
+    )
+    for name in pages:
+        html = _read(FRONTEND / 'templates' / name)
+        assert '<main' in html, f'{name} needs a <main> landmark'
 
 
-@pytest.mark.skipif(not (shutil.which('bash') and shutil.which('grep')), reason='needs bash and grep')
+_bash_available = shutil.which('bash') and shutil.which('grep')
+
+
+@pytest.mark.skipif(not _bash_available, reason='needs bash and grep')
 def test_design_audit_script_reports_no_findings() -> None:
-    script = ROOT / '.agents' / 'skills' / 'ifinmail-design-audit' / 'scripts' / 'audit.sh'
-    result = subprocess.run(['bash', str(script)], capture_output=True, text=True, cwd=ROOT, check=False)
+    script = ROOT / '.agents' / 'skills' / 'ifinmail-design-audit' / 'scripts'
+    script = script / 'audit.sh'
+    result = subprocess.run(
+        ['bash', str(script)], capture_output=True, text=True, cwd=ROOT, check=False
+    )
     assert result.returncode == 0, result.stdout[-2000:]
 
 
@@ -144,8 +164,10 @@ def test_every_literal_colour_token_has_a_value_in_each_theme(scheme: str) -> No
 def test_theme_bootstrap_runs_before_styles_and_is_csp_safe() -> None:
     base = _read(FRONTEND / 'templates' / 'base.html')
     script = base.index('ifinmail-theme-init.js')
-    assert script < base.index("versioned_css 'css/ifinmail-variables.css'"), 'theme must apply before first paint'
-    assert '<script src=' in base[script - 40 : script], 'theme bootstrap must be an external script'
+    variables = "versioned_css 'css/ifinmail-variables.css'"
+    assert script < base.index(variables), 'theme must apply before first paint'
+    before = base[script - 40 : script]
+    assert '<script src=' in before, 'theme bootstrap must be an external script'
     source = _read(FRONTEND / 'static' / 'js' / 'ifinmail-theme-init.js')
     for choice in ('light', 'dark', 'auto', 'contrast'):
         assert f"'{choice}'" in source

@@ -18,6 +18,7 @@ from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
+
 def _get_overrides_file_path() -> str:
     env_path = os.environ.get('BRANDING_OVERRIDES_PATH')
     if env_path:
@@ -26,6 +27,7 @@ def _get_overrides_file_path() -> str:
     if base_dir:
         return os.path.join(base_dir, 'branding_overrides.json')
     return os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json')
+
 
 _BRANDING_OVERRIDES_FILE = _get_overrides_file_path()
 _MEDIA_ROOT = getattr(
@@ -173,6 +175,7 @@ def branding_save(request: HttpRequest) -> HttpResponse:
             _save_overrides(overrides)
             # Dynamic hot-reload of branding config
             from backend.config.branding import BrandingConfig
+
             django_settings.BRAND_CONFIG = BrandingConfig.from_env()
 
             AuditService.record(
@@ -214,6 +217,7 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
 
         # Dynamic hot-reload of branding config to reset defaults
         from backend.config.branding import BrandingConfig
+
         django_settings.BRAND_CONFIG = BrandingConfig.from_env()
 
         AuditService.record(

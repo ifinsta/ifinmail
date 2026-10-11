@@ -441,13 +441,8 @@ def dashboard_shell(request: HttpRequest) -> JsonResponse:
 def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
     """Purge archived audit log entries, keeping the most recent 500."""
     try:
-        audit_event = _get_audit_model_for_write()
-        total_before = audit_event.objects.count()
+        deleted, total_before = AuditService.purge_keeping(500)
         if total_before > 500:
-            keep_ids = list(
-                audit_event.objects.order_by('-time').values_list('id', flat=True)[:500]
-            )
-            deleted, _ = audit_event.objects.exclude(id__in=keep_ids).delete()
             AuditService.record(
                 action='log_purge',
                 user=request.user.email if request.user.is_authenticated else None,
@@ -462,11 +457,10 @@ def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
                 },
                 content_type='application/json; charset=utf-8',
             )
-        else:
-            return JsonResponse(
-                {'status': 'ok', 'deleted': 0, 'message': 'Below threshold — nothing to purge'},
-                content_type='application/json; charset=utf-8',
-            )
+        return JsonResponse(
+            {'status': 'ok', 'deleted': 0, 'message': 'Below threshold — nothing to purge'},
+            content_type='application/json; charset=utf-8',
+        )
     except Exception as e:
         logger.exception('Log purge failed: %s', e)
         return JsonResponse(
@@ -496,10 +490,3 @@ def dashboard_reboot(request: HttpRequest) -> JsonResponse:
         status=403,
         content_type='application/json; charset=utf-8',
     )
-
-
-def _get_audit_model_for_write() -> Any:
-    """Lazy-import AuditEvent for write operations."""
-    from backend.services.models import AuditEvent
-
-    return AuditEvent

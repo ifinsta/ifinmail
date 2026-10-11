@@ -119,9 +119,7 @@ class TokenService:
             return None
         prefix, secret = split
         try:
-            row = (
-                APIToken.objects.select_related('user').filter(prefix=prefix).first()
-            )
+            row = APIToken.objects.select_related('user').filter(prefix=prefix).first()
         except Exception:
             logger.exception('Token lookup failed')
             return None

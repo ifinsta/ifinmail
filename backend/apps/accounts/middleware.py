@@ -74,7 +74,7 @@ class SessionIdleTimeoutMiddleware(MiddlewareMixin):
 
                 logout(request)
                 minutes = max(1, idle_timeout // 60)
-                return redirect(f"{reverse('accounts:login')}?timeout_minutes={minutes}")
+                return redirect(f'{reverse("accounts:login")}?timeout_minutes={minutes}')
         interval = int(getattr(settings, 'SESSION_IDLE_UPDATE_INTERVAL', 60))
         if last is None or (now - float(last)) >= interval:
             request.session['last_activity'] = now

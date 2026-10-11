@@ -41,6 +41,7 @@ TOKEN_SCOPES: tuple[str, ...] = tuple(
 
 # -- seed roles (mirrored in migration 0003; keep in sync) -----------------------
 
+
 def _all(*, without: tuple[str, ...] = ()) -> list[str]:
     return [code for code in ALL_PERMISSIONS if code not in without]
 

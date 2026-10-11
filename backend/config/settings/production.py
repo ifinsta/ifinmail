@@ -5,9 +5,10 @@ from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = [
-    host.strip() for host in os.environ.get('ALLOWED_HOSTS', '').split(',') if host.strip()
-]
+# Single source is DJANGO_ALLOWED_HOSTS (provisioning/.env); ALLOWED_HOSTS is the
+# value compose injects from it. Accept either — see docs/environment.md.
+_hosts_raw = os.environ.get('ALLOWED_HOSTS') or os.environ.get('DJANGO_ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [host.strip() for host in _hosts_raw.split(',') if host.strip()]
 
 if not ALLOWED_HOSTS:
     raise ValueError('ALLOWED_HOSTS environment variable must be set in production')
@@ -64,10 +65,10 @@ CSP_SCRIPT_SRC = (
 CSP_STYLE_SRC = (
     "'self'",
     "'unsafe-inline'",  # Required for brand overrides (BrandingConfig.css_overrides)
-    "https://fonts.googleapis.com",
+    'https://fonts.googleapis.com',
 )
-CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
-CSP_IMG_SRC = ("'self'", "data:", "blob:")
+CSP_FONT_SRC = ("'self'", 'https://fonts.gstatic.com')
+CSP_IMG_SRC = ("'self'", 'data:', 'blob:')
 CSP_CONNECT_SRC = ("'self'",)
 CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_FORM_ACTION = ("'self'",)

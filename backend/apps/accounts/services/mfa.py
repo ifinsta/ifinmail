@@ -121,9 +121,7 @@ class TOTPService:
 
     @staticmethod
     def pending_device(user: object) -> TOTPDevice | None:
-        return (
-            TOTPDevice.objects.filter(user=user, verified=False).order_by('-created_at').first()
-        )
+        return TOTPDevice.objects.filter(user=user, verified=False).order_by('-created_at').first()
 
     @staticmethod
     @transaction.atomic

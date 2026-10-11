@@ -13,7 +13,16 @@ from django.core.checks import Error, register
 from backend.config.branding import BrandingConfig
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+# Secret key: DJANGO_SECRET_KEY is the runtime variable (set directly in
+# development / CI). Provisioning generates SECRET_KEY in provisioning/.env and
+# docker-compose maps it to DJANGO_SECRET_KEY inside containers — see
+# docs/environment.md. Accept both so a single provisioning value works locally.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY') or os.environ.get('SECRET_KEY', '')
+if not SECRET_KEY:
+    raise ValueError(
+        'DJANGO_SECRET_KEY (or SECRET_KEY from provisioning/.env) must be set. '
+        'For local dev: cp .env.example .env. For production: run make provision.'
+    )
 DEBUG = False
 ALLOWED_HOSTS: list[str] = []
 
@@ -286,8 +295,7 @@ def check_email_config(app_configs, **kwargs) -> list[Error]:
                 Error(
                     f"DEFAULT_FROM_EMAIL '{from_email}' is not a valid email address",
                     hint=(
-                        'Set DEFAULT_FROM_EMAIL to a valid email address '
-                        '(e.g. noreply@example.com)'
+                        'Set DEFAULT_FROM_EMAIL to a valid email address (e.g. noreply@example.com)'
                     ),
                     id='ifinmail.E003',
                 )

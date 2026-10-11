@@ -1,7 +1,63 @@
+/*
+ * ifinmail Android shell — loading splash.
+ * Tokens mirror frontend/static/css/ifinmail-variables.css (light) and its
+ * dark block. Static asset: no build step, no external fonts.
+ */
+
+:root {
+    --ifinmail-color-brand: #0f2b5b;
+    --ifinmail-color-primary: #1a56db;
+    --ifinmail-color-surface-1: #f9fafb;
+    --ifinmail-font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ifinmail-color-brand: #e5ecff;
+        --ifinmail-color-primary: #7baaff;
+        --ifinmail-color-surface-1: #0b1220;
+    }
+}
+
 html, body {
     width: 100%;
     height: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
+    background: var(--ifinmail-color-surface-1);
+    font-family: var(--ifinmail-font-ui);
+    -webkit-font-smoothing: antialiased;
+}
+
+.splash {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    min-height: 100dvh;
+}
+
+.splash__wordmark {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ifinmail-color-brand);
+}
+
+.splash__spinner {
+    color: var(--ifinmail-color-primary);
+    animation: splash-spin 0.9s linear infinite;
+}
+
+@keyframes splash-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .splash__spinner {
+        animation: none;
+    }
 }

@@ -131,9 +131,7 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
                 # One-time handoff: the profile page shows the link in a
                 # copyable panel instead of a wall of text in a flash message.
                 request.session['invite_link'] = {'address': address, 'link': link}
-                AuditService.record(
-                    action=audit_action, user=_actor(request), detail=address
-                )
+                AuditService.record(action=audit_action, user=_actor(request), detail=address)
                 messages.success(
                     request,
                     f'Setup link ready for {address} — copy it below. It is single-use.',
@@ -186,15 +184,11 @@ def mailbox_setup(request: HttpRequest, uidb64: str, token: str) -> HttpResponse
         # Capture the viewer BEFORE the password change: request.user is lazy,
         # and first evaluating it after accept() would see a stale session hash
         # (for one's own link) and Django would flush the session.
-        viewer_email = (
-            (request.user.email or '').lower() if request.user.is_authenticated else ''
-        )
+        viewer_email = (request.user.email or '').lower() if request.user.is_authenticated else ''
         form = MailboxSetupForm(request.POST)
         if form.is_valid():
             try:
-                updated = MailboxInviteService.accept(
-                    uidb64, token, form.cleaned_data['password']
-                )
+                updated = MailboxInviteService.accept(uidb64, token, form.cleaned_data['password'])
             except MailboxError as exc:
                 return render(
                     request,

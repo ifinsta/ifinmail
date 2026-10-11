@@ -137,7 +137,7 @@ class ProvisioningService:
         return ProvisionStep(
             'DNS records',
             StepStatus.MANUAL,
-            'Published by this server. Set the domain\'s nameservers to '
+            "Published by this server. Set the domain's nameservers to "
             + ', '.join(result.nameservers)
             + ' at your registrar.',
         )

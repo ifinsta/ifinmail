@@ -39,11 +39,20 @@ jobs:
         # Fails the build on any known CVE in the locked production set.
         run: python -m pip_audit -r requirements/prod.lock
 
-      - name: Lint (advisory until the pre-existing baseline is zero)
-        continue-on-error: true
+      - name: Lint (blocking — see docs/enterprise-slo.md)
         run: |
-          ruff check backend/ || echo "ruff baseline: see docs/enterprise-slo.md"
-          ruff format --check backend/ || true
+          ruff check backend/
+          ruff format --check backend/
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose config
+        run: |
+          touch provisioning/.env
+          docker compose --env-file provisioning/.env -f provisioning/docker/docker-compose.yml config --quiet
 
   secrets:
     runs-on: ubuntu-latest

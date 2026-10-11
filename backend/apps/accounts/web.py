@@ -23,9 +23,9 @@ from .views import (
     mailbox_profile,
     mailbox_role_action,
     mailbox_sessions_action,
+    mailbox_setup,
     mailbox_token_action,
     mailbox_token_create,
-    mailbox_setup,
     mailboxes_action,
     mailboxes_create,
     mailboxes_page,
@@ -72,7 +72,6 @@ __all__ = [
     'mfa_setup',
     'mfa_verify',
     'registration_toggle',
-
     'branding_identity',
     'branding_reset',
     'branding_save',

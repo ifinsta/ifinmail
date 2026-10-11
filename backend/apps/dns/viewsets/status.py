@@ -17,7 +17,14 @@ from backend.apps.domains.services.verification import DomainVerificationService
 @require_perm(PermissionCode.DNS_MANAGE)
 def dns_status(request: HttpRequest) -> JsonResponse:
     """GET endpoint: return current DNS record verification status."""
-    domain = request.GET.get('domain', os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', '')))
+    # A blank ``?domain=`` must not override the configured default: an empty
+    # lookup would report every record as failed for a name that does not exist.
+    domain = (request.GET.get('domain') or '').strip()
+    if not domain:
+        domain = os.environ.get('DOMAIN') or os.environ.get('MAIL_DOMAIN') or ''
+    if not domain:
+        response = DNSStatusResponse(domain='', error='No mail domain configured')
+        return JsonResponse(response.to_dict(), status=400)
     try:
         row = DomainService.get_domain_by_name(domain)
         # Persist the outcome for hosted domains so the dashboard reflects it.

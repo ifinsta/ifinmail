@@ -11,12 +11,11 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.accounts.types.permissions import PermissionCode
 from backend.apps.accounts.views.auth import require_perm
 from backend.apps.core.platform.services.audit import AuditService
-from backend.apps.core.platform.services.monitoring import MonitoringService
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
 from backend.apps.domains.services import DomainService
 from backend.apps.domains.services.provisioning import (
@@ -30,20 +29,16 @@ from ._helpers import _build_records, _get_server_ip
 logger = logging.getLogger('backend')
 
 
-def _get_dns_status(domain: str) -> dict:
-    """Check DNS records via the monitoring service."""
-    try:
-        return MonitoringService.check_dns(domain)
-    except Exception as e:
-        logger.warning('DNS status check failed for %s: %s', domain, e)
-        return {}
+def _configured_domain() -> str:
+    """The primary mail domain from the environment (empty when unset)."""
+    return os.environ.get('DOMAIN') or os.environ.get('MAIL_DOMAIN') or ''
 
 
 @login_required
 @require_perm(PermissionCode.DNS_MANAGE)
 def dns_config_page(request: HttpRequest) -> HttpResponse:
     """Render the DNS configuration page."""
-    domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+    domain = _configured_domain()
     server_ip = _get_server_ip()
     outbound = PostfixRuntime.state()
     provider_meta: dict[str, dict[str, object]] = {
@@ -121,7 +116,6 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
         'server_ip': server_ip,
         'providers': providers,
         'saved_provider': saved_provider,
-        'dns_status': _get_dns_status(domain),
         'dns_registry_headers': [
             _('Domain Name'),
             _('MX Status'),
@@ -132,13 +126,12 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
         'dns_registry_rows': dns_registry_rows,
         'propagation_sync': str(_('Manual')),
         'propagation_pct': str(_('Unchecked')),
-        'dnssec_issues': '0',
+        'dnssec_issues': '',
         'dnssec_status': str(_('Not monitored')),
         'nameserver_count': str(len(dns_registry_rows)),
-        'nameserver_scope': str(_('Configured domains')),
         'cluster_hosts': [],
         'is_mock': False,
-        'dkim_selector': os.environ.get('DKIM_SELECTOR', 'default'),
+        'dkim_selector': os.environ.get('DKIM_SELECTOR') or 'default',
         'toolbox_spf_record': toolbox_spf_record,
         'active_section': 'dns',
         'header_search_placeholder': 'Search domains or records...',
@@ -283,9 +276,10 @@ def dns_register_domain(request: HttpRequest) -> JsonResponse:
 
 @login_required
 @require_perm(PermissionCode.DNS_MANAGE)
+@require_GET
 def dns_export_records(request: HttpRequest) -> HttpResponse:
     """Export all DNS records as a CSV download."""
-    domain_name = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+    domain_name = _configured_domain()
     server_ip = _get_server_ip()
     records = []
     if domain_name and server_ip and server_ip != '0.0.0.0':
@@ -294,7 +288,7 @@ def dns_export_records(request: HttpRequest) -> HttpResponse:
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     filename = f'dns_records_{domain_name or "export"}.csv'
-    response['Content-Disposition'] = f'attachment; filename={filename}'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     writer = csv.writer(response)
     writer.writerow(['Type', 'Name', 'Value', 'Priority', 'TTL'])
     for r in records:

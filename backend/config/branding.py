@@ -15,6 +15,39 @@ DEFAULT_SECONDARY = '#0f2b5b'
 DEFAULT_ACCENT = '#059669'
 
 
+def branding_overrides_path(
+    base_dir: str | os.PathLike[str] | None = None,
+) -> str | None:
+    """Return the one shared overrides file path (branding + spam settings).
+
+    Precedence: ``BRANDING_OVERRIDES_PATH`` → ``<base_dir>/branding_overrides.json``
+    → ``<APP_DIR>/branding_overrides.json``.
+
+    Settings modules must pass ``BASE_DIR`` explicitly: ``django.conf.settings`` is
+    not usable while the settings module itself is being imported, and the old
+    implicit ``/app`` fallback then resolved to a stray ``C:\\app`` directory on
+    Windows instead of the project file.
+    """
+    env_path = os.environ.get('BRANDING_OVERRIDES_PATH')
+    if env_path:
+        return env_path
+    resolved: str | None = None
+    if base_dir is not None:
+        resolved = os.fspath(base_dir)
+    else:
+        try:
+            from django.conf import settings as django_settings
+
+            if django_settings.configured:
+                resolved = os.fspath(getattr(django_settings, 'BASE_DIR', '') or '')
+        except Exception:  # settings unusable here — fall through to APP_DIR
+            resolved = None
+    if resolved:
+        return os.path.join(resolved, 'branding_overrides.json')
+    app_dir = os.environ.get('APP_DIR')
+    return os.path.join(app_dir, 'branding_overrides.json') if app_dir else None
+
+
 @dataclass(frozen=True)
 class BrandingConfig:
     name: str = 'ifinmail'
@@ -28,27 +61,14 @@ class BrandingConfig:
     body_font: str = 'Inter'
 
     @classmethod
-    def from_env(cls) -> BrandingConfig:
+    def from_env(cls, base_dir: str | os.PathLike[str] | None = None) -> BrandingConfig:
         # Load overrides from JSON file if it exists (project-local prioritized)
         overrides = {}
         try:
-            from django.conf import settings as django_settings
-
-            base_dir = getattr(django_settings, 'BASE_DIR', None)
-            paths = []
-            if base_dir:
-                paths.append(os.path.join(base_dir, 'branding_overrides.json'))
-            env_path = os.environ.get('BRANDING_OVERRIDES_PATH')
-            if env_path:
-                paths.append(env_path)
-            app_dir = os.environ.get('APP_DIR', '/app')
-            paths.append(os.path.join(app_dir, 'branding_overrides.json'))
-
-            for p in paths:
-                if os.path.isfile(p):
-                    with open(p, encoding='utf-8') as f:
-                        overrides = json.load(f)
-                        break
+            path = branding_overrides_path(base_dir)
+            if path and os.path.isfile(path):
+                with open(path, encoding='utf-8') as f:
+                    overrides = json.load(f)
         except Exception:
             pass
 

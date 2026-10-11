@@ -1987,10 +1987,6 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
         font-size: var(--ifinmail-font-size-body-small);
     }
 
-    html.ifinmail-shell .ifinmail-collapse-toggle .ifinmail-icon {
-        transition: transform 150ms var(--ifinmail-easing-standard);
-    }
-
     /* Stacked content sections (settings pages with an extra block) share the page gap */
     html.ifinmail-shell .ifinmail-settings__body > .ifinmail-admin-content:not(:last-child) {
         padding-bottom: var(--ifinmail-space-3);
@@ -2066,10 +2062,6 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
     html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-server-status {
         justify-content: center;
         padding: 0 !important;
-    }
-
-    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-nav-footer .ifinmail-collapse-toggle .ifinmail-icon {
-        transform: rotate(180deg);
     }
 }
 
@@ -2218,8 +2210,7 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    html.ifinmail-shell .ifinmail-admin-nav,
-    html.ifinmail-shell .ifinmail-collapse-toggle .ifinmail-icon {
+    html.ifinmail-shell .ifinmail-admin-nav {
         transition: none;
     }
 }

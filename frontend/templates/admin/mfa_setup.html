@@ -68,18 +68,18 @@
       {% endif %}
       <div class="ifinmail-mfa-field">
         <span class="ifinmail-overline">{% trans 'Setup key' %}</span>
-        <div class="ifinmail-mfa-copy-row">
+        <div class="ifinmail-mfa-embed">
           <div class="ifinmail-codebox ifinmail-mfa-code" id="mfa-secret">{{ secret }}</div>
-          <button type="button" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm ifinmail-mfa-copy" data-action="copy-field" data-copy-from="mfa-secret" data-label-copy="{% trans 'Copy' %}" data-label-done="{% trans 'Copied' %}">{% trans 'Copy' %}</button>
+          <button type="button" class="ifinmail-mfa-embed__copy" data-action="copy-field" data-copy-from="mfa-secret" data-label-copy="{% trans 'Copy' %}" data-label-done="{% trans 'Copied' %}" aria-label="{% trans 'Copy setup key' %}">{% trans 'Copy' %}</button>
         </div>
       </div>
-      <div class="ifinmail-mfa-field">
-        <span class="ifinmail-overline">{% trans 'Manual entry URI' %}</span>
-        <div class="ifinmail-mfa-copy-row">
+      <details class="ifinmail-mfa-field ifinmail-mfa-more">
+        <summary class="ifinmail-overline">{% trans 'Manual entry URI' %}</summary>
+        <div class="ifinmail-mfa-embed">
           <div class="ifinmail-codebox ifinmail-mfa-code" id="mfa-uri">{{ uri }}</div>
-          <button type="button" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm ifinmail-mfa-copy" data-action="copy-field" data-copy-from="mfa-uri" data-label-copy="{% trans 'Copy' %}" data-label-done="{% trans 'Copied' %}">{% trans 'Copy' %}</button>
+          <button type="button" class="ifinmail-mfa-embed__copy" data-action="copy-field" data-copy-from="mfa-uri" data-label-copy="{% trans 'Copy' %}" data-label-done="{% trans 'Copied' %}" aria-label="{% trans 'Copy manual entry URI' %}">{% trans 'Copy' %}</button>
         </div>
-      </div>
+      </details>
       {% endif %}
 
       {% if error %}

@@ -3738,3 +3738,66 @@ select.ifinmail-input {
 /* MFA enrollment is optional: the postpone action sits below the main one */
 .ifinmail-login-card .ifinmail-mfa-snooze { margin-top: var(--ifinmail-space-2); }
 .ifinmail-login-card .ifinmail-mfa-snooze .ifinmail-setup-hint { text-align: center; }
+
+/* MFA enrollment: copy buttons sit inside the code boxes; the manual-entry URI is folded away */
+html.ifinmail-shell .ifinmail-mfa-embed {
+    position: relative;
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed .ifinmail-mfa-code {
+    padding-right: 4.5rem; /* room for the embedded copy button */
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed__copy {
+    position: absolute;
+    top: var(--ifinmail-space-2);
+    right: var(--ifinmail-space-2);
+    padding: var(--ifinmail-space-1) var(--ifinmail-space-2);
+    border: 1px solid var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-surface-container-lowest);
+    color: var(--ifinmail-color-primary);
+    font: inherit;
+    font-size: var(--ifinmail-font-size-caption);
+    font-weight: var(--ifinmail-font-weight-medium);
+    line-height: 1.4;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity var(--ifinmail-transition), border-color var(--ifinmail-transition);
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed:hover .ifinmail-mfa-embed__copy,
+html.ifinmail-shell .ifinmail-mfa-embed__copy:focus-visible {
+    opacity: 1;
+    border-color: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed__copy:focus-visible {
+    outline: 2px solid var(--ifinmail-color-primary);
+    outline-offset: 2px;
+}
+
+html.ifinmail-shell .ifinmail-mfa-more > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ifinmail-space-1);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+html.ifinmail-shell .ifinmail-mfa-more > summary::-webkit-details-marker { display: none; }
+
+html.ifinmail-shell .ifinmail-mfa-more > summary::before {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform var(--ifinmail-transition);
+}
+
+html.ifinmail-shell .ifinmail-mfa-more[open] > summary::before { transform: rotate(45deg); }
+
+html.ifinmail-shell .ifinmail-mfa-more[open] > summary { margin-bottom: var(--ifinmail-space-1); }

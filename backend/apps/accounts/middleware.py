@@ -7,8 +7,8 @@ PasswordChangeEnforcementMiddleware routes a login flagged ``password_change_req
 administrator the installer created, whose password was printed) to the first-password page
 before anything else, including MFA enrollment.
 
-MFAEnforcementMiddleware routes any authenticated staff session without MFA
-proof (``mfa_verified_at``) to enrollment — including sessions established
+MFAEnforcementMiddleware offers two-factor enrollment to staff sessions without MFA
+proof (``mfa_verified_at``); people who have not set it up can postpone the prompt a week — including sessions established
 before MFA shipped. Exempt paths keep enrollment, logout, login, the setup
 wizard and non-console endpoints reachable.
 
@@ -131,6 +131,12 @@ class MFAEnforcementMiddleware(MiddlewareMixin):
             return None  # this login turned its own second factor off
         if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
             return None
+        from backend.apps.accounts.services.mfa import TOTPService
+
+        if TOTPService.has_verified_device(user):
+            return redirect('accounts:mfa_setup')  # enrolled, but this session never proved it
+        if not TOTPService.prompt_due(user):
+            return None  # setup is optional: "Remind me in a week" is running
         return redirect('accounts:mfa_setup')
 
 

@@ -198,7 +198,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 return redirect(next_url)
             if (user.is_staff or user.is_superuser) and not SetupState.is_complete():
                 return redirect('accounts:setup_wizard')
-            if (user.is_staff or user.is_superuser) and user.mfa_required:
+            if (user.is_staff or user.is_superuser) and TOTPService.prompt_due(user):
                 return redirect('accounts:mfa_setup')
             return redirect('accounts:dashboard')
 

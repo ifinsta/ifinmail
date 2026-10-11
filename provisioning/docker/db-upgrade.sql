@@ -31,6 +31,9 @@ BEGIN
     END IF;
 END $$;
 
+-- MailUser.mfa_remind_after is mapped by migration accounts.0008 (state-only).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_remind_after TIMESTAMPTZ;
+
 -- Dovecot reads the mailbox quota to enforce it at login and delivery.
 GRANT SELECT ON domains TO dovecot;
 GRANT SELECT ON mailboxes TO dovecot;

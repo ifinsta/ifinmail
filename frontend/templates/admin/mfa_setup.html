@@ -29,6 +29,14 @@
         <input type="hidden" name="action" value="start">
         <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% if status.enabled %}{% trans 'Replace authenticator' %}{% else %}{% trans 'Begin setup' %}{% endif %}</button>
       </form>
+      {% if not status.enabled %}
+      <form method="post" action="{% url 'accounts:mfa_setup' %}" class="ifinmail-login-form ifinmail-mfa-snooze">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="snooze">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--full">{% trans 'Remind me in a week' %}</button>
+        <p class="ifinmail-setup-hint">{% trans 'Two-factor sign-in is optional but recommended. You can set it up any time under Settings → Security.' %}</p>
+      </form>
+      {% endif %}
 
       {% if status.enabled %}
       <form method="post" action="" class="ifinmail-login-form">
@@ -88,6 +96,14 @@
         </div>
         <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Verify & activate' %}</button>
       </form>
+      {% if not status.enabled %}
+      <form method="post" action="{% url 'accounts:mfa_setup' %}" class="ifinmail-login-form ifinmail-mfa-snooze">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="snooze">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--full">{% trans 'Remind me in a week' %}</button>
+        <p class="ifinmail-setup-hint">{% trans 'Two-factor sign-in is optional but recommended. You can set it up any time under Settings → Security.' %}</p>
+      </form>
+      {% endif %}
       {% else %}
       <form method="post" action="" class="ifinmail-login-form">
         {% csrf_token %}

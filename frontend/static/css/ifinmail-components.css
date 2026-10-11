@@ -3734,3 +3734,7 @@ select.ifinmail-input {
     padding-top: var(--ifinmail-space-5);
     border-top: 1px solid var(--ifinmail-outline-variant);
 }
+
+/* MFA enrollment is optional: the postpone action sits below the main one */
+.ifinmail-login-card .ifinmail-mfa-snooze { margin-top: var(--ifinmail-space-2); }
+.ifinmail-login-card .ifinmail-mfa-snooze .ifinmail-setup-hint { text-align: center; }

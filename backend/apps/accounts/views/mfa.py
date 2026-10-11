@@ -83,6 +83,11 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
     status = TOTPService.status_for(request.user)
     if request.method == 'POST':
         action = request.POST.get('action', 'start')
+        if action == 'snooze' and not status.get('enabled'):
+            # Two-factor is optional: postpone the prompt, keep using the console.
+            TOTPService.snooze(request.user)
+            AuditService.record(action='mfa_setup_postponed', user=_actor(request), detail='7 days')
+            return redirect('accounts:dashboard')
         if action == 'start':
             uri, secret = TOTPService.start_enrollment(request.user)
             AuditService.record(action='mfa_enrollment_started', user=_actor(request), detail='')

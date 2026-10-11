@@ -15,6 +15,8 @@ verify — every row must exist on disk.
 | `includes/admin_table.html` | TablesRows | admin list pages |
 | `includes/setup_table.html` | TablesRows | setup wizard tables |
 | `includes/settings_nav.html` | Settings | `admin/settings_base.html` (`SettingsCatalogue`) |
+| `includes/brand_mark.html` | ShellParts, Landing | nav/footer mark on `landing.html`, `terms.html`, `privacy.html` (uploaded logo only; without one the brand name text carries identity) |
+| `includes/card_brand.html` | Login, Registration, Setup, ErrorPages | auth/registration/setup/error cards — uploaded logo, else the system name |
 | `error_base.html` | ErrorPages | `400/403/404/500/502/503/504.html` |
 
 ## Console
@@ -57,6 +59,7 @@ verify — every row must exist on disk.
 |---|---|
 | `admin/password_reset_form.html`, `_done.html`, `_confirm.html`, `_complete.html` | PasswordReset |
 | `admin/password_reset_email.html`, `registration/email_verify.html` | Emails |
+| `admin/password_reset_email.txt` | Emails (plain-text body) |
 | `admin/password_reset_subject.txt` | Emails (subject) |
 | `registration/_stepper.html`, `step_profile.html`, `step_username.html`, `step_password.html`, `step_verify.html`, `step_complete.html` | Registration |
 | `setup/base.html`, `welcome.html`, `dns_provider.html`, `dns_auto.html`, `dns_manual.html`, `dns_server.html`, `create_account.html`, `done.html` | Setup |
@@ -76,10 +79,10 @@ verify — every row must exist on disk.
 |---|---|
 | `clients/android/app/webApp/src/webMain/resources/index.html` | AndroidShell |
 
-## Inventory (66 html on disk, 2026-10-11)
+## Inventory (69 html on disk, 2026-10-11)
 
 Root (8): `base.html`, `error_base.html`, `landing.html`, `privacy.html`,
 `terms.html`, `400/403/404/500/502/503/504.html` (7). `admin/` (22 + 6 partials),
-`includes/` (5), `registration/` (7), `setup/` (8). Extras beyond the original
+`includes/` (7), `registration/` (7), `setup/` (8). Extras beyond the original
 50-board map are intentional extensions tagged above; do not delete without
 updating `SettingsCatalogue` and `test_frontend_contract.py`.

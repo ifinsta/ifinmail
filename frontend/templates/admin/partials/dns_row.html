@@ -3,6 +3,11 @@
     <td><strong>{{ row.name|default:'' }}</strong><br>{{ row.subtitle|default:'' }}</td>
     <td><span class="{% if row.mx_status_class %}ifinmail-trend--danger{% else %}ifinmail-trend{% endif %}">{{ row.mx_status|default:'—' }}</span></td>
     <td>{{ row.auth_records|default:'—' }}</td>
-    <td>{{ row.ssl_expiry|default:'—' }}</td>
-    <td>{{ row.actions|default:'' }}</td>
+    <td><span class="{% if row.ssl_status_class %}ifinmail-trend--danger{% else %}ifinmail-trend{% endif %}">{{ row.ssl_expiry|default:'—' }}</span></td>
+    <td>
+        <div class="ifinmail-action-row">
+            <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="verify-domain" data-domain="{{ row.name }}" data-url="{% url 'dns:verify_domain' %}">{% trans 'Verify' %}</button>
+            {% if row.zone_url %}<a class="ifinmail-link-strong" href="{{ row.zone_url }}">{% trans 'Zone' %}</a>{% endif %}
+        </div>
+    </td>
 </tr>

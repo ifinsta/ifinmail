@@ -18,6 +18,7 @@ from backend.apps.domains.services.provisioning import (
 )
 from backend.apps.mail.services import MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
+from backend.config.env import primary_domain
 
 from ..types.permissions import PermissionCode
 from ._constants import _DOMAIN_RE, _IPIFY_URL
@@ -111,7 +112,7 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
     if SetupState.is_marked_complete():
         return redirect('accounts:dashboard')
 
-    domain = request.session.get('setup_domain') or os.environ.get('DOMAIN', '')
+    domain = request.session.get('setup_domain') or primary_domain()
     dns_provider = request.session.get('setup_dns_provider', '')
     server_ip = _setup_server_ip()
 
@@ -275,7 +276,7 @@ def setup_advance(request: HttpRequest) -> HttpResponse:
 
     elif current == 'dns':
         choice = request.POST.get('choice', '')
-        domain = request.session.get('setup_domain') or os.environ.get('DOMAIN', '')
+        domain = request.session.get('setup_domain') or primary_domain()
         if choice == 'authoritative' and domain:
             next_step = _wizard_set_zone_mode(domain, True, request)
         elif choice == 'manual' and domain:

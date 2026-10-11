@@ -11,6 +11,7 @@
 
 {% block content %}
 <div class="ifinmail-error-page" role="alert">
+  {% include "includes/card_brand.html" %}
   <h1>{% block error_code %}{{ error_code }}{% endblock %}</h1>
   <p>{% block error_description %}{{ error_description }}{% endblock %}</p>
   {% if error_detail %}

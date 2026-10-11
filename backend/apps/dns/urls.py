@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .api import dns_configure, dns_status  # API flow (JSON endpoints)
+from .api import dns_configure, dns_status, dns_verify_domain  # API flow (JSON endpoints)
 from .views.server import (
     dns_publish,
     dns_record_add,
@@ -26,6 +26,7 @@ urlpatterns = [
     path('configure/', dns_configure, name='configure'),
     path('status/', dns_status, name='status'),
     path('register/', dns_register_domain, name='register'),
+    path('verify-domain/', dns_verify_domain, name='verify_domain'),
     path('export/', dns_export_records, name='export'),
     path('toggle-proxy/', dns_toggle_proxy, name='toggle_proxy'),
     path('toggle-relay/', dns_toggle_relay, name='toggle_relay'),

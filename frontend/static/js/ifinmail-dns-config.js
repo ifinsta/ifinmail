@@ -204,6 +204,40 @@
         alert('DNS record editing is managed through your provider. Use the DNS Toolbox to copy the current record value and paste it into your provider dashboard.');
     }
 
+    /* ── Per-domain verification ───────────────────────────── */
+
+    function verifyDomain(btn) {
+        if (!btn || !btn.dataset.url || !btn.dataset.domain) return;
+        var original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Verifying\u2026';
+
+        var formData = new FormData();
+        formData.append('domain', btn.dataset.domain);
+
+        fetch(btn.dataset.url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf.getCSRFToken() },
+            body: formData
+        })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                btn.disabled = false;
+                btn.textContent = original;
+                if (!res.ok || res.data.status !== 'ok') {
+                    alert('Verification failed: ' + ((res.data && res.data.error) || 'unknown error'));
+                    return;
+                }
+                // Outcomes are persisted server-side; reload to show them.
+                location.reload();
+            })
+            .catch(function () {
+                btn.disabled = false;
+                btn.textContent = original;
+                alert('Verification failed. Please try again.');
+            });
+    }
+
     /* ── Toggle controls ───────────────────────────────────── */
 
     function toggleSMTPProxy() {
@@ -367,19 +401,20 @@
             'toggle-proxy': toggleSMTPProxy,
             'toggle-relay': toggleSmartHost,
             'refresh-dns': refreshDNSStatus,
-            'close-register-modal': closeRegisterModal
+            'close-register-modal': closeRegisterModal,
+            'verify-domain': verifyDomain
         };
 
         Object.keys(handlers).forEach(function (action) {
             var fn = handlers[action];
             var els = document.querySelectorAll('[data-action="' + action + '"]');
             for (var k = 0; k < els.length; k++) {
-                (function (handler) {
-                    els[k].addEventListener('click', function (e) {
+                (function (handler, element) {
+                    element.addEventListener('click', function (e) {
                         e.preventDefault();
-                        handler();
+                        handler(element);
                     });
-                })(fn);
+                })(fn, els[k]);
             }
         });
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 
 # Defaults mirror the design system (see DESIGN.md): primary blue, brand navy, success green.
@@ -180,34 +181,6 @@ class BrandingConfig:
 
         return f'<style>\n{import_str}:root {{\n  {inner_style}\n}}\n{extra_rules}</style>'
 
-    @property
-    def logo_svg(self) -> str:
-        """Inline SVG logo icon using the brand color."""
-        c = self.color
-        return (
-            f'<svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"'
-            f' style="vertical-align:middle;margin-right:6px;">'
-            f'<rect width="32" height="32" rx="6" fill="{c}"/>'
-            f'<text x="16" y="21" text-anchor="middle"'
-            f' font-family="Inter,-apple-system,BlinkMacSystemFont,sans-serif"'
-            f' font-size="17" font-weight="700" fill="white">i</text>'
-            f'</svg>'
-        )
-
-    @property
-    def sidebar_logo_svg(self) -> str:
-        """Larger inline SVG for the admin sidebar brand bar."""
-        c = self.color
-        return (
-            f'<svg class="ifinmail-admin-brand-icon" width="32" height="32"'
-            f' viewBox="0 0 32 32" aria-hidden="true">'
-            f'<rect width="32" height="32" rx="6" fill="{c}"/>'
-            f'<text x="16" y="21" text-anchor="middle"'
-            f' font-family="Inter,-apple-system,BlinkMacSystemFont,sans-serif"'
-            f' font-size="17" font-weight="700" fill="white">i</text>'
-            f'</svg>'
-        )
-
     @staticmethod
     def _sanitize_hex_color(color: str) -> str:
         """Sanitize a hex color value to prevent XSS in inline styles."""
@@ -233,3 +206,24 @@ def brand_context(request: object) -> dict[str, object]:
     if brand is None:
         brand = BrandingConfig()
     return {'brand': brand}
+
+
+def email_brand_context(
+    build_absolute_uri: Callable[[str], str] | None = None,
+) -> dict[str, object]:
+    """Template context for system emails.
+
+    Emails render outside the request cycle, so the brand is not in their
+    context automatically; callers pass this dict to ``render_to_string`` or
+    Django's ``extra_email_context``. ``brand_logo_url`` is made absolute so
+    mail clients can fetch an uploaded logo.
+    """
+    from django.conf import settings
+
+    brand = getattr(settings, 'BRAND_CONFIG', None)
+    if brand is None:
+        brand = BrandingConfig()
+    logo = brand.logo_url
+    if logo and not logo.startswith(('http://', 'https://')) and build_absolute_uri:
+        logo = build_absolute_uri(logo)
+    return {'brand': brand, 'brand_logo_url': logo}

@@ -23,7 +23,7 @@
                             {% if current_logo_url %}
                             <img class="ifinmail-logo-preview" src="{{ current_logo_url }}" alt="{% trans 'Current logo' %}">
                             {% else %}
-                            <strong class="ifinmail-wordmark ifinmail-wordmark--static">ifinmail</strong>
+                            <strong class="ifinmail-wordmark ifinmail-wordmark--static">{{ brand.name|default:'ifinmail' }}</strong>
                             {% endif %}
                             <span>{% trans 'Click to upload a logo' %}</span>
                             <span class="ifinmail-text--muted">{% trans 'SVG, PNG, JPG (max 400x120px)' %}</span>

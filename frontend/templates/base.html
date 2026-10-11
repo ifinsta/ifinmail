@@ -10,8 +10,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ brand.name|default:'ifinmail' }}">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <link rel="icon" type="image/svg+xml" href="{{ brand.favicon_url|default:default_icon_url }}">
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <link rel="icon" href="{{ brand.favicon_url|default:default_icon_url }}">
     <link rel="apple-touch-icon" href="{{ brand.favicon_url|default:default_icon_url }}">
     <title>{% block title %}{{ brand.name|default:'ifinmail' }}{% endblock %}</title>
     <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>

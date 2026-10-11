@@ -13,10 +13,12 @@ def user_context(request: HttpRequest) -> dict[str, str]:
             'user_role_label': 'GUEST',
         }
     email: str = getattr(user, 'email', '') or ''
-    initials = email[:2].upper() if email else 'AD'
 
     # Real values only: the profile name, else the email's local part.
     full_name = getattr(user, 'get_full_name', lambda: '')() or email.split('@')[0] or 'Account'
+
+    # Avatar shows a single first letter when there is no profile image.
+    initials = full_name[:1].upper()
 
     if user.is_superuser:
         role = 'SUPERUSER'

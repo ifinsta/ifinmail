@@ -7,7 +7,6 @@ browser. Behavioural checks (layout, overflow, accessibility) are described in
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import subprocess
@@ -16,7 +15,7 @@ from pathlib import Path
 import pytest
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
-from django.urls import resolve
+from django.urls import resolve, reverse
 
 from backend.config.branding import DEFAULT_PRIMARY, DEFAULT_SECONDARY
 
@@ -88,10 +87,13 @@ def test_brand_defaults_match_design_tokens() -> None:
     assert _token('color-brand') == DEFAULT_SECONDARY
 
 
-def test_manifest_matches_brand_and_points_at_a_real_route() -> None:
-    manifest = json.loads(_read(FRONTEND / 'static' / 'manifest.json'))
+def test_manifest_is_branded_and_points_at_a_real_route(client) -> None:
+    response = client.get(reverse('manifest'))
+    assert response.status_code == 200
+    manifest = response.json()
     assert manifest['theme_color'].lower() == _token('color-brand')
     assert resolve(manifest['start_url']).url_name == 'dashboard'
+    assert manifest['icons'], 'a manifest needs at least one icon'
 
 
 def test_root_font_size_keeps_rem_tokens_at_documented_sizes() -> None:

@@ -13,7 +13,7 @@
   <nav class="ifinmail-landing-nav">
     <div class="ifinmail-landing-nav__inner">
       <div class="ifinmail-landing-nav__brand">
-        <span class="ifinmail-landing-nav__logo">if</span>
+        {% include "includes/brand_mark.html" with mark_class="ifinmail-landing-nav__logo" %}
         <span class="ifinmail-landing-nav__name">{{ brand.name|default:'ifinmail' }}</span>
       </div>
       <div class="ifinmail-landing-nav__links">
@@ -73,7 +73,7 @@
   <footer class="ifinmail-landing-footer">
     <div class="ifinmail-landing-footer__inner">
       <div class="ifinmail-landing-footer__brand">
-        <span class="ifinmail-landing-footer__logo">if</span>
+        {% include "includes/brand_mark.html" with mark_class="ifinmail-landing-footer__logo" size=28 %}
         <span class="ifinmail-landing-footer__name">{{ brand.name|default:'ifinmail' }}</span>
         <span class="ifinmail-landing-footer__tagline">{{ brand.tagline|default:'mail infrastructure' }}</span>
       </div>

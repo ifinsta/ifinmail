@@ -22,6 +22,8 @@ from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.reserved import RESERVED_LOCAL_PARTS
+from backend.config.branding import email_brand_context
+from backend.config.env import primary_domain
 
 logger = logging.getLogger('backend')
 token_generator = PasswordResetTokenGenerator()
@@ -58,9 +60,8 @@ def _get_primary_domain() -> str:
             return domains[0].name if hasattr(domains[0], 'name') else str(domains[0])
     except Exception:
         pass
-    import os
 
-    return os.environ.get('DOMAIN', '')
+    return primary_domain()
 
 
 def _send_verification_email(request: HttpRequest, email: str) -> tuple[bool, str | None]:
@@ -84,6 +85,7 @@ def _send_verification_email(request: HttpRequest, email: str) -> tuple[bool, st
         {
             'verify_url': verify_url,
             'email': email,
+            **email_brand_context(request.build_absolute_uri),
         },
     )
     try:

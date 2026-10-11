@@ -35,13 +35,13 @@
         <div class="ifinmail-dropdown-wrapper" id="header-profile-dropdown">
             {% if show_user_profile %}
             <button class="ifinmail-btn-reset ifinmail-header-profile ifinmail-header-profile--button" type="button" aria-expanded="false" aria-label="{% trans 'Open account menu' %}" >
-                <span class="ifinmail-avatar">{{ user_initials|default:'AD' }}</span>
+                <span class="ifinmail-avatar">{{ user_initials|default:'?' }}</span>
                 <span><strong>{{ user_display_name|default:user.email }}</strong><small>{{ user_role_label }}</small></span>
                 <svg class="ifinmail-profile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             {% else %}
             <button class="ifinmail-btn-reset ifinmail-avatar-button" type="button" aria-expanded="false" aria-label="{% trans 'Open account menu' %}" title="{% trans 'Account menu' %}">
-                <span class="ifinmail-avatar">{{ user_initials|default:'AD' }}</span>
+                <span class="ifinmail-avatar">{{ user_initials|default:'?' }}</span>
                 <svg class="ifinmail-profile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             {% endif %}

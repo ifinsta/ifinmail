@@ -22,6 +22,7 @@ from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.platform.services.monitoring import MonitoringService
 from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import MailService
+from backend.config.env import primary_domain
 
 from ..types.permissions import PermissionCode
 from ._constants import _APP_DIR, _LETSENCRYPT_DIR, _MAIL_VHOSTS_DIR
@@ -39,7 +40,7 @@ def _make_check(code: str, status_bool: bool, label: str) -> dict[str, str]:
 def _get_tls_expiry_days() -> dict[str, Any]:
     """Read TLS certificate and return days until expiry."""
     mail_hostname = os.environ.get('MAIL_HOSTNAME', '')
-    domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+    domain = primary_domain()
     cert_paths = []
     if mail_hostname:
         cert_paths.append(os.path.join(_LETSENCRYPT_DIR, 'live', mail_hostname, 'fullchain.pem'))
@@ -344,7 +345,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 def _get_tls_info() -> dict[str, Any]:
     """Return extended TLS certificate information (issuer, SANs, expiry)."""
     mail_hostname = os.environ.get('MAIL_HOSTNAME', '')
-    domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+    domain = primary_domain()
     cert_paths = []
     if mail_hostname:
         cert_paths.append(os.path.join(_LETSENCRYPT_DIR, 'live', mail_hostname, 'fullchain.pem'))

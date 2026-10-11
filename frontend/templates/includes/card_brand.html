@@ -1,0 +1,11 @@
+{% comment %}
+Brand block for standalone cards (auth, registration, setup, error pages):
+the uploaded logo when one is set, otherwise the system name as text — the
+system never draws a placeholder mark.
+{% endcomment %}
+<div class="ifinmail-login-card__brand{% if not brand.logo_url %} ifinmail-login-card__brand--name{% endif %}">
+    <span class="ifinmail-wordmark">{{ brand.name|default:'ifinmail' }}</span>
+    {% if brand.logo_url %}
+    <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
+    {% endif %}
+</div>

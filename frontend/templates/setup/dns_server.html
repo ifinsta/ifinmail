@@ -13,6 +13,7 @@
   </div>
 
   <div class="ifinmail-setup-card">
+    {% include "includes/card_brand.html" %}
     <h1 class="ifinmail-admin-title">{% blocktrans trimmed %}Point {{ domain }} at this server{% endblocktrans %}</h1>
     <p class="ifinmail-setup-description">
       {% trans 'This server now publishes all the records below. One step is left at your domain registrar: set the domain’s nameservers to:' %}

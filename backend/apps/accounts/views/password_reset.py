@@ -9,15 +9,22 @@ from django.contrib.auth.views import (
 from django.http import HttpResponse
 
 from backend.apps.core.platform.services.audit import AuditService
+from backend.config.branding import email_brand_context
 
 
 class CustomPasswordResetView(PasswordResetView):
     template_name = 'admin/password_reset_form.html'
-    email_template_name = 'admin/password_reset_email.html'
+    # Plain-text body plus the branded HTML alternative (Django sends both when
+    # html_email_template_name is set).
+    email_template_name = 'admin/password_reset_email.txt'
+    html_email_template_name = 'admin/password_reset_email.html'
     subject_template_name = 'admin/password_reset_subject.txt'
     success_url = '/accounts/password-reset/done/'
 
     def form_valid(self, form) -> HttpResponse:
+        # Django renders the email without request-context processors; inject the
+        # brand and an absolute logo URL so the email carries the custom logo.
+        self.extra_email_context = email_brand_context(self.request.build_absolute_uri)
         AuditService.record(
             action='password_reset_requested',
             user=(form.cleaned_data.get('email') or '').strip().lower(),

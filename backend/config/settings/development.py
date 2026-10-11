@@ -1,5 +1,13 @@
-# ruff: noqa: F403,F405
+# ruff: noqa: E402,F403,F405
+# E402: the .env load and dev fallbacks must run before `from .base import *`.
 import os
+from pathlib import Path
+
+from backend.config.env import load_dotenv
+
+# Local runs read the repo .env (real environment variables win). This happens
+# before the fallbacks below so values copied from .env.example take effect.
+load_dotenv(Path(__file__).resolve().parents[3] / '.env')
 
 os.environ.setdefault('DJANGO_SECRET_KEY', 'dev-insecure-key-change-in-production')
 os.environ.setdefault('DB_NAME', 'ifinmail')

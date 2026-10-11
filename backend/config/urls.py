@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.accounts.api import api as api_v1
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
+from backend.config.env import primary_domain
 
 logger = logging.getLogger('backend')
 
@@ -93,8 +94,6 @@ def health_full(request: HttpRequest) -> JsonResponse:
 
 def health_dns(request: HttpRequest) -> JsonResponse:
     """DNS health check for configured domains."""
-    import os
-
     from backend.apps.core.platform.services.monitoring import MonitoringService
     from backend.apps.domains.services import DomainService
 
@@ -103,7 +102,7 @@ def health_dns(request: HttpRequest) -> JsonResponse:
         for domain in DomainService.get_all_domains():
             domains_data[domain.name] = MonitoringService.check_dns(domain.name)
     except Exception:
-        fallback = os.environ.get('MAIL_DOMAIN', os.environ.get('DOMAIN', ''))
+        fallback = primary_domain()
         domains_data[fallback] = MonitoringService.check_dns(fallback)
 
     all_pass = all(
@@ -151,10 +150,64 @@ def privacy_page(request: HttpRequest) -> HttpResponse:
     return render(request, 'privacy.html')
 
 
+def manifest(request: HttpRequest) -> JsonResponse:
+    """Web app manifest, branded from ``BRAND_CONFIG``.
+
+    When a favicon is uploaded it becomes the PWA icon too; otherwise the
+    shipped default icons are listed (a manifest needs icons to be installable).
+    """
+    from django.templatetags.static import static as static_url
+
+    brand = getattr(settings, 'BRAND_CONFIG', None)
+    name = (getattr(brand, 'name', '') or 'ifinmail').strip()
+    favicon = (getattr(brand, 'favicon_url', '') or '').strip()
+    theme_color = getattr(brand, 'secondary_color', '') or '#0f2b5b'
+    if favicon:
+        ext = favicon.rsplit('.', 1)[-1].lower()
+        mime = {
+            'svg': 'image/svg+xml',
+            'png': 'image/png',
+            'ico': 'image/x-icon',
+            'webp': 'image/webp',
+        }.get(ext, 'image/png')
+        icons = [{'src': favicon, 'sizes': 'any', 'type': mime, 'purpose': 'any'}]
+    else:
+        icons = [
+            {
+                'src': static_url('icons/icon-192.svg'),
+                'sizes': '192x192',
+                'type': 'image/svg+xml',
+                'purpose': 'any maskable',
+            },
+            {
+                'src': static_url('icons/icon-512.svg'),
+                'sizes': '512x512',
+                'type': 'image/svg+xml',
+                'purpose': 'any maskable',
+            },
+        ]
+    return JsonResponse(
+        {
+            'name': f'{name} — Mail Server Admin',
+            'short_name': name[:12],
+            'description': 'Manage your self-hosted mail server',
+            'start_url': '/accounts/dashboard/',
+            'scope': '/',
+            'display': 'standalone',
+            'background_color': '#F9FAFB',
+            'theme_color': theme_color,
+            'orientation': 'any',
+            'icons': icons,
+        },
+        content_type='application/manifest+json',
+    )
+
+
 urlpatterns = [
     path('', landing_page, name='landing'),
     path('terms/', terms_page, name='terms'),
     path('privacy/', privacy_page, name='privacy'),
+    path('manifest.webmanifest', manifest, name='manifest'),
     path('csp-report/', csp_report, name='csp-report'),
     path('health/', health_check, name='health-check'),
     path('health/full/', health_full, name='health-full'),

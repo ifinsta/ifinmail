@@ -13,6 +13,7 @@
   </div>
 
   <div class="ifinmail-setup-card">
+    {% include "includes/card_brand.html" %}
     <h1 class="ifinmail-admin-title">{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Welcome to {{ name }}{% endblocktrans %}</h1>
     <p class="ifinmail-setup-description">
       {% trans "You're about to set up your own email server. You'll need a domain name you own (like <strong>example.com</strong>). We'll handle the rest." %}

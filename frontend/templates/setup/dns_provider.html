@@ -13,6 +13,7 @@
   </div>
 
   <div class="ifinmail-setup-card">
+    {% include "includes/card_brand.html" %}
     <h1 class="ifinmail-admin-title">{% blocktrans trimmed %}Configure DNS for {{ domain }}{% endblocktrans %}</h1>
     <p class="ifinmail-setup-description">
       {% blocktrans trimmed %}Choose your DNS provider so we can set up your email records automatically.

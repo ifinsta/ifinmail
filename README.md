@@ -13,7 +13,7 @@ Copy the [cloud-init.yaml](provisioning/cloud-init.yaml) content into your cloud
 ### Option 2: Terminal (one command)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/ifinmail/ifinmail/main/provisioning/scripts/bootstrap.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/ifinmail/main/provisioning/scripts/bootstrap.sh | sudo bash
 ```
 
 This installs Docker, clones the repo, runs an interactive setup wizard, and provisions the full stack. Answer the prompts with your domain and admin email — everything else is generated automatically.
@@ -22,7 +22,7 @@ For fully automated deployment, use non-interactive mode:
 
 ```bash
 export DOMAIN=example.com ADMIN_EMAIL=admin@example.com
-curl -sSL https://raw.githubusercontent.com/ifinmail/ifinmail/main/provisioning/scripts/bootstrap.sh | sudo bash -s -- --non-interactive
+curl -sSL https://raw.githubusercontent.com/ifinmail/main/provisioning/scripts/bootstrap.sh | sudo bash -s -- --non-interactive
 ```
 
 ## DNS Records

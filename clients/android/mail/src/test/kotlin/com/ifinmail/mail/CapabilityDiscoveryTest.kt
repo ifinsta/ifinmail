@@ -23,9 +23,13 @@ class CapabilityDiscoveryTest {
         ServerConfig("imap.test", 993, ConnectionSecurity.SSL_TLS)
     )
 
-    private fun feedHappyPath(transport: FakeTransport, capabilityLine: String) {
+    private fun feedHappyPath(
+        transport: FakeTransport,
+        capabilityLine: String,
+        preLoginLine: String = capabilityLine
+    ) {
         transport.feedLine("* OK IMAP4rev1 ready")
-        transport.feedLine("* CAPABILITY $capabilityLine")
+        transport.feedLine("* CAPABILITY $preLoginLine")
         transport.feedLine("IFM0001 OK cap")
         transport.feedLine("IFM0002 OK auth")
         transport.feedLine("""* LIST (\HasNoChildren) "." INBOX""")
@@ -33,6 +37,19 @@ class CapabilityDiscoveryTest {
         transport.feedLine("* 0 EXISTS")
         transport.feedLine("* OK [UIDVALIDITY 42]")
         transport.feedLine("IFM0004 OK selected")
+        transport.feedLine("* CAPABILITY $capabilityLine")
+        transport.feedLine("IFM0005 OK cap")
+    }
+
+    @Test
+    fun `extensions listed only after login are discovered`() = runBlocking {
+        val transport = FakeTransport()
+        feedHappyPath(transport, "IMAP4rev1 IDLE MOVE UIDPLUS AUTH=PLAIN", preLoginLine = "IMAP4rev1 IDLE AUTH=PLAIN")
+
+        val outcome = ImapAccessAdapter { transport }.probe("u@test", incoming(), Credentials(password = "p"))
+
+        assertTrue(outcome.success, outcome.errorDetail ?: "probe failed")
+        assertTrue(KnownCapability.MAIL_MOVE in outcome.capabilities)
     }
 
     @Test

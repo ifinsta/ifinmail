@@ -1,0 +1,146 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with zone=zone name=brand.name|default:'ifinmail' %}{{ zone }} DNS — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{{ zone }}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'DNS records, DNSSEC and delegation for this domain.' %} <a class="ifinmail-link-strong" href="{% url 'dns:server' %}">{% trans 'All zones' %}</a></p>
+            </div>
+        </div>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="zone-host">
+            <h2 class="ifinmail-panel-title" id="zone-host">{% trans 'Who answers DNS for this domain' %}</h2>
+            <form method="post" action="{% url 'dns:zone_mode' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <input type="hidden" name="zone" value="{{ zone }}">
+                {% if authoritative %}
+                <span class="ifinmail-badge ifinmail-badge--success">{% trans 'This server' %}</span>
+                <input type="hidden" name="mode" value="external">
+                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Stop answering DNS for this domain here? Its records must exist at your DNS provider first, or mail will stop.' %}">{% trans 'Host DNS elsewhere' %}</button>
+                {% else %}
+                <span class="ifinmail-badge ifinmail-badge--info">{% trans 'External DNS' %}</span>
+                <input type="hidden" name="mode" value="authoritative">
+                <button class="ifinmail-btn ifinmail-btn--primary" type="submit"{% if not enabled %} disabled{% endif %}>{% trans 'Answer DNS on this server' %}</button>
+                {% endif %}
+            </form>
+        </section>
+
+        {% if authoritative %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="zone-state">
+            <h2 class="ifinmail-panel-title" id="zone-state">{% trans 'Delegation' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'This server answers for the zone' %}</dt>
+                    <dd>{% if delegation.serving %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% elif delegation.serving is None %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Unknown' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'No' %}</span>{% endif %}</dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Registrar uses these nameservers' %}</dt>
+                    <dd>{% if delegation.delegated %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% elif delegation.delegated is None %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Could not check' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Not yet' %}</span>{% endif %}</dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'DNSSEC DS record at the registrar' %}</dt>
+                    <dd>{% if not view.ds %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Keys are being created' %}</span>{% elif delegation.ds_published %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Published' %}</span>{% elif delegation.ds_published is None %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Not checked yet' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Not published' %}</span>{% endif %}</dd>
+                </div>
+            </dl>
+            {% if delegation.detail %}<p class="ifinmail-settings-section__lede">{{ delegation.detail }}</p>{% endif %}
+            {% if not delegation.delegated %}
+            <p class="ifinmail-settings-note" role="note">
+                <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+                <span>{% blocktrans trimmed with ns=ns_hosts|join:", " %}At your registrar, set the nameservers of this domain to <strong>{{ ns }}</strong>.{% endblocktrans %}
+                {% if glue_hosts %} {% blocktrans trimmed with ip=server_ip %}The registrar also needs glue records (child nameservers): {% endblocktrans %}{% for h in glue_hosts %}<code>{{ h }}</code> &rarr; <code>{{ server_ip }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</span>
+            </p>
+            {% endif %}
+        </section>
+
+        {% if view.ds %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="zone-ds">
+            <h2 class="ifinmail-panel-title" id="zone-ds">{% trans 'DNSSEC (DS record)' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Add one of these at your registrar (most accept the SHA-256 line). It lets resolvers verify that answers really come from this server.' %}</p>
+            <dl class="ifinmail-settings-rows">
+                {% for ds in view.ds %}
+                <div class="ifinmail-settings-row">
+                    <dt>{% blocktrans trimmed with t=ds.digest_type %}Digest type {{ t }}{% endblocktrans %}{% if ds.digest_type == 2 %} <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Recommended' %}</span>{% endif %}</dt>
+                    <dd class="ifinmail-cell-wrap"><code class="ifinmail-settings-row__value">{{ ds.text }}</code></dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </section>
+        {% endif %}
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Records' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Records' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Name' %}</th><th>{% trans 'Type' %}</th><th>{% trans 'Value' %}</th><th>{% trans 'TTL' %}</th><th><span class="ifinmail-sr-only">{% trans 'Action' %}</span></th></tr></thead>
+                <tbody>
+                {% for r in view.records %}
+                <tr>
+                    <td><code class="ifinmail-text--mono">{{ r.name }}</code></td>
+                    <td>{{ r.type }}</td>
+                    <td class="ifinmail-cell-wrap"><code class="ifinmail-text--mono">{% if r.type == 'MX' or r.type == 'SRV' %}{{ r.priority }} {% endif %}{{ r.value }}</code></td>
+                    <td>{{ r.ttl }}</td>
+                    <td>
+                        {% if r.managed %}
+                        <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Managed' %}</span>
+                        {% else %}
+                        <form method="post" action="{% url 'dns:record_delete' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <input type="hidden" name="zone" value="{{ zone }}">
+                            <input type="hidden" name="record_id" value="{{ r.record_id }}">
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Remove this record?' %}"><span class="ifinmail-sr-only">{{ r.name }} {{ r.type }} </span>{% trans 'Remove' %}</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="zone-add">
+            <h2 class="ifinmail-panel-title" id="zone-add">{% trans 'Add a record' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Mail records (MX, SPF, DKIM, DMARC, MTA-STS, autoconfig and the nameservers) are managed for you. Add anything else here: a website, a verification token, a subdomain.' %}</p>
+            <form method="post" action="{% url 'dns:record_add' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="zone" value="{{ zone }}">
+                <div class="ifinmail-field-grid">
+                    <div class="ifinmail-field">
+                        <label for="rec-name">{% trans 'Name' %}</label>
+                        <input class="ifinmail-input" id="rec-name" name="name" maxlength="255" autocomplete="off" placeholder="www ({% trans 'blank = the domain itself' %})">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="rec-type">{% trans 'Type' %}</label>
+                        <select class="ifinmail-input" id="rec-type" name="rtype" required>
+                            {% for t in record_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="rec-value">{% trans 'Value' %}</label>
+                        <input class="ifinmail-input" id="rec-value" name="value" required maxlength="2100" autocomplete="off" placeholder="192.0.2.10">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="rec-prio">{% trans 'Priority (MX, SRV)' %}</label>
+                        <input class="ifinmail-input" id="rec-prio" name="priority" type="number" min="0" max="65535" inputmode="numeric" autocomplete="off">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="rec-ttl">{% trans 'TTL (seconds)' %}</label>
+                        <input class="ifinmail-input" id="rec-ttl" name="ttl" type="number" min="60" max="86400" value="3600" inputmode="numeric" autocomplete="off">
+                    </div>
+                </div>
+                <p class="ifinmail-settings-section__lede">{% trans 'SRV values are “weight port target”; CAA values are “0 issue letsencrypt.org”.' %}</p>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Add record' %}</button></div>
+            </form>
+        </section>
+        {% else %}
+        <p class="ifinmail-settings-note" role="note">
+            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <span>{% trans 'This domain’s DNS is hosted elsewhere. Manage its records at your DNS provider, or use Domains & DNS to push the mail records there.' %} <a class="ifinmail-link-strong" href="{% url 'dns:config' %}">{% trans 'Domains & DNS' %}</a></span>
+        </p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

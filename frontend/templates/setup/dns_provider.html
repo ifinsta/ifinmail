@@ -19,6 +19,20 @@
       Your server IP is <strong>{{ server_ip }}</strong>.{% endblocktrans %}
     </p>
 
+    {% if authoritative_available %}
+    <div class="ifinmail-dns-provider-card">
+      <h2 class="ifinmail-dns-provider-name">{% trans 'Let this server answer DNS (recommended)' %}</h2>
+      <p class="ifinmail-dns-provider-help">{% trans 'No provider account needed. Mail, certificate and security records are created, signed with DNSSEC and kept up to date here. You only point the domain’s nameservers at this server.' %}</p>
+      <form method="post" action="{% url 'accounts:setup_advance' %}" class="ifinmail-dns-form">
+        {% csrf_token %}
+        <input type="hidden" name="current_step" value="dns">
+        <input type="hidden" name="choice" value="authoritative">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Use this server for DNS' %}</button>
+      </form>
+    </div>
+    <p class="ifinmail-setup-description">{% trans 'Or keep DNS at your current provider:' %}</p>
+    {% endif %}
+
     <div class="ifinmail-dns-providers">
       {% for provider in providers %}
       <div class="ifinmail-dns-provider-card">
@@ -46,8 +60,12 @@
     </div>
 
     <div class="ifinmail-setup-actions ifinmail-mt-4">
-      <a href="{% url 'accounts:setup_step' step='dns-manual' %}"
-         class="ifinmail-btn ifinmail-btn--outline">{% trans "I'll configure DNS manually" %}</a>
+      <form method="post" action="{% url 'accounts:setup_advance' %}" class="ifinmail-inline">
+        {% csrf_token %}
+        <input type="hidden" name="current_step" value="dns">
+        <input type="hidden" name="choice" value="manual">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--outline">{% trans "I'll configure DNS manually" %}</button>
+      </form>
       <form method="post" action="{% url 'accounts:setup_advance' %}" class="ifinmail-inline">
         {% csrf_token %}
         <input type="hidden" name="current_step" value="dns">

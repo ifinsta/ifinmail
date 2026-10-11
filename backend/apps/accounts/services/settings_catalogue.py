@@ -31,10 +31,18 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
             SettingsItem(
                 'dns',
                 _('Domains & DNS'),
-                _('Zones, record validation and DNSSEC.'),
+                _('Add domains, DNS provider and record export.'),
                 SettingsIcon.DOMAINS,
                 'dns:config',
-                ('domain', 'dns', 'mx', 'spf', 'dkim', 'dmarc', 'zone'),
+                ('domain', 'dns', 'mx', 'spf', 'dkim', 'dmarc', 'provider', 'cloudflare'),
+            ),
+            SettingsItem(
+                'dnsserver',
+                _('DNS server'),
+                _('Authoritative zones, custom records and DNSSEC.'),
+                SettingsIcon.DOMAINS,
+                'dns:server',
+                ('dns', 'zone', 'nameserver', 'ns', 'dnssec', 'ds', 'record', 'glue', 'authoritative', 'secondary'),
             ),
             SettingsItem(
                 'mail',
@@ -101,6 +109,22 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 ('lockout', 'password', 'hsts', 'csp', 'cookie', 'https', 'axes'),
                 {'slug': 'security'},
             ),
+            SettingsItem(
+                'certificates',
+                _('TLS certificates'),
+                _('Issue, renew or upload the server certificate.'),
+                SettingsIcon.CERTIFICATE,
+                'accounts:certificates',
+                ('tls', 'ssl', 'certificate', 'letsencrypt', 'renew', 'https', 'custom certificate', 'expiry'),
+            ),
+            SettingsItem(
+                'network',
+                _('Network & entry points'),
+                _('Open ports, blocked networks and connection limits.'),
+                SettingsIcon.NETWORK,
+                'accounts:network',
+                ('firewall', 'port', 'smtp', 'imap', 'block', 'ip', 'rate limit', 'entry', 'access'),
+            ),
         ),
     ),
     SettingsGroup(
@@ -151,7 +175,7 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
             SettingsItem(
                 'storage',
                 _('Storage & certificates'),
-                _('Mail store, disk checks and TLS certificates.'),
+                _('Mail store and disk checks.'),
                 SettingsIcon.STORAGE,
                 _PAGE,
                 ('disk', 'tls', 'certificate', 'letsencrypt', 'media', 'vhosts'),

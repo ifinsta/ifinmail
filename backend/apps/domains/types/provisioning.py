@@ -60,6 +60,7 @@ class ProvisionResult:
     created: bool
     steps: list[ProvisionStep] = field(default_factory=list)
     dns_records: list[dict[str, str]] = field(default_factory=list)
+    nameservers: list[str] = field(default_factory=list)  # set when this server answers DNS
     verification: VerificationResult | None = None
 
     @property

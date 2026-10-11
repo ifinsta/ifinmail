@@ -20,11 +20,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +39,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ifinmail.app.shared.mail.MailController
+import com.ifinmail.core.domain.error.MailError
+import com.ifinmail.core.domain.error.MailException
 import com.ifinmail.app.shared.mail.UiProviderProfile
 import com.ifinmail.app.shared.mail.UiProtocol
 import com.ifinmail.app.shared.mail.UiSecurity
@@ -65,6 +69,8 @@ fun AddAccountScreen(
     var useOAuth by remember { mutableStateOf(false) }
     var formError by remember { mutableStateOf<String?>(null) }
     var verifyLog by remember { mutableStateOf<List<String>>(emptyList()) }
+    // A new server starts with a temporary self-signed certificate; the person confirms its fingerprint once.
+    var untrustedCertificate by remember { mutableStateOf<MailError.CertificateUntrusted?>(null) }
     var discovering by remember { mutableStateOf(false) }
     var manualOpen by remember { mutableStateOf(false) }
     var manualProtocol by remember { mutableStateOf(UiProtocol.IMAP) }
@@ -74,6 +80,71 @@ fun AddAccountScreen(
     var manualOutHost by remember { mutableStateOf("") }
     var manualOutPort by remember { mutableStateOf("465") }
     var manualOutSecurity by remember { mutableStateOf(UiSecurity.SSL_TLS) }
+
+    fun submit(trustedCertificateSha256: String?) {
+        val profile = selectedProfile ?: return
+        formError = null
+        step = SetupStep.Verifying
+        verifyLog = listOf("Connecting to ${profile.incomingHost}\u2026")
+        scope.launch {
+            val result = controller.addAccount(
+                email = email.trim(),
+                displayName = email.trim().substringBefore('@'),
+                profile = profile,
+                password = if (useOAuth) null else password,
+                oauthAccessToken = if (useOAuth) oauthToken.trim() else null,
+                trustedCertificateSha256 = trustedCertificateSha256
+            )
+            result.fold(
+                onSuccess = {
+                    verifyLog = verifyLog + "Account added"
+                    onDone()
+                },
+                onFailure = { failure ->
+                    step = SetupStep.Credentials
+                    val untrusted = (failure as? MailException)?.error as? MailError.CertificateUntrusted
+                    if (untrusted != null && trustedCertificateSha256 == null) {
+                        untrustedCertificate = untrusted
+                    } else {
+                        formError = failure.message ?: "Verification failed"
+                    }
+                }
+            )
+        }
+    }
+
+    untrustedCertificate?.let { cert ->
+        AlertDialog(
+            onDismissRequest = { untrustedCertificate = null },
+            title = { Text("Trust this server's certificate?") },
+            text = {
+                Column {
+                    Text(
+                        "${cert.host} is using a certificate that no public authority has signed. " +
+                            "A new ifinmail server does this until it obtains a real one. " +
+                            "Compare the fingerprint with the one on your server (Settings \u2192 TLS certificates) before continuing."
+                    )
+                    Text(
+                        cert.sha256.uppercase().chunked(2).joinToString(":"),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    untrustedCertificate = null
+                    submit(cert.sha256)
+                }) { Text("Trust and continue") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    untrustedCertificate = null
+                    formError = "The server's certificate was not trusted."
+                }) { Text("Cancel") }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -289,30 +360,7 @@ fun AddAccountScreen(
                         PrimaryButton(
                             text = "Verify & add account",
                             enabled = (!useOAuth && password.isNotBlank()) || (useOAuth && oauthToken.isNotBlank()),
-                            onClick = {
-                                val profile = selectedProfile ?: return@PrimaryButton
-                                step = SetupStep.Verifying
-                                verifyLog = listOf("Connecting to ${profile.incomingHost}\u2026")
-                                scope.launch {
-                                    val result = controller.addAccount(
-                                        email = email.trim(),
-                                        displayName = email.trim().substringBefore('@'),
-                                        profile = profile,
-                                        password = if (useOAuth) null else password,
-                                        oauthAccessToken = if (useOAuth) oauthToken.trim() else null
-                                    )
-                                    result.fold(
-                                        onSuccess = {
-                                            verifyLog = verifyLog + "Account added"
-                                            onDone()
-                                        },
-                                        onFailure = { failure ->
-                                            step = SetupStep.Credentials
-                                            formError = failure.message ?: "Verification failed"
-                                        }
-                                    )
-                                }
-                            }
+                            onClick = { submit(null) }
                         )
                     }
                 }

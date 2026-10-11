@@ -53,6 +53,22 @@ class ClientConfigTests(MailTablesTestCase):
         by_email = self.get('/mail/config-v1.1.xml', emailaddress='me@other.test')
         self.assertIn('<domain>other.test</domain>', by_email.content.decode())
 
+    def test_the_config_lists_the_protocols_the_stack_really_serves(self) -> None:
+        import xml.etree.ElementTree as ET
+
+        root = ET.fromstring(
+            self.get('/mail/config-v1.1.xml', host='autoconfig.other.test').content
+        )
+        incoming = {
+            e.get('type'): (e.findtext('port'), e.findtext('socketType'))
+            for e in root.iter('incomingServer')
+        }
+        self.assertEqual(incoming, {'imap': ('993', 'SSL'), 'pop3': ('995', 'SSL')})
+        (outgoing,) = root.iter('outgoingServer')
+        self.assertEqual(
+            (outgoing.findtext('port'), outgoing.findtext('socketType')), ('587', 'STARTTLS')
+        )
+
     def test_unknown_domains_get_a_404_not_the_primary_domains_settings(self) -> None:
         self.assertEqual(
             self.get('/mail/config-v1.1.xml', host='autoconfig.nope.test').status_code, 404
@@ -71,7 +87,7 @@ class ClientConfigTests(MailTablesTestCase):
         )
         body = response.content.decode()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(body.count('<LoginName>me@other.test</LoginName>'), 2)
+        self.assertEqual(body.count('<LoginName>me@other.test</LoginName>'), 3)
 
     def test_autodiscover_rejects_unhosted_domains_and_escapes_input(self) -> None:
         bad = '<Request><EMailAddress>me@nope.test</EMailAddress></Request>'

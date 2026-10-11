@@ -53,7 +53,7 @@ runcmd:
     DOMAIN="${DOMAIN:-example.com}"
     ADMIN_EMAIL="${ADMIN_EMAIL:-admin@$DOMAIN}"
     export DOMAIN ADMIN_EMAIL
-    curl -sSL https://raw.githubusercontent.com/ifinmail/ifinmail/main/provisioning/scripts/bootstrap.sh | bash -s -- --non-interactive
+    curl -sSL https://raw.githubusercontent.com/ifinsta/ifinmail/main/provisioning/scripts/bootstrap.sh | bash -s -- --non-interactive
 
   # Print access info
   - |

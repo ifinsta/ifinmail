@@ -14,6 +14,11 @@ DIR="$RUNTIME/dns"
 
 mkdir -p "$DIR/zones" "$DIR/ds"
 [ -f "$DIR/knot.generated.conf" ] || echo "# no zones yet" > "$DIR/knot.generated.conf"
+# The console (uid 1000) writes the zones and the generated config; this container only writes ds/.
+# Without this, whichever container creates the directory first leaves it root-owned and no zone
+# is ever published.
+APP_UID="${APP_UID:-1000}"
+chown "$APP_UID:$APP_UID" "$DIR" "$DIR/zones" "$DIR/knot.generated.conf"
 
 fingerprint() {
     # Content of every generated file, so an edit in place is noticed.

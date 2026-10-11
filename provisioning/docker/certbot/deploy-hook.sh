@@ -4,6 +4,15 @@ set -e
 
 echo "Certbot deploy hook: certificate renewed, restarting services..."
 
+# certbot creates live/ and archive/ as 0700; the console reads the public certificate as a
+# non-root user (TLS page, expiry warnings). Private keys stay 0600.
+CERTS="${CERTS:-/etc/letsencrypt}"
+for dir in "$CERTS/live" "$CERTS/archive" "$CERTS/live/${MAIL_HOSTNAME:-}" "$CERTS/archive/${MAIL_HOSTNAME:-}"; do
+    if [ -d "$dir" ]; then chmod 755 "$dir"; fi
+done
+find "$CERTS/archive" -type f \( -name 'cert*.pem' -o -name 'chain*.pem' -o -name 'fullchain*.pem' \) \
+    -exec chmod 644 {} + 2>/dev/null || true
+
 COMPOSE_FILE="${COMPOSE_FILE:-/config/docker-compose.yml}"
 ENV_FILE="${ENV_FILE:-/config/.env}"
 

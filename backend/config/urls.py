@@ -136,7 +136,15 @@ def legacy_accounts_redirect(request: HttpRequest, path: str = '') -> HttpRespon
 
 
 def landing_page(request: HttpRequest) -> HttpResponse:
-    """Public landing page — no authentication required."""
+    """Public landing page — no authentication required.
+
+    Until setup is finished it is the setup guide instead: right after install the server is
+    reached by its IP address, and the person needs to know what is left to do.
+    """
+    from backend.apps.accounts.services.setup_guide import SetupGuide
+
+    if SetupGuide.should_show():
+        return render(request, 'setup/guide.html', {'guide': SetupGuide.status()})
     return render(request, 'landing.html')
 
 

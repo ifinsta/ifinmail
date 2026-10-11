@@ -60,6 +60,9 @@ if "${COMPOSE[@]}" run --rm certbot \
     -d "mta-sts.$DOMAIN"; then
     # Clean up self-signed backup on success
     rm -rf "$BACKUP_DIR" 2>/dev/null || true
+    # certbot makes live/ and archive/ 0700; the console reads the public certificate.
+    chmod 755 "$CERTBOT_CERTS/live" "$CERTBOT_CERTS/archive" "$LIVE_DIR" "$CERTBOT_CERTS/archive/$MAIL_HOSTNAME"
+    find "$CERTBOT_CERTS/archive/$MAIL_HOSTNAME" -type f ! -name 'privkey*' -exec chmod 644 {} +
     if [ ! -s "$LIVE_DIR/dh.pem" ]; then
         openssl dhparam -out "$LIVE_DIR/dh.pem" 2048
     fi

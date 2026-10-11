@@ -25,6 +25,9 @@ for template in /etc/postfix/pgsql-templates/*.cf; do
     chmod 640 "$map"
 done
 
+# Certificates come from the whole Let's Encrypt tree (live/ files link into archive/).
+ln -sfn "/etc/letsencrypt/live/$MAIL_HOSTNAME" /etc/postfix/certs
+
 mkdir -p /var/spool/postfix /var/mail/vhosts
 if command -v postfix >/dev/null 2>&1; then
     postfix set-permissions >/dev/null 2>&1 || true

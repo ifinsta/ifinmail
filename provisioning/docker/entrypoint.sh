@@ -82,7 +82,7 @@ run_as_app python manage.py collectstatic --noinput --clear
 
 # Compile translation files for i18n
 echo "Compiling translations..."
-run_as_app python manage.py compilemessages
+run_as_app python manage.py compilemessages || echo "WARNING: compilemessages failed; the console falls back to English"
 
 # EC-101: Restrict permissions on static files — world-readable, not executable
 chmod -R 644 /app/staticfiles

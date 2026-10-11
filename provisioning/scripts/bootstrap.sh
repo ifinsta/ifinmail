@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # ifinmail bootstrap.sh — one-command setup from fresh Ubuntu/Debian VPS to running mail server.
-# Usage: curl -sSL https://raw.githubusercontent.com/ifinmail/ifinmail/main/provisioning/scripts/bootstrap.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ifinsta/ifinmail/main/provisioning/scripts/bootstrap.sh | bash
 set -euo pipefail
+# Never let apt/debconf prompt: under "curl | bash" stdin is the script itself.
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_URL="${REPO_URL:-https://github.com/ifinmail/ifinmail.git}"
-INSTALL_DIR="${INSTALL_DIR:-$HOME/ifinmail}"
+REPO_URL="${REPO_URL:-https://github.com/ifinsta/ifinmail.git}"
+INSTALL_DIR="${INSTALL_DIR:-${HOME:-/root}/ifinmail}"
 
 die() {
     echo "ERROR: $*" >&2
@@ -67,14 +69,19 @@ install_docker() {
     apt-get install -y -qq ca-certificates curl
 
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    # Docker publishes separate repositories for Ubuntu and Debian.
+    local distro
+    # shellcheck disable=SC1091
+    distro="$(. /etc/os-release && echo "$ID")"
+    curl -fsSL "https://download.docker.com/linux/$distro/gpg" -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
 
     # shellcheck disable=SC1091
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$distro $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
 
     apt-get update -qq
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    systemctl enable --now docker >/dev/null 2>&1 || true
 
     echo "  Docker installed: $(docker --version)"
 }
@@ -87,6 +94,8 @@ install_tools() {
     command -v gpg >/dev/null 2>&1 || missing+=(gpg)
     command -v git >/dev/null 2>&1 || missing+=(git)
     command -v curl >/dev/null 2>&1 || missing+=(curl)
+    command -v make >/dev/null 2>&1 || missing+=(make)
+    command -v dig >/dev/null 2>&1 || missing+=(dnsutils)
 
     if [ ${#missing[@]} -gt 0 ]; then
         apt-get update -qq
@@ -107,16 +116,16 @@ clone_or_update() {
 }
 
 run_setup() {
-    if [ -f "$INSTALL_DIR/provisioning/scripts/setup-wizard.sh" ]; then
-        echo ""
-        bash "$INSTALL_DIR/provisioning/scripts/setup-wizard.sh"
-    else
-        echo "Setup wizard not found — running provision.sh interactively."
-        read -rp "Enter your domain (e.g., example.com): " DOMAIN
-        export DOMAIN
-        (cd "$INSTALL_DIR" && make provision DOMAIN="$DOMAIN")
-        return
+    # Under "curl ... | bash" stdin is the script itself, so prompts must read the terminal.
+    if [ ! -r /dev/tty ]; then
+        die "No terminal for the setup wizard. Use --non-interactive with DOMAIN (and ADMIN_EMAIL) set."
     fi
+    bash "$INSTALL_DIR/provisioning/scripts/setup-wizard.sh" < /dev/tty
+
+    echo ""
+    echo "=== Running provision script ==="
+    cd "$INSTALL_DIR"
+    bash provisioning/scripts/provision.sh
 }
 
 verify_stack() {
@@ -154,6 +163,15 @@ run_noninteractive() {
     local mail_hostname="${MAIL_HOSTNAME:-mail.$domain}"
     local admin_email="${ADMIN_EMAIL:-admin@$domain}"
     local admin_user="${ADMIN_USERNAME:-admin}"
+
+    # Re-running the one command must not rotate secrets: the database volume
+    # was initialised with the passwords already in .env.
+    if [ -f "$env_file" ]; then
+        echo "Existing configuration found at $env_file; keeping it (delete it to start over)."
+        cd "$INSTALL_DIR"
+        DOMAIN="$domain" bash provisioning/scripts/provision.sh
+        return
+    fi
 
     echo "Non-interactive mode — generating .env from environment variables..."
 
@@ -225,7 +243,7 @@ EOF
     echo ""
     echo "=== Running provision script ==="
     cd "$INSTALL_DIR"
-    DOMAIN="$domain" provisioning/scripts/provision.sh
+    DOMAIN="$domain" bash provisioning/scripts/provision.sh
 }
 
 main() {

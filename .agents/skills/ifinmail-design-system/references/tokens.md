@@ -51,7 +51,7 @@ Minimum readable size is 12 px. Nothing below that except the 11 px overline.
 
 ## Layout
 
-Sidebar 224 / rail 64, header 56, footer 32, content max 1280, page gutter 32 (16 on phones), section gap 16, hero padding 64-72.
+Sidebar 208 / rail 52, header 48, nav item 32, footer 32, content max 1280, page gutter 24 (16 on phones), section gap 12, page title 18, hero padding 64-72.
 
 ## Themes
 

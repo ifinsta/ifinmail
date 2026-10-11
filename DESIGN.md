@@ -8,7 +8,7 @@ This file is the short form. The full guide, tokens, patterns and per-template b
 
 1. Blue (`--ifinmail-color-primary`) is interactive only. One primary action per screen.
 2. Borders lift, shadows float. White cards with a 1 px border on the `surface-1` page; shadows only for menus and dialogs.
-3. Compact: 36 px controls (40 on forms, 44 on phone), 4 px grid, 16 px gap and panel padding, 32 px page gutter.
+3. Compact: 36 px controls (40 on forms, 44 on phone), 32 px nav items, 48 px header, 208 px sidebar that minimizes to a 52 px rail (so does the Settings list), 4 px grid, 12 px section gap, 16 px panel padding, 24 px page gutter.
 4. Status is a word on a tint. Never colour alone.
 5. Data is mono (numbers, hosts, DNS values, timestamps) and numeric columns are right-aligned.
 6. One next action in empty, error and success states.

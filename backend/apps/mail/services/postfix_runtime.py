@@ -12,9 +12,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from backend.apps.core.platform.services.runtime import write_runtime_file
 from backend.apps.core.services import SystemSettings
 from backend.apps.core.types import SettingKey
-from backend.services.runtime import write_runtime_file
 
 OVERRIDES_FILE = 'postfix-overrides.conf'
 MIN_HOPS, MAX_HOPS, DEFAULT_HOPS = 5, 30, 10

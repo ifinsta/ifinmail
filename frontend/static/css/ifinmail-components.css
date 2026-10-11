@@ -381,8 +381,9 @@ select.ifinmail-input {
     font-size: var(--ifinmail-font-size-label);
     font-weight: var(--ifinmail-font-weight-semibold);
     color: var(--ifinmail-color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    /* Design system: table headers are sentence case, never uppercase. */
+    text-transform: none;
+    letter-spacing: 0;
     border-bottom: 1px solid var(--ifinmail-color-border);
 }
 
@@ -754,7 +755,6 @@ select.ifinmail-input {
 .ifinmail-admin-nav {
     overflow-y: auto;
     flex-shrink: 0;
-    padding: var(--ifinmail-space-4);
     display: flex;
     flex-direction: column;
 }

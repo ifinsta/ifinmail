@@ -16,7 +16,11 @@ from dataclasses import dataclass, field
 
 from django.utils import timezone
 
-from backend.services.runtime import read_runtime_file, runtime_dir, write_runtime_file
+from backend.apps.core.platform.services.runtime import (
+    read_runtime_file,
+    runtime_dir,
+    write_runtime_file,
+)
 
 from ..models import DNSProviderConfig, DNSZone
 from ..types.zones import DSRecord, RecordType, ZoneMode, ZoneRecord, ZoneView

@@ -32,8 +32,8 @@ jobs:
       - name: Django system checks (deploy mode)
         run: python manage.py check --deploy
 
-      - name: Test suite
-        run: python -m pytest -q
+      - name: Test suite (coverage gate in pyproject.toml)
+        run: python -m pytest -q --cov=backend --cov-report=term
 
       - name: Dependency vulnerability audit
         # Fails the build on any known CVE in the locked production set.
@@ -51,8 +51,22 @@ jobs:
 
       - name: Validate compose config
         run: |
-          touch provisioning/.env
+          cat > provisioning/.env <<'EOF'
+          DOMAIN=example.com
+          MAIL_DOMAIN=example.com
+          MAIL_HOSTNAME=mail.example.com
+          ADMIN_EMAIL=admin@example.com
+          POSTGRES_ADMIN_PASSWORD=ci-placeholder
+          APP_DB_PASSWORD=ci-placeholder
+          DOVECOT_DB_PASSWORD=ci-placeholder
+          POSTFIX_DB_PASSWORD=ci-placeholder
+          SECRET_KEY=ci-placeholder
+          REDIS_PASSWORD=ci-placeholder
+          DJANGO_ALLOWED_HOSTS=example.com
+          DJANGO_SUPERUSER_PASSWORD=ci-placeholder
+          EOF
           docker compose --env-file provisioning/.env -f provisioning/docker/docker-compose.yml config --quiet
+          rm -f provisioning/.env
 
   secrets:
     runs-on: ubuntu-latest

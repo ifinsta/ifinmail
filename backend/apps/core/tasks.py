@@ -9,8 +9,8 @@ from celery import shared_task
 from django.core.cache import cache
 from django.core.mail import send_mail
 
-from backend.services.audit import AuditService
-from backend.services.monitoring import MonitoringService
+from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.monitoring import MonitoringService
 
 logger = logging.getLogger('backend')
 

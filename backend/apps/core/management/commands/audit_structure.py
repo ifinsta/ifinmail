@@ -50,9 +50,14 @@ class Command(BaseCommand):
             sys.exit(1)
 
         apps = sorted(p for p in apps_dir.iterdir() if p.is_dir() and not p.name.startswith('_'))
+        # Nested core sub-apps (core/storage, core/telemetry, core/platform) follow the same
+        # rules. Only directories that are real Django apps (they have apps.py) qualify.
+        for core_dir in apps_dir.glob('core/*'):
+            if core_dir.is_dir() and (core_dir / 'apps.py').is_file():
+                apps.append(core_dir)
 
         for app_path in apps:
-            app_name = app_path.name
+            app_name = str(app_path.relative_to(apps_dir))
             self.stdout.write(f'\n{self.style.SQL_TABLE(app_name)}')
 
             missing_folders = [f for f in REQUIRED_FOLDERS if not (app_path / f).is_dir()]
@@ -73,11 +78,11 @@ class Command(BaseCommand):
             if missing_folders or missing_files:
                 violations += 1
                 for f in missing_folders:
-                    self.stdout.write(f'  {self.style.ERROR("✗")} missing folder: {f}/')
+                    self.stdout.write(f'  {self.style.ERROR("x")} missing folder: {f}/')
                 for f in missing_files:
-                    self.stdout.write(f'  {self.style.WARNING("✗")} missing file: {f}')
+                    self.stdout.write(f'  {self.style.WARNING("x")} missing file: {f}')
             else:
-                self.stdout.write(f'  {self.style.SUCCESS("✓")} compliant')
+                self.stdout.write(f'  {self.style.SUCCESS("ok")} compliant')
 
         summary = f'{len(apps)} apps checked, {violations} non-compliant'
         self.stdout.write(f'\n{self.style.SQL_KEYWORD("Summary")}: {summary}')

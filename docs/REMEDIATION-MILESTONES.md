@@ -104,7 +104,7 @@ Objective: Produce an architectural map of the organs before changing behavior.
 
 Internal work:
 
-- Map current models in `accounts`, `domains`, `mail`, `dns`, `devices`, `core/storage`, and `backend/services`.
+- Map current models in `accounts`, `domains`, `mail`, `dns`, `devices`, `core/storage`, and `core/platform`.
 - Map unmanaged mail tables used by Postfix/Dovecot lookups.
 - Map generated files under `provisioning/docker/postfix`, `dovecot`, `rspamd`, `nginx`, `certbot`, and `dkim`.
 - Map scripts under `provisioning/scripts`: bootstrap, setup wizard, provision, obtain-ssl, backup, restore test, monitor, firewall, deploy.
@@ -618,17 +618,17 @@ This matrix turns each milestone into implementation workstreams. The names are 
 
 | Milestone | Core modules | Services | Jobs/commands | Evidence |
 | --- | --- | --- | --- | --- |
-| 0 Internal map | `backend/apps/*`, `backend/services`, `provisioning/*` | n/a | inventory script | `INTERNAL-SYSTEMS-MAP.md`, current-state matrix |
+| 0 Internal map | `backend/apps/*`, `core/platform`, `provisioning/*` | n/a | inventory script | `INTERNAL-SYSTEMS-MAP.md`, current-state matrix |
 | 1 Appliance state | `backend/apps/core` or dedicated core app | `ApplianceStateService`, `SystemSettingService`, `HealthStateService` | state consistency check | migrations, service tests, dashboard source map |
-| 2 Config rendering | `backend/apps/core/config` or `backend/services/config` | `ConfigRenderService`, `ConfigApplyService` | `render_configs --dry-run`, `render_configs --apply` | rendered diff, validation output, rollback test |
+| 2 Config rendering | `backend/apps/core/config` or `core/platform` | `ConfigRenderService`, `ConfigApplyService` | `render_configs --dry-run`, `render_configs --apply` | rendered diff, validation output, rollback test |
 | 3 Job runner | `backend/apps/core/jobs` | `JobService`, `SystemCommandService` | job worker, job cleanup | job lifecycle tests, redaction tests |
 | 4 Setup state machine | `backend/apps/accounts/views/setup.py`, setup services | `SetupService` | setup verification job | restart/resume test, transition tests |
 | 5 Mail identity core | `backend/apps/domains`, `backend/apps/mail`, `backend/apps/accounts` | `DomainLifecycleService`, `MailboxService`, `AliasService`, `UserLifecycleService` | config render trigger | Postfix/Dovecot lookup tests |
 | 6 DNS source of truth | `backend/apps/dns` | `DNSRecordService`, `DNSVerificationService`, provider adapters | DNS verify/sync jobs | expected/provider/observed record tests |
-| 7 Deliverability | `backend/services/deliverability.py` | `DeliverabilityService` | deliverability scan job | send-ready/receive-ready report |
+| 7 Deliverability | `core/platform/services/deliverability.py` | `DeliverabilityService` | deliverability scan job | send-ready/receive-ready report |
 | 8 TLS lifecycle | certificate service module, provisioning certbot hooks | `CertificateService` | cert scan, issue, renew, import jobs | socket/cert filesystem verification |
 | 9 Backups | backup service module, scripts | `BackupService`, `RestoreTestService` | backup, restore-test, retention jobs | manifest/checksum/restore evidence |
-| 10 Observability | `backend/services/monitoring.py`, logs/audit services | `MonitoringIngestService`, `LogService`, `AuditQueryService` | monitor ingest job | correlation trace from UI action to audit/log |
+| 10 Observability | `core/platform/services/monitoring.py`, logs/audit services | `MonitoringIngestService`, `LogService`, `AuditQueryService` | monitor ingest job | correlation trace from UI action to audit/log |
 | 11 Security | accounts/security module | `AdminSecurityService`, `SessionService` | recovery code cleanup | TOTP enrollment/recovery/session tests |
 | 12 Notifications | notification module | `NotificationService` | alert dispatch/recovery job | dedupe and recovery notification tests |
 | 13 Maintenance | maintenance module | `VersionService`, `MaintenanceStatusService` | update check, drift check | read-only maintenance status report |

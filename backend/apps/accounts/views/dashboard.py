@@ -18,10 +18,10 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
 from backend.apps.accounts.services import UserService
+from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.monitoring import MonitoringService
 from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import MailService
-from backend.services.audit import AuditService
-from backend.services.monitoring import MonitoringService
 
 from ..types.permissions import PermissionCode
 from ._constants import _APP_DIR, _LETSENCRYPT_DIR, _MAIL_VHOSTS_DIR

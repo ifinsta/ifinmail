@@ -19,21 +19,21 @@ from django.test import SimpleTestCase
 from django.urls import reverse
 
 from backend.apps.accounts.models import MailUser
-from backend.apps.core.tests.mail_base import MailTablesTestCase
-from backend.services import tls as tls_module
-from backend.services.entrypoints import (
+from backend.apps.core.platform.services import tls as tls_module
+from backend.apps.core.platform.services.entrypoints import (
     BY_KEY,
     CATALOGUE,
     EntryPointService,
     NetworkError,
     Probe,
 )
-from backend.services.tls import (
+from backend.apps.core.platform.services.tls import (
     CertificateError,
     TLSAction,
     TLSService,
     validate_upload,
 )
+from backend.apps.core.tests.mail_base import MailTablesTestCase
 
 MODEL_BACKEND = 'django.contrib.auth.backends.ModelBackend'
 GOOD = 'Correct-Horse-9'
@@ -472,7 +472,7 @@ class EdgePagesTests(MailTablesTestCase):
         self.client.post(
             reverse('accounts:certificates_upload'), {'certificate': pem, 'private_key': key}
         )
-        from backend.services.audit import AuditService
+        from backend.apps.core.platform.services.audit import AuditService
 
         for detail in AuditService.details():
             self.assertNotIn('PRIVATE KEY', detail)

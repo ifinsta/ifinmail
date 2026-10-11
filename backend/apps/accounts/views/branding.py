@@ -10,8 +10,8 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from backend.apps.core.platform.services.audit import AuditService
 from backend.config.branding import DEFAULT_ACCENT, DEFAULT_PRIMARY, DEFAULT_SECONDARY
-from backend.services.audit import AuditService
 
 from ..types.permissions import PermissionCode
 from .auth import require_perm

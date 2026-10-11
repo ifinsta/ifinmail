@@ -17,7 +17,7 @@
     <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>
     <script src="{% static 'js/ifinmail-layout-init.js' %}"></script>
     {% if brand.css_overrides %}{{ brand.css_overrides|safe }}{% endif %}
-    {% if USE_GOOGLE_FONTS|default:"1" %}
+    {% if USE_GOOGLE_FONTS %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">

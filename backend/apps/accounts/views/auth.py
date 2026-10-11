@@ -13,7 +13,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from backend.apps.accounts.services.setup_state import SetupState
-from backend.services.audit import AuditService
+from backend.apps.core.platform.services.audit import AuditService
 
 from ._constants import _ALLOWED_HOST_NAMES
 from .registration import _send_verification_email

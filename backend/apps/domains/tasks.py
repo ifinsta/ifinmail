@@ -6,7 +6,7 @@ import logging
 
 from celery import shared_task
 
-from backend.services.certificates import CertificateService
+from backend.apps.core.platform.services.certificates import CertificateService
 
 from .services.dkim import DKIMService
 from .services.verification import DomainVerificationService

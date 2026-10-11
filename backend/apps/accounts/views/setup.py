@@ -10,6 +10,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
 from backend.apps.accounts.services.setup_state import SetupState
+from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.dns.services import DNSService
 from backend.apps.domains.services.provisioning import (
     DomainProvisioningError,
@@ -17,7 +18,6 @@ from backend.apps.domains.services.provisioning import (
 )
 from backend.apps.mail.services import MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
-from backend.services.audit import AuditService
 
 from ..types.permissions import PermissionCode
 from ._constants import _DOMAIN_RE, _IPIFY_URL

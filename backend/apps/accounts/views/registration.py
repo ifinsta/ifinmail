@@ -17,11 +17,11 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from backend.apps.accounts.services import UserService
 from backend.apps.accounts.services.registration_policy import registration_open
+from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.reserved import RESERVED_LOCAL_PARTS
-from backend.services.audit import AuditService
 
 logger = logging.getLogger('backend')
 token_generator = PasswordResetTokenGenerator()

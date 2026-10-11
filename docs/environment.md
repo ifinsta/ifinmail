@@ -34,3 +34,5 @@ Rules:
   test against real services.
 * Never commit `.env` or `provisioning/.env`. Both are gitignored. Rotate any
   secret that touches the repo.
+* `USE_GOOGLE_FONTS=0` skips the Google Fonts CDN (air-gapped installs); the
+  CSS font stack then falls back to the system UI fonts.

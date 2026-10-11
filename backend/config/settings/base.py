@@ -41,8 +41,8 @@ INSTALLED_APPS = [
     'backend.apps.core.apps.CoreConfig',
     'backend.apps.core.storage.apps.StorageConfig',
     'backend.apps.core.telemetry.apps.TelemetryConfig',
-    # ifinmail services (audit trail, etc.)
-    'backend.services.apps.ServicesConfig',
+    # ifinmail platform services (audit trail, TLS, monitoring, runtime files)
+    'backend.apps.core.platform.apps.PlatformConfig',
     # ifinmail apps
     'backend.apps.accounts.apps.AccountsConfig',
     'backend.apps.devices.apps.DevicesConfig',

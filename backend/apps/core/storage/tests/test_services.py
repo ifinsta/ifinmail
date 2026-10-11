@@ -8,7 +8,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 
 from backend.apps.accounts.models import MailUser
+from backend.apps.core.storage.api import upload_file
 from backend.apps.core.storage.models.stored_file import StoredFile
+from backend.apps.core.storage.serializers import StoredFileOut
 from backend.apps.core.storage.services import StorageService
 from backend.apps.core.tests.mail_base import MailTablesTestCase
 
@@ -73,3 +75,14 @@ class StorageUploadTests(MailTablesTestCase):
             self.assertRaises(ValidationError),
         ):
             self._upload()
+
+    def test_upload_file_viewset_shapes_the_record(self) -> None:
+        out = upload_file(
+            file=_png(),
+            user=self.user,
+            entity_type='PRODUCT',
+        )
+        self.assertIsInstance(out, StoredFileOut)
+        self.assertEqual(out.original_filename, 'logo.png')
+        self.assertEqual(out.entity_id, '')
+        self.assertFalse(hasattr(out, 'file'))

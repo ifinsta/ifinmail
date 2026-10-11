@@ -9,12 +9,12 @@ from django.core import mail
 from django.core.cache import cache
 from django.test import override_settings
 
+from backend.apps.core.platform.services.runtime import read_runtime_file
 from backend.apps.core.tasks import check_certificate_expiry
 from backend.apps.core.tests.mail_base import MailTablesTestCase
 from backend.apps.domains.services.dkim import DKIMService
 from backend.apps.domains.tasks import sync_certificate_hosts, sync_dkim_files, verify_all_domains
 from backend.apps.mail.tasks import apply_postfix_overrides
-from backend.services.runtime import read_runtime_file
 
 
 class ScheduleTests(MailTablesTestCase):
@@ -52,7 +52,7 @@ class CertificateExpiryTests(MailTablesTestCase):
 
     def test_warns_the_administrator_once_when_expiry_is_near(self) -> None:
         with patch(
-            'backend.services.monitoring.MonitoringService.check_tls_expiry',
+            'backend.apps.core.platform.services.monitoring.MonitoringService.check_tls_expiry',
             return_value={'days': 9, 'status': 'warn'},
         ):
             check_certificate_expiry()
@@ -62,7 +62,7 @@ class CertificateExpiryTests(MailTablesTestCase):
 
     def test_no_email_when_the_certificate_is_healthy(self) -> None:
         with patch(
-            'backend.services.monitoring.MonitoringService.check_tls_expiry',
+            'backend.apps.core.platform.services.monitoring.MonitoringService.check_tls_expiry',
             return_value={'days': 60, 'status': 'ok'},
         ):
             check_certificate_expiry()

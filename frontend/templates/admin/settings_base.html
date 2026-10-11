@@ -15,9 +15,9 @@
         </a>
         {% endif %}
         {% if messages %}
-        <ul class="ifinmail-flash-list" role="status">
+        <ul class="ifinmail-flash-list">
             {% for message in messages %}
-            <li class="ifinmail-flash ifinmail-flash--{% if message.level_tag == 'error' %}error{% else %}success{% endif %}">{{ message }}</li>
+            <li class="ifinmail-flash ifinmail-flash--{% if message.level_tag == 'error' %}error{% else %}success{% endif %}"{% if message.level_tag == 'error' %} role="alert"{% else %} role="status"{% endif %}>{{ message }}</li>
             {% endfor %}
         </ul>
         {% endif %}

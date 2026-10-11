@@ -22,7 +22,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from backend.apps.accounts.services.mfa import MFAError, TOTPService
-from backend.services.audit import AuditService
+from backend.apps.core.platform.services.audit import AuditService
 
 from ..types.permissions import PermissionCode
 from .auth import _get_client_ip, require_perm

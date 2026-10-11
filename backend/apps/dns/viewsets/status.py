@@ -7,10 +7,10 @@ from django.http import HttpRequest, JsonResponse
 
 from backend.apps.accounts.types.permissions import PermissionCode
 from backend.apps.accounts.views.auth import require_perm
+from backend.apps.core.platform.services.monitoring import MonitoringService
 from backend.apps.dns.serializers import DNSStatusResponse
 from backend.apps.domains.services import DomainService
 from backend.apps.domains.services.verification import DomainVerificationService
-from backend.services.monitoring import MonitoringService
 
 
 @login_required

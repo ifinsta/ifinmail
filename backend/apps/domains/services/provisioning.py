@@ -13,10 +13,10 @@ import re
 
 from django.db import IntegrityError
 
+from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.certificates import CertificateService
 from backend.apps.core.services import SystemSettings
 from backend.apps.core.types import SettingKey
-from backend.services.audit import AuditService
-from backend.services.certificates import CertificateService
 
 from ..models import Domain
 from ..types.provisioning import ProvisionResult, ProvisionStep, StepStatus

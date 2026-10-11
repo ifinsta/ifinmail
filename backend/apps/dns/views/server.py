@@ -10,8 +10,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.accounts.types.permissions import PermissionCode
 from backend.apps.accounts.views.auth import require_perm
+from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.domains.services import DomainService
-from backend.services.audit import AuditService
 
 from ..forms.zones import (
     RecordAddForm,

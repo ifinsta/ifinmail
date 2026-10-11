@@ -77,6 +77,13 @@ def autoconfig_mozilla(request: HttpRequest) -> HttpResponse:
             <authentication>password-cleartext</authentication>
             <username>%EMAILADDRESS%</username>
         </incomingServer>
+        <incomingServer type="pop3">
+            <hostname>{h}</hostname>
+            <port>995</port>
+            <socketType>SSL</socketType>
+            <authentication>password-cleartext</authentication>
+            <username>%EMAILADDRESS%</username>
+        </incomingServer>
         <outgoingServer type="smtp">
             <hostname>{h}</hostname>
             <port>587</port>
@@ -112,6 +119,14 @@ def autoconfig_outlook(request: HttpRequest) -> HttpResponse:
         <Type>IMAP</Type>
         <Server>{h}</Server>
         <Port>993</Port>
+        <LoginName>{login}</LoginName>
+        <SPA>off</SPA>
+        <SSL>on</SSL>
+      </Protocol>
+      <Protocol>
+        <Type>POP3</Type>
+        <Server>{h}</Server>
+        <Port>995</Port>
         <LoginName>{login}</LoginName>
         <SPA>off</SPA>
         <SSL>on</SSL>

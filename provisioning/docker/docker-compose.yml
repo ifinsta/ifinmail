@@ -140,8 +140,10 @@ services:
       - ./certs/live/${MAIL_HOSTNAME}:/etc/dovecot/certs:ro
       - rundir:/var/run/dovecot
     ports:
+      - "110:110"
       - "143:143"
       - "993:993"
+      - "995:995"
     depends_on:
       postgres:
         condition: service_healthy

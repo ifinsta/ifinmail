@@ -4,6 +4,7 @@ FROM ubuntu:24.04
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     dovecot-core \
     dovecot-imapd \
+    dovecot-pop3d \
     dovecot-lmtpd \
     dovecot-pgsql \
     dovecot-sieve \

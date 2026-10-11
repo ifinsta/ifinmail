@@ -239,6 +239,38 @@ class AuthoritativeServerContractTests(SimpleTestCase):
         self.assertIn(ZONES_DIR.split('/')[-1], script)
 
 
+class Pop3ContractTests(SimpleTestCase):
+    """Clients (and the autoconfig XML) offer POP3, so the stack has to serve it."""
+
+    def test_dovecot_serves_pop3_on_110_and_995_with_the_same_tls_rules_as_imap(self) -> None:
+        self.assertIn('protocols = imap pop3 lmtp', _read('dovecot', 'dovecot.conf'))
+        master = _read('dovecot', 'conf.d', '10-master.conf')
+        block = master.split('service pop3-login')[1].split('\n}')[0]
+        self.assertRegex(block, r'inet_listener pop3 \{\s+port = 110')
+        self.assertRegex(block, r'inet_listener pop3s \{\s+port = 995\s+ssl = yes')
+        self.assertIn('disable_plaintext_auth = yes', _read('dovecot', 'conf.d', '10-auth.conf'))
+        self.assertIn('dovecot-pop3d', _read('dovecot', 'Dockerfile'))
+
+    def test_uidl_is_stable_so_clients_do_not_download_mail_twice(self) -> None:
+        self.assertIn('pop3_uidl_format = %08Xu%08Xv', _read('dovecot', 'conf.d', '20-pop3.conf'))
+
+    def test_the_ports_are_published_and_opened(self) -> None:
+        import yaml
+
+        ports = yaml.safe_load(_read('docker-compose.yml'))['services']['dovecot']['ports']
+        self.assertTrue({'110:110', '995:995'} <= set(ports))
+        firewall = (ROOT / 'provisioning' / 'scripts' / 'firewall.sh').read_text()
+        self.assertIn('ufw allow 995/tcp', firewall)
+        self.assertIn('110,143', firewall)
+
+    def test_the_console_can_close_them(self) -> None:
+        from backend.services.entrypoints import BY_KEY
+
+        for key, port in (('pop3', 110), ('pop3s', 995)):
+            self.assertEqual(BY_KEY[key].ports[0][1], port)
+            self.assertFalse(BY_KEY[key].locked)
+
+
 class PostfixDovecotHandoffContractTests(SimpleTestCase):
     """Found by running Postfix and Dovecot together: mail clients could not send, and inbound
     mail was never delivered, because of two lines of configuration."""

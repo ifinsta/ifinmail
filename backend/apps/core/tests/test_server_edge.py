@@ -149,6 +149,17 @@ class TLSRuntimeTests(MailTablesTestCase):
         self.assertEqual(cert.status, 'warn')
         self.assertTrue(cert.covers('ifinmail.test'))
 
+    def test_the_fingerprint_is_shown_the_way_mail_apps_and_openssl_show_it(self) -> None:
+        live = self.certs / 'live' / HOST
+        live.mkdir(parents=True)
+        pem, _ = make_cert()
+        (live / 'fullchain.pem').write_text(pem)
+        cert = TLSService.active_certificate()
+        assert cert is not None
+        digest = x509.load_pem_x509_certificate(pem.encode()).fingerprint(hashes.SHA256())
+        self.assertEqual(cert.fingerprint_display, ':'.join(f'{b:02X}' for b in digest))
+        self.assertEqual(len(cert.fingerprint_display), 32 * 3 - 1)
+
     def test_no_certificate_is_not_an_error(self) -> None:
         self.assertIsNone(TLSService.active_certificate())
 
@@ -410,6 +421,19 @@ class EdgePagesTests(MailTablesTestCase):
         self.assertEqual(
             json.loads(Path(self.runtime_dir, 'cert-request.json').read_text())['action'], 'renew'
         )
+
+    def test_a_temporary_certificate_shows_its_full_fingerprint_for_first_connect(self) -> None:
+        self.login()
+        live = Path(self.tmp, 'le', 'live', HOST)
+        live.mkdir(parents=True)
+        pem = make_cert(days=30)[0]
+        (live / 'fullchain.pem').write_text(pem)
+        with patch.object(tls_module, 'LETSENCRYPT_DIR', Path(self.tmp, 'le')):
+            html = self.client.get(reverse('accounts:certificates')).content.decode()
+        digest = x509.load_pem_x509_certificate(pem.encode()).fingerprint(hashes.SHA256())
+        self.assertIn(':'.join(f'{b:02X}' for b in digest), html)
+        self.assertIn('Temporary self-signed', html)
+        self.assertIn('will ask you to trust it', html)
 
     def test_uploading_a_certificate_through_the_page(self) -> None:
         self.login()

@@ -307,6 +307,19 @@ print_dns() {
         fi
     done
 
+    # While the certificate is still the temporary self-signed one, mail apps ask the person to trust
+    # it on first connect; show the fingerprint to compare against.
+    local cert_note=""
+    local live_cert="$DOCKER_DIR/certs/live/$MAIL_HOSTNAME/fullchain.pem"
+    if [ -s "$live_cert" ] && [ "$(openssl x509 -in "$live_cert" -noout -subject 2>/dev/null | sed 's/^subject= *//')" = \
+        "$(openssl x509 -in "$live_cert" -noout -issuer 2>/dev/null | sed 's/^issuer= *//')" ]; then
+        cert_note="
+Temporary self-signed TLS certificate (mail apps will ask you to trust it once):
+  SHA-256 $(openssl x509 -in "$live_cert" -noout -fingerprint -sha256 | sed 's/.*=//')
+  Compare it with what the app shows, or in the console under Settings > TLS certificates.
+  Let's Encrypt replaces it automatically once DNS points here."
+    fi
+
     cat <<EOF
 
 ifinmail is provisioned for $DOMAIN.
@@ -334,6 +347,7 @@ Authoritative DNS (this server answers for $DOMAIN itself):
   registrar. The records above are published by this server; you only add them by hand if you
   keep DNS at another provider (switch the domain to "External DNS" in the console).
 
+${cert_note}
 Reverse DNS (PTR) is critical for mail deliverability. Without it, many
 providers (Gmail, Outlook) will reject or spam-folder your messages.
 Set reverse DNS for your server's IPv4 address to point to $MAIL_HOSTNAME

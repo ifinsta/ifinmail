@@ -88,27 +88,44 @@ class RealMailController(
         displayName: String,
         profile: com.ifinmail.app.shared.mail.UiProviderProfile,
         password: String?,
-        oauthAccessToken: String?
+        oauthAccessToken: String?,
+        trustedCertificateSha256: String?
     ): Result<Unit> = guarded {
         val credentials = if (oauthAccessToken != null) {
             Credentials(authMethod = com.ifinmail.mail.model.AuthMethod.XOAUTH2, oauthAccessToken = oauthAccessToken)
         } else {
             Credentials(password = password ?: "")
         }
-        val account = engine.addAccount(
-            email = email,
-            displayName = displayName,
-            incoming = IncomingConfig(
-                protocol = when (profile.protocol) {
-                    com.ifinmail.app.shared.mail.UiProtocol.IMAP -> com.ifinmail.mail.model.IncomingProtocol.IMAP
-                    com.ifinmail.app.shared.mail.UiProtocol.POP3 -> com.ifinmail.mail.model.IncomingProtocol.POP3
-                },
-                server = ServerConfig(profile.incomingHost, profile.incomingPort, fromUiSecurity(profile.incomingSecurity))
-            ),
-            outgoing = ServerConfig(profile.outgoingHost, profile.outgoingPort, fromUiSecurity(profile.outgoingSecurity)),
-            credentials = credentials,
-            verified = false
-        )
+        val account = try {
+            engine.addAccount(
+                email = email,
+                displayName = displayName,
+                incoming = IncomingConfig(
+                    protocol = when (profile.protocol) {
+                        com.ifinmail.app.shared.mail.UiProtocol.IMAP -> com.ifinmail.mail.model.IncomingProtocol.IMAP
+                        com.ifinmail.app.shared.mail.UiProtocol.POP3 -> com.ifinmail.mail.model.IncomingProtocol.POP3
+                    },
+                    server = ServerConfig(
+                        profile.incomingHost,
+                        profile.incomingPort,
+                        fromUiSecurity(profile.incomingSecurity),
+                        trustedCertificateSha256
+                    )
+                ),
+                outgoing = ServerConfig(
+                    profile.outgoingHost,
+                    profile.outgoingPort,
+                    fromUiSecurity(profile.outgoingSecurity),
+                    trustedCertificateSha256
+                ),
+                credentials = credentials,
+                verified = false
+            )
+        } catch (e: com.ifinmail.mail.model.MailException) {
+            // The UI module only knows :core, so hand it the structured certificate error in core's own type.
+            val untrusted = e.error as? com.ifinmail.core.domain.error.MailError.CertificateUntrusted ?: throw e
+            throw com.ifinmail.core.domain.error.MailException(e.message ?: "Untrusted certificate", e, untrusted)
+        }
         activeAccountId.value = account.id
         engine.refresh(account.id)
         Unit

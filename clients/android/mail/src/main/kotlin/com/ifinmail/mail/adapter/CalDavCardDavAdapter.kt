@@ -30,12 +30,13 @@ internal suspend fun davProbe(
     wellKnown: String,
     email: String,
     password: String,
-    timeoutMs: Int
+    timeoutMs: Int,
+    pinnedCertSha256: String? = null
 ): Pair<Boolean, String> {
     val origin = if (baseHost.startsWith("http")) baseHost.trimEnd('/') else "https://${baseHost.trimEnd('/')}"
     var detail = "DAV endpoint not found at $origin"
     for (path in listOf("/.well-known/$wellKnown", "/dav/")) {
-        val outcome = probeOnce(origin + path, email, password, timeoutMs)
+        val outcome = probeOnce(origin + path, email, password, timeoutMs, pinnedCertSha256)
         if (outcome.first) return outcome
         if (outcome.second.isNotEmpty()) detail = outcome.second
     }
@@ -44,7 +45,7 @@ internal suspend fun davProbe(
 
 private class DavReply(val status: Int, val headers: Map<String, String>, val body: String)
 
-private suspend fun propfind(url: URL, authorization: String?, timeoutMs: Int): DavReply {
+private suspend fun propfind(url: URL, authorization: String?, timeoutMs: Int, pin: String?): DavReply {
     val tls = url.protocol == "https"
     val port = if (url.port > 0) url.port else if (tls) 443 else 80
     val body = PRINCIPAL_REQUEST.toByteArray()
@@ -57,7 +58,7 @@ private suspend fun propfind(url: URL, authorization: String?, timeoutMs: Int): 
         if (authorization != null) append("Authorization: $authorization\r\n")
         append("\r\n")
     }
-    JvmSocketTransport().use { transport ->
+    JvmSocketTransport(pin).use { transport ->
         transport.connect(url.host, port, tls, timeoutMs.toLong())
         transport.write(head.toByteArray(Charsets.ISO_8859_1) + body)
         val statusLine = transport.readLine(timeoutMs.toLong()) ?: throw java.io.IOException("No response")
@@ -94,7 +95,13 @@ private suspend fun readChunked(transport: MailTransport, timeoutMs: Int): Strin
     return out.toString()
 }
 
-private suspend fun probeOnce(startUrl: String, email: String, password: String, timeoutMs: Int): Pair<Boolean, String> {
+private suspend fun probeOnce(
+    startUrl: String,
+    email: String,
+    password: String,
+    timeoutMs: Int,
+    pin: String?
+): Pair<Boolean, String> {
     var url = URI(startUrl).toURL()
     val originHost = url.host
     var detail = ""
@@ -107,7 +114,7 @@ private suspend fun probeOnce(startUrl: String, email: String, password: String,
             null
         }
         val reply = try {
-            propfind(url, authorization, timeoutMs)
+            propfind(url, authorization, timeoutMs, pin)
         } catch (e: Exception) {
             return false to "DAV endpoint unreachable: ${e.message}"
         }
@@ -133,11 +140,12 @@ class CalDavProbeAdapter(
     private val baseHost: String,
     private val email: String,
     private val password: String,
-    private val timeoutMs: Int = 5000
+    private val timeoutMs: Int = 5000,
+    private val pinnedCertSha256: String? = null
 ) : CalendarCapability {
 
     override suspend fun probe(): CalendarProbeResult = withContext(Dispatchers.IO) {
-        val (reachable, detail) = davProbe(baseHost, "caldav", email, password, timeoutMs)
+        val (reachable, detail) = davProbe(baseHost, "caldav", email, password, timeoutMs, pinnedCertSha256)
         CalendarProbeResult(reachable, detail)
     }
 }
@@ -146,11 +154,12 @@ class CardDavProbeAdapter(
     private val baseHost: String,
     private val email: String,
     private val password: String,
-    private val timeoutMs: Int = 5000
+    private val timeoutMs: Int = 5000,
+    private val pinnedCertSha256: String? = null
 ) : ContactCapability {
 
     override suspend fun probe(): ContactProbeResult = withContext(Dispatchers.IO) {
-        val (reachable, detail) = davProbe(baseHost, "carddav", email, password, timeoutMs)
+        val (reachable, detail) = davProbe(baseHost, "carddav", email, password, timeoutMs, pinnedCertSha256)
         ContactProbeResult(reachable, detail)
     }
 }

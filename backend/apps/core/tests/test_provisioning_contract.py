@@ -357,3 +357,25 @@ class PostfixDovecotHandoffContractTests(SimpleTestCase):
             'smtpd_tls_security_level=encrypt', master.split('submission inet')[1].split('smtps')[0]
         )
         self.assertIn('smtpd_tls_wrappermode=yes', master.split('smtps     inet')[1])
+
+
+class SelfSignedFirstBootContractTests(SimpleTestCase):
+    """Mail apps connect before Let's Encrypt has issued anything. They only accept the temporary
+    certificate after the person confirms its fingerprint, and still check the host name, so the
+    certificate must name the mail host and the fingerprint must be shown to the administrator."""
+
+    def setUp(self) -> None:
+        self.provision = (ROOT / 'provisioning' / 'scripts' / 'provision.sh').read_text()
+
+    def test_the_bootstrap_certificate_names_the_mail_host(self) -> None:
+        block = self.provision.split('ensure_bootstrap_cert()')[1].split('ensure_mta_sts')[0]
+        self.assertIn('DNS:$MAIL_HOSTNAME', block)
+        self.assertIn('-x509', block)
+
+    def test_provisioning_prints_the_fingerprint_of_a_temporary_certificate(self) -> None:
+        block = self.provision.split('print_dns()')[1]
+        self.assertIn('-fingerprint -sha256', block)
+        self.assertIn('mail apps will ask you to trust it once', block)
+
+    def test_the_client_docs_describe_the_first_connect_prompt(self) -> None:
+        self.assertIn('fingerprint', (ROOT / 'clients' / 'README.md').read_text().lower())

@@ -15,9 +15,11 @@ protocols; there is no private REST API. This is the contract they rely on, and 
 | Certificates | One certificate for the mail hostname (Let's Encrypt, or one uploaded in Settings). Clients verify the host name, so connect to the hostname in autoconfig | console |
 
 Until the first Let's Encrypt certificate is issued the server presents a temporary self-signed
-certificate. Clients refuse it unless the person confirms its SHA-256 fingerprint (shown in the
-console under Settings, TLS certificates, and printed by `make provision`); the confirmation stops
-mattering as soon as a publicly trusted certificate replaces it.
+certificate. Clients refuse it unless the person confirms its SHA-256 fingerprint: the Add account
+screen shows the fingerprint and asks once, and the confirmed value is stored with that account's
+server settings. It is only an exception for a certificate no public authority vouches for, so it
+stops mattering as soon as a publicly trusted certificate replaces the temporary one. The same
+fingerprint is in the console under Settings, TLS certificates, and is printed by `make provision`.
 
 ## Checking the contract against a server
 

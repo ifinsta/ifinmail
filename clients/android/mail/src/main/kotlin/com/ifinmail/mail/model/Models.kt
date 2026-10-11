@@ -1,6 +1,7 @@
 package com.ifinmail.mail.model
 
 import com.ifinmail.core.domain.error.MailError
+import com.ifinmail.mail.transport.UntrustedCertificateException
 
 typealias ConnectionSecurity = com.ifinmail.core.domain.model.ConnectionSecurity
 typealias IncomingProtocol = com.ifinmail.core.domain.model.IncomingProtocol
@@ -31,6 +32,9 @@ class MailException(
 
 fun Throwable.toMailError(): MailError {
     val message = message ?: ""
+    generateSequence(this) { it.cause }.take(8).filterIsInstance<UntrustedCertificateException>().firstOrNull()?.let {
+        return MailError.CertificateUntrusted(it.host, it.sha256, it.subject)
+    }
     return when {
         this is java.net.SocketTimeoutException -> MailError.Timeout
         this is java.io.IOException && message.contains("timed out", true) -> MailError.Timeout

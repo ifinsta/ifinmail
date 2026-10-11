@@ -14,6 +14,7 @@ import com.ifinmail.mail.model.Account
 import com.ifinmail.mail.model.Credentials
 import com.ifinmail.mail.model.IncomingConfig
 import com.ifinmail.mail.model.IncomingProtocol
+import com.ifinmail.mail.model.ServerConfig
 import com.ifinmail.mail.model.MailboxRole
 import com.ifinmail.mail.model.StoredMessage
 import com.ifinmail.mail.model.VerifyStep
@@ -22,7 +23,7 @@ import com.ifinmail.mail.transport.JvmSocketTransport
 import com.ifinmail.mail.transport.MailTransport
 
 class ImapAccessAdapter(
-    private val transportFactory: () -> MailTransport = { JvmSocketTransport() }
+    private val transportFactory: (ServerConfig) -> MailTransport = { JvmSocketTransport(it.pinnedCertSha256) }
 ) : MailAccessAdapter {
 
     override val protocol: IncomingProtocol = IncomingProtocol.IMAP

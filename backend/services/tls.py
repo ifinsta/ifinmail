@@ -68,6 +68,12 @@ class CertInfo:
     self_signed: bool
 
     @property
+    def fingerprint_display(self) -> str:
+        """Colon-separated uppercase pairs, the notation openssl and every mail client shows."""
+        digest = self.fingerprint.upper()
+        return ':'.join(digest[i : i + 2] for i in range(0, len(digest), 2))
+
+    @property
     def days_left(self) -> int:
         return (self.not_after - datetime.now(UTC)).days
 

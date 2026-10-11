@@ -177,8 +177,10 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 request.session['mfa_pending_user_id'] = str(user.pk)
                 return redirect('accounts:mfa_verify')
             # No device yet: log in, but flag the session so the enforcement
-            # middleware routes every console page to enrollment.
-            request.session['mfa_setup_required'] = True
+            # middleware routes every console page to enrollment. A login that
+            # turned its own second factor off is not forced back.
+            if user.mfa_required:
+                request.session['mfa_setup_required'] = True
             login(request, user)
 
             AuditService.record(
@@ -196,7 +198,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 return redirect(next_url)
             if (user.is_staff or user.is_superuser) and not SetupState.is_complete():
                 return redirect('accounts:setup_wizard')
-            if user.is_staff or user.is_superuser:
+            if (user.is_staff or user.is_superuser) and user.mfa_required:
                 return redirect('accounts:mfa_setup')
             return redirect('accounts:dashboard')
 

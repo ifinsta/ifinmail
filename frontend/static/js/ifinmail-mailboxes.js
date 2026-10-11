@@ -179,9 +179,11 @@
     }
     /* ── Quota budget hints ──────────────────────────── */
 
-    /* Live hint under a quota input: shows what stays unallocated after the
-       entered value, and warns (does not block) when it would exceed the disk.
-       Budget math: headroom + the mailbox's current quota − the new value.
+    /* Live hint under a quota input: shows what stays promiseable after the
+       entered value, and warns (does not block) when it would exceed the room
+       available. Per-mailbox stored bytes are not known here, so the math only
+       penalizes increases (headroom - growth) and never credits a decrease:
+       it can only under-state the remaining room, never over-state it.
        (0 = unlimited is not counted against the budget.) */
     function initQuotaHints() {
         var hints = document.querySelectorAll('[data-quota-hint]');
@@ -215,7 +217,10 @@
                 hint.classList.remove('ifinmail-field-hint--ok', 'ifinmail-field-hint--err');
                 return;
             }
-            var left = headroom + currentMb() - entered;
+            // Conservative bound: penalize growth, never credit a shrink (the
+            // mailbox may already store mail up to its current quota).
+            var growth = Math.max(0, entered - currentMb());
+            var left = headroom - growth;
             var text;
             if (left < 0) {
                 text = hint.getAttribute('data-text-over') || '';

@@ -1,0 +1,15 @@
+HTTP/1.1 200 OK
+Date: Sun, 11 Oct 2026 15:38:10 GMT
+Server: WSGIServer/0.2 CPython/3.12.2
+Content-Type: application/json
+X-Frame-Options: DENY
+Content-Security-Policy: font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; base-uri 'self'; default-src 'self'; connect-src 'self'; frame-ancestors 'none'; img-src 'self' data: blob:
+Content-Length: 340
+Vary: Accept-Language, Cookie, Accept-Encoding, origin
+Content-Language: en
+ETag: "b448d08f5d98bb186982e5f1074ab19b"
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin
+X-Correlation-ID: f0ce96c3fc1c4228
+

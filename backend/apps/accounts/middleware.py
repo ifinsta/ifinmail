@@ -45,6 +45,8 @@ class MFAEnforcementMiddleware(MiddlewareMixin):
             return None
         if request.session.get('mfa_verified_at'):
             return None
+        if getattr(user, 'mfa_required', True) is False:
+            return None  # this login turned its own second factor off
         if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
             return None
         return redirect('accounts:mfa_setup')

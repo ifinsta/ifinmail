@@ -96,6 +96,62 @@ class MFAEnrollmentTests(MailTablesTestCase):
         self.assertEqual(TOTPService.remaining_recovery_codes(self.user), 0)
 
 
+class MFASecondFactorOffTests(MailTablesTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.user = MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
+        _, secret = TOTPService.start_enrollment(self.user)
+        self.secret = secret
+        TOTPService.confirm_enrollment(self.user, _code_now(secret))
+
+    def test_turning_off_needs_a_current_code(self) -> None:
+        with self.assertRaises(MFAError):
+            TOTPService.disable_second_factor(self.user, '000000')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.mfa_required)
+        self.assertTrue(TOTPService.has_verified_device(self.user))
+
+    def test_turning_off_clears_devices_and_requirement(self) -> None:
+        TOTPService.disable_second_factor(self.user, _code_now(self.secret))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.mfa_required)
+        self.assertFalse(TOTPService.has_verified_device(self.user))
+        self.assertEqual(TOTPService.remaining_recovery_codes(self.user), 0)
+
+    def test_enrolling_again_rearms_the_requirement(self) -> None:
+        TOTPService.disable_second_factor(self.user, _code_now(self.secret))
+        _, secret = TOTPService.start_enrollment(self.user)
+        TOTPService.confirm_enrollment(self.user, _code_now(secret))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.mfa_required)
+
+    def test_a_turned_off_login_is_not_forced_to_enroll(self) -> None:
+        TOTPService.disable_second_factor(self.user, _code_now(self.secret))
+        # Fresh password login: no session MFA proof, but mfa_required is off.
+        from backend.apps.accounts.services.setup_state import SetupState
+
+        SetupState.mark_complete()
+        response = self.client.post(
+            reverse('accounts:login'), {'email': self.user.email, 'password': GOOD}
+        )
+        self.assertRedirects(response, reverse('accounts:dashboard'))
+        self.assertEqual(self.client.get(reverse('accounts:dashboard')).status_code, 200)
+
+    def test_the_setup_page_off_action_works(self) -> None:
+        self.client.force_login(self.user, backend=MODEL_BACKEND)
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
+        response = self.client.post(
+            reverse('accounts:mfa_setup'),
+            {'action': 'disable', 'code': _code_now(self.secret)},
+        )
+        self.assertContains(response, 'Two-factor is off')
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.mfa_required)
+        self.assertNotIn('mfa_verified_at', self.client.session)
+
+
 class MFALoginFlowTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()

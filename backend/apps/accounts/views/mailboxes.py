@@ -70,21 +70,17 @@ def _quota_budget_context() -> dict[str, object]:
         available_status = 'info'
     elif headroom < 0:
         available_status = 'err'
-    elif disk_total and headroom < disk_total * 0.2:
+    elif budget.available_bytes and headroom < budget.available_bytes * 0.2:
         available_status = 'warn'
     else:
         available_status = 'ok'
-
-    allocated_pct = None
-    if disk_total:
-        allocated_pct = round(budget.allocated_bytes / disk_total * 100, 1)
 
     return {
         'disk_total': human_bytes(disk_total),
         'disk_free': human_bytes(disk_free),
         'disk_status': disk_status,
         'allocated': human_bytes(budget.allocated_bytes),
-        'allocated_pct': allocated_pct,
+        'stored': human_bytes(budget.stored_bytes),
         'headroom': human_bytes(headroom),
         'headroom_mb': (headroom // _MB) if headroom is not None else None,
         'available_status': available_status,
@@ -99,19 +95,19 @@ def _quota_budget_context() -> dict[str, object]:
 
 
 def _warn_if_overcommitted(request: HttpRequest, before: QuotaBudget | None) -> None:
-    """Warn when this change pushed the promised quota past the disk size.
+    """Warn when this change pushed the promised quota past the available room.
 
     Quotas stay soft promises (overcommit is allowed), but the admin sees it.
     """
     after = QuotaService.get_budget()
-    if after.disk_total_bytes is None:
+    if after.headroom_bytes is None:
         return
     if after.overcommitted and (before is None or after.allocated_bytes > before.allocated_bytes):
         messages.warning(
             request,
-            f'Heads-up: mailboxes now promise {human_bytes(after.allocated_bytes)} in total, '
-            f'more than the {human_bytes(after.disk_total_bytes)} mail volume. '
-            'Quotas are still enforced per mailbox, but the disk can fill up first.',
+            f'Heads-up: mailboxes now promise {human_bytes(after.allocated_bytes)} in total. '
+            f'Filling them would need {human_bytes(-after.headroom_bytes)} more than the '
+            'space available on the mail volume — the disk can fill up before the quotas do.',
         )
 
 

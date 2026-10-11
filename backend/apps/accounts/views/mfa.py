@@ -138,6 +138,47 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
                     'recovery_codes': codes,
                 },
             )
+        if action == 'disable':
+            if not status['enabled']:
+                return render(
+                    request,
+                    'admin/mfa_setup.html',
+                    {
+                        'stage': 'start',
+                        'status': status,
+                        'error': 'There is no authenticator to turn off.',
+                    },
+                )
+            try:
+                TOTPService.disable_second_factor(request.user, request.POST.get('code', ''))
+            except MFAError as exc:
+                return render(
+                    request,
+                    'admin/mfa_setup.html',
+                    {'stage': 'start', 'status': status, 'error': str(exc)},
+                )
+            # The session no longer holds second-factor proof; the user's
+            # mfa_required flag keeps the console reachable.
+            request.session.pop('mfa_verified_at', None)
+            request.session.pop('mfa_method', None)
+            AuditService.record(
+                action='mfa_disabled',
+                user=_actor(request),
+                detail='self-service',
+                severity='warning',
+            )
+            return render(
+                request,
+                'admin/mfa_setup.html',
+                {
+                    'stage': 'start',
+                    'status': TOTPService.status_for(request.user),
+                    'notice': (
+                        'Two-factor is off for this login. Anyone with your '
+                        'password can now sign in - enroll again any time.'
+                    ),
+                },
+            )
     return render(request, 'admin/mfa_setup.html', {'stage': 'start', 'status': status})
 
 

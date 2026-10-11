@@ -20,9 +20,12 @@
 
     {% if stage == 'start' %}
 
+      {% if notice %}<div class="ifinmail-login-notice" role="status">{{ notice }}</div>{% endif %}
+      {% if error %}<div class="ifinmail-login-error" role="alert">{{ error }}</div>{% endif %}
+
       <p class="ifinmail-login-card__subtitle">
         {% if status.enabled %}
-          {% trans 'An authenticator is active on this login. Starting again replaces it.' %}
+          {% trans 'An authenticator is active on this login. Replacing it needs a fresh scan; turning it off needs a current code.' %}
         {% else %}
           {% trans 'Add an authenticator app as a second step after your password.' %}
         {% endif %}
@@ -31,7 +34,7 @@
       <form method="post" action="" class="ifinmail-login-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="start">
-        <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Begin setup' %}</button>
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% if status.enabled %}{% trans 'Replace authenticator' %}{% else %}{% trans 'Begin setup' %}{% endif %}</button>
       </form>
 
       {% if status.enabled %}
@@ -41,6 +44,16 @@
         <button type="submit" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--full">{% trans 'New recovery codes' %}</button>
       </form>
       <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed with remaining=status.recovery_remaining %}{{ remaining }} unused recovery codes remain.{% endblocktrans %}</p>
+
+      <form method="post" action="" class="ifinmail-login-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="disable">
+        <div class="ifinmail-login-form__group">
+          <label class="ifinmail-login-form__label" for="id_disable_code">{% trans 'Turn off two-factor' %}</label>
+          <input type="text" name="code" id="id_disable_code" class="ifinmail-login-form__input" required minlength="6" maxlength="32" inputmode="numeric" autocomplete="one-time-code" placeholder="{% trans 'current code' %}">
+        </div>
+        <button type="submit" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--full" data-confirm="{% trans 'Turn off two-factor? Your password alone will protect this login.' %}">{% trans 'Confirm with this code' %}</button>
+      </form>
       {% endif %}
 
     {% elif stage == 'confirm' %}

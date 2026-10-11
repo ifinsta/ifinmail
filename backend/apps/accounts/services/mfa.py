@@ -161,7 +161,25 @@ class TOTPService:
         device.save(update_fields=['verified', 'verified_at', 'last_used_at'])
         # Single active device: the just-proven one replaces any older device.
         TOTPDevice.objects.filter(user=user, verified=True).exclude(pk=device.pk).delete()
+        # Holding a verified factor again re-arms enforcement for this login.
+        if not user.mfa_required:
+            user.mfa_required = True
+            user.save(update_fields=['mfa_required'])
         return TOTPService.fresh_recovery_codes(user)
+
+    @staticmethod
+    @transaction.atomic
+    def disable_second_factor(user: object, code: str) -> None:
+        """Turn two-factor off for this login, after proving possession of it.
+
+        The code may come from the authenticator or be a recovery code (it is
+        consumed either way). Devices and codes are removed and enforcement is
+        relaxed until the user enrolls again.
+        """
+        TOTPService.verify_login(user, code)  # raises MFAError when it does not match
+        TOTPService.reset(user)
+        user.mfa_required = False
+        user.save(update_fields=['mfa_required'])
 
     @staticmethod
     @transaction.atomic

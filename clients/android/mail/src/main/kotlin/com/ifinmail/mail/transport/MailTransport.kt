@@ -32,7 +32,7 @@ interface MailTransport : AutoCloseable {
     fun setTimeout(timeoutMs: Long)
 }
 
-class JvmSocketTransport : MailTransport {
+class JvmSocketTransport(private val pinnedSha256: String? = null) : MailTransport {
 
     private var socket: Socket? = null
     private var input: InputStream? = null
@@ -45,7 +45,7 @@ class JvmSocketTransport : MailTransport {
         withContext(Dispatchers.IO) {
             closeQuietly()
             val raw: Socket = if (ssl) {
-                tlsFactory().createSocket()
+                TlsTrust.socketFactory(host, pinnedSha256).createSocket()
             } else {
                 SocketFactory.getDefault().createSocket()
             }
@@ -53,7 +53,11 @@ class JvmSocketTransport : MailTransport {
                 raw.tcpNoDelay = true
                 raw.connect(InetSocketAddress(host, port), connectTimeoutMs.toInt())
                 configure(raw)
-                if (ssl) enableHostnameVerification(raw as SSLSocket)
+                if (ssl) {
+                    enableHostnameVerification(raw as SSLSocket)
+                    // Handshake now so an untrusted certificate is reported here, not as a read error.
+                    raw.startHandshake()
+                }
                 socket = raw
                 input = BufferedInputStream(raw.getInputStream(), BUFFER)
                 output = BufferedOutputStream(raw.getOutputStream(), BUFFER)
@@ -65,7 +69,7 @@ class JvmSocketTransport : MailTransport {
 
     override suspend fun startTls(host: String) = withContext(Dispatchers.IO) {
         val current = socket ?: error("Not connected")
-        val wrapped = tlsFactory().createSocket(current, host, current.port, false) as SSLSocket
+        val wrapped = TlsTrust.socketFactory(host, pinnedSha256).createSocket(current, host, current.port, false) as SSLSocket
         enableHostnameVerification(wrapped)
         wrapped.startHandshake()
         configure(wrapped)
@@ -84,7 +88,7 @@ class JvmSocketTransport : MailTransport {
             } catch (e: SocketTimeoutException) {
                 return@withContext null
             } catch (e: IOException) {
-                throw EOFException("Connection closed while reading line")
+                throw EOFException("Connection closed while reading line").initCause(e)
             }
             if (b < 0) throw EOFException("Connection closed while reading line")
             if (b == LF) break

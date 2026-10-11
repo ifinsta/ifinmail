@@ -123,8 +123,30 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
 
     if step == 'welcome':
         template = 'setup/welcome.html'
+    elif step == 'dns-server':
+        template = 'setup/dns_server.html'
+        if not domain:
+            return redirect('accounts:setup_step', step='dns')
+        from backend.apps.dns.services.server import DNSServerConfig
+        from backend.apps.dns.services.zones import ZoneService
+
+        ns_hosts = DNSServerConfig.ns_hosts()
+        context['ns_hosts'] = ns_hosts
+        context['glue_hosts'] = [h for h in ns_hosts if h == domain or h.endswith(f'.{domain}')]
+        context['server_ip'] = DNSServerConfig.server_ipv4()
+        context['dns_records'] = [
+            {
+                'type': r.type,
+                'name': domain if r.name == '@' else f'{r.name}.{domain}',
+                'value': f'{r.priority} {r.value}' if r.type == 'MX' else r.value,
+            }
+            for r in ZoneService.managed_records(domain)
+        ]
     elif step == 'dns':
         template = 'setup/dns_provider.html'
+        from backend.apps.dns.services.server import DNSServerConfig
+
+        context['authoritative_available'] = DNSServerConfig.enabled()
         from django.utils.translation import gettext_lazy as _
 
         from backend.apps.dns.services import PROVIDER_MAP
@@ -202,6 +224,19 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
     return render(request, template, context)
 
 
+def _wizard_set_zone_mode(domain: str, authoritative: bool, request: HttpRequest) -> str:
+    """Choose who answers DNS for ``domain``; returns the next wizard step."""
+    from backend.apps.dns.services.zones import ZoneService
+    from backend.apps.dns.types.zones import ZoneMode
+
+    try:
+        ZoneService.set_mode(domain, ZoneMode.AUTHORITATIVE if authoritative else ZoneMode.EXTERNAL)
+    except Exception:
+        logger.exception('Could not set the DNS mode for %s', domain)
+        return 'dns'
+    return 'dns-server' if authoritative else 'dns-manual'
+
+
 @login_required
 @user_passes_test(_is_staff, login_url='accounts:login')
 def setup_advance(request: HttpRequest) -> HttpResponse:
@@ -235,14 +270,23 @@ def setup_advance(request: HttpRequest) -> HttpResponse:
         next_step = 'dns'
 
     elif current == 'dns':
-        if not skip:
+        choice = request.POST.get('choice', '')
+        domain = request.session.get('setup_domain') or os.environ.get('DOMAIN', '')
+        if choice == 'authoritative' and domain:
+            next_step = _wizard_set_zone_mode(domain, True, request)
+        elif choice == 'manual' and domain:
+            _wizard_set_zone_mode(domain, False, request)
+            next_step = 'dns-manual'
+        elif not skip:
             provider = request.POST.get('provider', '')
             request.session['setup_dns_provider'] = provider
+            if provider and domain:
+                _wizard_set_zone_mode(domain, False, request)
             next_step = 'dns-auto' if provider else 'account'
         else:
             next_step = 'account'
 
-    elif current == 'dns-auto' or current == 'dns-manual':
+    elif current in ('dns-auto', 'dns-manual', 'dns-server'):
         next_step = 'account'
 
     elif current == 'account':

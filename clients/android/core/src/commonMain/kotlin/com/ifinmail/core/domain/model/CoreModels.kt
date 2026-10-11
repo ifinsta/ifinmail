@@ -47,7 +47,14 @@ enum class AuthMethod {
 data class ServerConfig(
     val host: String,
     val port: Int,
-    val security: ConnectionSecurity
+    val security: ConnectionSecurity,
+    /**
+     * SHA-256 (hex) of one certificate the person chose to trust for this server although no public
+     * authority vouches for it (a new server's temporary self-signed certificate). It is only an
+     * exception: a certificate that validates normally is always accepted, so nothing has to be
+     * undone once the server gets a real one.
+     */
+    val pinnedCertSha256: String? = null
 )
 
 @Serializable

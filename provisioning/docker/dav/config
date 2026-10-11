@@ -1,0 +1,29 @@
+# Radicale configuration. Only reachable from nginx on the internal network (never published).
+[server]
+hosts = 0.0.0.0:5232
+max_connections = 20
+max_content_length = 20000000
+timeout = 30
+
+[auth]
+# Dovecot checks the password (same account as IMAP/SMTP). Failed logins are slowed down.
+type = dovecot
+dovecot_connection_type = AF_UNIX
+dovecot_socket = /var/run/dovecot/auth
+delay = 1
+# The real client address comes from nginx; it is used for Radicale's brute-force protection.
+remote_ip_source = X-Forwarded-For
+
+[rights]
+# Each person sees only their own calendars and address books.
+type = owner_only
+
+[storage]
+filesystem_folder = /var/lib/radicale/collections
+
+[web]
+# No web interface: clients are apps, not browsers.
+type = none
+
+[logging]
+level = info

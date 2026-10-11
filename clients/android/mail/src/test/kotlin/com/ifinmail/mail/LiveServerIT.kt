@@ -18,12 +18,13 @@ import kotlin.test.assertTrue
 
 class LiveServerIT {
 
+    // Point these at any ifinmail server (see clients/README.md); nothing is hard-coded.
     private val host = System.getenv("IFINMAIL_HOST") ?: "mail.ifinsta.com"
     private val user1 = System.getenv("IFINMAIL_USER1") ?: "test1@ifinsta.com"
     private val user2 = System.getenv("IFINMAIL_USER2") ?: "test2@ifinsta.com"
-    private val password = System.getenv("IFINMAIL_PASS") ?: "Kenya@12"
+    private val password = System.getenv("IFINMAIL_PASS") ?: ""
 
-    private fun enabled() = System.getenv("IFINMAIL_LIVE") == "1"
+    private fun enabled() = System.getenv("IFINMAIL_LIVE") == "1" && password.isNotEmpty()
 
     private fun transport() = JvmSocketTransport()
 

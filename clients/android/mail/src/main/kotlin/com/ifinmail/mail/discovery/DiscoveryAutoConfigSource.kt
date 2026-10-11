@@ -6,8 +6,12 @@ import com.ifinmail.mail.model.ConnectionSecurity
 import com.ifinmail.mail.model.IncomingConfig
 import com.ifinmail.mail.model.IncomingProtocol
 import com.ifinmail.mail.model.ServerConfig
+import java.io.StringReader
 import java.net.HttpURLConnection
 import java.net.URL
+import javax.xml.parsers.DocumentBuilderFactory
+import org.w3c.dom.Element
+import org.xml.sax.InputSource
 
 class DiscoveryAutoConfigSource(
     private val timeoutMs: Int = 4000,
@@ -30,59 +34,92 @@ class DiscoveryAutoConfigSource(
         return emptyList()
     }
 
+    /**
+     * Parses Mozilla autoconfig (config-v1.1.xml): `<incomingServer type="imap|pop3">` and
+     * `<outgoingServer type="smtp">` with `hostname`, `port`, `socketType` (SSL | STARTTLS | plain)
+     * and `authentication`. Servers that would send the password unencrypted or need another
+     * authentication scheme are skipped; the first usable outgoing server is paired with each
+     * incoming one. Malformed XML (or any DOCTYPE) yields no profiles.
+     */
     internal fun parseConfigXml(xml: String, domain: String): List<ConnectionProfile> {
+        val provider = parseProvider(xml) ?: return emptyList()
+        val outgoing = elements(provider, "outgoingServer")
+            .filter { it.getAttribute("type").equals("smtp", true) }
+            .mapNotNull { serverOf(it, domain, IncomingProtocol.IMAP, outgoing = true) }
+            .firstOrNull() ?: return emptyList()
         val profiles = mutableListOf<ConnectionProfile>()
-        val incomingBlocks = Regex("<(incomingType|emailIncomingType)>([\\s\\S]*?)</\\1>").findAll(xml)
-        val outgoingBlock = Regex("<outgoingType>([\\s\\S]*?)</outgoingType>").findAll(xml).firstOrNull()
-        for (match in incomingBlocks) {
-            val block = match.groupValues[2]
-            val type = tagValue(block, "type")?.lowercase() ?: continue
-            val protocol = when (type) {
-                "imap" -> IncomingProtocol.IMAP
-                "pop3" -> IncomingProtocol.POP3
-                else -> continue
+        for (protocol in listOf(IncomingProtocol.IMAP, IncomingProtocol.POP3)) {
+            for (element in elements(provider, "incomingServer")) {
+                if (!element.getAttribute("type").equals(protocol.name, true)) continue
+                val server = serverOf(element, domain, protocol, outgoing = false) ?: continue
+                val username = childText(element, "username")
+                val note = if (username != null && !username.equals("%EMAILADDRESS%", true)) {
+                    "The server asks for the user name '$username'; the app signs in with the full address."
+                } else {
+                    null
+                }
+                profiles += ConnectionProfile(
+                    label = "Discovered \u00b7 ${protocol.name}",
+                    incoming = IncomingConfig(protocol, server),
+                    outgoing = outgoing,
+                    note = listOfNotNull("Discovered via $domain autoconfiguration", note).joinToString(" ")
+                )
             }
-            val host = tagValue(block, "hostname") ?: continue
-            if (host == "%EMAILDOMAIN%" || host.isBlank()) continue
-            val port = tagValue(block, "port")?.toIntOrNull() ?: defaultPort(protocol)
-            val security = when (tagValue(block, "socketType")?.lowercase()) {
-                "ssl", "ssl/tls" -> ConnectionSecurity.SSL_TLS
-                "starttls" -> ConnectionSecurity.STARTTLS
-                else -> ConnectionSecurity.SSL_TLS
-            }
-            val smtp = outgoingBlock?.let {
-                val outHost = tagValue(it.groupValues[1], "hostname")
-                val outPort = tagValue(it.groupValues[1], "port")?.toIntOrNull() ?: 465
-                val outSocket = tagValue(it.groupValues[1], "socketType")?.lowercase()
-                if (outHost != null && !outHost.contains('%')) {
-                    ServerConfig(
-                        outHost,
-                        outPort,
-                        when (outSocket) {
-                            "starttls" -> ConnectionSecurity.STARTTLS
-                            "none" -> ConnectionSecurity.NONE
-                            else -> ConnectionSecurity.SSL_TLS
-                        }
-                    )
-                } else null
-            } ?: ServerConfig("mail.$domain", 465, ConnectionSecurity.SSL_TLS)
-            profiles += ConnectionProfile(
-                label = "Discovered · ${protocol.name}",
-                incoming = IncomingConfig(protocol, ServerConfig(host, port, security)),
-                outgoing = smtp,
-                note = "Discovered via $domain autoconfiguration"
-            )
         }
         return profiles
     }
 
-    private fun tagValue(block: String, tag: String): String? =
-        Regex("<$tag>([^<]*)</$tag>").find(block)?.groupValues?.get(1)?.trim()
+    private fun parseProvider(xml: String): Element? = try {
+        val factory = DocumentBuilderFactory.newInstance()
+        // Untrusted input: no DTDs, no external entities.
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false)
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        factory.isXIncludeAware = false
+        factory.isExpandEntityReferences = false
+        val document = factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
+        document.getElementsByTagName("emailProvider").item(0) as? Element
+    } catch (e: Exception) {
+        null
+    }
 
-    private fun defaultPort(protocol: IncomingProtocol): Int =
-        if (protocol == IncomingProtocol.IMAP) 993 else 995
+    private fun elements(parent: Element, tag: String): List<Element> {
+        val nodes = parent.getElementsByTagName(tag)
+        return (0 until nodes.length).mapNotNull { nodes.item(it) as? Element }
+    }
+
+    private fun childText(parent: Element, tag: String): String? =
+        elements(parent, tag).firstOrNull()?.textContent?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun serverOf(element: Element, domain: String, protocol: IncomingProtocol, outgoing: Boolean): ServerConfig? {
+        val host = childText(element, "hostname")
+            ?.replace("%EMAILDOMAIN%", domain, ignoreCase = true)
+            ?.takeIf { it.isNotBlank() && !it.contains('%') }
+            ?: return null
+        val security = when (childText(element, "socketType")?.lowercase()) {
+            "ssl", "ssl/tls", "tls" -> ConnectionSecurity.SSL_TLS
+            "starttls" -> ConnectionSecurity.STARTTLS
+            else -> return null // "plain" or missing: never send a password in the clear
+        }
+        val authentication = childText(element, "authentication")?.lowercase()
+        if (authentication != null && authentication !in PASSWORD_AUTH) return null
+        val port = childText(element, "port")?.toIntOrNull()?.takeIf { it in 1..65535 }
+            ?: defaultPort(protocol, security, outgoing)
+        return ServerConfig(host, port, security)
+    }
+
+    private fun defaultPort(protocol: IncomingProtocol, security: ConnectionSecurity, outgoing: Boolean): Int {
+        val implicitTls = security == ConnectionSecurity.SSL_TLS
+        return when {
+            outgoing -> if (implicitTls) 465 else 587
+            protocol == IncomingProtocol.IMAP -> if (implicitTls) 993 else 143
+            else -> if (implicitTls) 995 else 110
+        }
+    }
 
     companion object {
+        private val PASSWORD_AUTH = setOf("password-cleartext", "password-encrypted", "plain", "secure")
+
         internal fun httpGet(url: String): String? {
             val connection = URL(url).openConnection() as HttpURLConnection
             return try {

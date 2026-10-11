@@ -165,6 +165,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_BEAT_SCHEDULE = {
     'verify-domains': {'task': 'domains.verify_all', 'schedule': crontab(minute='*/15')},
+    'publish-dns-zones': {'task': 'dns.publish_zones', 'schedule': crontab(minute='7,22,37,52')},
     'sync-dkim-files': {'task': 'domains.sync_dkim_files', 'schedule': crontab(minute='5,35')},
     'sync-certificate-hosts': {
         'task': 'domains.sync_certificate_hosts',

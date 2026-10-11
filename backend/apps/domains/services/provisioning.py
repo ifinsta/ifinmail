@@ -109,8 +109,46 @@ class ProvisioningService:
         return ProvisionStep('postmaster/abuse', StepStatus.OK, detail)
 
     @staticmethod
+    def _step_authoritative_dns(domain: Domain, result: ProvisionResult) -> ProvisionStep | None:
+        """Publish the zone from this server; ``None`` when the domain's DNS is hosted elsewhere."""
+        from backend.apps.dns.services.server import DNSServerConfig
+        from backend.apps.dns.services.zones import ZoneService
+        from backend.apps.dns.types.zones import ZoneMode
+
+        if not DNSServerConfig.enabled():
+            return None
+        try:
+            zone = ZoneService.ensure(domain.name)
+            if ZoneMode(zone.mode) != ZoneMode.AUTHORITATIVE:
+                return None
+            ZoneService.publish()
+        except Exception as exc:
+            logger.exception('Publishing the zone for %s failed', domain.name)
+            return ProvisionStep('DNS records', StepStatus.ERROR, str(exc))
+        result.dns_records = [
+            {
+                'type': r.type,
+                'name': r.name,
+                'value': f'{r.priority} {r.value}' if r.type == 'MX' else r.value,
+            }
+            for r in ZoneService.managed_records(domain.name)
+        ]
+        result.nameservers = DNSServerConfig.ns_hosts()
+        return ProvisionStep(
+            'DNS records',
+            StepStatus.MANUAL,
+            'Published by this server. Set the domain\'s nameservers to '
+            + ', '.join(result.nameservers)
+            + ' at your registrar.',
+        )
+
+    @staticmethod
     def _step_dns(domain: Domain, result: ProvisionResult) -> ProvisionStep:
         from backend.apps.dns.services import PROVIDER_MAP, DNSService
+
+        authoritative = ProvisioningService._step_authoritative_dns(domain, result)
+        if authoritative is not None:
+            return authoritative
 
         server_ip = domain.ip_address or DNSService.get_server_ip()
         records = DNSService.build_records(domain.name, server_ip, ip_address=domain.ip_address)

@@ -78,7 +78,9 @@ interface MailController {
         displayName: String,
         profile: UiProviderProfile,
         password: String?,
-        oauthAccessToken: String?
+        oauthAccessToken: String?,
+        /** SHA-256 of a self-signed server certificate the person has confirmed (see MailError.CertificateUntrusted). */
+        trustedCertificateSha256: String? = null
     ): Result<Unit>
 
     suspend fun removeAccount(accountId: String)

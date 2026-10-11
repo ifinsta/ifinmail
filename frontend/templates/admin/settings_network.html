@@ -1,0 +1,119 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Network & entry points — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Network & entry points' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Every port this server answers on. Close what you do not use, block abusive networks and limit how fast a single address may connect. The firewall applies changes within seconds.' %}</p>
+            </div>
+        </div>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-agent">
+            <h2 class="ifinmail-panel-title" id="fw-agent">{% trans 'Firewall' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Rules in force' %}</dt>
+                    <dd>{% if agent.in_sync %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>
+                        {% elif agent.reporting %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Applying…' %}</span>
+                        {% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Agent not reporting' %}</span>{% endif %}
+                        {% if agent.message and not agent.in_sync %}<span class="ifinmail-settings-row__value">{{ agent.message }}</span>{% endif %}</dd>
+                </div>
+            </dl>
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Entry points' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Entry points' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Service' %}</th><th>{% trans 'Port' %}</th><th>{% trans 'Running' %}</th><th>{% trans 'Open to the internet' %}</th></tr></thead>
+                <tbody>
+                {% for row in entries %}
+                <tr>
+                    <td><strong>{{ row.entry.label }}</strong><br><span class="ifinmail-settings-row__help">{{ row.entry.description }}</span></td>
+                    <td><code class="ifinmail-text--mono">{{ row.ports }}</code></td>
+                    <td>{% if row.up %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% elif row.up is None %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Unknown' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Not answering' %}</span>{% endif %}</td>
+                    <td>
+                        {% if row.entry.locked %}
+                        <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Always open' %}</span>
+                        {% else %}
+                        <form method="post" action="{% url 'accounts:network_toggle' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <input type="hidden" name="key" value="{{ row.entry.key }}">
+                            {% if row.enabled %}
+                            <span class="ifinmail-badge ifinmail-badge--success">{% trans 'Open' %}</span>
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% blocktrans trimmed with label=row.entry.label %}Close {{ label }}? Clients that use it stop working.{% endblocktrans %}"><span class="ifinmail-sr-only">{{ row.entry.label }} </span>{% trans 'Close' %}</button>
+                            {% else %}
+                            <span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Closed' %}</span>
+                            <input type="hidden" name="enabled" value="on">
+                            <button class="ifinmail-btn ifinmail-btn--primary" type="submit"><span class="ifinmail-sr-only">{{ row.entry.label }} </span>{% trans 'Open' %}</button>
+                            {% endif %}
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-rate">
+            <h2 class="ifinmail-panel-title" id="fw-rate">{% trans 'Connection limit' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'The most new mail connections (SMTP, submission, IMAP) one address may open per minute. Real mail servers stay well below the default. Set 0 to turn the limit off.' %}</p>
+            <form method="post" action="{% url 'accounts:network_rate' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="fw-rate-n">{% trans 'New connections per address per minute' %}</label>
+                    <input class="ifinmail-input" id="fw-rate-n" name="per_minute" type="number" min="0" max="100000" value="{{ rate }}" inputmode="numeric" required>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save' %}</button></div>
+            </form>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-block">
+            <h2 class="ifinmail-panel-title" id="fw-block">{% trans 'Blocked networks' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with ip=client_ip %}Blocked addresses cannot reach any service. You are connecting from <code>{{ ip }}</code>, which cannot be blocked from here.{% endblocktrans %}</p>
+            <form method="post" action="{% url 'accounts:network_block' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field-grid">
+                    <div class="ifinmail-field">
+                        <label for="fw-cidr">{% trans 'Address or network' %}</label>
+                        <input class="ifinmail-input" id="fw-cidr" name="cidr" required maxlength="64" autocomplete="off" placeholder="203.0.113.0/24">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="fw-note">{% trans 'Note (optional)' %}</label>
+                        <input class="ifinmail-input" id="fw-note" name="note" maxlength="120" autocomplete="off">
+                    </div>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Block' %}</button></div>
+            </form>
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Blocklist entries' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Blocklist' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Network' %}</th><th>{% trans 'Note' %}</th><th>{% trans 'Remove' %}</th></tr></thead>
+                <tbody>
+                {% for b in blocklist %}
+                <tr>
+                    <td><code class="ifinmail-text--mono">{{ b.cidr }}</code></td>
+                    <td>{{ b.note }}</td>
+                    <td>
+                        <form method="post" action="{% url 'accounts:network_unblock' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}<input type="hidden" name="cidr" value="{{ b.cidr }}">
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit"><span class="ifinmail-sr-only">{{ b.cidr }} </span>{% trans 'Unblock' %}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'Nothing is blocked.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+    </div>
+</section>
+{% endblock %}

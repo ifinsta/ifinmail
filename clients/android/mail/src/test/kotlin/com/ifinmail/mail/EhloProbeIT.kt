@@ -16,7 +16,7 @@ class EhloProbeIT {
         assumeTrue(System.getenv("IFINMAIL_LIVE") == "1")
         val t = JvmSocketTransportForProbe()
         val client = SmtpClient(t) { line -> println("RAW> $line") }
-        client.connect("mail.ifinsta.com", 465, ConnectionSecurity.SSL_TLS)
+        client.connect(System.getenv("IFINMAIL_HOST") ?: "mail.ifinsta.com", 465, ConnectionSecurity.SSL_TLS)
         println("=== EHLO on 465 done ===")
         client.close()
     }
@@ -27,7 +27,7 @@ class EhloProbeIT {
         val t = JvmSocketTransportForProbe()
         val logs = mutableListOf<String>()
         val client = SmtpClient(t) { line -> logs += line; println("RAW> $line") }
-        client.connect("mail.ifinsta.com", 587, ConnectionSecurity.STARTTLS)
+        client.connect(System.getenv("IFINMAIL_HOST") ?: "mail.ifinsta.com", 587, ConnectionSecurity.STARTTLS)
         println("=== EHLO after STARTTLS on 587 done ===")
         client.close()
     }

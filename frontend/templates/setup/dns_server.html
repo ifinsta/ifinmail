@@ -1,0 +1,47 @@
+{% extends "setup/base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}DNS on this server — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block content %}
+<div class="ifinmail-setup-wizard">
+  <div class="ifinmail-setup-progress">
+    <div class="ifinmail-setup-step ifinmail-setup-step--done">{% trans '1. Domain' %}</div>
+    <div class="ifinmail-setup-step ifinmail-setup-step--active">{% trans '2. DNS' %}</div>
+    <div class="ifinmail-setup-step">{% trans '3. Account' %}</div>
+    <div class="ifinmail-setup-step">{% trans '4. Done' %}</div>
+  </div>
+
+  <div class="ifinmail-setup-card">
+    <h1 class="ifinmail-admin-title">{% blocktrans trimmed %}Point {{ domain }} at this server{% endblocktrans %}</h1>
+    <p class="ifinmail-setup-description">
+      {% trans 'This server now publishes all the records below. One step is left at your domain registrar: set the domain’s nameservers to:' %}
+    </p>
+    <ul class="ifinmail-setup-hint">
+      {% for ns in ns_hosts %}<li><code>{{ ns }}</code></li>{% endfor %}
+    </ul>
+    {% if glue_hosts %}
+    <p class="ifinmail-setup-description">
+      {% trans 'Because these names are inside your own domain, the registrar also asks for their IP addresses (“glue records” or “child nameservers”):' %}
+    </p>
+    <ul class="ifinmail-setup-hint">
+      {% for h in glue_hosts %}<li><code>{{ h }}</code> &rarr; <code>{{ server_ip }}</code></li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% include "includes/setup_table.html" with dns_records=dns_records|default:'' %}
+
+    <p class="ifinmail-setup-hint ifinmail-mt-3">
+      {% trans 'Nameserver changes can take a few hours. After they take effect, open Settings → DNS server to add the DNSSEC record at your registrar.' %}
+    </p>
+
+    <div class="ifinmail-setup-actions ifinmail-mt-4">
+      <form method="post" action="{% url 'accounts:setup_advance' %}">
+        {% csrf_token %}
+        <input type="hidden" name="current_step" value="dns-server">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Continue' %}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

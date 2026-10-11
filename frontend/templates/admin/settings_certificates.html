@@ -1,0 +1,106 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}TLS certificates — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'TLS certificates' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'One certificate secures the console, mail delivery and mail clients. It is issued and renewed automatically; you can also issue it now or install your own.' %}</p>
+            </div>
+        </div>
+
+        {% if tls.pending %}
+        <p class="ifinmail-settings-note" role="status">
+            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <span>{% trans 'A request is in progress. Reload this page in a moment.' %}</span>
+        </p>
+        {% elif last.message %}
+        <p class="ifinmail-settings-note" role="status">
+            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <span><strong>{% if last.ok %}{% trans 'Last request succeeded.' %}{% else %}{% trans 'Last request failed.' %}{% endif %}</strong> {{ last.message }} <span class="ifinmail-settings-row__env">{{ last.updated }}</span></span>
+        </p>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="cert-now">
+            <h2 class="ifinmail-panel-title" id="cert-now">{% trans 'Current certificate' %}</h2>
+            {% if cert %}
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Source' %}</dt><dd>{% if custom %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'Uploaded by you' %}</span>{% elif cert.self_signed %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Temporary self-signed' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Let’s Encrypt (automatic)' %}</span>{% endif %}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Issued to' %}</dt><dd><code class="ifinmail-settings-row__value">{{ cert.subject }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Issuer' %}</dt><dd><span class="ifinmail-settings-row__value">{{ cert.issuer }}</span></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Expires' %}</dt><dd><span class="ifinmail-badge ifinmail-badge--{% if cert.status == 'err' %}danger{% elif cert.status == 'warn' %}warning{% else %}success{% endif %}">{% blocktrans trimmed with d=cert.days_left %}in {{ d }} days{% endblocktrans %}</span> <span class="ifinmail-settings-row__value">{{ cert.not_after|date:"Y-m-d" }}</span></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Names covered' %}</dt><dd><code class="ifinmail-settings-row__value">{{ cert.sans|join:", " }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Fingerprint (SHA-256)' %}</dt><dd><code class="ifinmail-settings-row__value" id="cert-fingerprint">{{ cert.fingerprint_display }}</code></dd></div>
+            </dl>
+            {% if cert.self_signed and not custom %}
+            <p class="ifinmail-settings-section__lede">{% trans 'This temporary certificate is signed by the server itself. The first time a mail app connects it will ask you to trust it; check that the fingerprint it shows matches the one above. Once a Let’s Encrypt certificate is issued, apps stop asking.' %}</p>
+            {% endif %}
+            {% else %}
+            <p class="ifinmail-settings-section__lede">{% trans 'No certificate could be read yet.' %}</p>
+            {% endif %}
+            <div class="ifinmail-button-row">
+                {% if custom %}
+                <form method="post" action="{% url 'accounts:certificates_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                    {% csrf_token %}<input type="hidden" name="action" value="letsencrypt">
+                    <button class="ifinmail-btn ifinmail-btn--primary" type="submit" data-confirm="{% trans 'Replace the uploaded certificate with a Let’s Encrypt one? If issuing fails, your uploaded certificate is kept.' %}">{% trans 'Use Let’s Encrypt again' %}</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'accounts:certificates_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                    {% csrf_token %}<input type="hidden" name="action" value="issue">
+                    <button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Issue / update now' %}</button>
+                </form>
+                <form method="post" action="{% url 'accounts:certificates_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                    {% csrf_token %}<input type="hidden" name="action" value="renew">
+                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Renew the certificate now? Services restart briefly.' %}">{% trans 'Renew now' %}</button>
+                </form>
+                {% endif %}
+            </div>
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Hostnames' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Hostnames this server needs a certificate for' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Hostname' %}</th><th>{% trans 'In the certificate' %}</th><th>{% trans 'Points here' %}</th></tr></thead>
+                <tbody>
+                {% for c in tls.coverage %}
+                <tr>
+                    <td><code class="ifinmail-text--mono">{{ c.host }}</code></td>
+                    <td>{% if c.covered %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Not yet' %}</span>{% endif %}</td>
+                    <td>{% if c.resolves_here %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% elif c.resolves_here is None %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Could not check' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'No' %}</span>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No hostnames yet. Add a domain first.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        {% if missing and not custom %}
+        <p class="ifinmail-settings-note" role="note">
+            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <span>{% trans 'A name is added to the certificate as soon as it points at this server, and the certificate is then reissued automatically. Check its DNS if it stays “No”.' %}</span>
+        </p>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="cert-upload">
+            <h2 class="ifinmail-panel-title" id="cert-upload">{% trans 'Use your own certificate' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with host=mail_hostname %}Paste a certificate (with its chain) that covers <strong>{{ host }}</strong> and its private key, both in PEM form. The key must not be password protected. An uploaded certificate is not renewed automatically.{% endblocktrans %}</p>
+            <form method="post" action="{% url 'accounts:certificates_upload' %}" class="ifinmail-inline-form" autocomplete="off">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="cert-pem">{% trans 'Certificate and chain (PEM)' %}</label>
+                    <textarea class="ifinmail-input ifinmail-text--mono" id="cert-pem" name="certificate" rows="6" required spellcheck="false" autocomplete="off" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="cert-key">{% trans 'Private key (PEM)' %}</label>
+                    <textarea class="ifinmail-input ifinmail-text--mono" id="cert-key" name="private_key" rows="6" required spellcheck="false" autocomplete="off" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit" data-confirm="{% trans 'Install this certificate? Mail, web and database services restart briefly.' %}">{% trans 'Install certificate' %}</button></div>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

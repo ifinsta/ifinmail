@@ -1,6 +1,16 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
+from .views.server import (
+    certificates_action,
+    certificates_page,
+    certificates_upload,
+    network_block,
+    network_page,
+    network_rate,
+    network_toggle,
+    network_unblock,
+)
 from .web import (
     aliases_create,
     aliases_delete,
@@ -67,6 +77,14 @@ urlpatterns = [
     path('settings/aliases/', aliases_page, name='aliases'),
     path('settings/aliases/create/', aliases_create, name='aliases_create'),
     path('settings/aliases/delete/', aliases_delete, name='aliases_delete'),
+    path('settings/certificates/', certificates_page, name='certificates'),
+    path('settings/certificates/action/', certificates_action, name='certificates_action'),
+    path('settings/certificates/upload/', certificates_upload, name='certificates_upload'),
+    path('settings/network/', network_page, name='network'),
+    path('settings/network/toggle/', network_toggle, name='network_toggle'),
+    path('settings/network/block/', network_block, name='network_block'),
+    path('settings/network/unblock/', network_unblock, name='network_unblock'),
+    path('settings/network/rate/', network_rate, name='network_rate'),
     path('settings/<slug:slug>/', settings_page, name='settings_page'),
     path('branding/', branding_identity, name='branding_identity'),
     path('login/', login_view, name='login'),

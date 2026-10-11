@@ -12,6 +12,8 @@ sealed class MailError {
     data object UnsupportedCapability : MailError()
     data object NetworkUnavailable : MailError()
     data object Timeout : MailError()
+    /** The server's certificate is not issued by a trusted authority; [sha256] identifies it. */
+    data class CertificateUntrusted(val host: String, val sha256: String, val subject: String) : MailError()
     data class Protocol(val detail: String) : MailError()
     data class Unknown(val detail: String) : MailError()
 
@@ -27,6 +29,7 @@ sealed class MailError {
         UnsupportedCapability -> "This account's server does not support that feature."
         NetworkUnavailable -> "No connection to the mail server."
         Timeout -> "The server took too long to respond."
+        is CertificateUntrusted -> "$host presented a certificate that is not from a trusted authority."
         is Protocol -> detail.ifBlank { "Protocol error." }
         is Unknown -> detail.ifBlank { "Unexpected error." }
     }

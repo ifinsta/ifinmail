@@ -87,8 +87,10 @@ class FakeMailController : MailController {
         displayName: String,
         profile: UiProviderProfile,
         password: String?,
-        oauthAccessToken: String?
+        oauthAccessToken: String?,
+        trustedCertificateSha256: String?
     ): Result<Unit> {
+        lastAddTrustedCert = trustedCertificateSha256
         lastAddEmail = email
         lastAddPassword = password
         lastAddToken = oauthAccessToken
@@ -98,6 +100,8 @@ class FakeMailController : MailController {
         }
     }
 
+    var lastAddTrustedCert: String? = null
+        private set
     var lastAddEmail: String? = null
         private set
     var lastAddPassword: String? = null

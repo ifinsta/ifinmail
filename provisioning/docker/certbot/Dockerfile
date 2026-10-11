@@ -1,6 +1,6 @@
 FROM certbot/certbot:latest
 
-RUN apk add --no-cache docker-cli
+RUN apk add --no-cache docker-cli jq openssl
 
 COPY deploy-hook.sh /hooks/deploy-hook.sh
 COPY entrypoint.sh /entrypoint.sh

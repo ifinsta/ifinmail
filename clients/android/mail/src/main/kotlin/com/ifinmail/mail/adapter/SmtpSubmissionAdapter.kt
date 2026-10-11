@@ -21,7 +21,7 @@ class SmtpSubmissionAdapter : SubmissionAdapter {
     ): ProbeOutcome {
         val steps = mutableListOf<VerifyStep>()
         return try {
-            JvmSocketTransport().use { transport ->
+            JvmSocketTransport(outgoing.pinnedCertSha256).use { transport ->
                 val client = SmtpClient(transport)
                 client.connect(outgoing.host, outgoing.port, outgoing.security)
                 steps += VerifyStep("Outgoing connection", true, "${outgoing.host}:${outgoing.port}")
@@ -44,7 +44,7 @@ class SmtpSubmissionAdapter : SubmissionAdapter {
         draft: OutgoingDraft,
         mimeBytes: ByteArray
     ) {
-        JvmSocketTransport().use { transport ->
+        JvmSocketTransport(outgoing.pinnedCertSha256).use { transport ->
             val client = SmtpClient(transport)
             client.connect(outgoing.host, outgoing.port, outgoing.security)
             client.authenticate(email, credentials.password, credentials.oauthAccessToken)

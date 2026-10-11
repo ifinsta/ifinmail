@@ -2,11 +2,11 @@
 {% load i18n %}{% load static %}{% load settings_nav %}
 
 {% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block secondary_nav %}{% settings_nav %}{% endblock %}
 {% block header %}{% include "includes/header.html" with hide_search=True %}{% endblock %}
 
 {% block content %}
 <div class="ifinmail-settings{% if active_section == 'settings' %} ifinmail-settings--hub{% endif %}">
-    {% settings_nav %}
     <div class="ifinmail-settings__body">
         {% if active_section != 'settings' %}
         <a class="ifinmail-settings__back" href="{% url 'accounts:settings' %}">

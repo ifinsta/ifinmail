@@ -266,7 +266,7 @@ class EntryPointTests(MailTablesTestCase):
 
     def test_the_limit_covers_mail_ports_only(self) -> None:
         rules = EntryPointService.render()
-        self.assertIn('{ 25, 143, 465, 587, 993 }', rules)
+        self.assertIn('{ 25, 110, 143, 465, 587, 993, 995 }', rules)
         for port in ('80', '443', '53'):
             self.assertNotIn(
                 f'proto-dst {{ {port}', rules.split('limit')[0].split('dnat ct original')[-1]

@@ -131,12 +131,16 @@ class ZoneService:
         if DNSServerConfig.caa_enabled():
             records.append(ZoneRecord(name='@', type='CAA', value='0 issue letsencrypt.org'))
         # RFC 6186: lets mail clients find the right ports from the domain alone.
-        for name, port in (('_submission._tcp', 587), ('_imaps._tcp', 993)):
+        for name, port in (
+            ('_submission._tcp', 587),
+            ('_imaps._tcp', 993),
+            ('_imap._tcp', 143),
+            ('_pop3s._tcp', 995),
+            ('_pop3._tcp', 110),
+        ):
             records.append(
                 ZoneRecord(name=name, type='SRV', value=f'1 {port} {mail_host}', priority=0)
             )
-        for name in ('_imap._tcp', '_pop3._tcp', '_pop3s._tcp'):
-            records.append(ZoneRecord(name=name, type='SRV', value='0 0 .', priority=0))
         # Hostnames that carry mail: they must resolve even when they live in another zone.
         return records
 

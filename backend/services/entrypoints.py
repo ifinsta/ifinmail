@@ -87,6 +87,22 @@ CATALOGUE: tuple[EntryPoint, ...] = (
         rate_limited=True,
     ),
     EntryPoint(
+        'pop3s',
+        'POP3S',
+        ((Proto.TCP, 995),),
+        'dovecot',
+        'Legacy mail clients download mail here (implicit TLS). Switch off if nobody uses POP3.',
+        rate_limited=True,
+    ),
+    EntryPoint(
+        'pop3',
+        'POP3 (STARTTLS)',
+        ((Proto.TCP, 110),),
+        'dovecot',
+        'Legacy mail clients download mail here (STARTTLS). Switch off if nobody uses POP3.',
+        rate_limited=True,
+    ),
+    EntryPoint(
         'imap',
         'IMAP (STARTTLS)',
         ((Proto.TCP, 143),),

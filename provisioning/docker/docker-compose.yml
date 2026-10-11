@@ -201,6 +201,52 @@ services:
       retries: 3
       start_period: 10s
 
+  # --- Authoritative DNS (Knot DNS): serves and DNSSEC-signs the zones the console publishes ---
+  dns:
+    image: ifinmail/dns:latest
+    build: ./dns
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - runtime_data:/runtime            # zones and Knot configuration from the console; DS records out
+      - dns_data:/var/lib/knot           # DNSSEC keys and zone journals (back this volume up)
+    ports:
+      - "${DNS_BIND_IP:-0.0.0.0}:53:53/udp"
+      - "${DNS_BIND_IP:-0.0.0.0}:53:53/tcp"
+    restart: unless-stopped
+    stop_grace_period: 15s
+    mem_limit: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "knotc -c /etc/knot/knot.conf status >/dev/null 2>&1"]
+      interval: 30s
+      retries: 3
+      start_period: 15s
+
+  # --- Entry-point firewall: applies the console's open ports, blocklist and rate limits ---
+  firewall:
+    image: ifinmail/firewall:latest
+    build: ./firewall
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - runtime_data:/runtime
+    restart: unless-stopped
+    stop_grace_period: 10s
+    mem_limit: 32M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # --- SSL Auto-Renewal ---
   certbot:
     image: ifinmail/certbot:latest
@@ -215,7 +261,7 @@ services:
     volumes:
       - ./certs:/etc/letsencrypt
       - ./nginx/www:/var/www/certbot
-      - runtime_data:/runtime:ro   # hostnames the console wants covered
+      - runtime_data:/runtime   # hostnames the console wants covered; requests and results
       - /var/run/docker.sock:/var/run/docker.sock
       - ./docker-compose.yml:/config/docker-compose.yml:ro
       - ../../provisioning/.env:/config/.env:ro
@@ -307,6 +353,11 @@ services:
       DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
       DKIM_KEY_DIR: /etc/dkim
       IFINMAIL_RUNTIME_DIR: /var/lib/ifinmail/runtime
+      SERVER_IP: ${SERVER_IP:-}
+      SERVER_IPV6: ${SERVER_IPV6:-}
+      DNS_NS_HOSTS: ${DNS_NS_HOSTS:-}
+      DNS_SERVER_ENABLED: ${DNS_SERVER_ENABLED:-1}
+      DNS_SERVER_HOST: dns
     volumes:
       - mail_data:/var/mail/vhosts:ro   # read Dovecot's Maildir
       - ./certs:/etc/letsencrypt:ro
@@ -364,6 +415,11 @@ services:
       DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
       DKIM_KEY_DIR: /etc/dkim
       IFINMAIL_RUNTIME_DIR: /var/lib/ifinmail/runtime
+      SERVER_IP: ${SERVER_IP:-}
+      SERVER_IPV6: ${SERVER_IPV6:-}
+      DNS_NS_HOSTS: ${DNS_NS_HOSTS:-}
+      DNS_SERVER_ENABLED: ${DNS_SERVER_ENABLED:-1}
+      DNS_SERVER_HOST: dns
     entrypoint: []
     command: ["celery", "-A", "backend.config.celery", "worker", "--loglevel=INFO", "--concurrency=2"]
     user: app
@@ -467,7 +523,8 @@ volumes:
   rspamd_data:
   rundir:
   static_data:
-  runtime_data:   # files the console publishes for postfix and certbot
+  runtime_data:   # files the console publishes for postfix, certbot, the DNS server and the firewall
+  dns_data:       # DNSSEC keys and zone journals
 
 networks:
   default:

@@ -121,4 +121,10 @@ class DomainService:
             except Domain.DoesNotExist:
                 return False
             domain.delete()
-            return True
+        try:  # the zone this server published for it goes with it
+            from backend.apps.dns.services.zones import ZoneService
+
+            ZoneService.remove(domain_name)
+        except Exception:
+            logger.exception('Could not remove the DNS zone for %s', domain_name)
+        return True

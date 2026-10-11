@@ -17,12 +17,13 @@ def runtime_dir() -> Path:
 
 def write_runtime_file(name: str, text: str, *, mode: int = 0o644) -> Path:
     """Atomically write ``text`` to ``<runtime>/<name>`` and return its path."""
-    if '/' in name or name.startswith('.'):
+    parts = name.split('/')
+    if not all(parts) or any(part.startswith('.') for part in parts):
         raise ValueError(f'Invalid runtime file name: {name!r}')
-    directory = runtime_dir()
+    target = runtime_dir().joinpath(*parts)
+    directory = target.parent
     directory.mkdir(parents=True, exist_ok=True)
-    target = directory / name
-    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=f'.{name}.')
+    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=f'.{parts[-1]}.')
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as handle:
             handle.write(text)
@@ -35,7 +36,10 @@ def write_runtime_file(name: str, text: str, *, mode: int = 0o644) -> Path:
 
 
 def read_runtime_file(name: str) -> str | None:
-    path = runtime_dir() / name
+    parts = name.split('/')
+    if not all(parts) or any(part.startswith('.') for part in parts):
+        return None
+    path = runtime_dir().joinpath(*parts)
     try:
         return path.read_text(encoding='utf-8')
     except OSError:

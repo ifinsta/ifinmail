@@ -14,3 +14,8 @@ class SettingKey(StrEnum):
     MTA_STS_MODE = 'mail.mta_sts_mode'
     LAST_BACKUP_AT = 'ops.last_backup_at'
     LAST_VERIFY_AT = 'ops.last_verify_at'
+    DNS_SECONDARIES = 'dns.secondaries'
+    DNS_CAA_ENABLED = 'dns.caa_enabled'
+    ENTRYPOINTS = 'network.entrypoints'
+    NETWORK_BLOCKLIST = 'network.blocklist'
+    NETWORK_RATE_LIMITS = 'network.rate_limits'

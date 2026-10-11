@@ -30,6 +30,8 @@ class SettingsIcon(StrEnum):
     ABOUT = 'about'
     APPEARANCE = 'appearance'
     LANGUAGE = 'language'
+    CERTIFICATE = 'certificate'
+    NETWORK = 'network'
 
 
 @dataclass(frozen=True)

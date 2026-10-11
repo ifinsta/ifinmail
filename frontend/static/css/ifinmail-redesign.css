@@ -1747,6 +1747,25 @@ html.ifinmail-shell .ifinmail-flash--error {
     }
 }
 
+html.ifinmail-shell .ifinmail-button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ifinmail-space-2);
+    margin-top: var(--ifinmail-space-3);
+}
+
+/* Long machine values (DKIM keys, DS digests) wrap instead of widening the table or row */
+html.ifinmail-shell .ifinmail-cell-wrap {
+    max-width: 32rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+html.ifinmail-shell dd.ifinmail-cell-wrap {
+    min-width: 0;
+    text-align: right;
+}
+
 /* ─── Compact density (desktop and tablet) ───
    Header 48, sidebar 208 / rail 52, nav items 32, page title 18.
    Phone keeps its own 44px touch targets above, so this block starts at 768px. */

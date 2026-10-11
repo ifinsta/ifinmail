@@ -186,7 +186,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
         self.assertIn('monitor', refreshed)
 
     def test_rotate_and_revoke_from_profile(self) -> None:
-        from backend.services.audit import AuditService
+        from backend.apps.core.platform.services.audit import AuditService
 
         mailbox = self._profile('alice')
         url = reverse('accounts:mailbox_profile', kwargs={'mailbox_id': mailbox.id})

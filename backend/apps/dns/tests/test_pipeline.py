@@ -9,6 +9,7 @@ from django.test import SimpleTestCase
 from django.urls import reverse
 
 from backend.apps.accounts.models import MailUser
+from backend.apps.core.platform.services.runtime import read_runtime_file
 from backend.apps.core.tests.mail_base import MailTablesTestCase
 from backend.apps.dns.models import DNSProviderConfig
 from backend.apps.dns.providers.base import DNSRecord, record_key
@@ -16,7 +17,6 @@ from backend.apps.dns.providers.cloudflare import CloudflareProvider
 from backend.apps.dns.providers.digitalocean import DigitalOceanProvider
 from backend.apps.dns.services import DNSService, decrypt_credentials, encrypt_credentials
 from backend.apps.mail.services.postfix_runtime import PostfixRuntime
-from backend.services.runtime import read_runtime_file
 
 MODEL_BACKEND = 'django.contrib.auth.backends.ModelBackend'
 _LOOKUP = 'backend.apps.domains.services.verification._lookup'

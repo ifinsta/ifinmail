@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from backend.services.runtime import read_runtime_file
+from backend.apps.core.platform.services.runtime import read_runtime_file
 
 from ..types.settings import ConfigRow, ConfigSection
 
@@ -137,7 +137,7 @@ class EffectiveConfig:
 
     @staticmethod
     def deliverability() -> list[ConfigSection]:
-        from backend.services.deliverability import DeliverabilityService
+        from backend.apps.core.platform.services.deliverability import DeliverabilityService
 
         resolvers = DeliverabilityService.resolvers()
         rbls = DeliverabilityService.blocklists()

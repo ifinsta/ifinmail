@@ -8,7 +8,7 @@ from django.contrib.auth.views import (
 )
 from django.http import HttpResponse
 
-from backend.services.audit import AuditService
+from backend.apps.core.platform.services.audit import AuditService
 
 
 class CustomPasswordResetView(PasswordResetView):

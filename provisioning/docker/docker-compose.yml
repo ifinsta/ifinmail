@@ -390,6 +390,7 @@ services:
       - mail_data:/var/mail/vhosts:ro   # read Dovecot's Maildir
       - ./certs:/etc/letsencrypt:ro
       - static_data:/app/staticfiles
+      - media_data:/app/media            # branding uploads (logo, favicon)
       - ./dkim:/etc/dkim                 # per-domain DKIM keys (Rspamd mounts this read-only)
       - runtime_data:/var/lib/ifinmail/runtime   # settings and hostname list for postfix/certbot
     ports:
@@ -515,6 +516,7 @@ services:
       - ./certs:/etc/letsencrypt:ro
       - ./nginx/www:/var/www/certbot:ro
       - static_data:/app/staticfiles:ro
+      - media_data:/app/media:ro          # branding uploads served directly
     ports:
       - "80:80"
       - "443:443"
@@ -551,6 +553,7 @@ volumes:
   rspamd_data:
   rundir:
   static_data:
+  media_data:     # branding uploads (logo, favicon)
   runtime_data:   # files the console publishes for postfix, certbot, the DNS server and the firewall
   dns_data:       # DNSSEC keys and zone journals
   dav_data:       # calendars and address books

@@ -9,7 +9,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
-from backend.services.audit import AuditService
+from backend.apps.core.platform.services.audit import AuditService
 
 from ..types.permissions import PermissionCode
 from .auth import require_perm

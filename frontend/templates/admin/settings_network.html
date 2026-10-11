@@ -35,7 +35,7 @@
                 <tr>
                     <td><strong>{{ row.entry.label }}</strong><br><span class="ifinmail-settings-row__help">{{ row.entry.description }}</span></td>
                     <td><code class="ifinmail-text--mono">{{ row.ports }}</code></td>
-                    <td>{% if row.up %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% elif row.up is None %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Unknown' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Not answering' %}</span>{% endif %}</td>
+                    <td>{% if row.up %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Yes' %}</span>{% if row.millis is not None %} <span class="ifinmail-settings-row__help ifinmail-text--mono">{{ row.millis }}&nbsp;ms</span>{% endif %}{% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Not answering' %}</span>{% endif %}</td>
                     <td>
                         {% if row.entry.locked %}
                         <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Always open' %}</span>
@@ -49,7 +49,7 @@
                             {% else %}
                             <span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Closed' %}</span>
                             <input type="hidden" name="enabled" value="on">
-                            <button class="ifinmail-btn ifinmail-btn--primary" type="submit"><span class="ifinmail-sr-only">{{ row.entry.label }} </span>{% trans 'Open' %}</button>
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit"><span class="ifinmail-sr-only">{{ row.entry.label }} </span>{% trans 'Open' %}</button>
                             {% endif %}
                         </form>
                         {% endif %}
@@ -104,7 +104,7 @@
                     <td>
                         <form method="post" action="{% url 'accounts:network_unblock' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
                             {% csrf_token %}<input type="hidden" name="cidr" value="{{ b.cidr }}">
-                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit"><span class="ifinmail-sr-only">{{ b.cidr }} </span>{% trans 'Unblock' %}</button>
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% blocktrans trimmed with cidr=b.cidr %}Unblock {{ cidr }}? Traffic from it will be able to reach this server again.{% endblocktrans %}"><span class="ifinmail-sr-only">{{ b.cidr }} </span>{% trans 'Unblock' %}</button>
                         </form>
                     </td>
                 </tr>

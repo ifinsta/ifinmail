@@ -9,12 +9,12 @@ import tempfile
 from unittest.mock import patch
 
 from backend.apps.accounts.models import MailUser
+from backend.apps.core.platform.services.runtime import read_runtime_file
 from backend.apps.core.tests.mail_base import MailTablesTestCase
 from backend.apps.mail.models import Alias, Mailbox
 from backend.apps.mail.services import AliasService, MailboxService
 from backend.apps.mail.services.postfix_runtime import OutboundConfigError, PostfixRuntime
 from backend.apps.mail.types.provisioning import MailboxError
-from backend.services.runtime import read_runtime_file
 
 GOOD = 'Correct-Horse-9'
 

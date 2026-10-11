@@ -20,10 +20,10 @@ from backend.apps.accounts.services.mfa import TOTPService
 from backend.apps.accounts.services.roles import RoleError, RoleService
 from backend.apps.accounts.services.sessions import SessionError, UserSessionService
 from backend.apps.accounts.services.tokens import TokenError, TokenService
+from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.domains.services import DomainService
 from backend.apps.mail.models import Alias, Mailbox
 from backend.apps.mail.services import MailboxService
-from backend.services.audit import AuditService
 
 from ..forms.mailboxes import (
     MailboxActionForm,

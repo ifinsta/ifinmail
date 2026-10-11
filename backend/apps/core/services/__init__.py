@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
+from django.db import transaction
 from django.db.utils import DatabaseError
 
 from ..models import SystemSetting
@@ -32,6 +34,29 @@ class SystemSettings:
     @staticmethod
     def set(key: SettingKey | str, value: Any) -> None:
         SystemSetting.objects.update_or_create(key=str(key), defaults={'value': {'v': value}})
+
+    @staticmethod
+    def mutate(key: SettingKey | str, fn: Callable[[Any], Any], default: Any = None) -> Any:
+        """Read-modify-write a persisted value under a row lock.
+
+        ``fn`` receives the current value (or ``default``) and returns the new
+        one. On databases with ``SELECT ... FOR UPDATE`` (PostgreSQL) concurrent
+        writers serialise on the row; SQLite ignores the lock but serialises on
+        the write transaction.
+        """
+        key = str(key)
+        with transaction.atomic():
+            row = SystemSetting.objects.select_for_update().filter(key=key).first()
+            current = (
+                row.value.get('v', default) if row and isinstance(row.value, dict) else default
+            )
+            new = fn(current)
+            if row is None:
+                SystemSetting.objects.create(key=key, value={'v': new})
+            else:
+                row.value = {'v': new}
+                row.save(update_fields=['value'])
+        return new
 
     @staticmethod
     def get_bool(key: SettingKey | str, default: bool = False) -> bool:

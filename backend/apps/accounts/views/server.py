@@ -6,13 +6,18 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 
+from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.entrypoints import (
+    CATALOGUE,
+    EntryPointService,
+    NetworkError,
+)
+from backend.apps.core.platform.services.tls import CertificateError, TLSAction, TLSService
 from backend.apps.dns.services.server import DNSServerConfig
 from backend.apps.domains.services import DomainService
-from backend.services.audit import AuditService
-from backend.services.entrypoints import CATALOGUE, EntryPointService, NetworkError
-from backend.services.tls import CertificateError, TLSAction, TLSService
 
 from ..forms.server import (
     BlockForm,
@@ -34,8 +39,9 @@ def _actor(request: HttpRequest) -> str | None:
 
 def _first_error(form: object) -> str:
     for field, errors in form.errors.items():  # type: ignore[attr-defined]
-        return f'{field.replace("_", " ").capitalize()}: {errors[0]}'
-    return 'Please check the form.'
+        label = _(field.replace('_', ' ').capitalize())
+        return _('{label}: {error}').format(label=label, error=errors[0])
+    return _('Please check the form.')
 
 
 # -- certificates -----------------------------------------------------------
@@ -75,7 +81,8 @@ def certificates_action(request: HttpRequest) -> HttpResponse:
         action=f'certificate_{action.value}', user=_actor(request), detail='requested'
     )
     messages.success(
-        request, 'Request sent. It usually finishes within a minute; reload to see the result.'
+        request,
+        _('Request sent. It usually finishes within a minute; reload to see the result.'),
     )
     return redirect('accounts:certificates')
 
@@ -101,7 +108,8 @@ def certificates_upload(request: HttpRequest) -> HttpResponse:
         detail=f'{info.subject} {info.fingerprint[:16]}',
     )
     messages.success(
-        request, 'Certificate accepted. It is being installed; reload in a moment to confirm.'
+        request,
+        _('Certificate accepted. It is being installed; reload in a moment to confirm.'),
     )
     return redirect('accounts:certificates')
 
@@ -152,7 +160,7 @@ def network_toggle(request: HttpRequest) -> HttpResponse:
         EntryPointService.set_enabled(form.cleaned_data['key'], form.cleaned_data['enabled'])
     except (NetworkError, KeyError) as exc:
         messages.error(
-            request, str(exc) if isinstance(exc, NetworkError) else 'Unknown entry point.'
+            request, str(exc) if isinstance(exc, NetworkError) else _('Unknown entry point.')
         )
         return redirect('accounts:network')
     state = 'opened' if form.cleaned_data['enabled'] else 'closed'
@@ -161,7 +169,12 @@ def network_toggle(request: HttpRequest) -> HttpResponse:
         user=_actor(request),
         detail=f'{form.cleaned_data["key"]} {state}',
     )
-    messages.success(request, f'Port {state}. The firewall applies it within a few seconds.')
+    messages.success(
+        request,
+        _('Port opened. The firewall applies it within a few seconds.')
+        if form.cleaned_data['enabled']
+        else _('Port closed. The firewall applies it within a few seconds.'),
+    )
     return redirect('accounts:network')
 
 
@@ -180,6 +193,7 @@ def network_block(request: HttpRequest) -> HttpResponse:
             request.META.get('REMOTE_ADDR', ''),
             request.META.get('HTTP_X_REAL_IP', ''),
             DNSServerConfig.server_ipv4(),
+            DNSServerConfig.server_ipv6(),
         )
         if a
     )
@@ -191,7 +205,7 @@ def network_block(request: HttpRequest) -> HttpResponse:
         messages.error(request, str(exc))
         return redirect('accounts:network')
     AuditService.record(action='network_block', user=_actor(request), detail=text)
-    messages.success(request, f'{text} is blocked.')
+    messages.success(request, _('{net} is blocked.').format(net=text))
     return redirect('accounts:network')
 
 
@@ -200,13 +214,15 @@ def network_block(request: HttpRequest) -> HttpResponse:
 @require_POST
 def network_unblock(request: HttpRequest) -> HttpResponse:
     form = UnblockForm(request.POST)
-    if form.is_valid() and EntryPointService.unblock(form.cleaned_data['cidr']):
-        AuditService.record(
-            action='network_unblock', user=_actor(request), detail=form.cleaned_data['cidr']
-        )
-        messages.success(request, f'{form.cleaned_data["cidr"]} is no longer blocked.')
+    if not form.is_valid():
+        messages.error(request, _first_error(form))
+        return redirect('accounts:network')
+    cidr = form.cleaned_data['cidr']
+    if EntryPointService.unblock(cidr):
+        AuditService.record(action='network_unblock', user=_actor(request), detail=cidr)
+        messages.success(request, _('{net} is no longer blocked.').format(net=cidr))
     else:
-        messages.error(request, 'That entry could not be found.')
+        messages.error(request, _('That entry could not be found.'))
     return redirect('accounts:network')
 
 
@@ -225,6 +241,7 @@ def network_rate(request: HttpRequest) -> HttpResponse:
         return redirect('accounts:network')
     AuditService.record(action='network_rate', user=_actor(request), detail=str(value))
     messages.success(
-        request, 'Connection limit saved.' if value else 'Connection limit turned off.'
+        request,
+        _('Connection limit saved.') if value else _('Connection limit turned off.'),
     )
     return redirect('accounts:network')

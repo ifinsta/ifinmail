@@ -19,12 +19,16 @@ of measured restore drills (proposal §G.1).
 30 days everywhere: telemetry (`TELEMETRY_RETENTION_DAYS`), audit trail, backups
 (`BACKUP_RETENTION_DAYS`). Fixes the 7-vs-30 mismatch noted in the proposal §0.4.
 
-## Quality gates (lint baseline)
+## Quality gates
 
-CI `backend` job runs `ruff check backend/` and `ruff format --check backend/`
-as blocking gates (no `continue-on-error`).
-Baseline as of 2026-10-11: **zero** — `ruff check` passes and all files are
-formatted. Policy: every PR must keep both gates green.
+* **Lint** — CI `backend` job runs `ruff check backend/` and
+  `ruff format --check backend/` as blocking gates (no `continue-on-error`).
+  Baseline as of 2026-10-11: **zero**. Every PR must keep both green.
+* **Coverage** — CI test step runs `pytest --cov=backend` with
+  `fail_under = 70` in `pyproject.toml` (measured 73.6% on 2026-10-11;
+  migrations, tests and empty `__init__` omitted). Raise the gate as
+  coverage improves.
+* **Compose** — CI validates `docker-compose.yml` with `docker compose config`.
 
 ## Measurement
 

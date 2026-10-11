@@ -11,3 +11,14 @@ quote-style = "single"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "backend.config.settings.testing"
 python_files = ["test_*.py", "*_test.py"]
+
+[tool.coverage.run]
+source = ["backend"]
+omit = ["*/migrations/*", "*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Gate: suite measured 73.6% with migrations/tests/__init__ omitted (2026-10-11).
+# Raise as coverage improves.
+fail_under = 70

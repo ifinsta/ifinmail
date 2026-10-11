@@ -21,6 +21,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.utils import timezone
 
@@ -237,6 +238,50 @@ class TelemetryService:
         except Exception as exc:
             logger.warning('Telemetry ack failed: %s', exc)
             return False
+
+    @staticmethod
+    def list_events(
+        *,
+        severity: str = '',
+        source: str = '',
+        query: str = '',
+        page: int = 1,
+        page_size: int = 25,
+    ) -> dict[str, Any]:
+        """Paginated error events with optional filters (DB first, memory fallback)."""
+        try:
+            qs = ErrorEvent.objects.select_related('fingerprint').order_by('-created_at')
+            if severity:
+                qs = qs.filter(severity=severity)
+            if source:
+                qs = qs.filter(source=source)
+            if query:
+                qs = qs.filter(message__icontains=query[:200])
+            paginator = Paginator(qs, page_size)
+            page_obj = paginator.get_page(max(page, 1))
+            return {
+                'results': [TelemetryService._to_dict(e) for e in page_obj.object_list],
+                'page': page_obj.number,
+                'num_pages': paginator.num_pages,
+                'total': paginator.count,
+            }
+        except Exception as exc:
+            logger.warning('Telemetry event listing failed, using memory buffer: %s', exc)
+            recent = TelemetryService.get_recent(page_size)
+            return {'results': recent, 'page': 1, 'num_pages': 1, 'total': len(recent)}
+
+    @staticmethod
+    def list_fingerprints(limit: int = 25) -> list[dict[str, Any]]:
+        """Top fingerprints by occurrence count (DB first, empty on failure)."""
+        try:
+            return list(
+                ErrorFingerprint.objects.order_by('-count').values(
+                    'hash', 'exc_type', 'view_name', 'count', 'status', 'severity_max'
+                )[:limit]
+            )
+        except Exception as exc:
+            logger.warning('Telemetry fingerprint listing failed: %s', exc)
+            return []
 
     # ------------------------------------------------------------------
     # Internals

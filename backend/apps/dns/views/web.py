@@ -15,6 +15,8 @@ from django.views.decorators.http import require_POST
 
 from backend.apps.accounts.types.permissions import PermissionCode
 from backend.apps.accounts.views.auth import require_perm
+from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.monitoring import MonitoringService
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
 from backend.apps.domains.services import DomainService
 from backend.apps.domains.services.provisioning import (
@@ -22,8 +24,6 @@ from backend.apps.domains.services.provisioning import (
     ProvisioningService,
 )
 from backend.apps.mail.services.postfix_runtime import OutboundConfigError, PostfixRuntime
-from backend.services.audit import AuditService
-from backend.services.monitoring import MonitoringService
 
 from ._helpers import _build_records, _get_server_ip
 

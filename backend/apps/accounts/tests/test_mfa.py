@@ -132,7 +132,7 @@ class MFALoginFlowTests(MailTablesTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'did not match')
         self.assertNotIn('_auth_user_id', self.client.session)
-        from backend.services.audit import AuditService
+        from backend.apps.core.platform.services.audit import AuditService
 
         self.assertTrue(AuditService.has('mfa_failed'))
 
@@ -272,7 +272,7 @@ class SessionInventoryTests(MailTablesTestCase):
 
 class PasswordResetAuditTests(MailTablesTestCase):
     def test_reset_request_and_completion_are_audited(self) -> None:
-        from backend.services.audit import AuditService
+        from backend.apps.core.platform.services.audit import AuditService
 
         MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
         self.client.post(reverse('accounts:password_reset'), {'email': 'admin@ifinmail.test'})

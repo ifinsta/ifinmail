@@ -9,10 +9,10 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
+from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import AliasService, MailboxInviteService, MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
-from backend.services.audit import AuditService
 
 from ..forms.mailboxes import (
     AliasCreateForm,

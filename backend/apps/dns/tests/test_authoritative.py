@@ -403,7 +403,7 @@ class DNSPagesTests(_Base):
             reverse('dns:record_add'),
             {'zone': self.z, 'name': 'a', 'rtype': 'A', 'value': '192.0.2.1'},
         )
-        from backend.services.audit import AuditService
+        from backend.apps.core.platform.services.audit import AuditService
 
         self.assertTrue(AuditService.has('dns_record_added'))
 

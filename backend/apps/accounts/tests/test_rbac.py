@@ -131,7 +131,7 @@ class RoleAssignmentViewTests(MailTablesTestCase):
         return mailbox.id
 
     def test_assign_and_audit(self) -> None:
-        from backend.services.audit import AuditService
+        from backend.apps.core.platform.services.audit import AuditService
 
         mailbox_id = self._mailbox_id('alice')
         response = self.client.post(

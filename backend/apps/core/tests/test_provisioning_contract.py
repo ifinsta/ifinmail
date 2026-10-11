@@ -253,6 +253,17 @@ class AuthoritativeServerContractTests(SimpleTestCase):
         self.assertIn(GENERATED_CONF.split('/')[-1], script)
         self.assertIn(ZONES_DIR.split('/')[-1], script)
 
+    def test_branding_uploads_are_mounted_and_served(self) -> None:
+        """The console writes logo/favicon uploads to MEDIA_ROOT (/app/media); nginx
+        must serve that volume or the branding images 404 in production."""
+        compose = self._compose()
+        self.assertIn('media_data:/app/media', compose['services']['api']['volumes'])
+        self.assertIn('media_data:/app/media:ro', compose['services']['nginx']['volumes'])
+        self.assertIn('media_data', compose['volumes'])
+        nginx = _read('nginx', 'conf.d', 'ifinmail.conf')
+        self.assertIn('location /media/', nginx)
+        self.assertIn('alias /app/media/', nginx)
+
 
 class Pop3ContractTests(SimpleTestCase):
     """Clients (and the autoconfig XML) offer POP3, so the stack has to serve it."""
@@ -279,7 +290,7 @@ class Pop3ContractTests(SimpleTestCase):
         self.assertIn('110,143', firewall)
 
     def test_the_console_can_close_them(self) -> None:
-        from backend.services.entrypoints import BY_KEY
+        from backend.apps.core.platform.services.entrypoints import BY_KEY
 
         for key, port in (('pop3', 110), ('pop3s', 995)):
             self.assertEqual(BY_KEY[key].ports[0][1], port)

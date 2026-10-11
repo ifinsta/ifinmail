@@ -12,6 +12,8 @@ from unittest.mock import patch
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from backend.apps.core.platform.services.certificates import CertificateService
+from backend.apps.core.platform.services.runtime import read_runtime_file
 from backend.apps.core.services import SystemSettings
 from backend.apps.core.tests.mail_base import MailTablesTestCase
 from backend.apps.core.types import SettingKey
@@ -25,8 +27,6 @@ from backend.apps.domains.services.provisioning import (
 from backend.apps.domains.services.verification import DomainVerificationService
 from backend.apps.domains.types.provisioning import CheckStatus
 from backend.apps.mail.models import Alias, Mailbox
-from backend.services.certificates import CertificateService
-from backend.services.runtime import read_runtime_file
 
 _LOOKUP = 'backend.apps.domains.services.verification._lookup'
 

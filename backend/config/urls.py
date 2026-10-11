@@ -78,7 +78,7 @@ def health_check(request: HttpRequest) -> JsonResponse:
 
 def health_full(request: HttpRequest) -> JsonResponse:
     """Full system health check — database, redis, TLS, disk + telemetry."""
-    from backend.services.monitoring import MonitoringService
+    from backend.apps.core.platform.services.monitoring import MonitoringService
 
     health = MonitoringService.get_full_health()
     try:
@@ -95,8 +95,8 @@ def health_dns(request: HttpRequest) -> JsonResponse:
     """DNS health check for configured domains."""
     import os
 
+    from backend.apps.core.platform.services.monitoring import MonitoringService
     from backend.apps.domains.services import DomainService
-    from backend.services.monitoring import MonitoringService
 
     domains_data = {}
     try:
@@ -121,7 +121,7 @@ def health_dns(request: HttpRequest) -> JsonResponse:
 def health_deliverability(request: HttpRequest) -> JsonResponse:
     """Deliverability check — DNS propagation, blacklists, rDNS, port 25, TLS."""
     domain = request.GET.get('domain', '')
-    from backend.services.deliverability import DeliverabilityService
+    from backend.apps.core.platform.services.deliverability import DeliverabilityService
 
     result = DeliverabilityService.run_all_checks(domain=domain or None)
     http_status = 200 if result.get('status') != 'fail' else 503

@@ -18,7 +18,7 @@ Useful targets (`Makefile`):
 | `make migrate` / `make run` / `make shell` | Django basics |
 | `venv\Scripts\python -m pytest -q` | Full suite (uses `venv`, not system python) |
 | `make test TEST_ARGS="-k accounts"` | Filtered suite |
-| `make coverage` | `--cov=backend` term + html |
+| `make coverage` | Coverage with a 70% gate (`fail_under` in `pyproject.toml`); term + html report |
 | `make lint` / `make format-check` | `ruff check` / `ruff format --check` |
 | `make lint-fix` / `make fmt` | Autofix |
 | `make check` | Django system checks |

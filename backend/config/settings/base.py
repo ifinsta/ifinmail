@@ -281,3 +281,23 @@ def check_email_config(app_configs, **kwargs) -> list[Error]:
             )
 
     return errors
+
+
+@register()
+def check_password_hashing_backend(app_configs, **kwargs) -> list[Error]:
+    """The Dovecot password hash needs passlib; fail fast instead of 500ing."""
+    try:
+        import passlib.hash  # noqa: F401
+    except ImportError:
+        return [
+            Error(
+                'The "passlib" package is not installed in this Python',
+                hint=(
+                    'Install project dependencies (pip install -r requirements/base.txt) '
+                    'or run the server from the project virtualenv; no mailbox '
+                    'password can be set or changed without it'
+                ),
+                id='ifinmail.E004',
+            )
+        ]
+    return []

@@ -98,8 +98,34 @@ def render_zone_file(zone: str, records: list[ZoneRecord], serial: int) -> str:
 
 class ZoneService:
     @staticmethod
+    def domain_ip(zone: str) -> str | None:
+        """Per-domain override stored on ``Domain.ip_address`` (subdomain IP), if any."""
+        try:
+            from backend.apps.domains.models import Domain as _Domain
+
+            row = _Domain.objects.filter(name=zone).values_list('ip_address', flat=True).first()
+            return str(row) if row else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def authoritative_children(zone: str) -> list[str]:
+        """Authoritative child zones of ``zone`` (e.g. a sub under its parent)."""
+        try:
+            names = list(
+                DNSZone.objects.filter(mode=ZoneMode.AUTHORITATIVE.value).values_list(
+                    'zone', flat=True
+                )
+            )
+        except Exception:
+            return []
+        suffix = f'.{zone}'
+        return sorted(n for n in names if n != zone and n.endswith(suffix))
+
+    @staticmethod
     def managed_records(zone: str, ip_address: str | None = None) -> list[ZoneRecord]:
         """The records ifinmail generates for ``zone``: mail, nameservers, CAA, discovery."""
+        ip_address = ip_address or ZoneService.domain_ip(zone)
         ipv4 = ip_address or DNSServerConfig.server_ipv4()
         ipv6 = DNSServerConfig.server_ipv6()
         mail_host = DNSServerConfig.mail_hostname() or f'mail.{zone}'
@@ -130,6 +156,22 @@ class ZoneService:
                     records.append(ZoneRecord(name=rel, type='AAAA', value=ipv6))
         if DNSServerConfig.caa_enabled():
             records.append(ZoneRecord(name='@', type='CAA', value='0 issue letsencrypt.org'))
+        # Best practice: when a child zone (subdomain) is also authoritative here,
+        # the parent carries an NS delegation (RFC 1034 zone cut) so resolvers find it.
+        # Glue is added only when the nameserver itself lives inside the child.
+        for child in ZoneService.authoritative_children(zone):
+            rel = child[: -len(zone) - 1]
+            for host in ns_hosts:
+                records.append(ZoneRecord(name=rel, type='NS', value=host))
+                if host == child or host.endswith(f'.{child}'):
+                    glue_name = _in_zone(host, zone)
+                    child_ip = ZoneService.domain_ip(child) or ipv4
+                    if glue_name and glue_name != '@':
+                        records.append(ZoneRecord(name=glue_name, type='A', value=child_ip))
+                        if ipv6:
+                            records.append(
+                                ZoneRecord(name=glue_name, type='AAAA', value=ipv6)
+                            )
         # RFC 6186: lets mail clients find the right ports from the domain alone.
         for name, port in (
             ('_submission._tcp', 587),
@@ -151,8 +193,10 @@ class ZoneService:
         return records
 
     @staticmethod
-    def records(zone: str) -> list[ZoneRecord]:
-        return ZoneService.managed_records(zone) + CustomRecordService.as_zone_records(zone)
+    def records(zone: str, ip_address: str | None = None) -> list[ZoneRecord]:
+        ip_address = ip_address or ZoneService.domain_ip(zone)
+        managed = ZoneService.managed_records(zone, ip_address=ip_address)
+        return managed + CustomRecordService.as_zone_records(zone)
 
     @staticmethod
     def get(zone: str) -> DNSZone | None:

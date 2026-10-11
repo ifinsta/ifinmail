@@ -139,18 +139,39 @@ class MailboxPagesTests(_Base):
     def test_create_change_and_remove_a_mailbox_from_the_console(self) -> None:
         response = self.client.post(
             reverse('accounts:mailboxes_create'),
-            {'local_part': 'Alice', 'domain': 'ifinmail.test', 'password': GOOD, 'quota_mb': '50'},
+            {'local_part': 'Alice', 'domain': 'ifinmail.test', 'quota_mb': '50'},
             follow=True,
         )
         self.assertContains(response, 'Created alice@ifinmail.test')
+        self.assertContains(response, 'setup link')
         self.assertEqual(Mailbox.objects.get().quota_bytes, 50 * 1024 * 1024)
         self.assertContains(response, '50 MB')
-        act = reverse('accounts:mailboxes_action')
         address = 'alice@ifinmail.test'
-        self.client.post(
-            act, {'action': 'password', 'address': address, 'password': 'New-Pass-1234'}
+        # Invite-pending: no usable password until the owner accepts the link.
+        pending = MailboxService.list_rows()[0]
+        self.assertTrue(pending.invite_pending)
+        self.assertIsNone(authenticate(username=address, password='New-Pass-1234'))
+        act = reverse('accounts:mailboxes_action')
+        response = self.client.post(
+            act, {'action': 'invite', 'address': address}, follow=True
+        )
+        self.assertContains(response, 'Setup link for alice@ifinmail.test')
+        # Owner accepts the setup link (single-use).
+        from backend.apps.mail.services import MailboxInviteService
+
+        uid, token = MailboxInviteService.make_token(address)
+        setup = reverse('accounts:mailbox_setup', kwargs={'uidb64': uid, 'token': token})
+        self.assertEqual(self.client.get(setup).status_code, 200)
+        response = self.client.post(
+            setup,
+            {'password': 'New-Pass-1234', 'password2': 'New-Pass-1234'},
+            follow=True,
         )
         self.assertTrue(authenticate(username=address, password='New-Pass-1234'))
+        self.assertIsNone(
+            MailboxInviteService.check_token(uid, token)
+        )  # single-use: consumed
+        self.assertFalse(MailboxService.list_rows()[0].invite_pending)
         self.client.post(act, {'action': 'quota', 'address': address, 'quota_mb': '0'})
         self.assertEqual(Mailbox.objects.get().quota_bytes, 0)
         self.client.post(act, {'action': 'disable', 'address': address})
@@ -164,11 +185,29 @@ class MailboxPagesTests(_Base):
     def test_errors_are_shown_and_nothing_is_created(self) -> None:
         response = self.client.post(
             reverse('accounts:mailboxes_create'),
-            {'local_part': 'bob', 'domain': 'ifinmail.test', 'password': 'short'},
+            {'local_part': 'bad..name', 'domain': 'ifinmail.test'},
             follow=True,
         )
-        self.assertContains(response, 'at least 8 characters')
+        self.assertContains(response, 'two dots')
         self.assertFalse(Mailbox.objects.exists())
+
+    def test_a_name_with_an_at_sign_is_rejected(self) -> None:
+        response = self.client.post(
+            reverse('accounts:mailboxes_create'),
+            {'local_part': 'hhh@jihu', 'domain': 'ifinmail.test'},
+            follow=True,
+        )
+        self.assertContains(response, 'letters, numbers')
+        self.assertFalse(Mailbox.objects.exists())
+
+    def test_a_name_is_trimmed_and_lowercased(self) -> None:
+        response = self.client.post(
+            reverse('accounts:mailboxes_create'),
+            {'local_part': '  Alice  ', 'domain': 'IFINMAIL.TEST'},
+            follow=True,
+        )
+        self.assertContains(response, 'Created alice@ifinmail.test')
+        self.assertTrue(Mailbox.objects.filter(local_part='alice').exists())
 
     def test_you_cannot_delete_or_disable_yourself(self) -> None:
         Mailbox.objects.create(domain=Domain.objects.get(), local_part='root')
@@ -180,14 +219,28 @@ class MailboxPagesTests(_Base):
             self.assertContains(response, 'your own account')
         self.assertTrue(MailUser.objects.filter(email=self.admin.email, is_active=True).exists())
 
-    def test_changing_your_own_password_keeps_you_signed_in(self) -> None:
+    def test_setting_your_own_password_via_setup_link_keeps_you_signed_in(self) -> None:
         Mailbox.objects.create(domain=Domain.objects.get(), local_part='root')
+        from backend.apps.mail.services import MailboxInviteService
+
+        uid, token = MailboxInviteService.make_token(self.admin.email)
+        setup = reverse('accounts:mailbox_setup', kwargs={'uidb64': uid, 'token': token})
         self.client.post(
-            reverse('accounts:mailboxes_action'),
-            {'action': 'password', 'address': self.admin.email, 'password': 'Brand-New-Pass-5'},
+            setup,
+            {'password': 'Brand-New-Pass-5', 'password2': 'Brand-New-Pass-5'},
+            follow=True,
         )
         self.assertEqual(self.client.get(reverse('accounts:mailboxes')).status_code, 200)
         self.assertTrue(authenticate(username=self.admin.email, password='Brand-New-Pass-5'))
+
+    def test_an_invalid_setup_link_is_rejected(self) -> None:
+        MailboxService.create('ifinmail.test', 'alice', None)
+        bad = reverse(
+            'accounts:mailbox_setup', kwargs={'uidb64': 'bad', 'token': 'bad-token'}
+        )
+        response = self.client.get(bad)
+        self.assertContains(response, 'Invalid setup link')
+        self.assertIsNone(authenticate(username='alice@ifinmail.test', password='x'))
 
     def test_mailbox_page_lists_domains_and_rows(self) -> None:
         MailboxService.create('ifinmail.test', 'alice', GOOD)

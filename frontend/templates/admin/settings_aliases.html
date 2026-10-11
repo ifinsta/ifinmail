@@ -1,5 +1,5 @@
 {% extends "admin/settings_base.html" %}
-{% load i18n %}
+{% load i18n %}{% load static %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Aliases — {{ name }}{% endblocktrans %}{% endblock %}
 
@@ -23,7 +23,7 @@
                 <div class="ifinmail-field-grid">
                     <div class="ifinmail-field">
                         <label for="al-local">{% trans 'Alias name' %}</label>
-                        <input class="ifinmail-input" id="al-local" name="local_part" required maxlength="64" autocomplete="off" placeholder="{% trans 'sales' %}">
+                        <input class="ifinmail-input" id="al-local" name="local_part" required maxlength="64" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="{% trans 'sales' %}" pattern="[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?" title="{% trans 'Letters, numbers, dots, hyphens, underscores or plus signs; start and end with a letter or number. No @.' %}">
                     </div>
                     <div class="ifinmail-field">
                         <label for="al-domain">{% trans 'Domain' %}</label>
@@ -66,4 +66,8 @@
         </article>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ifinmail-mailboxes.js' %}"></script>
 {% endblock %}

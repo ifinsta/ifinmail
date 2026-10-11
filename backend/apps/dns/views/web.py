@@ -149,12 +149,45 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
 
 _VALID_DOMAIN_RE = re.compile(r'^(?!-)[a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63})*\.[a-zA-Z]{2,}$')
 _VALID_LABEL_RE = re.compile(r'^(?!-)[a-zA-Z0-9-]{1,63}$')
-_VALID_IP_RE = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
+
+
+def _normalise_ip(raw: str | None) -> str | None:
+    """Validate an optional IP (v4/v6); returns normalised text or raises ValueError."""
+    if not raw:
+        return None
+    import ipaddress as _ip
+
+    try:
+        return str(_ip.ip_address(raw.strip()))
+    except ValueError:
+        raise ValueError('Enter a valid IPv4 or IPv6 address.') from None
+
+
+def _managed_parent(domain_name: str, explicit_parent: str | None) -> str | None:
+    """Longest managed parent of ``domain_name`` (explicit parent first, then DB)."""
+    suffix = '.' + explicit_parent if explicit_parent else ''
+    is_child = bool(explicit_parent and domain_name.endswith(suffix))
+    if is_child and domain_name != explicit_parent:
+        return explicit_parent
+    try:
+        from backend.apps.domains.models import Domain as _Domain
+
+        names = list(_Domain.objects.values_list('name', flat=True))
+    except Exception:
+        return None
+    best: str | None = None
+    for cand in names:
+        cand = (cand or '').strip().lower()
+        if not cand or domain_name == cand:
+            continue
+        if domain_name.endswith(f'.{cand}') and (best is None or len(cand) > len(best)):
+            best = cand
+    return best
 
 
 def _is_subdomain(domain_name: str, parent_domain: str | None) -> bool:
     """Return True if the resolved domain is a subdomain (not a bare parent)."""
-    return bool(parent_domain and domain_name != parent_domain)
+    return _managed_parent(domain_name, parent_domain) is not None
 
 
 @login_required
@@ -192,17 +225,24 @@ def dns_register_domain(request: HttpRequest) -> JsonResponse:
             content_type='application/json; charset=utf-8',
         )
 
-    # IP address is required for subdomains.
+    # IP address: required for subdomains of a managed parent, optional override otherwise.
+    # A bare FQDN like ``sub.example.com`` typed without the parent dropdown must not
+    # silently drop its IP — detect the parent from the domain table too.
     is_sub = _is_subdomain(domain_name, parent_domain)
-    if is_sub:
-        if not ip_address or not _VALID_IP_RE.match(ip_address):
-            return JsonResponse(
-                {'status': 'err', 'error': 'A valid IP address is required for subdomains'},
-                status=400,
-                content_type='application/json; charset=utf-8',
-            )
-    else:
-        ip_address = None  # root domains use auto-detected server IP
+    try:
+        ip_address = _normalise_ip(ip_address)
+    except ValueError as exc:
+        return JsonResponse(
+            {'status': 'err', 'error': str(exc)},
+            status=400,
+            content_type='application/json; charset=utf-8',
+        )
+    if is_sub and not ip_address:
+        return JsonResponse(
+            {'status': 'err', 'error': 'A valid IP address is required for subdomains'},
+            status=400,
+            content_type='application/json; charset=utf-8',
+        )
 
     try:
         outcome = ProvisioningService.add_domain(

@@ -59,6 +59,6 @@ class MailService:
             return False
 
 
-from .mailboxes import AliasService, MailboxService  # noqa: E402
+from .mailboxes import AliasService, MailboxInviteService, MailboxService  # noqa: E402
 
-__all__ = ['AliasService', 'MailService', 'MailboxService']
+__all__ = ['AliasService', 'MailService', 'MailboxInviteService', 'MailboxService']

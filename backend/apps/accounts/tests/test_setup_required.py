@@ -68,3 +68,36 @@ class SetupRequiredTests(MailTablesTestCase):
         session['mfa_verified_at'] = timezone.now().isoformat()
         session.save()
         self.assertEqual(self.client.get(reverse('accounts:dashboard')).status_code, 200)
+
+
+class FormEndpointGetTests(MailTablesTestCase):
+    """Reloading a URL a form posted to lands on the form's page, not a bare 405."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        SetupState.mark_complete()
+        admin = MailUser.objects.create_superuser('admin@ifinmail.test', GOOD)
+        self.client.force_login(admin)
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
+
+    def test_browser_get_on_a_form_endpoint_goes_to_its_page(self) -> None:
+        response = self.client.get(
+            '/accounts/settings/mailboxes/registration/', HTTP_ACCEPT='text/html'
+        )
+        self.assertRedirects(
+            response, '/accounts/settings/mailboxes/', fetch_redirect_response=False
+        )
+
+    def test_non_browser_clients_keep_the_405(self) -> None:
+        response = self.client.get(
+            '/accounts/settings/mailboxes/registration/', HTTP_ACCEPT='application/json'
+        )
+        self.assertEqual(response.status_code, 405)
+
+    def test_the_form_still_works(self) -> None:
+        response = self.client.post('/accounts/settings/mailboxes/registration/', {'open': 'on'})
+        self.assertRedirects(
+            response, '/accounts/settings/mailboxes/', fetch_redirect_response=False
+        )

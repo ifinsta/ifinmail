@@ -140,6 +140,34 @@ class MFAEnforcementMiddleware(MiddlewareMixin):
         return redirect('accounts:mfa_setup')
 
 
+class FormEndpointGetMiddleware(MiddlewareMixin):
+    """A browser GET on a form-only (POST) URL goes to the page the form lives on.
+
+    Reloading or going back to a URL a form posted to (or reaching it through a login
+    ``?next=``) used to show a bare "HTTP ERROR 405". The nearest parent path that exists is
+    the page the form lives on (``.../mailboxes/registration/`` → ``.../mailboxes/``).
+    API clients and non-HTML requests keep the 405.
+    """
+
+    def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
+        if response.status_code != 405 or request.method not in ('GET', 'HEAD'):
+            return response
+        if request.path.startswith('/api/') or 'text/html' not in request.headers.get('Accept', ''):
+            return response
+        from django.urls import Resolver404, resolve, reverse
+
+        parts = [p for p in request.path.split('/') if p]
+        while len(parts) > 1:
+            parts.pop()
+            candidate = '/' + '/'.join(parts) + '/'
+            try:
+                resolve(candidate)
+            except Resolver404:
+                continue
+            return redirect(candidate)
+        return redirect(reverse('accounts:dashboard'))
+
+
 class SessionIdleTimeoutMiddleware(MiddlewareMixin):
     """End authenticated sessions idle longer than the configured timeout."""
 

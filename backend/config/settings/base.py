@@ -73,6 +73,7 @@ MIDDLEWARE = [
     'backend.apps.accounts.middleware.SetupRequiredMiddleware',
     'backend.apps.accounts.middleware.MFAEnforcementMiddleware',
     'backend.apps.accounts.middleware.SessionIdleTimeoutMiddleware',
+    'backend.apps.accounts.middleware.FormEndpointGetMiddleware',
     'csp.middleware.CSPMiddleware',
     'axes.middleware.AxesMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

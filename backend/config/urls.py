@@ -21,6 +21,7 @@ def csp_report(request: HttpRequest) -> JsonResponse:
 
     Endpoint accepts JSON CSP reports from browsers.  Violations are
     logged so the policy can be tightened without breaking real users.
+    Persisted to telemetry so CSP breakage is visible in the logs UI.
     """
     import json as _json
     import logging
@@ -35,9 +36,24 @@ def csp_report(request: HttpRequest) -> JsonResponse:
             csp_report.get('blocked-uri', 'unknown'),
             csp_report.get('document-uri', 'unknown'),
         )
+        try:
+            from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+            from backend.apps.core.telemetry.types import ErrorSeverity, ErrorSource
+
+            TelemetryService.capture(
+                f'CSP violation: {csp_report.get("violated-directive", "unknown")}',
+                severity=ErrorSeverity.WARNING,
+                source=ErrorSource.CSP,
+                request=request,
+                extra={'csp-report': csp_report},
+            )
+        except Exception:
+            pass
     except (_json.JSONDecodeError, Exception):
         csp_logger.warning('CSP report parse failure')
-    return JsonResponse({'status': 'ok'}, status=200, content_type='application/json; charset=utf-8')
+    return JsonResponse(
+        {'status': 'ok'}, status=200, content_type='application/json; charset=utf-8'
+    )
 
 
 def health_check(request: HttpRequest) -> JsonResponse:
@@ -58,10 +74,16 @@ def health_check(request: HttpRequest) -> JsonResponse:
 
 
 def health_full(request: HttpRequest) -> JsonResponse:
-    """Full system health check — database, redis, TLS, disk."""
+    """Full system health check — database, redis, TLS, disk + telemetry."""
     from backend.services.monitoring import MonitoringService
 
     health = MonitoringService.get_full_health()
+    try:
+        from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+
+        health['telemetry'] = TelemetryService.get_stats()
+    except Exception:
+        health['telemetry'] = {'open_critical_24h': 0, 'total_24h': 0, 'top': []}
     http_status = 200 if health['status'] == 'ok' else (503 if health['status'] == 'err' else 200)
     return JsonResponse(health, status=http_status, content_type='application/json; charset=utf-8')
 
@@ -136,6 +158,7 @@ urlpatterns = [
     path('health/dns/', health_dns, name='health-dns'),
     path('health/deliverability/', health_deliverability, name='health-deliverability'),
     path('accounts/', include('backend.apps.accounts.urls')),
+    path('telemetry/', include('backend.apps.core.telemetry.urls')),
     path('admin/', legacy_accounts_redirect),
     path('admin/<path:path>', legacy_accounts_redirect),
     path('manage-panel/', admin.site.urls),
@@ -197,6 +220,22 @@ def _make_error_handler(status_code: int):
                 logger.log(getattr(logging, log_level.upper(), logging.WARNING), log_msg, path)
         except Exception:
             # Never let logging failures cascade
+            pass
+        # Persist to telemetry so every error page is traceable (best-effort).
+        try:
+            from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+            from backend.apps.core.telemetry.types import ErrorSeverity, ErrorSource
+
+            if exception is not None:
+                TelemetryService.capture(exception, source=ErrorSource.HTTP, request=request)
+            elif status_code >= 500:
+                TelemetryService.capture(
+                    log_msg % path,
+                    severity=ErrorSeverity.ERROR,
+                    source=ErrorSource.HTTP,
+                    request=request,
+                )
+        except Exception:
             pass
 
         if _wants_html(request):

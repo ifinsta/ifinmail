@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Two-factor setup — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Two-factor setup — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block body_layout %}
 <main class="ifinmail-login">

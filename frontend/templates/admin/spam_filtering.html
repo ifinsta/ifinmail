@@ -1,7 +1,7 @@
 {% extends "admin/settings_base.html" %}
 {% load i18n %}{% load static %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Spam Filtering — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Spam Filtering — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block settings_content %}
 <section class="ifinmail-admin-content">

@@ -42,8 +42,10 @@ def error_digest() -> dict[str, Any]:
         try:
             from django.core.mail import send_mail
 
+            from backend.config.branding import brand_name
+
             send_mail(
-                f'[ifinmail] {stats["open_critical_24h"]} errors in last 24h',
+                f'[{brand_name()}] {stats["open_critical_24h"]} errors in last 24h',
                 f'Total events: {stats["total_24h"]}\nTop: {stats["top"]}',
                 None,
                 [admin],

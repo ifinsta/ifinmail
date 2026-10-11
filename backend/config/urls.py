@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.accounts.api import api as api_v1
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
+from backend.config.branding import DEFAULT_BRAND_NAME
 from backend.config.env import primary_domain
 
 logger = logging.getLogger('backend')
@@ -159,7 +160,7 @@ def manifest(request: HttpRequest) -> JsonResponse:
     from django.templatetags.static import static as static_url
 
     brand = getattr(settings, 'BRAND_CONFIG', None)
-    name = (getattr(brand, 'name', '') or 'ifinmail').strip()
+    name = (getattr(brand, 'name', '') or DEFAULT_BRAND_NAME).strip()
     favicon = (getattr(brand, 'favicon_url', '') or '').strip()
     theme_color = getattr(brand, 'secondary_color', '') or '#0f2b5b'
     if favicon:

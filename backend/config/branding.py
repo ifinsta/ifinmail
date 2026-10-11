@@ -14,6 +14,9 @@ from dataclasses import dataclass
 DEFAULT_PRIMARY = '#1a56db'
 DEFAULT_SECONDARY = '#0f2b5b'
 DEFAULT_ACCENT = '#059669'
+# The product name shown wherever no brand name (and no logo) is configured. Templates only ever
+# read ``brand.name``, which falls back to this; nothing else spells the default out.
+DEFAULT_BRAND_NAME = 'ifinmail'
 
 
 def branding_overrides_path(
@@ -88,7 +91,7 @@ def _existing_upload(url: str, base_dir: str | os.PathLike[str] | None) -> str:
 
 @dataclass(frozen=True)
 class BrandingConfig:
-    name: str = 'ifinmail'
+    name: str = DEFAULT_BRAND_NAME
     tagline: str = 'mail infrastructure'
     color: str = DEFAULT_PRIMARY  # primary accent (hex, no spaces)
     logo_url: str = ''  # if empty, use inline SVG default
@@ -120,7 +123,7 @@ class BrandingConfig:
         body_font = _brand('body_font', 'BRAND_BODY_FONT', 'Inter')
 
         return cls(
-            name=_brand('name', 'BRAND_NAME', 'ifinmail'),
+            name=_brand('name', 'BRAND_NAME', DEFAULT_BRAND_NAME),
             tagline=_brand('tagline', 'BRAND_TAGLINE', 'mail infrastructure'),
             color=cls._sanitize_hex_color(raw_color),
             logo_url=_existing_upload(_brand('logo_url', 'BRAND_LOGO_URL', ''), base_dir),
@@ -133,7 +136,7 @@ class BrandingConfig:
 
     @property
     def is_custom(self) -> bool:
-        return self.name != 'ifinmail'
+        return self.name != DEFAULT_BRAND_NAME
 
     @property
     def css_overrides(self) -> str:
@@ -233,6 +236,14 @@ class BrandingConfig:
             h = ''.join(c * 2 for c in h)
         r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
         return f'rgba({r},{g},{b},{alpha})'
+
+
+def brand_name() -> str:
+    """The configured product name (``DEFAULT_BRAND_NAME`` when none is set), for Python code."""
+    from django.conf import settings
+
+    brand = getattr(settings, 'BRAND_CONFIG', None)
+    return (getattr(brand, 'name', '') or DEFAULT_BRAND_NAME).strip()
 
 
 def brand_context(request: object) -> dict[str, object]:

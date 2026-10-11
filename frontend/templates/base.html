@@ -9,11 +9,11 @@
     <meta name="theme-color" content="{{ brand.secondary_color|default:'#0f2b5b' }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="{{ brand.name|default:'ifinmail' }}">
+    <meta name="apple-mobile-web-app-title" content="{{ brand.name }}">
     <link rel="manifest" href="{% url 'manifest' %}">
     <link rel="icon" href="{{ brand.favicon_url|default:default_icon_url }}">
     <link rel="apple-touch-icon" href="{{ brand.favicon_url|default:default_icon_url }}">
-    <title>{% block title %}{{ brand.name|default:'ifinmail' }}{% endblock %}</title>
+    <title>{% block title %}{{ brand.name }}{% endblock %}</title>
     <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>
     <script src="{% static 'js/ifinmail-layout-init.js' %}"></script>
     {% if brand.css_overrides %}{{ brand.css_overrides|safe }}{% endif %}
@@ -51,7 +51,7 @@
 
             {% block footer %}
             <footer class="ifinmail-footer">
-                <p>{{ brand.name|default:'ifinmail' }} &mdash; {{ brand.tagline|default:'mail infrastructure' }}</p>
+                <p>{{ brand.name }} &mdash; {{ brand.tagline|default:'mail infrastructure' }}</p>
             </footer>
             {% endblock %}
         </div>

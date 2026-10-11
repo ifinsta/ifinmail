@@ -11,6 +11,8 @@ from __future__ import annotations
 import ipaddress
 import re
 
+from backend.config.branding import brand_name
+
 from ..models import CustomDNSRecord
 from ..types.zones import CUSTOM_TYPES, RecordType, ZoneRecord
 
@@ -103,7 +105,7 @@ def _managed_conflict(name: str, rtype: str, value: str, managed: list[ZoneRecor
             for tag in ('v=spf1', 'v=dmarc1', 'v=dkim1', 'v=stsv1'):
                 if lowered.startswith(tag) and record.value.lower().startswith(tag):
                     raise RecordError(
-                        'ifinmail already manages that record; a second one would break mail.'
+                        f'{brand_name()} already manages that record; a second one would break mail.'
                     )
         if (record.type, record.value) == (rtype, value):
             raise RecordError('That record already exists.')

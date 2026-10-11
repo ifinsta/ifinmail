@@ -61,11 +61,17 @@ def generate_secret() -> str:
     return base64.b32encode(secrets.token_bytes(_SECRET_BYTES)).decode()
 
 
-def provisioning_uri(secret: str, account: str, issuer: str = 'ifinmail') -> str:
+def provisioning_uri(secret: str, account: str, issuer: str = '') -> str:
+    """The authenticator app shows ``issuer`` (the brand name by default) next to the account."""
+    from urllib.parse import quote
+
+    from backend.config.branding import brand_name
+
     account = account.strip()
+    label = quote(issuer or brand_name(), safe='')
     return (
-        f'otpauth://totp/{issuer}:{account}'
-        f'?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30'
+        f'otpauth://totp/{label}:{quote(account, safe="@")}'
+        f'?secret={secret}&issuer={label}&algorithm=SHA1&digits=6&period=30'
     )
 
 

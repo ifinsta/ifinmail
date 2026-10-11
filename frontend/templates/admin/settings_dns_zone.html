@@ -1,7 +1,7 @@
 {% extends "admin/settings_base.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans trimmed with zone=zone name=brand.name|default:'ifinmail' %}{{ zone }} DNS — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with zone=zone name=brand.name %}{{ zone }} DNS — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block settings_content %}
 <section class="ifinmail-admin-content">

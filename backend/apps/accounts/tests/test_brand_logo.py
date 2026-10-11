@@ -10,7 +10,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core import mail
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -145,7 +145,9 @@ class StandaloneCardBrandTests(TestCase):
         templates = Path(settings.BASE_DIR) / 'frontend' / 'templates'
         source = (templates / 'includes' / 'card_brand.html').read_text(encoding='utf-8')
         self.assertIn('brand.logo_url', source)
-        self.assertIn("brand.name|default:'ifinmail'", source)
+        # One source for the default name: BrandingConfig (DEFAULT_BRAND_NAME), not each template.
+        self.assertIn('{{ brand.name }}', source)
+        self.assertNotIn("default:'ifinmail'", source)
         self.assertIn('ifinmail-login-card__brand--name', source)
 
 
@@ -177,3 +179,21 @@ class SystemEmailLogoTests(MailTablesTestCase):
         body = mail.outbox[0].alternatives[0][0]
         self.assertNotIn('<img', body)
         self.assertIn('Acme Mail', body)
+
+
+class DefaultBrandNameTests(SimpleTestCase):
+    def test_no_template_spells_out_its_own_default_name(self) -> None:
+        templates = Path(settings.BASE_DIR) / 'frontend' / 'templates'
+        offenders = [
+            str(path.relative_to(templates))
+            for path in templates.rglob('*.html')
+            if "default:'ifinmail'" in path.read_text(encoding='utf-8')
+        ]
+        self.assertEqual(offenders, [])
+
+    def test_without_configuration_the_brand_is_the_default_name(self) -> None:
+        from backend.config.branding import DEFAULT_BRAND_NAME, BrandingConfig
+
+        brand = BrandingConfig()
+        self.assertEqual(brand.name, DEFAULT_BRAND_NAME)
+        self.assertFalse(brand.is_custom)

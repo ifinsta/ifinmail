@@ -4,7 +4,7 @@
         <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
 
-    <a class="ifinmail-wordmark ifinmail-wordmark--header" href="{% url 'accounts:dashboard' %}">{{ brand.name|default:'ifinmail' }}</a>
+    <a class="ifinmail-wordmark ifinmail-wordmark--header" href="{% url 'accounts:dashboard' %}">{{ brand.name }}</a>
 
     {% if not hide_search %}
     <form class="ifinmail-global-search" role="search" action="{% url 'accounts:logs' %}" method="get">

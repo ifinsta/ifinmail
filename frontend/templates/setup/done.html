@@ -1,7 +1,7 @@
 {% extends "setup/base.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Setup Complete — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Setup Complete — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block content %}
 <div class="ifinmail-setup-wizard">

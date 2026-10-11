@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Terms of Service — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Terms of Service — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block sidebar_wrapper %}{% endblock %}
 {% block header %}{% endblock %}
@@ -14,7 +14,7 @@
     <div class="ifinmail-landing-nav__inner">
       <div class="ifinmail-landing-nav__brand">
         {% include "includes/brand_mark.html" with mark_class="ifinmail-landing-nav__logo" %}
-        <span class="ifinmail-landing-nav__name">{{ brand.name|default:'ifinmail' }}</span>
+        <span class="ifinmail-landing-nav__name">{{ brand.name }}</span>
       </div>
       <div class="ifinmail-landing-nav__links">
         <a href="/" class="ifinmail-landing-nav__link">{% trans 'Home' %}</a>
@@ -31,7 +31,7 @@
       <div class="ifinmail-legal__content">
 
         <h2>{% trans '1. Acceptance of Terms' %}</h2>
-        <p>{% trans 'By accessing or using the ifinmail platform ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to all the terms, you may not access or use the Service.' %}</p>
+        <p>{% blocktrans trimmed with name=brand.name %}By accessing or using the {{ name }} platform ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to all the terms, you may not access or use the Service.{% endblocktrans %}</p>
 
         <h2>{% trans '2. Description of Service' %}</h2>
         <p>{% trans 'ifinmail provides email infrastructure management tools, including server configuration, DNS management, spam filtering, deliverability monitoring, and related services. The Service is provided on an "as is" and "as available" basis.' %}</p>
@@ -52,7 +52,7 @@
         <p>{% trans 'Your use of the Service is also governed by our Privacy Policy, which explains how we collect, use, and protect your personal information. By using the Service, you consent to the practices described in the Privacy Policy.' %}</p>
 
         <h2>{% trans '6. Intellectual Property' %}</h2>
-        <p>{% trans 'The Service, including its code, design, and branding, is owned by ifinmail and is protected by applicable intellectual property laws. You may not copy, modify, distribute, or reverse engineer any part of the Service without prior written consent.' %}</p>
+        <p>{% blocktrans trimmed with name=brand.name %}The Service, including its code, design, and branding, is owned by {{ name }} and is protected by applicable intellectual property laws. You may not copy, modify, distribute, or reverse engineer any part of the Service without prior written consent.{% endblocktrans %}</p>
 
         <h2>{% trans '7. Limitation of Liability' %}</h2>
         <p>{% trans 'ifinmail shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising out of or relating to your use of the Service, even if advised of the possibility of such damages.' %}</p>
@@ -74,7 +74,7 @@
     <div class="ifinmail-landing-footer__inner">
       <div class="ifinmail-landing-footer__brand">
         {% include "includes/brand_mark.html" with mark_class="ifinmail-landing-footer__logo" size=28 %}
-        <span class="ifinmail-landing-footer__name">{{ brand.name|default:'ifinmail' }}</span>
+        <span class="ifinmail-landing-footer__name">{{ brand.name }}</span>
         <span class="ifinmail-landing-footer__tagline">{{ brand.tagline|default:'mail infrastructure' }}</span>
       </div>
       <div class="ifinmail-landing-footer__links">

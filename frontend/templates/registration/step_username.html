@@ -2,7 +2,7 @@
 {% load i18n %}
 {% load static %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Choose Your Email — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Choose Your Email — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block body_layout %}
 <main class="ifinmail-reg">

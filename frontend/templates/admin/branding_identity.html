@@ -1,7 +1,7 @@
 {% extends "admin/settings_base.html" %}
 {% load i18n %}{% load static %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Branding & Identity — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Branding & Identity — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block settings_content %}
 <section class="ifinmail-admin-content">
@@ -23,7 +23,7 @@
                             {% if current_logo_url %}
                             <img class="ifinmail-logo-preview" src="{{ current_logo_url }}" alt="{% trans 'Current logo' %}">
                             {% else %}
-                            <strong class="ifinmail-wordmark ifinmail-wordmark--static">{{ brand.name|default:'ifinmail' }}</strong>
+                            <strong class="ifinmail-wordmark ifinmail-wordmark--static">{{ brand.name }}</strong>
                             {% endif %}
                             <span>{% trans 'Click to upload a logo' %}</span>
                             <span class="ifinmail-text--muted">{% trans 'SVG, PNG, JPG (max 400x120px)' %}</span>

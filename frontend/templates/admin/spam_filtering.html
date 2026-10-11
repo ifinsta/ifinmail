@@ -43,7 +43,7 @@
                 <h2 class="ifinmail-panel-title">{% trans 'Engines' %}</h2>
                 <div class="ifinmail-engine-list">
                     {% for engine in filter_engines %}
-                    <div class="ifinmail-engine-row{% if not engine.enabled %} ifinmail-engine-row--disabled{% endif %}"><span><strong>{{ engine.name|default:'' }}</strong><br><small>{{ engine.detail|default:'' }}</small></span>{% if engine.enabled %}<span class="ifinmail-switch ifinmail-switch--on"></span>{% else %}<span>▣</span>{% endif %}</div>
+                    <div class="ifinmail-engine-row{% if not engine.enabled %} ifinmail-engine-row--disabled{% endif %}"><span><strong>{{ engine.name|default:'' }}</strong><br><small>{{ engine.detail|default:'' }}</small></span>{% if engine.enabled %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Active' %}</span>{% else %}<span class="ifinmail-badge">{% trans 'Off' %}</span>{% endif %}</div>
                     {% empty %}
                     <p class="ifinmail-text--muted">{% trans 'No filter engines configured.' %}</p>
                     {% endfor %}

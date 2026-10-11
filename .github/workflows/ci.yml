@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DJANGO_SETTINGS_MODULE: backend.config.settings.testing
+  DJANGO_SECRET_KEY: ci-only-insecure-key
+  DB_NAME: ci_ifinmail
+  DB_USER: ci_ifinmail
+  DB_PASSWORD: ci_ifinmail
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/testing.txt
+          pip install pip-audit
+
+      - name: Django system checks (deploy mode)
+        run: python manage.py check --deploy
+
+      - name: Test suite
+        run: python -m pytest -q
+
+      - name: Dependency vulnerability audit
+        # Fails the build on any known CVE in the locked production set.
+        run: python -m pip_audit -r requirements/prod.lock
+
+      - name: Lint (advisory until the pre-existing baseline is zero)
+        continue-on-error: true
+        run: |
+          ruff check backend/ || echo "ruff baseline: see docs/enterprise-slo.md"
+          ruff format --check backend/ || true
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: Lint shell scripts
+        run: |
+          shellcheck -S warning provisioning/scripts/*.sh provisioning/docker/*/entrypoint.sh provisioning/docker/*/*.sh

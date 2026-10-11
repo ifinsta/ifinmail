@@ -1,4 +1,4 @@
-Django>=5.1,<5.2
+Django>=5.2,<5.3
 requests>=2.32,<3.0
 django-ninja>=1.2,<2.0
 django-cors-headers>=4.6,<5.0
@@ -8,6 +8,7 @@ psycopg[binary]>=3.2,<4.0
 celery[redis]>=5.4,<6.0
 redis>=5.2,<6.0
 sentry-sdk[django]>=2.0,<3.0
-cryptography>=43,<46
+cryptography>=50,<51
 passlib>=1.7.4,<2
 dnspython>=2.6,<3
+qrcode>=7.4,<9

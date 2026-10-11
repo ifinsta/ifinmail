@@ -37,7 +37,7 @@ if [ ! -f "$COMPOSE_FILE" ]; then
 fi
 
 # 1. PostgreSQL dump
-echo "[1/6] Backing up PostgreSQL..."
+echo "[1/7] Backing up PostgreSQL..."
 mkdir -p "$BACKUP_ROOT/postgresql"
 if ! docker compose -f "$COMPOSE_FILE" exec -T postgres \
     pg_dump -U ifinmail -Fc ifinmail > "$BACKUP_ROOT/postgresql/ifinmail.dump" 2>/dev/null; then
@@ -51,7 +51,7 @@ docker compose -f "$COMPOSE_FILE" exec -T postgres \
     pg_dump -U ifinmail --schema-only ifinmail > "$BACKUP_ROOT/postgresql/ifinmail_schema.sql" 2>/dev/null || true
 
 # 2. Mail storage (Maildir)
-echo "[2/6] Backing up mail storage..."
+echo "[2/7] Backing up mail storage..."
 mkdir -p "$BACKUP_ROOT/mail"
 # Use the mail_data volume directly
 if docker volume ls --format '{{.Name}}' | grep -q 'ifinmail_mail_data'; then
@@ -64,7 +64,7 @@ if docker volume ls --format '{{.Name}}' | grep -q 'ifinmail_mail_data'; then
 fi
 
 # 3. Configuration files
-echo "[3/6] Backing up configuration..."
+echo "[3/7] Backing up configuration..."
 mkdir -p "$BACKUP_ROOT/configs"
 cp -r "${PROJECT_ROOT}/provisioning/docker/postfix" "$BACKUP_ROOT/configs/" 2>/dev/null || true
 cp -r "${PROJECT_ROOT}/provisioning/docker/dovecot" "$BACKUP_ROOT/configs/" 2>/dev/null || true
@@ -74,7 +74,7 @@ if [ -f "${PROJECT_ROOT}/provisioning/.env" ]; then
 fi
 
 # 4. DKIM keys (separate — these are irreplaceable)
-echo "[4/6] Backing up DKIM keys..."
+echo "[4/7] Backing up DKIM keys..."
 mkdir -p "$BACKUP_ROOT/dkim"
 DKIM_DIR="${PROJECT_ROOT}/provisioning/docker/dkim"
 if [ -d "$DKIM_DIR" ] && [ -n "$(ls -A "$DKIM_DIR"/*.key 2>/dev/null)" ]; then
@@ -108,8 +108,31 @@ for volume in ifinmail_dav_data docker_dav_data "${COMPOSE_PROJECT_NAME:-docker}
     fi
 done
 
-# 5. Manifest with SHA256 checksums
-echo "[5/6] Backing up TLS certificates..."
+# Console-published runtime state (zones, Knot config, postfix/firewall rules),
+# queued mail and spam-filter training data — without these a rebuild drops
+# DNS answers, queued mail and Bayes training.
+echo "[5/7] Backing up runtime state, mail queue and filter data..."
+mkdir -p "$BACKUP_ROOT/runtime" "$BACKUP_ROOT/spool" "$BACKUP_ROOT/rspamd-data"
+copy_volume() { # $1 = destination dir, $2... = candidate volume names
+    local dest="$1"
+    shift
+    local volume
+    for volume in "$@"; do
+        if docker volume ls --format '{{.Name}}' | grep -qx "$volume"; then
+            docker run --rm -v "$volume:/source_vol:ro" -v "$dest:/backup_vol" \
+                alpine:latest sh -c "cp -a /source_vol/. /backup_vol/ && chmod -R go-rwx /backup_vol" 2>/dev/null \
+                || echo "  Warning: could not copy $volume"
+            return 0
+        fi
+    done
+    echo "  Warning: no volume found for $dest (skipped)"
+}
+copy_volume "$BACKUP_ROOT/runtime" ifinmail_runtime_data docker_runtime_data "${COMPOSE_PROJECT_NAME:-docker}_runtime_data"
+copy_volume "$BACKUP_ROOT/spool" ifinmail_postfix_spool docker_postfix_spool "${COMPOSE_PROJECT_NAME:-docker}_postfix_spool"
+copy_volume "$BACKUP_ROOT/rspamd-data" ifinmail_rspamd_data docker_rspamd_data "${COMPOSE_PROJECT_NAME:-docker}_rspamd_data"
+
+# 6. TLS certificates and Let's Encrypt renewal state
+echo "[6/7] Backing up TLS certificates..."
 mkdir -p "$BACKUP_ROOT/certs"
 CERTS_DIR="${PROJECT_ROOT}/provisioning/docker/certs"
 if [ -d "$CERTS_DIR" ]; then
@@ -130,7 +153,7 @@ if [ -d "$CERTS_DIR" ]; then
     fi
 fi
 
-echo "[6/6] Creating manifest and checksums..."
+echo "[7/7] Creating manifest and checksums..."
 cat > "$BACKUP_ROOT/MANIFEST.txt" << MANIFEST
 Backup: $TIMESTAMP
 Host: $(hostname)
@@ -142,6 +165,8 @@ Contents:
   - Mail storage (/var/mail/vhosts)
   - Configuration (postfix, dovecot, rspamd, .env)
   - DKIM keys
+  - Runtime state (published zones, Knot/firewall/postfix generated files)
+  - Mail queue (postfix spool) and spam-filter training data
   - TLS certificates (Let's Encrypt accounts, renewal, live, archive)
 MANIFEST
 

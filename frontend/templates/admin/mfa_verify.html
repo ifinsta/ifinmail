@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Two-factor check — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block body_layout %}
+<main class="ifinmail-login">
+
+  <div class="ifinmail-login-card">
+    <div class="ifinmail-login-card__brand">
+      <span class="ifinmail-wordmark">{{ brand.name|default:'ifinmail' }}</span>
+      {% if brand.logo_url %}
+        <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
+      {% else %}
+        <span class="ifinmail-login-card__logo">{{ brand.logo_svg|safe }}</span>
+      {% endif %}
+    </div>
+
+    <h1 class="ifinmail-login-card__title">{% trans 'Check your authenticator' %}</h1>
+    <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed with email=email %}Signing in as {{ email }}. Enter the 6-digit code — or one of your recovery codes.{% endblocktrans %}</p>
+
+    {% if error %}
+      <div class="ifinmail-login-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="" class="ifinmail-login-form">
+      {% csrf_token %}
+      <div class="ifinmail-login-form__group">
+        <label class="ifinmail-login-form__label" for="id_code">{% trans 'Code' %}</label>
+        <input type="text" name="code" id="id_code" class="ifinmail-login-form__input" required minlength="6" maxlength="32" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
+      </div>
+      <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Verify & sign in' %}</button>
+    </form>
+  </div>
+
+  <p class="ifinmail-login-card__register">
+    <a href="{% url 'accounts:login' %}">{% trans 'Back to sign in' %}</a>
+  </p>
+
+</main>
+{% endblock %}

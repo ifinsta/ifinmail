@@ -32,3 +32,15 @@ if os.environ.get('USE_SQLITE') or not os.environ.get('DB_HOST'):
 LOGIN_REDIRECT_URL = '/accounts/dashboard/'
 LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# Content Security Policy
+# django-csp ships a bare `default-src 'self'` when no directives are set, which
+# blocks the console's own inline theming styles, Google Fonts and data-URI icons.
+# Mirror the allowances production.py makes (minus report-only) so local runs match
+# what actually ships; scripts stay same-origin-only (no inline scripts/handlers).
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", 'https://fonts.googleapis.com')
+CSP_FONT_SRC = ("'self'", 'https://fonts.gstatic.com')
+CSP_IMG_SRC = ("'self'", 'data:', 'blob:')
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
+CSP_BASE_URI = ("'self'",)

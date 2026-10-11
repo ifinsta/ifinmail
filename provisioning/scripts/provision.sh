@@ -387,9 +387,11 @@ ensure_backup_schedule() {
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 15 3 * * * root cd $repo_root && set -a && . provisioning/.env && set +a && BACKUP_ENCRYPT=true make backup >> /var/log/ifinmail-backup.log 2>&1
+# Weekly restore drill: proves the latest backup actually restores (non-destructive).
+30 4 * * 0 root cd $repo_root && set -a && . provisioning/.env && set +a && bash provisioning/scripts/restore_test.sh >> /var/log/ifinmail-restore-test.log 2>&1
 CRON
     chmod 644 "$cron_file"
-    echo "Daily backup scheduled in $cron_file (03:15)."
+    echo "Daily backup scheduled in $cron_file (03:15); weekly restore drill on Sundays (04:30)."
 }
 
 ensure_unattended_upgrades() {

@@ -278,6 +278,15 @@
     text-decoration: underline;
 }
 
+/* Link-styled buttons (e.g. a table row "Manage" that opens a modal). */
+button.ifinmail-link-strong {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
 /* ─── Progress bar ─── */
 .ifinmail-progress {
     margin-top: var(--ifinmail-space-1_5);

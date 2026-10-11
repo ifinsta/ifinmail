@@ -60,6 +60,11 @@ class DashboardViewTests(TransactionTestCase):
 
     def test_dashboard_accessible_when_authenticated(self) -> None:
         self.client.force_login(self.user)
+        from django.utils import timezone
+
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
         response = self.client.get(reverse('accounts:dashboard'))
         self.assertEqual(response.status_code, 200)
 
@@ -76,6 +81,11 @@ class DashboardViewTests(TransactionTestCase):
 
     def test_admin_pages_render_for_staff(self) -> None:
         self.client.force_login(self.user)
+        from django.utils import timezone
+
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
         cases = [
             ('accounts:logs', 'System Logs'),
             ('accounts:spam_filtering', 'Spam Filtering'),
@@ -127,7 +137,8 @@ class LoginViewTests(TransactionTestCase):
             reverse('accounts:login'),
             {'email': 'admin@ifinmail.test', 'password': 'testpass123'},
         )
-        self.assertRedirects(response, reverse('accounts:dashboard'))
+        # Password done, no second factor yet: enrollment is next.
+        self.assertRedirects(response, reverse('accounts:mfa_setup'))
 
     def test_first_admin_login_goes_to_setup_wizard(self) -> None:
         """Until setup is finished the administrator lands in the wizard, not the dashboard."""

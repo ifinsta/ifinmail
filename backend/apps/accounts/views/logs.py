@@ -3,7 +3,7 @@
 import csv
 import logging
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -11,7 +11,8 @@ from django.utils.translation import gettext_lazy as _
 
 from backend.services.audit import AuditService
 
-from .auth import _is_staff
+from ..types.permissions import PermissionCode
+from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
@@ -84,7 +85,7 @@ def _admin_audit_items(page: int = 1, level: str = '') -> list[dict[str, str]]:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 def logs(request: HttpRequest) -> HttpResponse:
     """System logs and audit trail screen."""
     level = request.GET.get('level', '').strip().upper()
@@ -124,7 +125,7 @@ def logs(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 def logs_export(request: HttpRequest) -> HttpResponse:
     """Export audit events as a CSV download."""
     level = request.GET.get('level', '').strip().upper()
@@ -151,7 +152,7 @@ def logs_export(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 def logs_live_data(request: HttpRequest) -> JsonResponse:
     """Return the latest log entries as JSON for polling-based live view."""
     level = request.GET.get('level', '').strip().upper()
@@ -164,7 +165,7 @@ def logs_live_data(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 def logs_full_history(request: HttpRequest) -> HttpResponse:
     """Paginated full audit history page."""
     return logs(request)

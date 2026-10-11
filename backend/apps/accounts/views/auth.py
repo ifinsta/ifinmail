@@ -1,5 +1,6 @@
 """Authentication views: login, logout, staff check."""
 
+import functools
 import logging
 import os
 
@@ -38,6 +39,35 @@ def _is_staff(user: object) -> bool:
     return user.is_staff or user.is_superuser
 
 
+def require_perm(code: str):
+    """Staff gate plus one neutral permission code.
+
+    Outsiders (anonymous, inactive, non-staff) are sent to sign-in exactly
+    like the old staff-only gates, so existing redirect expectations hold.
+    Authenticated staff lacking the code get a 403 — a state that could not
+    exist before roles.
+    """
+
+    def decorator(view_func):
+        @functools.wraps(view_func)
+        def wrapper(request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+            if not _is_staff(request.user):
+                from django.contrib.auth.views import redirect_to_login
+
+                return redirect_to_login(request.get_full_path())
+            from backend.apps.accounts.services.roles import RoleService
+
+            if not RoleService.has_perm(request.user, code):
+                from django.core.exceptions import PermissionDenied
+
+                raise PermissionDenied(f'This login cannot: {code}')
+            return view_func(request, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def _get_client_ip(request: HttpRequest) -> str:
     """Extract client IP from request headers."""
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
@@ -50,6 +80,10 @@ def _get_client_ip(request: HttpRequest) -> str:
 def login_view(request: HttpRequest) -> HttpResponse:
     """Admin login view."""
     error = None
+
+    if request.method == 'GET' and request.GET.get('timeout_minutes', '').isdigit():
+        minutes = max(1, min(1440, int(request.GET['timeout_minutes'])))
+        error = f'You were signed out after {minutes} minutes of inactivity.'
 
     # Rate-limit check (backup for Axes)
     client_ip = _get_client_ip(request)
@@ -135,6 +169,16 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 )
 
             request.session.cycle_key()
+            from backend.apps.accounts.services.mfa import TOTPService
+
+            if TOTPService.has_verified_device(user):
+                # Password done, code still required: hold the user id in the
+                # (freshly cycled) session and verify before login() is called.
+                request.session['mfa_pending_user_id'] = str(user.pk)
+                return redirect('accounts:mfa_verify')
+            # No device yet: log in, but flag the session so the enforcement
+            # middleware routes every console page to enrollment.
+            request.session['mfa_setup_required'] = True
             login(request, user)
 
             AuditService.record(
@@ -152,6 +196,8 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 return redirect(next_url)
             if (user.is_staff or user.is_superuser) and not SetupState.is_complete():
                 return redirect('accounts:setup_wizard')
+            if user.is_staff or user.is_superuser:
+                return redirect('accounts:mfa_setup')
             return redirect('accounts:dashboard')
 
         # Increment rate-limit on failure

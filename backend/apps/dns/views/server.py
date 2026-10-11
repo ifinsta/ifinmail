@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
+from backend.apps.accounts.types.permissions import PermissionCode
+from backend.apps.accounts.views.auth import require_perm
 from backend.apps.domains.services import DomainService
 from backend.services.audit import AuditService
 
@@ -23,9 +25,8 @@ from ..services.records import CustomRecordService, RecordError
 from ..services.server import DNSServerConfig
 from ..services.zones import ZoneService
 from ..types.zones import RecordType, ZoneMode
-from ._helpers import _is_staff
 
-_STAFF = user_passes_test(_is_staff, login_url='accounts:login')
+_DNS = require_perm(PermissionCode.DNS_MANAGE)
 
 
 def _actor(request: HttpRequest) -> str | None:
@@ -50,7 +51,7 @@ def _first_error(form: object) -> str:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_GET
 def dns_server_page(request: HttpRequest) -> HttpResponse:
     rows = []
@@ -84,7 +85,7 @@ def dns_server_page(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_GET
 def dns_zone_page(request: HttpRequest, zone: str) -> HttpResponse:
     zone = _require_zone(zone)
@@ -112,7 +113,7 @@ def dns_zone_page(request: HttpRequest, zone: str) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_POST
 def dns_record_add(request: HttpRequest) -> HttpResponse:
     form = RecordAddForm(request.POST)
@@ -140,7 +141,7 @@ def dns_record_add(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_POST
 def dns_record_delete(request: HttpRequest) -> HttpResponse:
     form = RecordDeleteForm(request.POST)
@@ -162,7 +163,7 @@ def dns_record_delete(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_POST
 def dns_zone_mode(request: HttpRequest) -> HttpResponse:
     form = ZoneModeForm(request.POST)
@@ -187,7 +188,7 @@ def dns_zone_mode(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_POST
 def dns_secondaries(request: HttpRequest) -> HttpResponse:
     form = SecondariesForm(request.POST)
@@ -208,7 +209,7 @@ def dns_secondaries(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_DNS
 @require_POST
 def dns_publish(request: HttpRequest) -> HttpResponse:
     form = ZoneForm(request.POST)

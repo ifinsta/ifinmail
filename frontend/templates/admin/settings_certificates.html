@@ -87,7 +87,7 @@
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="cert-upload">
             <h2 class="ifinmail-panel-title" id="cert-upload">{% trans 'Use your own certificate' %}</h2>
-            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with host=mail_hostname %}Paste a certificate (with its chain) that covers <strong>{{ host }}</strong> and its private key, both in PEM form. The key must not be password protected. An uploaded certificate is not renewed automatically.{% endblocktrans %}</p>
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with host=mail_hostname|default:_("this server") %}Paste a certificate (with its chain) that covers <strong>{{ host }}</strong> and its private key, both in PEM form. The key must not be password protected. An uploaded certificate is not renewed automatically.{% endblocktrans %}</p>
             <form method="post" action="{% url 'accounts:certificates_upload' %}" class="ifinmail-inline-form" autocomplete="off">
                 {% csrf_token %}
                 <div class="ifinmail-field">

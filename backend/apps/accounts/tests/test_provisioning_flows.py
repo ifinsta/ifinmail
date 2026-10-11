@@ -32,6 +32,11 @@ class _Base(MailTablesTestCase):
     def login_admin(self, email: str = 'root@ifinmail.test') -> MailUser:
         admin = MailUser.objects.create_user(email, GOOD, is_staff=True, is_superuser=True)
         self.client.force_login(admin, backend=MODEL_BACKEND)
+        from django.utils import timezone
+
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
         return admin
 
 
@@ -248,6 +253,15 @@ class MailboxPagesTests(_Base):
         self.assertIn('alice@ifinmail.test', html)
         self.assertIn('@ifinmail.test</option>', html)
         self.assertIn('aria-current="page"', html)
+
+    def test_manage_opens_a_modal_not_inline_forms(self) -> None:
+        MailboxService.create('ifinmail.test', 'alice', GOOD)
+        html = self.client.get(reverse('accounts:mailboxes')).content.decode()
+        self.assertIn('id="mailbox-manage-modal"', html)
+        self.assertIn('data-action="open-manage-mailbox"', html)
+        self.assertIn('data-address="alice@ifinmail.test"', html)
+        self.assertNotIn('<details', html)
+        self.assertNotIn('mailbox_row', html)
 
     def test_aliases_can_be_created_and_removed(self) -> None:
         response = self.client.post(

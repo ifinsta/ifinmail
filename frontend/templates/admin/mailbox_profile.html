@@ -1,0 +1,294 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}{% load static %}
+
+{% block title %}{% blocktrans trimmed with address=address name=brand.name|default:'ifinmail' %}{{ address }} — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <p><a class="ifinmail-settings__back" href="{% url 'accounts:mailboxes' %}">
+                    <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    <span>{% trans 'All mailboxes' %}</span>
+                </a></p>
+                <h1 class="ifinmail-page-title"><code class="ifinmail-text--mono">{{ address }}</code></h1>
+                <p class="ifinmail-page-subtitle">
+                    {% if is_admin %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'Admin' %}</span>{% else %}<span class="ifinmail-badge">{% trans 'User' %}</span>{% endif %}
+                    {% if is_active %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Active' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Disabled' %}</span>{% endif %}
+                    {% if invite_pending %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Invite pending' %}</span>{% endif %}
+                </p>
+            </div>
+        </div>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mp-overview">
+            <h2 class="ifinmail-panel-title" id="mp-overview">{% trans 'Overview' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Domain' %}</dt><dd>{{ domain }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Quota' %}</dt><dd>{{ quota_label }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Created' %}</dt><dd>{{ created|default:'—' }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Last sign-in' %}</dt><dd>{% if last_login %}{{ last_login }}{% else %}{% trans 'Never' %}{% endif %}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Login' %}</dt><dd>{% if user %}{% trans 'Exists' %}{% else %}{% trans 'None — mailbox without a login' %}{% endif %}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Password' %}</dt><dd>{% if invite_pending %}{% trans 'Not set — invite pending' %}{% else %}{% trans 'Set' %}{% endif %}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Role' %}</dt><dd>{% if current_role_name %}{{ current_role_name }}{% elif is_admin %}{% trans 'Staff (legacy)' %}{% else %}—{% endif %}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Second factor' %}</dt><dd>{% if mfa_status and mfa_status.enabled %}{% blocktrans trimmed with remaining=mfa_status.recovery_remaining %}Active ({{ remaining }} recovery codes left){% endblocktrans %}{% elif mfa_status %}{% trans 'Not enrolled' %}{% else %}—{% endif %}</dd></div>
+            </dl>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mp-security">
+            <h2 class="ifinmail-panel-title" id="mp-security">{% trans 'Security & sessions' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Every live sign-in for this profile. Ending a session signs that device out immediately.' %}</p>
+            {% if user %}
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Live sessions' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th>{% trans 'Session' %}</th><th>{% trans 'Expires' %}</th><th>{% trans 'Remove' %}</th></tr></thead>
+                    <tbody>
+                    {% for s in sessions %}
+                    <tr>
+                        <td><code class="ifinmail-text--mono">{{ s.key_hint }}</code>{% if s.is_current %} <span class="ifinmail-badge ifinmail-badge--info">{% trans 'This device' %}</span>{% endif %}</td>
+                        <td>{{ s.expire_date }}</td>
+                        <td>
+                            {% if s.is_current %}
+                            <span class="ifinmail-settings-row__help">{% trans 'Your current session — sign out instead.' %}</span>
+                            {% else %}
+                            <form method="post" action="{% url 'accounts:mailbox_sessions_action' mailbox_id=mailbox.id %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                                {% csrf_token %}
+                                <input type="hidden" name="mailbox_id" value="{{ mailbox.id }}">
+                                <input type="hidden" name="session_key" value="{{ s.session_key }}">
+                                <button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'End session' %}</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No live sessions. Nobody is signed in as this profile.' %}</p></div></td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+            <form method="post" action="{% url 'accounts:mailbox_sessions_action' mailbox_id=mailbox.id %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <input type="hidden" name="mailbox_id" value="{{ mailbox.id }}">
+                <input type="hidden" name="revoke_all" value="on">
+                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'End all other sessions for this profile?' %}">{% trans 'End all other sessions' %}</button>
+            </form>
+            {% else %}
+            <p class="ifinmail-settings-section__lede">{% trans 'No login exists, so there is nothing to sign out.' %}</p>
+            {% endif %}
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mp-activity">
+            <h2 class="ifinmail-panel-title" id="mp-activity">{% trans 'Activity' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'The most recent audit events involving this profile — actions by them and actions done to them.' %}</p>
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Activity' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th>{% trans 'When' %}</th><th>{% trans 'Action' %}</th><th>{% trans 'Actor' %}</th><th>{% trans 'Detail' %}</th></tr></thead>
+                    <tbody>
+                    {% for e in activity %}
+                    <tr>
+                        <td>{{ e.time }}</td>
+                        <td><code class="ifinmail-text--mono">{{ e.action }}</code></td>
+                        <td>{{ e.user }}</td>
+                        <td>{{ e.detail }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No recorded activity yet.' %}</p></div></td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mp-mail">
+            <h2 class="ifinmail-panel-title" id="mp-mail">{% trans 'Mail routing' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Aliases that forward into this mailbox.' %}</p>
+            <ul>
+                {% for a in inbound_aliases %}
+                <li><code class="ifinmail-text--mono">{{ a.source }}</code> → <code class="ifinmail-text--mono">{{ a.destination }}</code></li>
+                {% empty %}
+                <li>{% trans 'Nothing forwards here.' %}</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mp-manage">
+            <h2 class="ifinmail-panel-title" id="mp-manage">{% trans 'Manage' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Setup link' %}</dt>
+                    <dd>
+                        <p class="ifinmail-settings-row__help">{% trans 'Single-use. The owner sets their own password with it — it is never shown again.' %}</p>
+                        {% if invite_link %}
+                        <div class="ifinmail-toolbox-record">
+                            <div class="ifinmail-codebox" id="invite-link-value">{{ invite_link }}</div>
+                            <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="copy-invite" data-value="{{ invite_link|escapejs }}">{% trans 'Copy' %}</button>
+                        </div>
+                        {% endif %}
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="invite">
+                            <input type="hidden" name="address" value="{{ address }}">
+                            <input type="hidden" name="return_to" value="profile">
+                            <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% if invite_link %}{% trans 'New link' %}{% else %}{% trans 'Get setup link' %}{% endif %}</button></div>
+                        </form>
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Quota' %}</dt>
+                    <dd>
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="quota">
+                            <input type="hidden" name="address" value="{{ address }}">
+                            <div class="ifinmail-field">
+                                <label for="mp-quota">{% trans 'Mailbox quota (MB, 0 = unlimited)' %}</label>
+                                <input class="ifinmail-input" id="mp-quota" name="quota_mb" type="number" min="0" value="{{ quota_mb }}">
+                            </div>
+                            <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set quota' %}</button></div>
+                        </form>
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Admin rights' %}</dt>
+                    <dd>
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <input type="hidden" name="address" value="{{ address }}">
+                            {% if is_admin %}
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="revoke_admin">{% trans 'Remove admin rights' %}</button>
+                            {% else %}
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="grant_admin">{% trans 'Make admin' %}</button>
+                            {% endif %}
+                        </form>
+                    </dd>
+                </div>
+                {% if can_grant_roles %}
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Role' %}</dt>
+                    <dd>
+                        <p class="ifinmail-settings-row__help">{% trans 'Named roles narrow what this login can do. Clearing the role restores legacy staff access.' %}</p>
+                        <form method="post" action="{% url 'accounts:mailbox_role_action' mailbox_id=mailbox.id %}" class="ifinmail-inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="address" value="{{ address }}">
+                            <div class="ifinmail-field">
+                                <label for="mp-role">{% trans 'Assigned role' %}</label>
+                                <select class="ifinmail-input" id="mp-role" name="role">
+                                    <option value=""{% if not current_role_key %} selected{% endif %}>{% trans 'Legacy (no named role)' %}</option>
+                                    {% for r in roles %}
+                                    <option value="{{ r.key }}"{% if r.key == current_role_key %} selected{% endif %}>{{ r.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set role' %}</button></div>
+                        </form>
+                    </dd>
+                </div>
+                {% endif %}
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Admin rights' %}</dt>                    <dd>
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <input type="hidden" name="address" value="{{ address }}">
+                            {% if is_admin %}
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="revoke_admin">{% trans 'Remove admin rights' %}</button>
+                            {% else %}
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="grant_admin">{% trans 'Make admin' %}</button>
+                            {% endif %}
+                        </form>
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Second factor' %}</dt>
+                    <dd>
+                        <p class="ifinmail-settings-row__help">{% trans 'Lost authenticator? Remove it so the owner enrolls again at next sign-in.' %}</p>
+                        <form method="post" action="{% url 'accounts:mailbox_mfa_reset' mailbox_id=mailbox.id %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Remove the second factor for this profile?' %}">{% trans 'Reset second factor' %}</button>
+                        </form>
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'API tokens' %}</dt>
+                    <dd>
+                        <p class="ifinmail-settings-row__help">{% trans 'Machine credentials for the v1 API. Scopes can never exceed what this login holds; secrets are shown once.' %}</p>
+                        {% if new_token_plain %}
+                        <div class="ifinmail-toolbox-record">
+                            <div class="ifinmail-codebox" id="api-token-value">{{ new_token_plain }}</div>
+                            <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="copy-invite" data-value="{{ new_token_plain|escapejs }}">{% trans 'Copy' %}</button>
+                        </div>
+                        {% endif %}
+                        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'API tokens' %}">
+                            <table class="ifinmail-admin-table">
+                                <thead><tr><th>{% trans 'Name' %}</th><th>{% trans 'Token' %}</th><th>{% trans 'Scopes' %}</th><th>{% trans 'Expires' %}</th><th>{% trans 'Last used' %}</th><th>{% trans 'Manage' %}</th></tr></thead>
+                                <tbody>
+                                {% for t in tokens %}
+                                <tr>
+                                    <td>{{ t.name }}</td>
+                                    <td><code class="ifinmail-text--mono">ifm_{{ t.prefix }}…</code></td>
+                                    <td><code class="ifinmail-text--mono">{{ t.scopes|join:", " }}</code></td>
+                                    <td>{{ t.expires_at|date:"Y-m-d" }}</td>
+                                    <td>{% if t.last_used_at %}{{ t.last_used_at }}{% else %}{% trans 'Never' %}{% endif %}</td>
+                                    <td>
+                                        <form method="post" action="{% url 'accounts:mailbox_token_action' mailbox_id=mailbox.id %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="address" value="{{ address }}">
+                                            <input type="hidden" name="token_id" value="{{ t.id }}">
+                                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="rotate">{% trans 'Rotate' %}</button>
+                                            <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="revoke" data-confirm="{% trans 'Revoke this token? Integrations using it stop working immediately.' %}">{% trans 'Revoke' %}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No tokens yet.' %}</p></div></td></tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </article>
+                        <form method="post" action="{% url 'accounts:mailbox_token_create' mailbox_id=mailbox.id %}" class="ifinmail-inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="address" value="{{ address }}">
+                            {% if token_grantable %}
+                            <div class="ifinmail-field">
+                                <label for="mp-token-name">{% trans 'Token name' %}</label>
+                                <input class="ifinmail-input" id="mp-token-name" name="name" required maxlength="64" autocomplete="off" placeholder="{% trans 'uptime monitor' %}">
+                            </div>
+                            <div class="ifinmail-field">
+                                <span class="ifinmail-label">{% trans 'Scopes' %}</span>
+                                {% for code in token_scopes %}
+                                <label class="ifinmail-check"><input type="checkbox" name="scopes" value="{{ code }}"> <span><code class="ifinmail-text--mono">{{ code }}</code></span></label>
+                                {% endfor %}
+                            </div>
+                            <div class="ifinmail-field">
+                                <label for="mp-token-expiry">{% trans 'Expires after' %}</label>
+                                <select class="ifinmail-input" id="mp-token-expiry" name="expires_in_days">
+                                    <option value="30">{% trans '30 days' %}</option>
+                                    <option value="90" selected>{% trans '90 days' %}</option>
+                                    <option value="365">{% trans '365 days' %}</option>
+                                </select>
+                            </div>
+                            <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Create token' %}</button></div>
+                            {% else %}
+                            <p class="ifinmail-settings-row__help">{% trans 'This login holds no permissions, so a token would be powerless. Make it staff first.' %}</p>
+                            {% endif %}
+                        </form>
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Danger zone' %}</dt>
+                    <dd>
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <input type="hidden" name="address" value="{{ address }}">
+                            <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="delete" data-confirm="{% trans 'Remove this mailbox and its login? Stored mail stays on disk.' %}">{% trans 'Delete mailbox' %}</button>
+                        </form>
+                    </dd>
+                </div>
+            </dl>
+        </section>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ifinmail-mailboxes.js' %}"></script>
+{% endblock %}

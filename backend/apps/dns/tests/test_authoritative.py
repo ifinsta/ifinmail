@@ -302,6 +302,12 @@ class DNSPagesTests(_Base):
             'root@ifinmail.test', GOOD, is_staff=staff, is_superuser=staff
         )
         self.client.force_login(user, backend=MODEL_BACKEND)
+        if staff:
+            from django.utils import timezone
+
+            session = self.client.session
+            session['mfa_verified_at'] = timezone.now().isoformat()
+            session.save()
 
     def setUp(self) -> None:
         super().setUp()

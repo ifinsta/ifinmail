@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
 from ..services.effective_config import EffectiveConfig
 from ..services.settings_catalogue import PAGE_SLUGS, SettingsCatalogue
+from ..types.permissions import PermissionCode
 from ..types.settings import ConfigSection
-from .auth import _is_staff
+from .auth import require_perm
 
 # slug -> read-only section builder. Pages with custom templates are listed in _TEMPLATES.
 _BUILDERS: dict[str, Callable[[], list[ConfigSection]]] = {
@@ -34,7 +35,7 @@ _DEFAULT_TEMPLATE = 'admin/settings_config.html'
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.CONSOLE_ACCESS)
 @require_GET
 def settings_hub(request: HttpRequest) -> HttpResponse:
     """Overview of every settings area, grouped."""
@@ -51,7 +52,7 @@ def settings_hub(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.CONSOLE_ACCESS)
 @require_GET
 def settings_page(request: HttpRequest, slug: str) -> HttpResponse:
     """Render one settings page that has no dedicated view."""

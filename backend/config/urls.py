@@ -4,12 +4,15 @@ Root URL configuration for ifinmail.
 
 import logging
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 
+from backend.apps.accounts.api import api as api_v1
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
 
 logger = logging.getLogger('backend')
@@ -158,6 +161,7 @@ urlpatterns = [
     path('health/dns/', health_dns, name='health-dns'),
     path('health/deliverability/', health_deliverability, name='health-deliverability'),
     path('accounts/', include('backend.apps.accounts.urls')),
+    path('api/', api_v1.urls),
     path('telemetry/', include('backend.apps.core.telemetry.urls')),
     path('admin/', legacy_accounts_redirect),
     path('admin/<path:path>', legacy_accounts_redirect),
@@ -174,6 +178,11 @@ urlpatterns = [
     path('Autodiscover/Autodiscover.xml', autoconfig_outlook, name='autoconfig-outlook-ci'),
     path('.well-known/mta-sts.txt', mta_sts_policy, name='mta-sts-policy'),
 ]
+
+# Serve uploaded media (branding logo/favicon) through the dev server; nginx serves
+# MEDIA_ROOT in production, so this only applies when DEBUG is on.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Custom error handlers
 ERROR_HANDLERS: dict[int, tuple[str, str, str, str, str]] = {

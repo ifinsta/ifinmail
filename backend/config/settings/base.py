@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     # Third-party
     'corsheaders',
     'axes',
+    'ninja',
     # ifinmail core (cross-cutting foundation)
     'backend.apps.core.apps.CoreConfig',
     'backend.apps.core.storage.apps.StorageConfig',
@@ -58,6 +59,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'backend.apps.accounts.middleware.MFAEnforcementMiddleware',
+    'backend.apps.accounts.middleware.SessionIdleTimeoutMiddleware',
     'csp.middleware.CSPMiddleware',
     'axes.middleware.AxesMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -158,6 +161,16 @@ CACHES = {
 
 # Session engine — use cache + DB for resilience
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+# Enterprise baseline: 12h absolute lifetime (was Django's 2-week default),
+# browser-close expiry, explicit SameSite. Idle timeout arrives with Phase 2.
+SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', '43200'))
+SESSION_EXPIRE_AT_BROWSER_CLOSE = (
+    os.environ.get('SESSION_EXPIRE_AT_BROWSER_CLOSE', 'True').lower() == 'true'
+)
+SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
+# Idle timeout (seconds) enforced by SessionIdleTimeoutMiddleware; 0 disables.
+SESSION_IDLE_TIMEOUT = int(os.environ.get('SESSION_IDLE_TIMEOUT', '1800'))
+SESSION_IDLE_UPDATE_INTERVAL = int(os.environ.get('SESSION_IDLE_UPDATE_INTERVAL', '60'))
 
 # Celery
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/1')

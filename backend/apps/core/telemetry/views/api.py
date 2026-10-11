@@ -4,27 +4,24 @@ from __future__ import annotations
 
 import logging
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
+from backend.apps.accounts.types.permissions import PermissionCode
+from backend.apps.accounts.views.auth import require_perm
 from backend.apps.core.telemetry.serializers import serialize_event, serialize_fingerprint
 from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
 from backend.apps.core.telemetry.types import ErrorStatus
 
 logger = logging.getLogger('backend.telemetry')
 
-
-def _is_staff(user: object) -> bool:
-    return bool(getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
-
-
 _PAGE_SIZE = 25
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 @require_GET
 def telemetry_errors(request: HttpRequest) -> JsonResponse:
     """GET: paginated error events (?severity=&source=&q=&page=)."""
@@ -60,7 +57,7 @@ def telemetry_errors(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 @require_GET
 def telemetry_stats(request: HttpRequest) -> JsonResponse:
     """GET: aggregate stats for dashboards."""
@@ -68,7 +65,7 @@ def telemetry_stats(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 @require_GET
 def telemetry_fingerprints(request: HttpRequest) -> JsonResponse:
     """GET: top fingerprints for grouping view."""
@@ -83,7 +80,7 @@ def telemetry_fingerprints(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.AUDIT_VIEW)
 @require_POST
 def telemetry_ack(request: HttpRequest) -> JsonResponse:
     """POST: {fingerprint, status} → ACKED/RESOLVED/MUTED."""

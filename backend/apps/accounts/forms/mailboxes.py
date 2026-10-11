@@ -46,15 +46,55 @@ class MailboxCreateForm(forms.Form):
 
 
 class MailboxActionForm(forms.Form):
-    ACTIONS = ('invite', 'quota', 'enable', 'disable', 'delete')
+    ACTIONS = ('invite', 'quota', 'enable', 'disable', 'delete', 'grant_admin', 'revoke_admin')
 
     action = forms.ChoiceField(choices=[(a, a) for a in ACTIONS])
     address = forms.CharField(max_length=255, strip=True)
     quota_mb = forms.IntegerField(min_value=0, required=False)
+    # Where the invite link should be shown: '' (flash message, default) or 'profile'.
+    return_to = forms.CharField(max_length=16, strip=True, required=False)
 
     @property
     def quota_bytes(self) -> int:
         return int(self.cleaned_data.get('quota_mb') or 0) * _MB
+
+
+class SessionRevokeForm(forms.Form):
+    """Revoke one (or, with ``all`` set, all) of a profile's sessions."""
+
+    mailbox_id = forms.UUIDField()
+    session_key = forms.CharField(max_length=64, strip=True, required=False)
+    revoke_all = forms.BooleanField(required=False)
+
+
+class RoleChangeForm(forms.Form):
+    """Assign a named role (or clear to legacy staff) for one login."""
+
+    address = forms.CharField(max_length=255, strip=True)
+    role = forms.CharField(max_length=64, strip=True, required=False)
+
+
+class TokenCreateForm(forms.Form):
+    """Mint a scoped API token for one login (plaintext shown once)."""
+
+    address = forms.CharField(max_length=255, strip=True)
+    name = forms.CharField(max_length=64, strip=True)
+    scopes = forms.MultipleChoiceField(required=False)
+    expires_in_days = forms.IntegerField(min_value=1, max_value=365)
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        from backend.apps.accounts.types.permissions import TOKEN_SCOPES
+
+        super().__init__(*args, **kwargs)
+        self.fields['scopes'].choices = [(code, code) for code in TOKEN_SCOPES]
+
+
+class TokenActionForm(forms.Form):
+    """Rotate or revoke one of a login's tokens."""
+
+    address = forms.CharField(max_length=255, strip=True)
+    token_id = forms.UUIDField()
+    action = forms.ChoiceField(choices=[('rotate', 'rotate'), ('revoke', 'revoke')])
 
 
 class MailboxSetupForm(forms.Form):

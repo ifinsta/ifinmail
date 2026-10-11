@@ -60,7 +60,6 @@
             <article class="ifinmail-table-panel ifinmail-span-12" tabindex="0" role="region" aria-labelledby="dns_config-table-title">
                 <div class="ifinmail-table-panel-header">
                         <h2 class="ifinmail-panel-title" id="dns_config-table-title">{% trans 'Active Domain Registry' %}</h2>
-                    <div class="ifinmail-action-row">≡ ⋮</div>
                 </div>
                 {% include "includes/admin_table.html" with span=None title=None headers=dns_registry_headers|default:'' rows=dns_registry_rows|default:'' row_template="admin/partials/dns_row.html" empty_message=_("No domains registered yet") empty_action_label=_("Register your first domain →") empty_action_data_action="toggle-register" %}
             </article>

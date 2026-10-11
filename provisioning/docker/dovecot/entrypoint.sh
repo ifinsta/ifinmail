@@ -17,4 +17,7 @@ sed \
 chown root:dovecot /etc/dovecot/dovecot-sql.conf.ext
 chmod 640 /etc/dovecot/dovecot-sql.conf.ext
 
+# Certificates come from the whole Let's Encrypt tree (live/ files link into archive/).
+ln -sfn "/etc/letsencrypt/live/${MAIL_HOSTNAME:?MAIL_HOSTNAME is required}" /etc/dovecot/certs
+
 exec "$@"

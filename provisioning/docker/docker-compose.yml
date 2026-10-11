@@ -92,7 +92,7 @@ services:
     volumes:
       - postfix_spool:/var/spool/postfix
       - mail_data:/var/mail/vhosts
-      - ./certs/live/${MAIL_HOSTNAME}:/etc/postfix/certs:ro
+      - ./certs:/etc/letsencrypt:ro   # whole tree: live/ files are symlinks into archive/
       - rundir:/var/run/dovecot
       - runtime_data:/var/lib/ifinmail/runtime:ro   # outbound settings from the console
     ports:
@@ -134,10 +134,11 @@ services:
     environment:
       TZ: ${TZ:-UTC}
       DOVECOT_DB_PASSWORD: ${DOVECOT_DB_PASSWORD:?run make provision first}
+      MAIL_HOSTNAME: ${MAIL_HOSTNAME}
       PGSSLMODE: prefer
     volumes:
       - mail_data:/var/mail/vhosts
-      - ./certs/live/${MAIL_HOSTNAME}:/etc/dovecot/certs:ro
+      - ./certs:/etc/letsencrypt:ro   # whole tree: live/ files are symlinks into archive/
       - rundir:/var/run/dovecot
     ports:
       - "110:110"
@@ -284,6 +285,7 @@ services:
       - MAIL_HOSTNAME=${MAIL_HOSTNAME}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - COMPOSE_FILE=/config/docker-compose.yml
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-docker}
       - ENV_FILE=/config/.env
       - RENEWAL_INTERVAL=12h
     volumes:

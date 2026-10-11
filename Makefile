@@ -90,7 +90,7 @@ COMPOSE_BIN := $(shell if docker compose version >/dev/null 2>&1; then printf 'd
 DOCKER_COMPOSE = $(COMPOSE_BIN) --env-file provisioning/.env -f provisioning/docker/docker-compose.yml
 
 provision:
-	@if [ -z "$(DOMAIN)" ]; then echo "ERROR: DOMAIN is required. Usage: make provision DOMAIN=example.com"; exit 1; fi
+	@if [ -z "$(DOMAIN)" ] && [ ! -f provisioning/.env ]; then echo "ERROR: DOMAIN is required. Usage: make provision DOMAIN=example.com"; exit 1; fi
 	DOMAIN="$(DOMAIN)" provisioning/scripts/provision.sh
 
 reload:

@@ -6,7 +6,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROVISIONING_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$PROVISIONING_DIR/docker"
 ENV_FILE="$PROVISIONING_DIR/.env"
-DOMAIN="${DOMAIN:?DOMAIN must be set}"
+# A re-run (or the setup wizard) already recorded the domain in .env.
+if [ -z "${DOMAIN:-}" ] && [ -f "$ENV_FILE" ]; then
+    DOMAIN="$(sed -n 's/^DOMAIN=//p' "$ENV_FILE" | tr -d '\r' | tail -1)"
+fi
+DOMAIN="${DOMAIN:?DOMAIN must be set (or recorded in provisioning/.env)}"
 MAIL_DOMAIN="${MAIL_DOMAIN:-$DOMAIN}"
 MAIL_HOSTNAME="${MAIL_HOSTNAME:-mail.$DOMAIN}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@$DOMAIN}"

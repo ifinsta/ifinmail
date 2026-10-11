@@ -964,14 +964,15 @@ html.ifinmail-shell .ifinmail-table-panel:focus-visible {
    Two columns: grouped category list (left) and the selected page (right).
    Phone: the list becomes the hub itself and category pages gain a back link. */
 html.ifinmail-shell .ifinmail-settings {
-    display: grid;
-    grid-template-columns: 15rem minmax(0, 1fr);
     flex: 1;
     min-height: 0;
 }
 
+/* The category list is a full-height column beside the app sidebar (a sibling of
+   .ifinmail-app-main, see base.html), so it runs from the top of the window to the
+   bottom and scrolls on its own, independently of the page and of the app sidebar. */
 html.ifinmail-shell .ifinmail-settings__nav {
-    padding: var(--ifinmail-space-4) var(--ifinmail-space-3);
+    padding: 0 0 var(--ifinmail-space-3);
     background: var(--ifinmail-surface-container-lowest);
     border-right: 1px solid var(--ifinmail-color-border-light);
 }
@@ -1750,6 +1751,10 @@ html.ifinmail-shell .ifinmail-flash--error {
    Header 48, sidebar 208 / rail 52, nav items 32, page title 18.
    Phone keeps its own 44px touch targets above, so this block starts at 768px. */
 @media (min-width: 768px) {
+    html.ifinmail-shell .ifinmail-admin-nav-list {
+        overscroll-behavior: contain;
+    }
+
     html.ifinmail-shell .ifinmail-admin-content {
         padding: var(--ifinmail-space-4) var(--ifinmail-space-6) var(--ifinmail-space-6);
     }
@@ -1941,19 +1946,41 @@ html.ifinmail-shell .ifinmail-flash--error {
 
 /* Settings category list: compact, and minimizable to an icon rail */
 @media (min-width: 1200px) {
-    html.ifinmail-shell .ifinmail-settings {
-        grid-template-columns: 13rem minmax(0, 1fr);
-    }
-
     html.ifinmail-shell .ifinmail-settings__nav {
-        padding: var(--ifinmail-space-3) var(--ifinmail-space-2);
+        position: sticky;
+        top: 0;
+        z-index: 300;
+        flex: none;
+        align-self: flex-start;
+        width: 13rem;
+        height: 100vh;
+        height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        transition: width 150ms var(--ifinmail-easing-standard);
     }
 
+    /* Search row is as tall as the header and stays put while the list scrolls */
     html.ifinmail-shell .ifinmail-settings__toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 1;
         display: flex;
         align-items: center;
         gap: var(--ifinmail-space-1);
+        height: var(--ifinmail-header-height);
         margin-bottom: var(--ifinmail-space-1);
+        padding: 0 var(--ifinmail-space-2);
+        background: var(--ifinmail-surface-container-lowest);
+        border-bottom: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__group,
+    html.ifinmail-shell .ifinmail-settings__empty {
+        padding-right: var(--ifinmail-space-2);
+        padding-left: var(--ifinmail-space-2);
     }
 
     html.ifinmail-shell .ifinmail-settings__toolbar .ifinmail-settings__search {
@@ -2003,16 +2030,18 @@ html.ifinmail-shell .ifinmail-flash--error {
         white-space: nowrap;
     }
 
-    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings {
-        grid-template-columns: var(--ifinmail-sidebar-rail-width) minmax(0, 1fr);
-    }
-
     html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__nav {
-        padding: var(--ifinmail-space-3) var(--ifinmail-space-1_5);
+        width: var(--ifinmail-sidebar-rail-width);
     }
 
     html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar {
         justify-content: center;
+        padding: 0;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__group {
+        padding-right: var(--ifinmail-space-1_5);
+        padding-left: var(--ifinmail-space-1_5);
     }
 
     html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar .ifinmail-settings__search {

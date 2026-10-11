@@ -191,7 +191,7 @@ def test_minimized_rails_keep_tooltips_and_use_the_rail_token() -> None:
             assert 'title=' in anchor, f'{template}: {anchor[:80]}'
     css = _read(CSS / 'ifinmail-redesign.css')
     assert 'width: var(--ifinmail-sidebar-rail-width)' in css
-    assert 'grid-template-columns: var(--ifinmail-sidebar-rail-width)' in css
+    assert 'width: var(--ifinmail-sidebar-rail-width)' in css.split('data-settings-rail')[1]
     assert 'width: var(--ifinmail-sidebar-width)' in _read(CSS / 'ifinmail-components.css')
 
 

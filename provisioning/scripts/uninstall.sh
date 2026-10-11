@@ -104,7 +104,7 @@ fi
 if have_docker; then
     say "Stopping and removing the stack"
     ids="$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT")"
-    [ -n "$ids" ] && docker rm -f $ids >/dev/null
+    [ -n "$ids" ] && docker rm -fv $ids >/dev/null   # -v: also anonymous volumes (certbot declares some)
     docker network rm ifinmail-net >/dev/null 2>&1 || true
     if [ "$KEEP_DATA" != 1 ]; then
         vols="$(docker volume ls -q --filter "label=com.docker.compose.project=$PROJECT")"

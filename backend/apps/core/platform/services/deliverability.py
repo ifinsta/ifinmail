@@ -7,6 +7,10 @@ import subprocess
 from datetime import UTC, datetime
 from typing import Any
 
+import dns.exception
+import dns.resolver
+import dns.reversename
+
 from backend.config.env import primary_domain
 
 logger = logging.getLogger('backend')
@@ -26,6 +30,25 @@ _DEFAULT_RBLS = [
 
 # External DNS resolvers for propagation check
 _DEFAULT_RESOLVERS = ['8.8.8.8', '1.1.1.1', '9.9.9.9']
+
+
+def _resolve(name: str, rtype: str, nameserver: str | None = None) -> list[str] | None:
+    """Answers for ``name``/``rtype`` ([] when there are none), or None when the lookup failed.
+
+    dnspython, not the ``dig`` binary: the api image has no dnsutils, and a missing binary
+    used to read as "no answer" (a blocklist check then reported "not listed").
+    """
+    resolver = dns.resolver.Resolver(configure=nameserver is None)
+    if nameserver:
+        resolver.nameservers = [nameserver]
+    resolver.lifetime, resolver.timeout = 6.0, 3.0
+    try:
+        answer = resolver.resolve(name, rtype)
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+        return []
+    except (dns.exception.DNSException, OSError, ValueError):
+        return None
+    return [r.to_text() for r in answer]
 
 
 class DeliverabilityService:
@@ -118,19 +141,10 @@ class DeliverabilityService:
         resolvers = DeliverabilityService._get_resolvers()
         for key, record in checks.items():
             for resolver in resolvers:
-                try:
-                    result = subprocess.run(
-                        ['dig', f'@{resolver}', '+short', record['type'], record['name']],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    if result.returncode == 0 and result.stdout.strip():
-                        checks[key]['status'] = 'pass'
-                        checks[key]['detail'] = 'Resolves'
-                        break
-                except Exception:
-                    continue
+                if _resolve(record['name'], record['type'], resolver):
+                    checks[key]['status'] = 'pass'
+                    checks[key]['detail'] = 'Resolves'
+                    break
             if checks[key]['status'] == 'unchecked':
                 checks[key]['status'] = 'fail'
                 checks[key]['detail'] = 'Not resolving from external DNS'
@@ -166,31 +180,30 @@ class DeliverabilityService:
 
         listings = {}
         listed_count = 0
-        rbls = DeliverabilityService._get_rbls()
-        for rbl in rbls:
-            query = f'{reversed_ip}.{rbl}'
-            try:
-                result = subprocess.run(
-                    ['dig', '+short', 'A', query],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                answers = [
-                    line
-                    for line in result.stdout.strip().split('\n')
-                    if line and not line.startswith(';')
-                ]
-                is_listed = len(answers) > 0 and '127.' in result.stdout
-                listings[rbl] = {
-                    'listed': is_listed,
-                    'detail': result.stdout.strip() if is_listed else 'Not listed',
-                }
-                if is_listed:
-                    listed_count += 1
-            except Exception:
-                listings[rbl] = {'listed': False, 'detail': 'Check failed'}
+        unknown_count = 0
+        for rbl in DeliverabilityService._get_rbls():
+            answers = _resolve(f'{reversed_ip}.{rbl}', 'A')
+            if answers is None:
+                listings[rbl] = {'listed': None, 'detail': 'Check failed'}
+                unknown_count += 1
+            elif not answers:
+                listings[rbl] = {'listed': False, 'detail': 'Not listed'}
+            elif all(a.startswith('127.255.255.') for a in answers):
+                # Spamhaus answers 127.255.255.x when it refuses the query (public or
+                # unregistered resolver): that is "could not check", never "not listed".
+                listings[rbl] = {'listed': None, 'detail': 'Query refused by the list'}
+                unknown_count += 1
+            else:
+                listings[rbl] = {'listed': True, 'detail': ', '.join(answers)}
+                listed_count += 1
 
+        if listed_count == 0 and unknown_count:
+            return {
+                'status': 'warn',
+                'detail': f'Could not check {unknown_count} of {len(listings)} blocklists',
+                'fix': 'Blocklists refuse queries from some public resolvers; re-check later.',
+                'listings': listings,
+            }
         if listed_count == 0:
             return {
                 'status': 'pass',
@@ -219,19 +232,17 @@ class DeliverabilityService:
             }
 
         try:
-            result = subprocess.run(
-                ['dig', '+short', '-x', server_ip],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            ptr = result.stdout.strip().rstrip('.').split('\n')[0] if result.stdout.strip() else ''
-        except Exception as e:
+            reverse_name = dns.reversename.from_address(server_ip).to_text()
+        except (dns.exception.DNSException, ValueError):
+            reverse_name = ''
+        answers = _resolve(reverse_name, 'PTR') if reverse_name else None
+        if answers is None:
             return {
                 'status': 'warn',
-                'detail': f'rDNS check failed: {e}',
-                'fix': 'Verify your VPS provider supports PTR records.',
+                'detail': 'Reverse DNS could not be checked',
+                'fix': 'Re-check later.',
             }
+        ptr = answers[0].rstrip('.').lower() if answers else ''
 
         if not ptr:
             return {

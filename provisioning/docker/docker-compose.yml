@@ -95,6 +95,7 @@ services:
       - ./certs:/etc/letsencrypt:ro   # whole tree: live/ files are symlinks into archive/
       - rundir:/var/run/dovecot
       - runtime_data:/var/lib/ifinmail/runtime:ro   # outbound settings from the console
+      - mail_status:/var/lib/ifinmail/status       # queue counts published for the console
     ports:
       - "25:25"
       - "465:465"
@@ -396,6 +397,7 @@ services:
       - media_data:/app/media            # branding uploads (logo, favicon)
       - ./dkim:/etc/dkim                 # per-domain DKIM keys (Rspamd mounts this read-only)
       - runtime_data:/var/lib/ifinmail/runtime   # settings and hostname list for postfix/certbot
+      - mail_status:/var/lib/ifinmail/status:ro  # mail queue counts from the postfix container
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -560,6 +562,7 @@ volumes:
   runtime_data:   # files the console publishes for postfix, certbot, the DNS server and the firewall
   dns_data:       # DNSSEC keys and zone journals
   dav_data:       # calendars and address books
+  mail_status:    # mail queue counts the postfix container publishes for System health
 
 networks:
   default:

@@ -57,12 +57,41 @@ apply_once() {
     echo "$current" > "$STATE"
 }
 
+# Queue counts for the console's System health page (it cannot see Postfix's spool).
+STATUS_DIR="${IFINMAIL_STATUS_DIR:-/var/lib/ifinmail/status}"
+QUEUE_EVERY="${IFINMAIL_QUEUE_EVERY:-6}"   # loops between publications (6 x 10s = 1 min)
+
+publish_queue() {
+    [ -d "$STATUS_DIR" ] && [ -w "$STATUS_DIR" ] || return 0
+    local now
+    now="$(date +%s)"
+    # postqueue -j prints one JSON object per message: count by queue, and note the oldest
+    # deferred message, without needing a JSON tool in the image.
+    postqueue -j 2>/dev/null | awk -v now="$now" '
+        {
+            q = $0; sub(/.*"queue_name": *"/, "", q); sub(/".*/, "", q)
+            t = $0; sub(/.*"arrival_time": */, "", t); sub(/[^0-9].*/, "", t)
+            count[q]++
+            if (q == "deferred" && t != "" && (oldest == "" || t + 0 < oldest + 0)) oldest = t
+        }
+        END {
+            age = (oldest == "") ? 0 : now - oldest
+            printf "{\"updated\": %d, \"active\": %d, \"deferred\": %d, \"hold\": %d, \"incoming\": %d, \"oldest_deferred_seconds\": %d}\n", now, count["active"], count["deferred"], count["hold"], count["incoming"], age
+        }' > "$STATUS_DIR/mailq.json.tmp" && mv "$STATUS_DIR/mailq.json.tmp" "$STATUS_DIR/mailq.json"
+    chmod 644 "$STATUS_DIR/mailq.json" 2>/dev/null || true
+}
+
 if [ "${1:-}" = "--once" ]; then
     apply_once
     exit 0
 fi
 
+loops=0
 while :; do
     apply_once
+    if [ $((loops % QUEUE_EVERY)) -eq 0 ]; then
+        publish_queue
+    fi
+    loops=$((loops + 1))
     sleep "$INTERVAL"
 done

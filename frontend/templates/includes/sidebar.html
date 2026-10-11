@@ -29,6 +29,14 @@
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             <span>{% trans 'Dashboard' %}</span>
         </a>
+        {% health_badge as health_issues %}
+        <a href="{% url 'accounts:system_health' %}" title="{% trans 'System health' %}"
+           class="ifinmail-admin-nav-item{% if active_section == 'health' %} ifinmail-admin-nav-item--active{% endif %}"
+           {% if active_section == 'health' %}aria-current="page"{% endif %}>
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+            <span>{% trans 'System health' %}</span>
+            {% if health_issues %}<b class="ifinmail-nav-count" aria-label="{% blocktrans count n=health_issues %}{{ n }} item needs attention{% plural %}{{ n }} items need attention{% endblocktrans %}">{{ health_issues }}</b>{% endif %}
+        </a>
 
         <div class="ifinmail-admin-nav-section">{% trans 'Manage' %}</div>
         {% settings_is_active as in_settings %}

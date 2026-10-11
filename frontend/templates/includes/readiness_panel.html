@@ -16,7 +16,10 @@ by itself once DNS points here. Context: ``readiness`` (GuideStatus or None).
                 {% endif %}
             </p>
         </div>
-        <a class="ifinmail-btn" href="{% url 'accounts:dashboard' %}?recheck=1">{% trans 'Check again' %}</a>
+        <div class="ifinmail-readiness__actions">
+            <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:system_health' %}">{% trans 'All health checks' %}</a>
+            <a class="ifinmail-btn" href="{% url 'accounts:dashboard' %}?recheck=1">{% trans 'Check again' %}</a>
+        </div>
     </div>
 
     {% if not readiness.ready %}

@@ -57,6 +57,19 @@ class ManagedRecordTests(_Base):
         self.assertIn(('autoconfig', 'CNAME'), by)
         self.assertIn(('_submission._tcp', 'SRV'), by)
 
+    def test_mail_and_dav_clients_can_discover_every_service_from_the_domain(self) -> None:
+        zone = self.zone()
+        srv = {r.name: r.value for r in self.managed(zone) if r.type == 'SRV'}
+        host = 'mail.ifinmail.test'
+        self.assertEqual(srv['_submission._tcp'], f'1 587 {host}')
+        self.assertEqual(srv['_imaps._tcp'], f'1 993 {host}')
+        self.assertEqual(srv['_pop3s._tcp'], f'1 995 {host}')
+        self.assertEqual(srv['_caldavs._tcp'], f'1 443 {host}')
+        self.assertEqual(srv['_carddavs._tcp'], f'1 443 {host}')
+        txt = {r.name: r.value for r in self.managed(zone) if r.type == 'TXT'}
+        self.assertEqual(txt['_caldavs._tcp'], 'path=/dav/')
+        self.assertEqual(txt['_carddavs._tcp'], 'path=/dav/')
+
     def test_the_server_is_its_own_nameserver_with_glue_inside_the_zone(self) -> None:
         zone = self.zone()
         ns = [r.value for r in self.managed(zone) if r.type == 'NS']

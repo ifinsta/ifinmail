@@ -271,6 +271,47 @@ class Pop3ContractTests(SimpleTestCase):
             self.assertFalse(BY_KEY[key].locked)
 
 
+class DavContractTests(SimpleTestCase):
+    """Calendars and contacts: Radicale behind nginx, signing in with the mailbox password."""
+
+    def test_the_dav_container_is_internal_and_checks_passwords_with_dovecot(self) -> None:
+        import yaml
+
+        compose = yaml.safe_load(_read('docker-compose.yml'))
+        dav = compose['services']['dav']
+        self.assertNotIn('ports', dav)  # reachable only through nginx
+        self.assertIn('rundir:/var/run/dovecot', dav['volumes'])  # Dovecot's auth socket
+        self.assertIn('dav_data', compose['volumes'])
+        config = _read('dav', 'config')
+        self.assertRegex(config, r'(?m)^type = dovecot$')
+        self.assertIn('dovecot_socket = /var/run/dovecot/auth', config)
+        self.assertRegex(config, r'(?m)^type = owner_only$')  # people see only their own data
+        self.assertIn('radicale==', _read('dav', 'Dockerfile'))  # pinned
+
+    def test_the_socket_radicale_uses_is_the_one_dovecot_creates(self) -> None:
+        master = _read('dovecot', 'conf.d', '10-master.conf')
+        self.assertIn('unix_listener auth {', master)
+        self.assertIn('/var/run/dovecot', _read('dovecot', 'dovecot.conf'))
+
+    def test_nginx_serves_dav_and_the_rfc_6764_well_known_paths(self) -> None:
+        conf = _read('nginx', 'conf.d', 'ifinmail.conf')
+        for line in (
+            'location = /.well-known/caldav',
+            'location = /.well-known/carddav',
+            'location /dav/',
+            'proxy_set_header X-Script-Name /dav;',
+            'proxy_pass_header Authorization;',
+        ):
+            self.assertIn(line, conf)
+        # Resolved per request: nginx must still start when the dav container is down.
+        self.assertIn('set $dav_upstream http://dav:5232;', conf)
+        self.assertIn('proxy_pass $dav_upstream;', conf)
+
+    def test_the_dav_service_is_backed_up(self) -> None:
+        backup = (ROOT / 'provisioning' / 'scripts' / 'backup_full.sh').read_text()
+        self.assertIn('dav_data', backup)
+
+
 class PostfixDovecotHandoffContractTests(SimpleTestCase):
     """Found by running Postfix and Dovecot together: mail clients could not send, and inbound
     mail was never delivered, because of two lines of configuration."""

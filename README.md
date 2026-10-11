@@ -110,6 +110,7 @@ Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. T
 
 ## Limits to know about
 
+- Calendars and contacts (CalDAV/CardDAV) are served at `https://mail.yourdomain.com/dav/` with the mailbox address and password; apps find them from the domain alone. Back them up with `make backup` (the `dav_data` volume).
 - There is no webmail. Mailbox owners use an email app (IMAP 993, SMTP 587); signing in to the console with a plain mailbox shows these settings.
 - Quotas are enforced by Dovecot from the mailbox table; deleting a mailbox leaves its stored mail on disk (the console mounts the mail volume read-only).
 - Admin multi-factor authentication is not implemented yet.

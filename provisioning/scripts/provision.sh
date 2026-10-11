@@ -451,14 +451,15 @@ preflight_checks() {
 
     # Check if required ports are already in use
     for port in 25 80 143 443 465 587 993; do
-        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+        # docker-proxy is this stack itself on a re-run, not a conflict.
+        if ss -tlnp 2>/dev/null | grep ":${port} " | grep -vq docker-proxy; then
             echo "WARNING: Port $port is already in use. The stack may fail to bind."
         fi
     done
 
     # DNS (port 53): systemd-resolved's stub listens on 127.0.0.53, which blocks a wildcard bind.
     # Binding the DNS container to the public address alone avoids the clash.
-    if ss -lnup 2>/dev/null | grep -qE '(^|[ *])(0\.0\.0\.0|\*|\[::\]):53 '; then
+    if ss -lnup 2>/dev/null | grep -E '(^|[ *])(0\.0\.0\.0|\*|\[::\]):53 ' | grep -vq docker-proxy; then
         echo "WARNING: Something else already answers DNS on port 53; the DNS server cannot start."
         echo "         Stop it, or set DNS_SERVER_ENABLED=0 in $ENV_FILE to keep DNS elsewhere."
     elif ss -lnup 2>/dev/null | grep -qE '127\.0\.0\.5[34](%[^:]+)?:53 ' && [ -z "${DNS_BIND_IP:-}" ]; then

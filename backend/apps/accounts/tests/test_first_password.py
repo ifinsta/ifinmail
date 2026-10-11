@@ -11,7 +11,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from backend.apps.accounts.models import MailUser
-from backend.apps.accounts.services.setup_guide import ACTION, GuideStatus, GuideStep
 from backend.apps.core.tests.mail_base import MailTablesTestCase
 
 PRINTED = 'Printed-By-Installer-1'
@@ -98,7 +97,7 @@ class FirstPasswordFlowTests(MailTablesTestCase):
         self.assertRedirects(response, reverse('accounts:dashboard'), fetch_redirect_response=False)
 
 
-class ReadinessPanelTests(MailTablesTestCase):
+class LandingPageTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
         from backend.apps.accounts.services.setup_state import SetupState
@@ -110,32 +109,14 @@ class ReadinessPanelTests(MailTablesTestCase):
         session['mfa_verified_at'] = timezone.now().isoformat()
         session.save()
 
-    def test_dashboard_shows_pending_registrar_steps(self) -> None:
-        status = GuideStatus(
-            domain='ifinmail.test',
-            mail_hostname='mail.ifinmail.test',
-            server_ip='192.0.2.10',
-            steps=[
-                GuideStep(
-                    'ptr',
-                    'Set reverse DNS (PTR)',
-                    ACTION,
-                    '192.0.2.10 currently points to nothing.',
-                    [('Reverse DNS / PTR name', 'mail.ifinmail.test')],
-                )
-            ],
-        )
-        with patch(
-            'backend.apps.accounts.services.setup_guide.SetupGuide.status', return_value=status
-        ) as status_mock:
-            response = self.client.get(reverse('accounts:dashboard') + '?recheck=1')
-        status_mock.assert_called_once_with(refresh=True)
-        self.assertContains(response, 'Server readiness')
-        self.assertContains(response, 'Set reverse DNS (PTR)')
-        self.assertContains(response, 'mail.ifinmail.test')
-
-    def test_landing_page_is_not_the_setup_guide(self) -> None:
+    def test_landing_page_is_the_plain_landing_page(self) -> None:
         self.client.logout()
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'Server readiness')
+
+    def test_dashboard_leaves_health_to_the_system_health_page(self) -> None:
+        response = self.client.get(reverse('accounts:dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Server readiness')
+        self.assertContains(response, reverse('accounts:system_health'))  # sidebar link

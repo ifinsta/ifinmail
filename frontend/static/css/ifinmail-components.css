@@ -1405,7 +1405,7 @@ select.ifinmail-input {
     gap: var(--ifinmail-space-3);
 }
 
-/* Server readiness (dashboard): live registrar / provider checklist */
+/* Step lists with live status (System health, setup wizard) */
 .ifinmail-guide-steps {
     list-style: none;
     margin: 0;
@@ -1461,16 +1461,7 @@ select.ifinmail-input {
 
 .ifinmail-guide-step__link { margin: var(--ifinmail-space-2) 0 0; }
 
-.ifinmail-readiness { margin-bottom: var(--ifinmail-space-6); }
 
-.ifinmail-readiness__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--ifinmail-space-3);
-    margin-bottom: var(--ifinmail-space-4);
-}
 
 @media (max-width: 560px) {
     .ifinmail-guide-values { grid-template-columns: minmax(0, 1fr); }
@@ -3874,5 +3865,3 @@ html.ifinmail-shell .ifinmail-mfa-more[open] > summary { margin-bottom: var(--if
     line-height: 1.25rem;
     text-align: center;
 }
-
-.ifinmail-readiness__actions { display: flex; flex-wrap: wrap; gap: var(--ifinmail-space-2); }

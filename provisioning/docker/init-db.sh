@@ -48,6 +48,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128) NOT NULL DEFAULT '';
 -- Per-user second-factor requirement (Django migration accounts.0006 is state-only).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_required BOOLEAN NOT NULL DEFAULT TRUE;
+-- Installer-created admin must choose a new password first (Django migration accounts.0007 is state-only).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_change_required BOOLEAN NOT NULL DEFAULT FALSE;
 -- The Domain model maps this column, so a SELECT without it fails everywhere.
 ALTER TABLE domains ADD COLUMN IF NOT EXISTS ip_address INET;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;

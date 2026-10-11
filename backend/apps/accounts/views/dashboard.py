@@ -317,6 +317,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     tls_days = _get_tls_expiry_days()
     tls_info = _get_tls_info()
     is_mock = not any([stats, services, domains, events])
+    from backend.apps.accounts.services.setup_guide import SetupGuide
+
+    readiness = SetupGuide.status(refresh=request.GET.get('recheck') == '1')
     return render(
         request,
         'admin/dashboard.html',
@@ -338,6 +341,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             'active_section': 'dashboard',
             'header_search_placeholder': 'Search mail server logs...',
             'is_mock': is_mock,
+            'readiness': readiness,
         },
     )
 

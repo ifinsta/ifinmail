@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}{% load static %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Server Dashboard — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}Server Dashboard — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
 {% block header %}{% include "includes/header.html" %}{% endblock %}
@@ -19,6 +19,8 @@
                 <button class="ifinmail-btn" data-action="rescan" data-url="{% url 'accounts:rescan' %}">{% trans 'Force Rescan' %}</button>
             </div>
         </div>
+
+        {% include "includes/readiness_panel.html" %}
 
         <!-- ROW A: Health Banner -->
         <div class="ifinmail-health-banner">

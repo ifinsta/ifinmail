@@ -64,8 +64,9 @@ if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ] && [ -n "${DJANGO_SUPERUSER_PASSWORD:
         echo "ERROR: DJANGO_SUPERUSER_PASSWORD must be at least 8 characters (got $PASSWORD_LEN)"
         exit 1
     fi
-    echo "Ensuring superuser '${DJANGO_SUPERUSER_USERNAME}' exists..."
-    run_as_app python manage.py createsuperuser --noinput 2>/dev/null || true
+    echo "Ensuring the installer's administrator exists..."
+    # Created with password_change_required: the console asks for a new password at first sign-in.
+    run_as_app python manage.py ensure_admin || echo "WARNING: could not create the administrator"
 else
     echo "WARNING: DJANGO_SUPERUSER_USERNAME or DJANGO_SUPERUSER_PASSWORD not set — no superuser created."
 fi

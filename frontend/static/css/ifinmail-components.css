@@ -1354,7 +1354,7 @@ select.ifinmail-input {
     gap: var(--ifinmail-space-3);
 }
 
-/* Setup guide at "/" until setup is finished: live registrar / provider checklist */
+/* Server readiness (dashboard): live registrar / provider checklist */
 .ifinmail-guide-steps {
     list-style: none;
     margin: 0;
@@ -1407,6 +1407,19 @@ select.ifinmail-input {
 .ifinmail-guide-values dt { color: var(--ifinmail-on-surface-variant); }
 .ifinmail-guide-values dd { margin: 0; min-width: 0; }
 .ifinmail-guide-values code { overflow-wrap: anywhere; user-select: all; }
+
+.ifinmail-guide-step__link { margin: var(--ifinmail-space-2) 0 0; }
+
+.ifinmail-readiness { margin-bottom: var(--ifinmail-space-6); }
+
+.ifinmail-readiness__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-3);
+    margin-bottom: var(--ifinmail-space-4);
+}
 
 @media (max-width: 560px) {
     .ifinmail-guide-values { grid-template-columns: minmax(0, 1fr); }

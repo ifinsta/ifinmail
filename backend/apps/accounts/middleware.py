@@ -1,4 +1,8 @@
-"""Staff session guards: MFA enforcement + idle timeout.
+"""Staff session guards: first-password change, MFA enforcement + idle timeout.
+
+PasswordChangeEnforcementMiddleware routes a login flagged ``password_change_required`` (the
+administrator the installer created, whose password was printed) to the first-password page
+before anything else, including MFA enrollment.
 
 MFAEnforcementMiddleware routes any authenticated staff session without MFA
 proof (``mfa_verified_at``) to enrollment — including sessions established
@@ -21,8 +25,35 @@ from django.shortcuts import redirect
 from django.utils.deprecation import MiddlewareMixin
 
 
+FIRST_PASSWORD_PATH = '/accounts/first-password/'
+
+
+class PasswordChangeEnforcementMiddleware(MiddlewareMixin):
+    exempt_prefixes = (
+        FIRST_PASSWORD_PATH,
+        '/accounts/logout/',
+        '/accounts/login/',
+        '/health',
+        '/static/',
+        '/media/',
+    )
+
+    def process_view(
+        self, request: HttpRequest, view_func: object, view_args: object, view_kwargs: object
+    ) -> HttpResponse | None:
+        user = getattr(request, 'user', None)
+        if user is None or not user.is_authenticated:
+            return None
+        if not getattr(user, 'password_change_required', False):
+            return None
+        if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
+            return None
+        return redirect('accounts:first_password')
+
+
 class MFAEnforcementMiddleware(MiddlewareMixin):
     exempt_prefixes = (
+        FIRST_PASSWORD_PATH,  # the new password comes first, enrollment right after
         '/accounts/mfa/',
         '/accounts/setup/',
         '/accounts/logout/',

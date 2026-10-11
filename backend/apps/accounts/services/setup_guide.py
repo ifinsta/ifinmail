@@ -1,9 +1,9 @@
-"""What is left before this server sends and receives mail, checked live.
+"""Server readiness: what is left before this server sends and receives mail, checked live.
 
-Shown at ``/`` until setup is finished, so whoever just ran the installer can open the server
-by its IP address and see, step by step, what to do at the registrar and the VPS provider.
-Every value here is public anyway (nameservers, glue, DS, PTR, certificate issuer); no secret
-or account detail is ever included. Results are cached briefly because the page is public.
+Shown on the admin dashboard: step by step, what to do at the registrar and the VPS provider
+(nameservers and glue, DNSSEC, reverse DNS), plus what the server finishes by itself once DNS
+points here (certificate, inbound mail). Results are cached briefly; the lookups go to public
+resolvers.
 """
 
 from __future__ import annotations
@@ -41,6 +41,8 @@ class GuideStep:
     # (label, value) pairs to copy into a registrar or provider form
     values: list[tuple[str, str]] = field(default_factory=list)
     help: str = ''
+    link: str = ''  # URL name of the console page that completes the step
+    link_label: str = ''
 
 
 @dataclass
@@ -53,6 +55,10 @@ class GuideStatus:
     @property
     def done_count(self) -> int:
         return sum(1 for s in self.steps if s.state == DONE)
+
+    @property
+    def ready(self) -> bool:
+        return self.done_count == len(self.steps)
 
 
 def _step_nameservers(domain: str, ip: str, status: DelegationStatus) -> GuideStep:
@@ -84,6 +90,8 @@ def _step_nameservers(domain: str, ip: str, status: DelegationStatus) -> GuideSt
         summary,
         values,
         help='Changes usually show within an hour, but can take up to 48 hours.',
+        link='dns:server',
+        link_label='DNS server status',
     )
 
 
@@ -118,6 +126,8 @@ def _step_dnssec(domain: str, status: DelegationStatus) -> GuideStep:
         ACTION if status.ds_published is False else UNKNOWN,
         'At your registrar, open the DNSSEC settings of the domain and add this DS record.',
         values,
+        link='dns:server',
+        link_label='DNS server status',
     )
 
 
@@ -176,6 +186,8 @@ def _step_certificate(mail_hostname: str, delegated: bool | None) -> GuideStep:
         else 'The domain points here; the certificate is being requested and normally '
         'arrives within a few minutes.',
         values,
+        link='accounts:certificates',
+        link_label='TLS certificates',
     )
 
 
@@ -205,14 +217,18 @@ def _collect() -> GuideStatus:
     domain = primary_domain()
     mail_hostname = DNSServerConfig.mail_hostname() or f'mail.{domain}'
     ip = DNSServerConfig.server_ipv4()
-    steps = [
-        GuideStep(
-            'server',
-            'Install the server',
-            DONE,
-            f'All services are running on {ip or "this server"}.',
+    steps: list[GuideStep] = []
+    if not SetupState.is_complete():
+        steps.append(
+            GuideStep(
+                'mailbox',
+                'Create your first mailbox',
+                ACTION,
+                f'Run the setup wizard to create your own address at {domain}.',
+                link='accounts:setup_wizard',
+                link_label='Open the setup wizard',
+            )
         )
-    ]
 
     delegated: bool | None = None
     zone = ZoneService.ensure(domain) if domain else None
@@ -226,8 +242,10 @@ def _collect() -> GuideStatus:
                 'nameservers',
                 'Publish the DNS records',
                 ACTION,
-                'DNS for this domain is kept at another provider. Sign in and open the setup '
-                'wizard to see the exact records to add there.',
+                'DNS for this domain is kept at another provider; add the records shown on '
+                'the domain page there.',
+                link='dns:config',
+                link_label='Show the records',
             )
         )
 
@@ -241,12 +259,8 @@ def _collect() -> GuideStatus:
 
 class SetupGuide:
     @staticmethod
-    def should_show() -> bool:
-        return not SetupState.is_marked_complete()
-
-    @staticmethod
-    def status() -> GuideStatus | None:
-        cached = cache.get(_CACHE_KEY)
+    def status(refresh: bool = False) -> GuideStatus | None:
+        cached = None if refresh else cache.get(_CACHE_KEY)
         if cached is not None:
             return cached
         try:

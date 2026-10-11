@@ -27,6 +27,7 @@ from .web import (
     dashboard_reboot,
     dashboard_rescan,
     dashboard_shell,
+    first_password,
     login_view,
     logout_view,
     logs,
@@ -85,6 +86,7 @@ urlpatterns = [
     path('settings/mailboxes/', mailboxes_page, name='mailboxes'),
     path('settings/mailboxes/create/', mailboxes_create, name='mailboxes_create'),
     path('settings/mailboxes/action/', mailboxes_action, name='mailboxes_action'),
+    path('first-password/', first_password, name='first_password'),
     path('mfa/setup/', mfa_setup, name='mfa_setup'),
     path('mfa/verify/', mfa_verify, name='mfa_verify'),
     path(

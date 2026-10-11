@@ -16,6 +16,21 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128) NOT NULL DEFAU
 -- MailUser.mfa_required is mapped by migration accounts.0006 (state-only).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_required BOOLEAN NOT NULL DEFAULT TRUE;
 
+-- MailUser.password_change_required is mapped by migration accounts.0007 (state-only).
+-- When the column first appears, an administrator who has never signed in still has the
+-- password the installer printed, so ask for a new one at first sign-in.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'password_change_required'
+    ) THEN
+        ALTER TABLE users ADD COLUMN password_change_required BOOLEAN NOT NULL DEFAULT FALSE;
+        UPDATE users SET password_change_required = TRUE
+        WHERE is_superuser AND last_login IS NULL;
+    END IF;
+END $$;
+
 -- Dovecot reads the mailbox quota to enforce it at login and delivery.
 GRANT SELECT ON domains TO dovecot;
 GRANT SELECT ON mailboxes TO dovecot;

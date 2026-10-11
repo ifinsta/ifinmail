@@ -155,18 +155,21 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
 
         provider_meta = {
             'cloudflare': {
+                'name': 'Cloudflare',
                 'help': str(_('Requires an API token with DNS:Edit permission.')),
                 'help_url': 'https://developers.cloudflare.com/fundamentals/api/get-started/create-token/',
                 'placeholder': 'Cloudflare API Token',
                 'second_field': None,
             },
             'porkbun': {
+                'name': 'Porkbun',
                 'help': str(_('Requires API Key and Secret Key from your Porkbun account.')),
                 'help_url': 'https://kb.porkbun.com/article/190-getting-started-with-the-porkbun-api',
                 'placeholder': 'API Key',
                 'second_field': {'name': 'secret_key', 'placeholder': 'Secret Key'},
             },
             'digitalocean': {
+                'name': 'DigitalOcean',
                 'help': str(_('Requires a personal access token with write access.')),
                 'help_url': 'https://docs.digitalocean.com/reference/api/create-personal-access-token/',
                 'placeholder': 'DigitalOcean API Token',
@@ -176,7 +179,7 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
         context['providers'] = [
             {
                 'id': pid,
-                'name': cls.provider_name if hasattr(cls, 'provider_name') else pid.capitalize(),
+                'name': provider_meta.get(pid, {}).get('name') or pid.capitalize(),
                 'help': provider_meta.get(pid, {}).get('help', ''),
                 'help_url': provider_meta.get(pid, {}).get('help_url', ''),
                 'placeholder': provider_meta.get(pid, {}).get(
@@ -223,6 +226,16 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
         context['error'] = request.session.pop('setup_error', '')
     elif step == 'done':
         template = 'setup/done.html'
+        # What actually happened, not a fixed list of ticks: steps can be skipped.
+        from backend.apps.domains.models import Domain
+        from backend.apps.mail.models import Mailbox
+
+        context['setup_domain_done'] = bool(domain) and Domain.objects.filter(name=domain).exists()
+        context['setup_mailbox'] = (
+            Mailbox.objects.filter(domain__name=domain).order_by('local_part').first()
+            if domain
+            else None
+        )
     else:
         return redirect('accounts:setup_step', step='welcome')
 

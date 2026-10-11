@@ -1,7 +1,14 @@
-"""Staff session guards: MFA enforcement + idle timeout.
+"""Staff session guards: first-password change, MFA enforcement + idle timeout.
 
-MFAEnforcementMiddleware routes any authenticated staff session without MFA
-proof (``mfa_verified_at``) to enrollment — including sessions established
+SetupRequiredMiddleware sends every web page to the setup wizard until first-run setup is
+finished (signing in first when needed). Mail clients, health checks and the API are unaffected.
+
+PasswordChangeEnforcementMiddleware routes a login flagged ``password_change_required`` (the
+administrator the installer created, whose password was printed) to the first-password page
+before anything else, including MFA enrollment.
+
+MFAEnforcementMiddleware offers two-factor enrollment to staff sessions without MFA
+proof (``mfa_verified_at``); people who have not set it up can postpone the prompt a week — including sessions established
 before MFA shipped. Exempt paths keep enrollment, logout, login, the setup
 wizard and non-console endpoints reachable.
 
@@ -21,8 +28,83 @@ from django.shortcuts import redirect
 from django.utils.deprecation import MiddlewareMixin
 
 
+FIRST_PASSWORD_PATH = '/accounts/first-password/'
+
+
+class PasswordChangeEnforcementMiddleware(MiddlewareMixin):
+    exempt_prefixes = (
+        FIRST_PASSWORD_PATH,
+        '/accounts/logout/',
+        '/accounts/login/',
+        '/health',
+        '/static/',
+        '/media/',
+    )
+
+    def process_view(
+        self, request: HttpRequest, view_func: object, view_args: object, view_kwargs: object
+    ) -> HttpResponse | None:
+        user = getattr(request, 'user', None)
+        if user is None or not user.is_authenticated:
+            return None
+        if not getattr(user, 'password_change_required', False):
+            return None
+        if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
+            return None
+        return redirect('accounts:first_password')
+
+
+class SetupRequiredMiddleware(MiddlewareMixin):
+    """Until setup is finished, every page leads to the setup wizard.
+
+    The wizard requires an administrator, so a visitor who is not signed in lands on the login
+    page first (``?next=`` the wizard). Paths that machines use (mail client autoconfiguration,
+    MTA-STS, health checks, the API) and the steps of signing in are never redirected.
+    """
+
+    exempt_prefixes = (
+        '/accounts/setup/',
+        '/accounts/login/',
+        '/accounts/logout/',
+        FIRST_PASSWORD_PATH,
+        '/accounts/mfa/',
+        '/accounts/password-reset/',
+        '/accounts/mailbox-setup/',
+        '/health',
+        '/static/',
+        '/media/',
+        '/api/',
+        '/csp-report/',
+        '/telemetry/',
+        '/manifest.webmanifest',
+        '/.well-known/',
+        '/mail/config-v1.1.xml',
+        '/autodiscover/',
+        '/Autodiscover/',
+    )
+
+    def __init__(self, get_response: object) -> None:
+        super().__init__(get_response)
+        self._setup_done = False  # setup never becomes unfinished again; stop asking once done
+
+    def process_view(
+        self, request: HttpRequest, view_func: object, view_args: object, view_kwargs: object
+    ) -> HttpResponse | None:
+        if self._setup_done or not getattr(settings, 'SETUP_REQUIRED_REDIRECT', True):
+            return None
+        if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
+            return None
+        from backend.apps.accounts.services.setup_state import SetupState
+
+        if SetupState.is_complete():
+            self._setup_done = True
+            return None
+        return redirect('accounts:setup_wizard')
+
+
 class MFAEnforcementMiddleware(MiddlewareMixin):
     exempt_prefixes = (
+        FIRST_PASSWORD_PATH,  # the new password comes first, enrollment right after
         '/accounts/mfa/',
         '/accounts/setup/',
         '/accounts/logout/',
@@ -49,7 +131,41 @@ class MFAEnforcementMiddleware(MiddlewareMixin):
             return None  # this login turned its own second factor off
         if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
             return None
+        from backend.apps.accounts.services.mfa import TOTPService
+
+        if TOTPService.has_verified_device(user):
+            return redirect('accounts:mfa_setup')  # enrolled, but this session never proved it
+        if not TOTPService.prompt_due(user):
+            return None  # setup is optional: "Remind me in a week" is running
         return redirect('accounts:mfa_setup')
+
+
+class FormEndpointGetMiddleware(MiddlewareMixin):
+    """A browser GET on a form-only (POST) URL goes to the page the form lives on.
+
+    Reloading or going back to a URL a form posted to (or reaching it through a login
+    ``?next=``) used to show a bare "HTTP ERROR 405". The nearest parent path that exists is
+    the page the form lives on (``.../mailboxes/registration/`` → ``.../mailboxes/``).
+    API clients and non-HTML requests keep the 405.
+    """
+
+    def process_response(self, request: HttpRequest, response: HttpResponse) -> HttpResponse:
+        if response.status_code != 405 or request.method not in ('GET', 'HEAD'):
+            return response
+        if request.path.startswith('/api/') or 'text/html' not in request.headers.get('Accept', ''):
+            return response
+        from django.urls import Resolver404, resolve, reverse
+
+        parts = [p for p in request.path.split('/') if p]
+        while len(parts) > 1:
+            parts.pop()
+            candidate = '/' + '/'.join(parts) + '/'
+            try:
+                resolve(candidate)
+            except Resolver404:
+                continue
+            return redirect(candidate)
+        return redirect(reverse('accounts:dashboard'))
 
 
 class SessionIdleTimeoutMiddleware(MiddlewareMixin):

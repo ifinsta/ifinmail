@@ -19,6 +19,7 @@ import logging
 import secrets
 import struct
 import time
+from datetime import timedelta
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.contrib.auth.hashers import check_password, make_password
@@ -115,6 +116,28 @@ def _decrypt_secret(stored: str) -> str:
 
 
 class TOTPService:
+    REMIND_AFTER_DAYS = 7
+
+    @staticmethod
+    def prompt_due(user: object) -> bool:
+        """Should this console login be sent to two-factor enrollment now?
+
+        Two-factor is offered, not forced: not once it is set up, not when the login turned it
+        off, and not while a "Remind me in a week" is running.
+        """
+        if not getattr(user, 'mfa_required', True):
+            return False
+        remind_after = getattr(user, 'mfa_remind_after', None)
+        if remind_after is not None and timezone.now() < remind_after:
+            return False
+        return not TOTPService.has_verified_device(user)
+
+    @staticmethod
+    def snooze(user: object, days: int | None = None) -> None:
+        """Stop prompting this login for two-factor setup for ``days`` (default a week)."""
+        user.mfa_remind_after = timezone.now() + timedelta(days=days or TOTPService.REMIND_AFTER_DAYS)
+        user.save(update_fields=['mfa_remind_after'])
+
     @staticmethod
     def has_verified_device(user: object) -> bool:
         return TOTPDevice.objects.filter(user=user, verified=True).exists()

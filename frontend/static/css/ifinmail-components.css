@@ -1268,9 +1268,60 @@ select.ifinmail-input {
    Setup Wizard
    ══════════════════════════════════════════════════════════════ */
 .ifinmail-setup-wizard {
+    /* One width for every step, centred: steps used to shrink to their content. */
+    width: 100%;
     max-width: 720px;
     margin: 0 auto;
     padding: var(--ifinmail-space-6);
+    box-sizing: border-box;
+}
+
+.ifinmail-setup-wizard .ifinmail-admin-title {
+    margin-bottom: var(--ifinmail-space-3);
+}
+
+.ifinmail-setup-wizard .ifinmail-dns-providers {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ifinmail-space-3);
+}
+
+.ifinmail-setup-wizard .ifinmail-guide-values {
+    margin: var(--ifinmail-space-2) 0 var(--ifinmail-space-5);
+}
+
+.ifinmail-setup-divider {
+    margin: var(--ifinmail-space-6) 0 var(--ifinmail-space-3);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-on-surface);
+}
+
+.ifinmail-setup-table-wrap {
+    margin-top: var(--ifinmail-space-4);
+    overflow-x: auto;
+    border: 1px solid var(--ifinmail-outline-variant);
+    border-radius: var(--ifinmail-radius-lg);
+}
+
+.ifinmail-setup-table-wrap .ifinmail-setup-table { margin: 0; width: 100%; }
+
+.ifinmail-setup-table th {
+    text-align: left;
+    font-size: var(--ifinmail-font-size-caption);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-on-surface-variant);
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    border-bottom: 1px solid var(--ifinmail-outline-variant);
+    background: var(--ifinmail-surface-container-low);
+}
+
+.ifinmail-setup-checklist-item--pending .ifinmail-setup-check { color: var(--ifinmail-outline); }
+
+.ifinmail-setup-check { flex-shrink: 0; display: inline-flex; }
+
+.ifinmail-setup-checklist-item small {
+    display: block;
+    color: var(--ifinmail-on-surface-variant);
+    font-size: var(--ifinmail-font-size-caption);
 }
 
 .ifinmail-setup-progress {
@@ -1354,7 +1405,7 @@ select.ifinmail-input {
     gap: var(--ifinmail-space-3);
 }
 
-/* Setup guide at "/" until setup is finished: live registrar / provider checklist */
+/* Step lists with live status (System health, setup wizard) */
 .ifinmail-guide-steps {
     list-style: none;
     margin: 0;
@@ -1407,6 +1458,10 @@ select.ifinmail-input {
 .ifinmail-guide-values dt { color: var(--ifinmail-on-surface-variant); }
 .ifinmail-guide-values dd { margin: 0; min-width: 0; }
 .ifinmail-guide-values code { overflow-wrap: anywhere; user-select: all; }
+
+.ifinmail-guide-step__link { margin: var(--ifinmail-space-2) 0 0; }
+
+
 
 @media (max-width: 560px) {
     .ifinmail-guide-values { grid-template-columns: minmax(0, 1fr); }
@@ -3645,4 +3700,168 @@ select.ifinmail-input {
         min-height: 100vh !important;
         min-height: 100dvh !important;
     }
+}
+
+/* Login page, first sign-in after install: where the installer's credentials are */
+.ifinmail-login-firstrun {
+    margin-bottom: var(--ifinmail-space-4);
+    padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
+    border: 1px solid var(--ifinmail-outline-variant);
+    border-left: 3px solid var(--ifinmail-secondary);
+    border-radius: var(--ifinmail-radius-lg);
+    background: var(--ifinmail-surface-container-lowest);
+    color: var(--ifinmail-on-surface-variant);
+    font-size: var(--ifinmail-font-size-body);
+    line-height: var(--ifinmail-line-height);
+}
+
+.ifinmail-login-firstrun p { margin: 0 0 var(--ifinmail-space-2); }
+.ifinmail-login-firstrun p:last-child { margin-bottom: 0; }
+.ifinmail-login-firstrun code { overflow-wrap: anywhere; user-select: all; }
+
+/* MFA enrollment: the code form sits below the setup key and URI boxes, not against them */
+.ifinmail-login-card .ifinmail-mfa-confirm {
+    margin-top: var(--ifinmail-space-6);
+    padding-top: var(--ifinmail-space-5);
+    border-top: 1px solid var(--ifinmail-outline-variant);
+}
+
+/* MFA enrollment is optional: the postpone action sits below the main one */
+.ifinmail-login-card .ifinmail-mfa-snooze { margin-top: var(--ifinmail-space-2); }
+.ifinmail-login-card .ifinmail-mfa-snooze .ifinmail-setup-hint { text-align: center; }
+
+/* MFA enrollment: copy buttons sit inside the code boxes; the manual-entry URI is folded away */
+html.ifinmail-shell .ifinmail-mfa-embed {
+    position: relative;
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed .ifinmail-mfa-code {
+    padding-right: 4.5rem; /* room for the embedded copy button */
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed__copy {
+    position: absolute;
+    top: var(--ifinmail-space-2);
+    right: var(--ifinmail-space-2);
+    padding: var(--ifinmail-space-1) var(--ifinmail-space-2);
+    border: 1px solid var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-surface-container-lowest);
+    color: var(--ifinmail-color-primary);
+    font: inherit;
+    font-size: var(--ifinmail-font-size-caption);
+    font-weight: var(--ifinmail-font-weight-medium);
+    line-height: 1.4;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity var(--ifinmail-transition), border-color var(--ifinmail-transition);
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed:hover .ifinmail-mfa-embed__copy,
+html.ifinmail-shell .ifinmail-mfa-embed__copy:focus-visible {
+    opacity: 1;
+    border-color: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-mfa-embed__copy:focus-visible {
+    outline: 2px solid var(--ifinmail-color-primary);
+    outline-offset: 2px;
+}
+
+html.ifinmail-shell .ifinmail-mfa-more > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ifinmail-space-1);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+html.ifinmail-shell .ifinmail-mfa-more > summary::-webkit-details-marker { display: none; }
+
+html.ifinmail-shell .ifinmail-mfa-more > summary::before {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform var(--ifinmail-transition);
+}
+
+html.ifinmail-shell .ifinmail-mfa-more[open] > summary::before { transform: rotate(45deg); }
+
+html.ifinmail-shell .ifinmail-mfa-more[open] > summary { margin-bottom: var(--ifinmail-space-1); }
+
+/* System health page */
+.ifinmail-guide-step--error   { border-left-color: var(--ifinmail-error); }
+.ifinmail-guide-step--warning { border-left-color: var(--ifinmail-warning); }
+.ifinmail-guide-step--info,
+.ifinmail-guide-step--ok      { border-left-color: var(--ifinmail-success); }
+
+.ifinmail-health-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--ifinmail-space-3);
+    margin-bottom: var(--ifinmail-space-6);
+}
+
+.ifinmail-health-summary__cell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ifinmail-space-1);
+    padding: var(--ifinmail-space-4);
+    border: 1px solid var(--ifinmail-outline-variant);
+    border-top-width: 3px;
+    border-radius: var(--ifinmail-radius-lg);
+    background: var(--ifinmail-surface-container-lowest);
+}
+
+.ifinmail-health-summary__cell--error   { border-top-color: var(--ifinmail-error); }
+.ifinmail-health-summary__cell--warning { border-top-color: var(--ifinmail-warning); }
+.ifinmail-health-summary__cell--waiting { border-top-color: var(--ifinmail-secondary); }
+.ifinmail-health-summary__cell--ok      { border-top-color: var(--ifinmail-success); }
+
+.ifinmail-health-summary__value {
+    font-size: var(--ifinmail-font-size-xl);
+    font-weight: var(--ifinmail-font-weight-bold);
+    color: var(--ifinmail-on-surface);
+}
+
+.ifinmail-health-summary__label {
+    font-size: var(--ifinmail-font-size-body);
+    color: var(--ifinmail-on-surface-variant);
+}
+
+.ifinmail-health-section { margin-bottom: var(--ifinmail-space-6); }
+.ifinmail-health-section .ifinmail-page-subtitle { margin-bottom: var(--ifinmail-space-4); }
+
+.ifinmail-health-good > summary { cursor: pointer; }
+.ifinmail-health-good[open] > summary { margin-bottom: var(--ifinmail-space-4); }
+
+.ifinmail-health-group {
+    margin-left: var(--ifinmail-space-2);
+    font-weight: var(--ifinmail-font-weight-normal);
+    font-size: var(--ifinmail-font-size-caption);
+    color: var(--ifinmail-on-surface-variant);
+}
+
+.ifinmail-health-fix {
+    margin: var(--ifinmail-space-2) 0 0;
+    color: var(--ifinmail-on-surface);
+    line-height: var(--ifinmail-line-height);
+}
+
+/* Issue count next to "System health" in the sidebar */
+.ifinmail-nav-count {
+    margin-left: auto;
+    min-width: 1.25rem;
+    padding: 0 var(--ifinmail-space-1);
+    border-radius: 999px;
+    background: var(--ifinmail-error);
+    color: var(--ifinmail-color-white);
+    font-size: var(--ifinmail-font-size-caption);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    line-height: 1.25rem;
+    text-align: center;
 }

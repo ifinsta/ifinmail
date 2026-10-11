@@ -1,0 +1,23 @@
+{% load i18n %}
+{% comment %}One System health row. Context: ``check`` (HealthCheck).{% endcomment %}
+<li class="ifinmail-guide-step ifinmail-guide-step--{{ check.state }}">
+    <div class="ifinmail-guide-step__head">
+        <span class="ifinmail-guide-step__title">{{ check.title }} <span class="ifinmail-health-group">{{ check.group }}</span></span>
+        {% if check.state == 'error' %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Needs fixing' %}</span>
+        {% elif check.state == 'warning' %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Recommended' %}</span>
+        {% elif check.state == 'unknown' %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Could not check' %}</span>
+        {% elif check.state == 'waiting' %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'In progress' %}</span>
+        {% elif check.state == 'info' %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Optional' %}</span>
+        {% else %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'OK' %}</span>{% endif %}
+    </div>
+    <p class="ifinmail-guide-step__summary">{{ check.summary }}</p>
+    {% if check.state != 'ok' %}
+        {% if check.fix %}<p class="ifinmail-health-fix">{{ check.fix }}</p>{% endif %}
+        {% if check.values %}
+        <dl class="ifinmail-guide-values">
+            {% for label, value in check.values %}<dt>{{ label }}</dt><dd><code>{{ value }}</code></dd>{% endfor %}
+        </dl>
+        {% endif %}
+        {% if check.link %}<p class="ifinmail-guide-step__link"><a href="{{ check.link }}">{{ check.link_label }} &rarr;</a></p>{% endif %}
+    {% endif %}
+</li>

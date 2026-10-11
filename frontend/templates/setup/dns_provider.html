@@ -31,7 +31,7 @@
         <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Use this server for DNS' %}</button>
       </form>
     </div>
-    <p class="ifinmail-setup-description">{% trans 'Or keep DNS at your current provider:' %}</p>
+    <p class="ifinmail-setup-divider">{% trans 'Or keep DNS at your current provider' %}</p>
     {% endif %}
 
     <div class="ifinmail-dns-providers">
@@ -52,7 +52,7 @@
           {% if provider.second_field %}
           <input type="password" id="api-secret-{{ provider.id|default:forloop.counter }}" name="{{ provider.second_field.name|default:'' }}" placeholder="{{ provider.second_field.placeholder|default:'' }}" aria-label="{{ provider.second_field.placeholder|default:_('Secret key') }}" autocomplete="off" class="ifinmail-input">
           {% endif %}
-          <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% blocktrans trimmed with name=provider.name|default:'' %}Auto-Configure with {{ name }}{% endblocktrans %}</button>
+          <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% blocktrans trimmed with name=provider.name|default:'' %}Connect {{ name }}{% endblocktrans %}</button>
         </form>
       </div>
       {% empty %}

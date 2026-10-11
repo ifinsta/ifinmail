@@ -25,8 +25,21 @@ for template in /etc/postfix/pgsql-templates/*.cf; do
     chmod 640 "$map"
 done
 
-# Certificates come from the whole Let's Encrypt tree (live/ files link into archive/).
-ln -sfn "/etc/letsencrypt/live/$MAIL_HOSTNAME" /etc/postfix/certs
+# Certificates are read straight from the Let's Encrypt tree (main.cf names
+# /etc/letsencrypt/live/<host>/); an old /etc/postfix/certs symlink only made
+# postfix-script warn "symlink leaves directory" on every start.
+if [ -L /etc/postfix/certs ]; then rm -f /etc/postfix/certs; fi
+
+# No chroot: the Debian default runs trivial-rewrite, cleanup and others inside
+# /var/spool/postfix, where Docker's resolver and /etc/hosts are absent, so the
+# "postgres" host never resolved and every recipient got "451 4.3.0 Temporary
+# lookup failure". The container already isolates Postfix.
+postconf -F '*/*/chroot = n'
+
+# Log to the container output (docker logs): without a syslog daemon Postfix
+# logged nowhere. postlogd needs its own service entry.
+postconf -Me 'postlog/unix-dgram=postlog unix-dgram n - n - 1 postlogd'
+postconf -e maillog_file=/dev/stdout
 
 mkdir -p /var/spool/postfix /var/mail/vhosts
 if command -v postfix >/dev/null 2>&1; then

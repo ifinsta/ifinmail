@@ -93,6 +93,7 @@ ensure_env() {
         grep -q '^RSPAMD_CONTROLLER_PASSWORD=' "$ENV_FILE" || echo "RSPAMD_CONTROLLER_PASSWORD=$(rand_b64 24)" >> "$ENV_FILE"
         grep -q '^SERVER_IP=' "$ENV_FILE" || echo "SERVER_IP=$(detect_public_ip)" >> "$ENV_FILE"
         grep -q '^DNS_NS_HOSTS=' "$ENV_FILE" || echo "DNS_NS_HOSTS=ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME" >> "$ENV_FILE"
+        record_install_dir
         normalize_vars
         return
     fi
@@ -148,7 +149,19 @@ DJANGO_SUPERUSER_PASSWORD=$(rand_b64 16)
 EOF
     umask "$old_umask"
 
+    record_install_dir
     echo "Created production environment: $ENV_FILE"
+}
+
+record_install_dir() {
+    # The console's first sign-in hint names the file that holds the installer's password.
+    local dir
+    dir="$(cd "$PROVISIONING_DIR/.." && pwd)"
+    if grep -q '^IFINMAIL_INSTALL_DIR=' "$ENV_FILE"; then
+        sed -i "s|^IFINMAIL_INSTALL_DIR=.*|IFINMAIL_INSTALL_DIR=$dir|" "$ENV_FILE"
+    else
+        echo "IFINMAIL_INSTALL_DIR=$dir" >> "$ENV_FILE"
+    fi
 }
 
 validate_env() {
@@ -379,6 +392,33 @@ Useful commands:
 EOF
 }
 
+print_signin() {
+    # The installer's administrator must replace this password at first sign-in; once it has,
+    # the printed one no longer works, so only show it while it is still the active one.
+    local email="${DJANGO_SUPERUSER_EMAIL:-$ADMIN_EMAIL}"
+    local pending
+    pending="$(cd "$DOCKER_DIR" && "${COMPOSE[@]}" exec -T postgres sh -c \
+        'psql -Atq -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT password_change_required FROM users WHERE email = '"'"'$1'"'"'"' \
+        sh "$email" 2>/dev/null || true)"
+
+    echo ""
+    echo "======================================"
+    echo "  Sign in to the console"
+    echo "======================================"
+    echo "  URL:      https://$MAIL_HOSTNAME/accounts/login/"
+    echo "            (until DNS points here: https://${SERVER_IP:-<server IP>}/accounts/login/)"
+    echo "  Email:    $email"
+    if [ "$pending" = "f" ]; then
+        echo "  Password: already changed by the administrator."
+    else
+        echo "  Password: $DJANGO_SUPERUSER_PASSWORD"
+        echo ""
+        echo "  You will be asked to choose a new password at first sign-in."
+    fi
+    echo "  The dashboard then shows what is left to do at your registrar and VPS provider."
+    echo ""
+}
+
 ensure_db_grants() {
     # init-db.sh only runs when the database is first created; apply newer grants too.
     echo "Applying database grants..."
@@ -529,6 +569,16 @@ main() {
         (cd "$DOCKER_DIR" && "${COMPOSE[@]}" rm -fs api postfix dovecot rspamd >/dev/null 2>&1 || true)
     fi
 
+    # New console versions can map columns that db-upgrade.sql adds; apply it before the api
+    # starts, or an upgraded api fails its health check and the stack never comes up. (On a
+    # first install the tables do not exist yet; init-db.sh creates them with every column.)
+    echo "Starting database..."
+    if (cd "$DOCKER_DIR" && "${COMPOSE[@]}" up -d --wait postgres >/dev/null 2>&1) && \
+        [ "$(cd "$DOCKER_DIR" && "${COMPOSE[@]}" exec -T postgres sh -c \
+            'psql -Atq -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) > 0 FROM users"' 2>/dev/null)" = "t" ]; then
+        ensure_db_grants   # existing install: users table is populated, so init-db.sh is done
+    fi
+
     echo "Starting stack..."
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" up -d)
 
@@ -541,6 +591,7 @@ main() {
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" ps)
 
     print_dns
+    print_signin
 }
 
 main "$@"

@@ -21,6 +21,8 @@ from .mailboxes import (
     mailboxes_page,
     registration_toggle,
 )
+from .first_password import first_password
+from .system_health import system_health, system_health_recheck
 from .mfa import mailbox_mfa_reset, mfa_setup, mfa_verify
 from .password_reset import (
     password_reset,
@@ -66,6 +68,9 @@ __all__ = [
     'mailboxes_action',
     'mailboxes_create',
     'mailboxes_page',
+    'first_password',
+    'system_health',
+    'system_health_recheck',
     'mfa_setup',
     'mfa_verify',
     'registration_toggle',

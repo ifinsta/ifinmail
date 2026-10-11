@@ -70,3 +70,14 @@ def settings_is_active(context: template.Context) -> bool:
     """True when the current page is the hub or any page listed in the catalogue."""
     active = context.get('active_section', '')
     return active == 'settings' or SettingsCatalogue.get(active) is not None
+
+
+@register.simple_tag
+def health_badge() -> int | None:
+    """Issues on the System health page, from its last cached report (never runs the checks)."""
+    from ..services.system_health import SystemHealth
+
+    try:
+        return SystemHealth.cached_badge()
+    except Exception:  # the sidebar must render even if the cache is unavailable
+        return None

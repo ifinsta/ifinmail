@@ -198,7 +198,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 return redirect(next_url)
             if (user.is_staff or user.is_superuser) and not SetupState.is_complete():
                 return redirect('accounts:setup_wizard')
-            if (user.is_staff or user.is_superuser) and user.mfa_required:
+            if (user.is_staff or user.is_superuser) and TOTPService.prompt_due(user):
                 return redirect('accounts:mfa_setup')
             return redirect('accounts:dashboard')
 
@@ -235,7 +235,19 @@ def login_view(request: HttpRequest) -> HttpResponse:
             severity='warn',
         )
         error = 'Invalid email or password.'
-    return render(request, 'admin/login.html', {'error': error})
+    from backend.apps.accounts.services.initial_admin import InitialAdminService
+
+    # First sign-in after install: say which address to use and where the password is kept.
+    first_signin_email = InitialAdminService.pending_signin_email()
+    return render(
+        request,
+        'admin/login.html',
+        {
+            'error': error,
+            'first_signin_email': first_signin_email,
+            'install_dir': os.environ.get('IFINMAIL_INSTALL_DIR', '') if first_signin_email else '',
+        },
+    )
 
 
 def logout_view(request: HttpRequest) -> HttpResponse:

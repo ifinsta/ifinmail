@@ -44,6 +44,11 @@ class MailUser(AbstractBaseUser):
     # Console staff must hold a verified second factor unless they turn it off
     # themselves (proving possession first). Re-enrolling sets it back to True.
     mfa_required = models.BooleanField(default=True)
+    # Set on the administrator the installer creates: its password was printed in a terminal
+    # and sits in provisioning/.env, so the console asks for a new one before anything else.
+    password_change_required = models.BooleanField(default=False)
+    # Two-factor is offered, not forced: "Remind me in a week" postpones the prompt until then.
+    mfa_remind_after = models.DateTimeField(null=True, blank=True)
     role = models.ForeignKey(
         'accounts.Role', null=True, blank=True, on_delete=models.SET_NULL, related_name='users'
     )

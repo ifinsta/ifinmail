@@ -43,3 +43,7 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
 }
+
+# Most tests open pages on a database that never ran the setup wizard; the redirect to the
+# wizard has its own tests (accounts/tests/test_setup_required.py), which switch it back on.
+SETUP_REQUIRED_REDIRECT = False

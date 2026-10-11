@@ -98,6 +98,8 @@ python-dotenv==1.2.4
     # via uvicorn
 pyyaml==6.0.3
     # via uvicorn
+qrcode==8.2
+    # via -r requirements/base.txt
 redis==5.3.1
     # via
     #   -r requirements/base.txt

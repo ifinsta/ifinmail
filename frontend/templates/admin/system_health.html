@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}System health — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'System health' %}</h1>
+                <p class="ifinmail-page-subtitle">
+                    {% blocktrans trimmed with when=report.checked_at|date:"H:i" %}Everything this server needs from you, and everything it is still finishing. Checked at {{ when }} UTC.{% endblocktrans %}
+                </p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <form method="post" action="{% url 'accounts:system_health_recheck' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="ifinmail-btn">{% trans 'Re-check now' %}</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="ifinmail-health-summary" role="status">
+            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--{% if report.errors %}error{% else %}ok{% endif %}">
+                <span class="ifinmail-health-summary__value">{{ report.errors }}</span>
+                <span class="ifinmail-health-summary__label">{% trans 'Need fixing' %}</span>
+            </div>
+            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--{% if report.warnings %}warning{% else %}ok{% endif %}">
+                <span class="ifinmail-health-summary__value">{{ report.warnings }}</span>
+                <span class="ifinmail-health-summary__label">{% trans 'Recommended' %}</span>
+            </div>
+            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--waiting">
+                <span class="ifinmail-health-summary__value">{{ report.waiting|length }}</span>
+                <span class="ifinmail-health-summary__label">{% trans 'In progress' %}</span>
+            </div>
+            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--ok">
+                <span class="ifinmail-health-summary__value">{{ report.good|length }}</span>
+                <span class="ifinmail-health-summary__label">{% trans 'All good' %}</span>
+            </div>
+        </div>
+
+        {% if report.attention %}
+        <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="health-todo">
+            <h2 class="ifinmail-panel-title" id="health-todo">{% trans 'To do' %}</h2>
+            <ol class="ifinmail-guide-steps">
+                {% for check in report.attention %}{% include "includes/health_check.html" %}{% endfor %}
+            </ol>
+        </section>
+        {% else %}
+        <section class="ifinmail-panel ifinmail-health-section">
+            <h2 class="ifinmail-panel-title">{% trans 'Nothing to do' %}</h2>
+            <p class="ifinmail-page-subtitle">{% trans 'Every check that needs your attention passes.' %}</p>
+        </section>
+        {% endif %}
+
+        {% if report.waiting %}
+        <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="health-waiting">
+            <h2 class="ifinmail-panel-title" id="health-waiting">{% trans 'In progress' %}</h2>
+            <p class="ifinmail-page-subtitle">{% trans 'The server finishes these by itself; nothing for you to do unless they stay here.' %}</p>
+            <ol class="ifinmail-guide-steps">
+                {% for check in report.waiting %}{% include "includes/health_check.html" %}{% endfor %}
+            </ol>
+        </section>
+        {% endif %}
+
+        <details class="ifinmail-panel ifinmail-health-section ifinmail-health-good">
+            <summary class="ifinmail-panel-title">{% blocktrans count n=report.good|length %}{{ n }} check passes{% plural %}{{ n }} checks pass{% endblocktrans %}</summary>
+            <ol class="ifinmail-guide-steps">
+                {% for check in report.good %}{% include "includes/health_check.html" %}{% endfor %}
+            </ol>
+        </details>
+    </div>
+</section>
+{% endblock %}

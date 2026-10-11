@@ -18,18 +18,19 @@
     <p class="ifinmail-setup-description">
       {% trans 'This server now publishes all the records below. One step is left at your domain registrar: set the domain’s nameservers to:' %}
     </p>
-    <ul class="ifinmail-setup-hint">
-      {% for ns in ns_hosts %}<li><code>{{ ns }}</code></li>{% endfor %}
-    </ul>
+    <dl class="ifinmail-guide-values">
+      {% for ns in ns_hosts %}<dt>{% blocktrans with n=forloop.counter %}Nameserver {{ n }}{% endblocktrans %}</dt><dd><code>{{ ns }}</code></dd>{% endfor %}
+    </dl>
     {% if glue_hosts %}
     <p class="ifinmail-setup-description">
       {% trans 'Because these names are inside your own domain, the registrar also asks for their IP addresses (“glue records” or “child nameservers”):' %}
     </p>
-    <ul class="ifinmail-setup-hint">
-      {% for h in glue_hosts %}<li><code>{{ h }}</code> &rarr; <code>{{ server_ip }}</code></li>{% endfor %}
-    </ul>
+    <dl class="ifinmail-guide-values">
+      {% for h in glue_hosts %}<dt><code>{{ h }}</code></dt><dd><code>{{ server_ip }}</code></dd>{% endfor %}
+    </dl>
     {% endif %}
 
+    <p class="ifinmail-setup-divider">{% trans 'Records this server publishes for you' %}</p>
     {% include "includes/setup_table.html" with dns_records=dns_records|default:'' %}
 
     <p class="ifinmail-setup-hint ifinmail-mt-3">

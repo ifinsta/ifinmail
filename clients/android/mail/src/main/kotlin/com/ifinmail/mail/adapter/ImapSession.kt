@@ -8,6 +8,7 @@ import com.ifinmail.mail.model.Account
 import com.ifinmail.mail.model.ConnectionSecurity
 import com.ifinmail.mail.model.Credentials
 import com.ifinmail.mail.model.IncomingConfig
+import com.ifinmail.mail.model.ServerConfig
 import com.ifinmail.mail.model.VerifyStep
 import com.ifinmail.mail.transport.MailTransport
 
@@ -48,13 +49,13 @@ internal class ImapSession(
 
     companion object {
         suspend fun connect(
-            transportFactory: () -> MailTransport,
+            transportFactory: (ServerConfig) -> MailTransport,
             incoming: IncomingConfig,
             credentials: Credentials,
             email: String,
             steps: MutableList<VerifyStep>? = null
         ): ImapSession {
-            val transport = transportFactory()
+            val transport = transportFactory(incoming.server)
             try {
                 val client = ImapClient(transport)
                 client.connect(incoming.server.host, incoming.server.port, incoming.server.security)

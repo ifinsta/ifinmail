@@ -34,8 +34,11 @@
                 <div class="ifinmail-settings-row"><dt>{% trans 'Issuer' %}</dt><dd><span class="ifinmail-settings-row__value">{{ cert.issuer }}</span></dd></div>
                 <div class="ifinmail-settings-row"><dt>{% trans 'Expires' %}</dt><dd><span class="ifinmail-badge ifinmail-badge--{% if cert.status == 'err' %}danger{% elif cert.status == 'warn' %}warning{% else %}success{% endif %}">{% blocktrans trimmed with d=cert.days_left %}in {{ d }} days{% endblocktrans %}</span> <span class="ifinmail-settings-row__value">{{ cert.not_after|date:"Y-m-d" }}</span></dd></div>
                 <div class="ifinmail-settings-row"><dt>{% trans 'Names covered' %}</dt><dd><code class="ifinmail-settings-row__value">{{ cert.sans|join:", " }}</code></dd></div>
-                <div class="ifinmail-settings-row"><dt>{% trans 'Fingerprint (SHA-256)' %}</dt><dd><code class="ifinmail-settings-row__value">{{ cert.fingerprint|slice:":32" }}…</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Fingerprint (SHA-256)' %}</dt><dd><code class="ifinmail-settings-row__value" id="cert-fingerprint">{{ cert.fingerprint_display }}</code></dd></div>
             </dl>
+            {% if cert.self_signed and not custom %}
+            <p class="ifinmail-settings-section__lede">{% trans 'This temporary certificate is signed by the server itself. The first time a mail app connects it will ask you to trust it; check that the fingerprint it shows matches the one above. Once a Let’s Encrypt certificate is issued, apps stop asking.' %}</p>
+            {% endif %}
             {% else %}
             <p class="ifinmail-settings-section__lede">{% trans 'No certificate could be read yet.' %}</p>
             {% endif %}

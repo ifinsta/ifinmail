@@ -229,7 +229,8 @@ class MailEngine(
         val success: Boolean,
         val steps: List<VerifyStep>,
         val errorDetail: String?,
-        val capabilities: Set<KnownCapability>
+        val capabilities: Set<KnownCapability>,
+        val error: MailError? = null
     )
 
     private suspend fun verifyWithCapabilities(
@@ -248,7 +249,10 @@ class MailEngine(
         val steps = incomingOutcome.steps + outgoingOutcome.steps
         val success = incomingOutcome.success && outgoingOutcome.success
         val detail = listOfNotNull(incomingOutcome.errorDetail, outgoingOutcome.errorDetail).firstOrNull()
-        return Verification(success, steps, detail, incomingOutcome.capabilities + outgoingOutcome.capabilities)
+        val error = listOfNotNull(incomingOutcome.error, outgoingOutcome.error).let { errors ->
+            errors.firstOrNull { it is MailError.CertificateUntrusted } ?: errors.firstOrNull()
+        }
+        return Verification(success, steps, detail, incomingOutcome.capabilities + outgoingOutcome.capabilities, error)
     }
 
     suspend fun addAccount(
@@ -265,7 +269,7 @@ class MailEngine(
             if (!verification.success) {
                 throw MailException(
                     verification.errorDetail ?: "Verification failed",
-                    error = MailError.Unknown(verification.errorDetail ?: "Verification failed")
+                    error = verification.error ?: MailError.Unknown(verification.errorDetail ?: "Verification failed")
                 )
             }
             capabilities = verification.capabilities

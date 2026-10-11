@@ -37,7 +37,7 @@ class Pop3AccessAdapter : MailAccessAdapter {
     ): ProbeOutcome {
         val steps = mutableListOf<VerifyStep>()
         return try {
-            JvmSocketTransport().use { transport ->
+            JvmSocketTransport(incoming.server.pinnedCertSha256).use { transport ->
                 val client = Pop3Client(transport)
                 client.connect(incoming.server.host, incoming.server.port, incoming.server.security)
                 steps += VerifyStep("Incoming connection", true, "${incoming.server.host}:${incoming.server.port}")
@@ -61,7 +61,7 @@ class Pop3AccessAdapter : MailAccessAdapter {
     override suspend fun sync(request: SyncRequest): ChangeSet {
         val account = request.account
         val password = requirePassword(request.credentials)
-        JvmSocketTransport().use { transport ->
+        JvmSocketTransport(account.incoming.server.pinnedCertSha256).use { transport ->
             val client = Pop3Client(transport)
             client.connect(account.incoming.server.host, account.incoming.server.port, account.incoming.server.security)
             client.authenticate(account.email, password)
@@ -118,7 +118,7 @@ class Pop3AccessAdapter : MailAccessAdapter {
         message: StoredMessage
     ): BodyPayload {
         val password = requirePassword(credentials)
-        JvmSocketTransport().use { transport ->
+        JvmSocketTransport(account.incoming.server.pinnedCertSha256).use { transport ->
             val client = Pop3Client(transport)
             client.connect(account.incoming.server.host, account.incoming.server.port, account.incoming.server.security)
             client.authenticate(account.email, password)

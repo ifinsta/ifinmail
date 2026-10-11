@@ -29,3 +29,14 @@ def test_server_context_exposes_css_version() -> None:
     context = server_context(object())
 
     assert context['CSS_VERSION'] == 'release 1'
+
+
+def test_default_css_version_follows_the_stylesheet_content(tmp_path) -> None:
+    from backend.config.settings.base import _css_content_version
+
+    (tmp_path / 'a.css').write_text('body { color: red; }')
+    first = _css_content_version(tmp_path)
+    assert first != 'dev' and len(first) == 12
+    assert _css_content_version(tmp_path) == first  # stable while nothing changes
+    (tmp_path / 'a.css').write_text('body { color: blue; }')
+    assert _css_content_version(tmp_path) != first  # a changed stylesheet busts the cache

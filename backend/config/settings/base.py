@@ -143,7 +143,30 @@ LOCALE_PATHS = [BASE_DIR / 'frontend' / 'locale']
 STATIC_URL = os.environ.get('STATIC_URL', '/static/')
 STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'static']
 STATIC_ROOT = Path(os.environ.get('STATIC_ROOT', BASE_DIR / 'staticfiles'))
-CSS_VERSION = os.environ.get('CSS_VERSION') or os.environ.get('APP_VERSION', 'dev')
+
+def _css_content_version(css_dir: Path) -> str:
+    """Short hash of the stylesheets: changes whenever any CSS file changes.
+
+    nginx serves /static/ for 30 days as immutable, so a fixed version ('dev') kept browsers on
+    the previous release's CSS after an upgrade.
+    """
+    import hashlib
+
+    digest = hashlib.sha256()
+    try:
+        for path in sorted(css_dir.glob('*.css')):
+            digest.update(path.name.encode())
+            digest.update(path.read_bytes())
+    except OSError:
+        return 'dev'
+    return digest.hexdigest()[:12]
+
+
+CSS_VERSION = (
+    os.environ.get('CSS_VERSION')
+    or os.environ.get('APP_VERSION')
+    or _css_content_version(BASE_DIR / 'frontend' / 'static' / 'css')
+)
 
 MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', BASE_DIR / 'media'))

@@ -180,18 +180,24 @@ def _step_certificate(mail_hostname: str, delegated: bool | None) -> GuideStep:
 
 
 def _step_mail(domain: str, mail_hostname: str) -> GuideStep:
-    from backend.apps.domains.models import Domain
+    # Domain.verified only says Postfix will accept the domain (the primary domain is accepted
+    # from the start); whether mail can arrive depends on the public MX record.
+    from backend.apps.domains.services.verification import DomainVerificationService
+    from backend.apps.domains.types.provisioning import CheckStatus
 
-    title = 'Receive mail'
-    row = Domain.objects.filter(name=domain).only('verified').first()
-    if row and row.verified:
-        return GuideStep('mail', title, DONE, f'This server accepts mail for {domain}.')
+    title = 'Receive mail from the internet'
+    mx = DomainVerificationService.check_mx(domain)
+    if mx.status == CheckStatus.PASS:
+        return GuideStep('mail', title, DONE, f'Other servers deliver mail for {domain} here.')
+    if mx.status == CheckStatus.ERROR:
+        return GuideStep('mail', title, UNKNOWN, 'The MX record could not be checked.')
     return GuideStep(
         'mail',
         title,
         WAITING,
-        f'Mail for {domain} is accepted once its MX record ({mail_hostname}) is visible on the '
-        'internet. This is checked every 15 minutes and switches on by itself.',
+        f'The server is ready to accept mail for {domain}. Mail arrives once the internet sees '
+        f'its MX record pointing at {mail_hostname}, which follows from the nameserver step. '
+        f'Now: {mx.detail}.',
     )
 
 

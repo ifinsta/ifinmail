@@ -1,0 +1,95 @@
+{% extends "mydoc/base.html" %}
+
+{% block title %}{{ section.name }} — API Documentation{% endblock %}
+
+{% block sidebar_sections %}
+{% for s in sections %}
+<div class="mydoc-sidebar__section">
+    <div class="mydoc-sidebar__section-title">{% include "mydoc/icon.html" with icon=s.icon size="14" %} {{ s.name }}</div>
+    {% for endpoint in s.endpoints %}
+    <a href="{% url 'mydoc:endpoint' section_slug=s.slug endpoint_slug=endpoint.slug %}"
+       class="mydoc-sidebar__link {% if s.slug == current_slug %}mydoc-sidebar__link--section-active{% endif %}"
+       title="{{ endpoint.display_path|default:endpoint.path }}">
+        {% for ms in endpoint.method_styles %}
+        <span class="mydoc-method-dot" style="background: {{ ms.color }}" title="{{ ms.method }}"></span>
+        {% endfor %}
+        <span class="mydoc-sidebar__link-text">{{ endpoint.view_name|default:endpoint.action_name|default:endpoint.display_path|default:endpoint.path }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block content %}
+<div class="mydoc-content">
+    {% if section %}
+    <!-- Section Header -->
+    <div class="mydoc-section-header">
+        <div class="mydoc-section-header__breadcrumb">
+            <a href="{% url 'mydoc:index' %}">API Docs</a>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+            <span>{{ section.name }}</span>
+        </div>
+        <h1 class="mydoc-section-header__title">
+            <span class="mydoc-section-header__icon">{% include "mydoc/icon.html" with icon=section.icon size="28" %}</span>
+            {{ section.name }}
+        </h1>
+        <p class="mydoc-section-header__description">{{ section.description }}</p>
+
+        <div class="mydoc-section-header__meta">
+            <span class="mydoc-section-header__count">
+                {{ section.endpoint_count }} endpoint{{ section.endpoint_count|pluralize }}
+            </span>
+            {% for method, count in section.method_summary.items %}
+            <span class="mydoc-method-badge mydoc-method-badge--{{ method|lower }}">
+                {{ method }} <span class="mydoc-method-badge__count">{{ count }}</span>
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Endpoints List -->
+    <div class="mydoc-endpoints-list">
+        {% for endpoint in section.endpoints %}
+        <a href="{% url 'mydoc:endpoint' section_slug=section.slug endpoint_slug=endpoint.slug %}" class="mydoc-endpoint-row">
+            <div class="mydoc-endpoint-row__methods">
+                {% for ms in endpoint.method_styles %}
+                <span class="mydoc-method-badge mydoc-method-badge--{{ ms.method|lower }}">{{ ms.method }}</span>
+                {% endfor %}
+            </div>
+            <div class="mydoc-endpoint-row__info">
+                <code class="mydoc-endpoint-row__path">{{ endpoint.display_path|default:endpoint.path }}</code>
+                {% if endpoint.short_description %}
+                <span class="mydoc-endpoint-row__desc">{{ endpoint.short_description }}</span>
+                {% endif %}
+            </div>
+            <div class="mydoc-endpoint-row__meta">
+                {% if endpoint.serializer_name %}
+                <span class="mydoc-endpoint-row__tag" title="Serializer">{{ endpoint.serializer_name }}</span>
+                {% endif %}
+                {% if endpoint.intent %}
+                <span class="mydoc-endpoint-row__tag mydoc-endpoint-row__tag--{{ endpoint.intent.value }}" title="Intent: {{ endpoint.intent.value }}">{{ endpoint.intent.value|upper }}</span>
+                {% endif %}
+            </div>
+            <svg class="mydoc-endpoint-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </a>
+        {% empty %}
+        <div class="mydoc-empty mydoc-empty--compact">
+            <p>No endpoints found in this section.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="mydoc-empty">
+        <h3>Section Not Found</h3>
+        <p>The requested API section could not be found.</p>
+        <a href="{% url 'mydoc:index' %}" class="mydoc-btn mydoc-btn--primary">Back to API Docs</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -44,6 +44,16 @@ class DovecotContractTests(SimpleTestCase):
         self.assertIn('quota_bytes', sql)
         self.assertIn('quota = maildir:User quota', _read('dovecot', 'conf.d', '90-quota.conf'))
 
+    def test_new_mailboxes_get_the_1024_mb_default_at_the_schema_level(self) -> None:
+        """The SQL default and the Python default must not drift apart."""
+        from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
+
+        self.assertIn(f'quota_bytes BIGINT DEFAULT {DEFAULT_QUOTA_BYTES}', _read('init-db.sh'))
+        self.assertIn(
+            f'ALTER COLUMN quota_bytes SET DEFAULT {DEFAULT_QUOTA_BYTES}',
+            _read('db-upgrade.sql'),
+        )
+
 
 class RspamdContractTests(SimpleTestCase):
     def test_every_domain_is_signed_from_its_own_key_file(self) -> None:

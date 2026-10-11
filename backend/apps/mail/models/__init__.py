@@ -2,6 +2,8 @@ import uuid
 
 from django.db import models
 
+from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
+
 
 class Mailbox(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -11,7 +13,8 @@ class Mailbox(models.Model):
         db_column='domain_id',
     )
     local_part = models.CharField(max_length=128)
-    quota_bytes = models.BigIntegerField(default=0)
+    # 0 = unlimited; new mailboxes default to 1024 MB (see types/quota.py).
+    quota_bytes = models.BigIntegerField(default=DEFAULT_QUOTA_BYTES)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 from django.db.utils import OperationalError
 
 from ..models import Alias, Mailbox
+from ..types.quota import DEFAULT_QUOTA_BYTES
 
 logger = logging.getLogger('backend')
 
@@ -28,7 +29,9 @@ class MailService:
         return Alias.objects.filter(domain__name=domain_name).order_by('source')
 
     @staticmethod
-    def create_mailbox(domain: object, local_part: str, quota_bytes: int = 0) -> Mailbox:
+    def create_mailbox(
+        domain: object, local_part: str, quota_bytes: int = DEFAULT_QUOTA_BYTES
+    ) -> Mailbox:
         return Mailbox.objects.create(
             domain=domain,
             local_part=local_part,
@@ -60,5 +63,6 @@ class MailService:
 
 
 from .mailboxes import AliasService, MailboxInviteService, MailboxService  # noqa: E402
+from .quota import QuotaService  # noqa: E402
 
-__all__ = ['AliasService', 'MailService', 'MailboxInviteService', 'MailboxService']
+__all__ = ['AliasService', 'MailService', 'MailboxInviteService', 'MailboxService', 'QuotaService']

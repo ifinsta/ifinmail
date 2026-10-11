@@ -1,0 +1,79 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Account — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Account' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Your own name, password and sign-in security. Changes apply to this login only.' %}</p>
+            </div>
+        </div>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="acct-identity">
+            <h2 class="ifinmail-panel-title" id="acct-identity">{% trans 'Your identity' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Sign-in address' %}</dt>
+                    <dd><code class="ifinmail-text--mono">{{ user.email }}</code></dd>
+                </div>
+            </dl>
+            <form method="post" action="{% url 'accounts:account_name' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="acct-name">{% trans 'Display name' %}</label>
+                    <input class="ifinmail-input" id="acct-name" name="full_name" type="text" maxlength="128" value="{{ user.full_name }}" autocomplete="name" required>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save' %}</button></div>
+            </form>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="acct-password">
+            <h2 class="ifinmail-panel-title" id="acct-password">{% trans 'Password' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Choose a new password. This browser stays signed in; other sessions must sign in again with the new password.' %}</p>
+            <form method="post" action="{% url 'accounts:account_password' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="pw-old">{% trans 'Current password' %}</label>
+                    <input class="ifinmail-input" id="pw-old" name="old_password" type="password" autocomplete="current-password" required>
+                </div>
+                <div class="ifinmail-field-grid">
+                    <div class="ifinmail-field">
+                        <label for="pw-new">{% trans 'New password' %}</label>
+                        <input class="ifinmail-input" id="pw-new" name="new_password" type="password" autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="pw-confirm">{% trans 'Repeat new password' %}</label>
+                        <input class="ifinmail-input" id="pw-confirm" name="confirm_password" type="password" autocomplete="new-password" minlength="8" required>
+                    </div>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Change password' %}</button></div>
+            </form>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="acct-security">
+            <h2 class="ifinmail-panel-title" id="acct-security">{% trans 'Sign-in security' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Two-factor sign-in' %}</dt>
+                    <dd>
+                        {% if mfa_status.enabled %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'On' %}</span>
+                        {% elif mfa_status.pending %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Setup pending' %}</span>
+                        {% else %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Off' %}</span>{% endif %}
+                        <a class="ifinmail-link-strong" href="{% url 'accounts:mfa_setup' %}">{% trans 'Manage' %}</a>
+                    </dd>
+                </div>
+                {% if mfa_status.enabled %}
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Recovery codes left' %}</dt>
+                    <dd><code class="ifinmail-text--mono">{{ mfa_status.recovery_remaining }}</code></dd>
+                </div>
+                {% endif %}
+            </dl>
+        </section>
+    </div>
+</section>
+{% endblock %}

@@ -162,6 +162,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
         _('Personalization'),
         (
             SettingsItem(
+                'account',
+                _('Account'),
+                _('Your display name, password and sign-in security.'),
+                SettingsIcon.ACCOUNT,
+                'accounts:account',
+                ('profile', 'name', 'display name', 'password', 'mfa', 'two-factor', 'account'),
+            ),
+            SettingsItem(
                 'appearance',
                 _('Appearance'),
                 _('Light, dark, auto and high contrast.'),

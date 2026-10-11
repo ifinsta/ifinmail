@@ -142,7 +142,13 @@
                             <input type="hidden" name="address" value="{{ address }}">
                             <div class="ifinmail-field">
                                 <label for="mp-quota">{% trans 'Mailbox quota (MB, 0 = unlimited)' %}</label>
-                                <input class="ifinmail-input" id="mp-quota" name="quota_mb" type="number" min="0" value="{{ quota_mb }}">
+                                <input class="ifinmail-input" id="mp-quota" name="quota_mb" type="number" min="0" value="{{ quota_mb }}" data-current-mb="{{ quota_mb }}">
+                                {% if quota_budget.headroom_mb is not None %}
+                                <small class="ifinmail-field-hint" data-quota-hint="mp-quota" data-headroom-mb="{{ quota_budget.headroom_mb }}"
+                                       data-text-left="{% trans '{n} left to allocate' %}"
+                                       data-text-over="{% trans 'Exceeds the unallocated space by {n}' %}"
+                                       data-text-unlimited="{% trans 'Unlimited — not counted against the budget' %}"></small>
+                                {% endif %}
                             </div>
                             <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set quota' %}</button></div>
                         </form>

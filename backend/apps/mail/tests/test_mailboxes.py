@@ -15,6 +15,7 @@ from backend.apps.mail.models import Alias, Mailbox
 from backend.apps.mail.services import AliasService, MailboxService
 from backend.apps.mail.services.postfix_runtime import OutboundConfigError, PostfixRuntime
 from backend.apps.mail.types.provisioning import MailboxError
+from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
 
 GOOD = 'Correct-Horse-9'
 
@@ -42,6 +43,14 @@ class MailboxServiceTests(MailTablesTestCase):
         self.assertTrue(user.is_active)
         self.assertFalse(user.is_staff)
         self.assertEqual(mailbox.quota_bytes, 5_000_000)
+
+    def test_new_mailboxes_default_to_1024_mb(self) -> None:
+        mailbox, _ = MailboxService.create('ifinmail.test', 'alice', GOOD)
+        self.assertEqual(mailbox.quota_bytes, DEFAULT_QUOTA_BYTES)
+
+    def test_explicit_zero_means_unlimited(self) -> None:
+        mailbox, _ = MailboxService.create('ifinmail.test', 'alice', GOOD, quota_bytes=0)
+        self.assertEqual(mailbox.quota_bytes, 0)
 
     def test_dovecot_hash_is_sha512_crypt_and_verifies_with_openssl(self) -> None:
         _, user = MailboxService.create('ifinmail.test', 'alice', GOOD)

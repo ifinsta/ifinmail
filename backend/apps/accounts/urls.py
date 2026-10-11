@@ -12,6 +12,9 @@ from .views.server import (
     network_unblock,
 )
 from .web import (
+    account_name,
+    account_page,
+    account_password,
     aliases_create,
     aliases_delete,
     aliases_page,
@@ -131,6 +134,9 @@ urlpatterns = [
     path('settings/network/block/', network_block, name='network_block'),
     path('settings/network/unblock/', network_unblock, name='network_unblock'),
     path('settings/network/rate/', network_rate, name='network_rate'),
+    path('settings/account/', account_page, name='account'),
+    path('settings/account/name/', account_name, name='account_name'),
+    path('settings/account/password/', account_password, name='account_password'),
     path('settings/<slug:slug>/', settings_page, name='settings_page'),
     path('branding/', branding_identity, name='branding_identity'),
     path('login/', login_view, name='login'),

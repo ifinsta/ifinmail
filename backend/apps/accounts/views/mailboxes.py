@@ -11,8 +11,14 @@ from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.domains.services import DomainService
-from backend.apps.mail.services import AliasService, MailboxInviteService, MailboxService
+from backend.apps.mail.services import (
+    AliasService,
+    MailboxInviteService,
+    MailboxService,
+    QuotaService,
+)
 from backend.apps.mail.types.provisioning import MailboxError
+from backend.apps.mail.types.quota import DEFAULT_QUOTA_MB, MB, QuotaBudget, human_bytes
 
 from ..forms.mailboxes import (
     AliasCreateForm,
@@ -28,7 +34,7 @@ from .auth import require_perm
 
 _MAIL = require_perm(PermissionCode.MAIL_MANAGE)
 
-_MB = 1024 * 1024
+_MB = MB
 
 
 def _actor(request: HttpRequest) -> str | None:
@@ -48,6 +54,67 @@ def _quota_label(quota_bytes: int) -> str:
     return 'Unlimited' if not quota_bytes else f'{quota_bytes // _MB} MB'
 
 
+def _quota_budget_context() -> dict[str, object]:
+    """Template-ready space budget (disk, allocated, headroom)."""
+    budget = QuotaService.get_budget()
+    headroom = budget.headroom_bytes
+    disk_total, disk_free = budget.disk_total_bytes, budget.disk_free_bytes
+
+    if disk_total is None or disk_free is None:
+        disk_status = 'info'
+    else:
+        used_pct = (disk_total - disk_free) / disk_total * 100 if disk_total else 0
+        disk_status = 'ok' if used_pct < 80 else ('warn' if used_pct < 95 else 'err')
+
+    if headroom is None:
+        available_status = 'info'
+    elif headroom < 0:
+        available_status = 'err'
+    elif disk_total and headroom < disk_total * 0.2:
+        available_status = 'warn'
+    else:
+        available_status = 'ok'
+
+    allocated_pct = None
+    if disk_total:
+        allocated_pct = round(budget.allocated_bytes / disk_total * 100, 1)
+
+    return {
+        'disk_total': human_bytes(disk_total),
+        'disk_free': human_bytes(disk_free),
+        'disk_status': disk_status,
+        'allocated': human_bytes(budget.allocated_bytes),
+        'allocated_pct': allocated_pct,
+        'headroom': human_bytes(headroom),
+        'headroom_mb': (headroom // _MB) if headroom is not None else None,
+        'available_status': available_status,
+        'overcommit_by': human_bytes(-headroom) if headroom is not None and headroom < 0 else None,
+        'overcommitted': budget.overcommitted,
+        'unknown': disk_total is None,
+        'mailbox_count': budget.mailbox_count,
+        'unlimited_count': budget.unlimited_count,
+        'allocated_bytes': budget.allocated_bytes,
+        'headroom_bytes': headroom,
+    }
+
+
+def _warn_if_overcommitted(request: HttpRequest, before: QuotaBudget | None) -> None:
+    """Warn when this change pushed the promised quota past the disk size.
+
+    Quotas stay soft promises (overcommit is allowed), but the admin sees it.
+    """
+    after = QuotaService.get_budget()
+    if after.disk_total_bytes is None:
+        return
+    if after.overcommitted and (before is None or after.allocated_bytes > before.allocated_bytes):
+        messages.warning(
+            request,
+            f'Heads-up: mailboxes now promise {human_bytes(after.allocated_bytes)} in total, '
+            f'more than the {human_bytes(after.disk_total_bytes)} mail volume. '
+            'Quotas are still enforced per mailbox, but the disk can fill up first.',
+        )
+
+
 @login_required
 @_MAIL
 @require_GET
@@ -65,6 +132,8 @@ def mailboxes_page(request: HttpRequest) -> HttpResponse:
             'domains': [d.name for d in DomainService.get_all_domains()],
             'mailboxes': rows,
             'registration_open': registration_open(),
+            'default_quota_mb': DEFAULT_QUOTA_MB,
+            'quota_budget': _quota_budget_context(),
         },
     )
 
@@ -87,6 +156,7 @@ def mailboxes_create(request: HttpRequest) -> HttpResponse:
     if not form.is_valid():
         messages.error(request, _first_error(form))
         return redirect('accounts:mailboxes')
+    before = QuotaService.get_budget()
     try:
         mailbox, _user = MailboxService.create(
             form.cleaned_data['domain'],
@@ -100,6 +170,7 @@ def mailboxes_create(request: HttpRequest) -> HttpResponse:
         return redirect('accounts:mailboxes')
     address = MailboxService.address_for(mailbox)
     AuditService.record(action='mailbox_created', user=_actor(request), detail=address)
+    _warn_if_overcommitted(request, before)
     try:
         link = _setup_url(request, address)
     except MailboxError as exc:
@@ -123,6 +194,7 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
         messages.error(request, _first_error(form))
         return redirect('accounts:mailboxes')
     action, address = form.cleaned_data['action'], form.cleaned_data['address'].lower()
+    before = QuotaService.get_budget()
     try:
         if action == 'invite':
             link = _setup_url(request, address)
@@ -167,6 +239,8 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
         return redirect('accounts:mailboxes')
     audit_action = locals().get('audit_action', f'mailbox_{action}')
     AuditService.record(action=audit_action, user=_actor(request), detail=address)
+    if action == 'quota':
+        _warn_if_overcommitted(request, before)
     messages.success(request, message)
     return redirect('accounts:mailboxes')
 

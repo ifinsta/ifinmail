@@ -39,9 +39,10 @@ Compare the result with the matching board (see `ifinmail-design-system/referenc
 - [ ] Page ground `surface-1`, cards white with a 1 px border, no shadows on cards
 - [ ] One primary button per view; secondary actions are white or link-style
 - [ ] Pills use word + tint; numbers, hosts, timestamps are mono and numeric columns right-aligned
-- [ ] Spacing sits on the 4 px grid; gutter 32, panel padding 16, gap 16
+- [ ] Spacing sits on the 4 px grid; gutter 24, panel padding 16, gap 12; header 48, sidebar 208, nav items 32
 - [ ] Controls 36 px (40 on auth and wizard), radius 8, pills radius 5, dialogs 12
-- [ ] Type matches the scale (title 20/600, panel 15/600, body 13-14, caption 12, overline 11 caps)
+- [ ] Type matches the scale (title 18/600, panel 15/600, body 13-14, caption 12, overline 11 caps)
+- [ ] Both sidebars minimize to a rail and back (button, Alt+C), keep tooltips, survive reload; the phone drawer is unaffected
 
 **States**
 - [ ] Empty, loading, error, success and disabled states exist and read as one next action

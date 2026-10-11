@@ -1,6 +1,6 @@
 {% load i18n %}{% load settings_nav %}
 {# Admin sidebar — ifinsta-aligned white sidebar navigation #}
-<nav class="ifinmail-admin-nav" role="navigation" aria-label="{% trans 'Admin navigation' %}">
+<nav class="ifinmail-admin-nav" id="ifinmail-app-sidebar" role="navigation" aria-label="{% trans 'Admin navigation' %}">
     <div class="ifinmail-admin-brand">
         <div class="ifinmail-admin-brand-top">
             <a href="{% url 'accounts:dashboard' %}" class="ifinmail-admin-brand-mark" aria-label="{{ brand.name }} dashboard">
@@ -19,7 +19,7 @@
 
     <div class="ifinmail-admin-nav-list">
         <div class="ifinmail-admin-nav-section">{% trans 'Overview' %}</div>
-        <a href="{% url 'accounts:dashboard' %}"
+        <a href="{% url 'accounts:dashboard' %}" title="{% trans 'Dashboard' %}"
            class="ifinmail-admin-nav-item{% if active_section == 'dashboard' %} ifinmail-admin-nav-item--active{% endif %}"
            {% if active_section == 'dashboard' %}aria-current="page"{% endif %}>
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -28,7 +28,7 @@
 
         <div class="ifinmail-admin-nav-section">{% trans 'Manage' %}</div>
         {% settings_is_active as in_settings %}
-        <a href="{% url 'accounts:settings' %}"
+        <a href="{% url 'accounts:settings' %}" title="{% trans 'Settings' %}"
            class="ifinmail-admin-nav-item{% if in_settings %} ifinmail-admin-nav-item--active{% endif %}"
            {% if in_settings %}aria-current="page"{% endif %}>
             {% settings_icon 'general' %}
@@ -37,18 +37,25 @@
     </div>
 
     <div class="ifinmail-admin-nav-footer">
-        <div class="ifinmail-server-status">
+        <div class="ifinmail-server-status" title="{% blocktrans with status=server_status|default:'Active' %}Server: {{ status }}{% endblocktrans %}">
             <span></span>
-            {% blocktrans with status=server_status|default:'Active' %}{{ status }}{% endblocktrans %}
+            <b class="ifinmail-server-status__label">{% blocktrans with status=server_status|default:'Active' %}{{ status }}{% endblocktrans %}</b>
         </div>
-        <a class="ifinmail-admin-footer-action" href="{% url 'accounts:settings_page' slug='about' %}">
+        <a class="ifinmail-admin-footer-action" href="{% url 'accounts:settings_page' slug='about' %}" title="{% trans 'About' %}">
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
             <span>{% trans 'About' %}</span>
         </a>
-        <a class="ifinmail-admin-footer-action" href="mailto:{{ support_email|default:'support@example.com' }}">
+        <a class="ifinmail-admin-footer-action" href="mailto:{{ support_email|default:'support@example.com' }}" title="{% trans 'Support' %}">
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.8 1c-.6 1-1.7 1.4-2.4 2.1-.5.5-.5.9-.5 1.4"/><path d="M12 17h.01"/></svg>
             <span>{% trans 'Support' %}</span>
         </a>
+        <button type="button" class="ifinmail-admin-footer-action ifinmail-admin-footer-action--button ifinmail-collapse-toggle"
+                data-collapse-toggle="sidebar" aria-expanded="true" aria-controls="ifinmail-app-sidebar"
+                data-label-collapse="{% trans 'Minimize sidebar' %}" data-label-expand="{% trans 'Maximize sidebar' %}"
+                title="{% trans 'Minimize sidebar' %}">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+            <span>{% trans 'Minimize' %}</span>
+        </button>
     </div>
 </nav>
 

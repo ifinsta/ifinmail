@@ -23,9 +23,6 @@ virtual_transport = lmtp:unix:/var/run/dovecot/lmtp
 virtual_uid_maps = static:5000
 virtual_gid_maps = static:5000
 
-# --- Transport ---
-transport_maps = pgsql:/etc/postfix/pgsql/virtual_domains.cf
-
 # --- SASL Authentication (via Dovecot Unix socket) ---
 smtpd_sasl_type = dovecot
 smtpd_sasl_path = /var/run/dovecot/auth

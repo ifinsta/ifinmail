@@ -237,3 +237,50 @@ class AuthoritativeServerContractTests(SimpleTestCase):
         self.assertEqual(DEFAULT_CONTAINER_RUNTIME, '/runtime')
         self.assertIn(GENERATED_CONF.split('/')[-1], script)
         self.assertIn(ZONES_DIR.split('/')[-1], script)
+
+
+class PostfixDovecotHandoffContractTests(SimpleTestCase):
+    """Found by running Postfix and Dovecot together: mail clients could not send, and inbound
+    mail was never delivered, because of two lines of configuration."""
+
+    def _master_rows(self) -> dict[str, list[str]]:
+        rows: dict[str, list[str]] = {}
+        for line in _read('postfix', 'master.cf').splitlines():
+            parts = line.split()
+            if len(parts) >= 8 and not line.startswith(('#', ' ')):
+                rows[f'{parts[0]}/{parts[1]}'] = parts
+        return rows
+
+    def test_services_that_use_dovecots_sockets_are_not_chrooted(self) -> None:
+        """smtpd (SASL) and lmtp reach Dovecot at /var/run/dovecot; inside the postfix chroot
+        that path does not exist, so SASL ("no SASL authentication mechanisms") and delivery
+        fail."""
+        rows = self._master_rows()
+        for service in ('smtp/inet', 'submission/inet', 'smtps/inet', 'lmtp/unix'):
+            self.assertIn(service, rows)
+            self.assertEqual(rows[service][4], 'n', msg=f'{service} must have chroot = n')
+
+    def test_the_sockets_are_the_ones_dovecot_creates(self) -> None:
+        main = _read('postfix', 'main.cf')
+        self.assertIn('smtpd_sasl_path = /var/run/dovecot/auth', main)
+        self.assertIn('virtual_transport = lmtp:unix:/var/run/dovecot/lmtp', main)
+        master = _read('dovecot', 'conf.d', '10-master.conf')
+        self.assertIn('unix_listener auth', master)
+        self.assertIn('unix_listener lmtp', master)
+
+    def test_the_domain_list_is_not_used_as_a_transport_table(self) -> None:
+        """transport_maps must return "transport:nexthop"; virtual_domains.cf returns the domain
+        name, which Postfix then tried to use as a transport ("private/example.test"), deferring
+        every inbound message."""
+        main = _read('postfix', 'main.cf')
+        self.assertNotRegex(main, r'(?m)^transport_maps\s*=.*virtual_domains')
+
+    def test_submission_and_smtps_require_tls_and_authentication(self) -> None:
+        master = _read('postfix', 'master.cf')
+        for service in ('submission inet', 'smtps     inet'):
+            block = master.split(service)[1].split('\n\n')[0]
+            self.assertIn('permit_sasl_authenticated,reject', block)
+        self.assertIn(
+            'smtpd_tls_security_level=encrypt', master.split('submission inet')[1].split('smtps')[0]
+        )
+        self.assertIn('smtpd_tls_wrappermode=yes', master.split('smtps     inet')[1])

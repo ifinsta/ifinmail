@@ -4,6 +4,7 @@ import json
 import logging
 import os
 
+from django.conf import settings as django_settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -11,23 +12,28 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
+from backend.config.branding import branding_overrides_path
 
 from ..types.permissions import PermissionCode
 from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
-_OVERRIDES_FILE = os.environ.get(
-    'BRANDING_OVERRIDES_PATH',
-    os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json'),
-)
+
+def _overrides_file() -> str:
+    """The shared overrides file branding settings also live in."""
+    base_dir = getattr(django_settings, 'BASE_DIR', None)
+    return branding_overrides_path(base_dir) or os.path.join(
+        os.environ.get('APP_DIR', '.'), 'branding_overrides.json'
+    )
 
 
 def _load_spam_settings() -> dict:
     """Load spam settings from shared overrides file."""
+    path = _overrides_file()
     try:
-        if os.path.isfile(_OVERRIDES_FILE):
-            with open(_OVERRIDES_FILE) as f:
+        if os.path.isfile(path):
+            with open(path) as f:
                 data = json.load(f)
                 return data.get('spam', {})
     except (OSError, json.JSONDecodeError):
@@ -37,16 +43,17 @@ def _load_spam_settings() -> dict:
 
 def _save_spam_settings(settings: dict) -> None:
     """Persist spam settings into shared overrides."""
+    path = _overrides_file()
     data = {}
-    if os.path.isfile(_OVERRIDES_FILE):
+    if os.path.isfile(path):
         try:
-            with open(_OVERRIDES_FILE) as f:
+            with open(path) as f:
                 data = json.load(f)
         except (OSError, json.JSONDecodeError):
             pass
     data['spam'] = settings
-    os.makedirs(os.path.dirname(_OVERRIDES_FILE) or '.', exist_ok=True)
-    with open(_OVERRIDES_FILE, 'w') as f:
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    with open(path, 'w') as f:
         json.dump(data, f, indent=2)
 
 

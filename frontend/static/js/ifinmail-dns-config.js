@@ -207,38 +207,46 @@
     /* ── Toggle controls ───────────────────────────────────── */
 
     function toggleSMTPProxy() {
-        var toggleUrl = document.querySelector('[data-action="toggle-proxy"]');
-        if (!toggleUrl) return;
+        var toggleEl = document.querySelector('[data-action="toggle-proxy"]');
+        if (!toggleEl) return;
 
-        fetch(toggleUrl.dataset.url, {
+        fetch(toggleEl.dataset.url, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrf.getCSRFToken() }
         })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.status === 'ok') {
-                    var switchEl = document.querySelector('[data-action="toggle-proxy"] .ifinmail-switch');
-                    if (switchEl) switchEl.classList.toggle('ifinmail-switch--on', data.enabled);
-                    alert('SMTP Proxy: ' + (data.enabled ? 'enabled' : 'disabled') + '. ' + (data.note || ''));
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                if (res.ok && res.data.status === 'ok') {
+                    toggleEl.classList.toggle('ifinmail-switch--on', !!res.data.enabled);
+                    alert('SMTP Proxy: ' + (res.data.enabled ? 'enabled' : 'disabled') + '. ' + (res.data.note || ''));
+                } else {
+                    alert('SMTP Proxy: ' + ((res.data && res.data.error) || 'request failed'));
                 }
+            })
+            .catch(function () {
+                alert('SMTP Proxy: request failed. Please try again.');
             });
     }
 
     function toggleSmartHost() {
-        var toggleUrl = document.querySelector('[data-action="toggle-relay"]');
-        if (!toggleUrl) return;
+        var toggleEl = document.querySelector('[data-action="toggle-relay"]');
+        if (!toggleEl) return;
 
-        fetch(toggleUrl.dataset.url, {
+        fetch(toggleEl.dataset.url, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrf.getCSRFToken() }
         })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.status === 'ok') {
-                    var switchEl = document.querySelector('[data-action="toggle-relay"] .ifinmail-switch');
-                    if (switchEl) switchEl.classList.toggle('ifinmail-switch--on', data.enabled);
-                    alert('Smart Host Relay: ' + (data.enabled ? 'enabled' : 'disabled') + '. ' + (data.note || ''));
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                if (res.ok && res.data.status === 'ok') {
+                    toggleEl.classList.toggle('ifinmail-switch--on', !!res.data.enabled);
+                    alert('Smart Host Relay: ' + (res.data.enabled ? 'enabled' : 'disabled') + '. ' + (res.data.note || ''));
+                } else {
+                    alert('Smart Host Relay: ' + ((res.data && res.data.error) || 'request failed'));
                 }
+            })
+            .catch(function () {
+                alert('Smart Host Relay: request failed. Please try again.');
             });
     }
 
@@ -270,19 +278,22 @@
         var originalText = btn.textContent;
         btn.textContent = 'Refreshing\u2026';
 
-        var statusUrl = btn.dataset.url;
-        fetch(statusUrl)
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
+        fetch(btn.dataset.url)
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
                 btn.disabled = false;
                 btn.textContent = originalText;
-                if (data && data.status) {
-                    console.log('DNS refresh complete:', data.status);
+                if (!res.ok || (res.data && res.data.error)) {
+                    alert('Zone refresh failed: ' + ((res.data && res.data.error) || 'unknown error'));
+                    return;
                 }
+                // Verification outcomes are persisted server-side; reload to show them.
+                location.reload();
             })
             .catch(function () {
                 btn.disabled = false;
                 btn.textContent = originalText;
+                alert('Zone refresh failed. Please try again.');
             });
     }
 

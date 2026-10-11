@@ -11,7 +11,12 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
-from backend.config.branding import DEFAULT_ACCENT, DEFAULT_PRIMARY, DEFAULT_SECONDARY
+from backend.config.branding import (
+    DEFAULT_ACCENT,
+    DEFAULT_PRIMARY,
+    DEFAULT_SECONDARY,
+    branding_overrides_path,
+)
 
 from ..types.permissions import PermissionCode
 from .auth import require_perm
@@ -20,13 +25,10 @@ logger = logging.getLogger('backend')
 
 
 def _get_overrides_file_path() -> str:
-    env_path = os.environ.get('BRANDING_OVERRIDES_PATH')
-    if env_path:
-        return env_path
     base_dir = getattr(django_settings, 'BASE_DIR', None)
-    if base_dir:
-        return os.path.join(base_dir, 'branding_overrides.json')
-    return os.path.join(os.environ.get('APP_DIR', '/app'), 'branding_overrides.json')
+    return branding_overrides_path(base_dir) or os.path.join(
+        base_dir or '.', 'branding_overrides.json'
+    )
 
 
 _BRANDING_OVERRIDES_FILE = _get_overrides_file_path()

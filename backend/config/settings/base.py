@@ -241,7 +241,7 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 )
 
 # Branding (self-hosted customization)
-BRAND_CONFIG = BrandingConfig.from_env()
+BRAND_CONFIG = BrandingConfig.from_env(BASE_DIR)
 
 
 # ── Startup validation ──────────────────────────────────────────────────────

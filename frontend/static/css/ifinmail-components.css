@@ -1667,6 +1667,14 @@ select.ifinmail-input {
     stroke-linejoin: round;
 }
 
+/* Fill-based glyphs (e.g. the sidebar panel toggle) opt out of the stroke system.
+   The path is targeted directly so contextual stroke rules cannot bleed in. */
+.ifinmail-icon--fill,
+.ifinmail-icon--fill path {
+    fill: currentColor;
+    stroke: none;
+}
+
 .ifinmail-admin-nav {
     width: var(--ifinmail-sidebar-width);
     min-height: 100vh;

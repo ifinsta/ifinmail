@@ -12,7 +12,7 @@
                 <p class="ifinmail-page-subtitle">{% trans 'Manage DNS zones, record validation, and cluster infrastructure health.' %}</p>
             </div>
             <div class="ifinmail-page-actions">
-                <button class="ifinmail-btn ifinmail-btn--outline" type="button" data-action="refresh-dns" data-url="{% url 'dns:status' %}?domain={{ domain|urlencode }}">{% trans 'Full Zone Refresh' %}</button>
+                <button class="ifinmail-btn ifinmail-btn--outline" type="button" data-action="refresh-dns" data-url="{% url 'dns:status' %}{% if domain %}?domain={{ domain|urlencode }}{% endif %}">{% trans 'Full Zone Refresh' %}</button>
                 <button class="ifinmail-btn ifinmail-btn--primary" type="button" data-action="toggle-register">{% trans 'Register New Domain' %}</button>
             </div>
         </div>
@@ -21,24 +21,28 @@
             <article class="ifinmail-stat-panel ifinmail-domain-stat ifinmail-span-3">
                 <span class="ifinmail-stat-label">{% trans 'Propagation sync' %}</span>
                 <span class="ifinmail-stat-big">{{ propagation_sync|default:'—' }}</span>
-                <span class="ifinmail-badge ifinmail-badge--success">{{ propagation_pct|default:'—' }}</span>
+                <span class="ifinmail-badge">{{ propagation_pct|default:'—' }}</span>
             </article>
-            {% with dnssec_issue_count=dnssec_issues|default:'0' %}
-            <article class="ifinmail-stat-panel ifinmail-domain-stat{% if dnssec_issue_count != '0' %} ifinmail-stat-panel--warning{% endif %} ifinmail-span-3">
+            {% with dnssec_issue_count=dnssec_issues|default:'' %}
+            <article class="ifinmail-stat-panel ifinmail-domain-stat{% if dnssec_issue_count and dnssec_issue_count != '0' %} ifinmail-stat-panel--warning{% endif %} ifinmail-span-3">
                 <span class="ifinmail-stat-label">{% trans 'DNSSEC health' %}</span>
                 <span class="ifinmail-stat-big">
+                    {% if dnssec_issue_count %}
                     {% if dnssec_issue_count != '0' %}
                     <svg class="ifinmail-stat-alert-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg>
                     {% endif %}
                     {{ dnssec_issue_count }} {% trans 'Issues' %}
+                    {% else %}
+                    &mdash;
+                    {% endif %}
                 </span>
                 <span class="ifinmail-badge ifinmail-badge--warning">{{ dnssec_status|default:'—' }}</span>
             </article>
             {% endwith %}
             <article class="ifinmail-stat-panel ifinmail-domain-stat ifinmail-span-3">
-                <span class="ifinmail-stat-label">{% trans 'Name servers' %}</span>
-                <span class="ifinmail-stat-big">{{ nameserver_count|default:'0' }} {% trans 'Active' %}</span>
-                <span class="ifinmail-badge ifinmail-badge--info">{{ nameserver_scope|default:'—' }}</span>
+                <span class="ifinmail-stat-label">{% trans 'Domains' %}</span>
+                <span class="ifinmail-stat-big">{{ nameserver_count|default:'0' }}</span>
+                <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Registered' %}</span>
             </article>
             <article class="ifinmail-panel ifinmail-domain-stat ifinmail-span-3">
                 <span class="ifinmail-stat-label">{% trans 'Mail routing cluster' %}</span>
@@ -52,7 +56,7 @@
                 <div class="ifinmail-empty-state ifinmail-empty-state--compact">
                     <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v5H4zM4 14h16v4H4z"/><path d="M8 8.5h.01M8 16h.01"/></svg>
                     <p>{% trans 'No routing cluster has been configured.' %}</p>
-                    <a class="ifinmail-link-strong" href="#mail-routing-controls">{% trans 'Configure cluster →' %}</a>
+                    <a class="ifinmail-link-strong" href="#mail-routing-controls">{% trans 'Configure outbound routing →' %}</a>
                 </div>
                 {% endfor %}
             </article>
@@ -64,7 +68,7 @@
                 {% include "includes/admin_table.html" with span=None title=None headers=dns_registry_headers|default:'' rows=dns_registry_rows|default:'' row_template="admin/partials/dns_row.html" empty_message=_("No domains registered yet") empty_action_label=_("Register your first domain →") empty_action_data_action="toggle-register" %}
             </article>
 
-            <article class="ifinmail-panel ifinmail-span-6" id="mail-routing-controls">
+            <article class="ifinmail-panel ifinmail-span-6">
                 <div class="ifinmail-action-row ifinmail-toolbox-header">
                     <h2 class="ifinmail-panel-title ifinmail-toolbox-title">{% trans 'DNS Toolbox' %}</h2>
                     <a class="ifinmail-link-strong" href="{% url 'dns:export' %}">{% trans 'Export Records' %}</a>
@@ -73,26 +77,26 @@
                     <div class="ifinmail-toolbox-content">
                         <strong class="ifinmail-link-strong">{% trans 'SPF Record' %}</strong>
                         <div class="ifinmail-codebox">{{ toolbox_spf_record|default:'—' }}</div>
-                        <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="copy-spf" data-value="{{ toolbox_spf_record|escapejs }}">{% trans 'Copy' %}</button>
+                        <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="copy-spf" data-value="{{ toolbox_spf_record }}">{% trans 'Copy' %}</button>
                         <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="edit-record">{% trans 'Edit' %}</button>
                     </div>
                 </div>
                 <div class="ifinmail-toolbox-record">
                     <div class="ifinmail-toolbox-content">
                         <strong class="ifinmail-link-strong">{% trans 'DKIM Selector' %}</strong>
-                        <div class="ifinmail-codebox">{% blocktrans %}selector: {{ dkim_selector|default:'—' }}{% endblocktrans %}</div>
+                        <div class="ifinmail-codebox">{% blocktrans with selector=dkim_selector %}selector: {{ selector }}{% endblocktrans %}</div>
                     </div>
                 </div>
             </article>
 
-            <article class="ifinmail-panel ifinmail-span-6">
+            <article class="ifinmail-panel ifinmail-span-6" id="mail-routing-controls">
                 <h2 class="ifinmail-panel-title">{% trans 'Mail Routing Controls' %}</h2>
                 <div class="ifinmail-engine-row">
-                    <span><strong>{% trans 'Global SMTP Proxy' %}</strong><small>{% trans 'Force all outbound through US-EAST-1 cluster.' %}</small></span>
+                    <span><strong>{% trans 'Global SMTP Proxy' %}</strong><small>{% trans 'Route all outbound mail through the configured SMTP proxy.' %}</small></span>
                     <span class="ifinmail-switch{% if smtp_proxy_enabled %} ifinmail-switch--on{% endif %}" data-action="toggle-proxy" data-url="{% url 'dns:toggle_proxy' %}" title="{% trans 'Click to toggle' %}"></span>
                 </div>
                 <div class="ifinmail-engine-row">
-                    <span><strong>{% trans 'Smart Host Relay' %}</strong><small>{% trans 'Use SendGrid/AWS SES fallback on high latency.' %}</small></span>
+                    <span><strong>{% trans 'Smart Host Relay' %}</strong><small>{% trans 'Send outbound mail through the configured smart host relay.' %}</small></span>
                     <span class="ifinmail-switch{% if smart_host_enabled %} ifinmail-switch--on{% endif %}" data-action="toggle-relay" data-url="{% url 'dns:toggle_relay' %}" title="{% trans 'Click to toggle' %}"></span>
                 </div>
                 <span class="ifinmail-overline ifinmail-hop-overline">{% trans 'Max Hop Count Limit' %} — <strong id="hop-count-label">{{ max_hop_count|default:'10' }}</strong></span>

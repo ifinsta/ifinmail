@@ -10,6 +10,7 @@ import socket
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core import signing
+from django.core.cache import cache
 from django.db.utils import OperationalError
 
 from ..models import DNSProviderConfig
@@ -31,6 +32,8 @@ _DEFAULT_DNS_TTL = int(os.environ.get('DNS_TTL', '3600'))
 _DKIM_KEY_DIR = os.environ.get('DKIM_KEY_DIR', '/etc/dkim')
 _CRED_PREFIX = 'fernet:'
 DKIM_PLACEHOLDER = '<add-dkim-key>'
+_SERVER_IP_CACHE_KEY = 'ifinmail:dns:server-ip'
+_SERVER_IP_CACHE_TTL = int(os.environ.get('SERVER_IP_CACHE_TTL', '600'))
 
 
 def _fernet() -> Fernet:
@@ -87,7 +90,24 @@ class DNSService:
 
     @staticmethod
     def get_server_ip() -> str:
-        """Auto-detect the server's public IPv4 address."""
+        """Auto-detect the server's public IPv4 address, cached briefly.
+
+        Rendering the DNS console and building record previews must not call an
+        external IP service on every request; the address rarely changes. A failed
+        detection (``0.0.0.0``) is retried on the next call. Override the cache
+        window with ``SERVER_IP_CACHE_TTL`` seconds.
+        """
+        cached = cache.get(_SERVER_IP_CACHE_KEY)
+        if cached:
+            return str(cached)
+        ip = DNSService._detect_server_ip()
+        if ip and ip != '0.0.0.0':
+            cache.set(_SERVER_IP_CACHE_KEY, ip, _SERVER_IP_CACHE_TTL)
+        return ip
+
+    @staticmethod
+    def _detect_server_ip() -> str:
+        """Detect the public IP, falling back to MAIL_HOSTNAME then the local hostname."""
         ip_check_url = os.environ.get('IP_CHECK_URL', _IPIFY_URL)
         try:
             import requests as req

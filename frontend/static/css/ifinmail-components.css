@@ -1354,6 +1354,65 @@ select.ifinmail-input {
     gap: var(--ifinmail-space-3);
 }
 
+/* Setup guide at "/" until setup is finished: live registrar / provider checklist */
+.ifinmail-guide-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ifinmail-space-3);
+}
+
+.ifinmail-guide-step {
+    padding: var(--ifinmail-space-4);
+    border: 1px solid var(--ifinmail-outline-variant);
+    border-left-width: 3px;
+    border-radius: var(--ifinmail-radius-lg);
+    background: var(--ifinmail-surface-container-lowest);
+}
+
+.ifinmail-guide-step--done    { border-left-color: var(--ifinmail-success); }
+.ifinmail-guide-step--action  { border-left-color: var(--ifinmail-warning); }
+.ifinmail-guide-step--waiting { border-left-color: var(--ifinmail-secondary); }
+.ifinmail-guide-step--unknown { border-left-color: var(--ifinmail-outline); }
+
+.ifinmail-guide-step__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-2);
+}
+
+.ifinmail-guide-step__title {
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-on-surface);
+}
+
+.ifinmail-guide-step__summary {
+    margin: var(--ifinmail-space-2) 0 0;
+    color: var(--ifinmail-on-surface-variant);
+    line-height: var(--ifinmail-line-height);
+}
+
+.ifinmail-guide-values {
+    display: grid;
+    grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+    gap: var(--ifinmail-space-1) var(--ifinmail-space-3);
+    margin: var(--ifinmail-space-3) 0 0;
+    font-size: var(--ifinmail-font-size-body);
+}
+
+.ifinmail-guide-values dt { color: var(--ifinmail-on-surface-variant); }
+.ifinmail-guide-values dd { margin: 0; min-width: 0; }
+.ifinmail-guide-values code { overflow-wrap: anywhere; user-select: all; }
+
+@media (max-width: 560px) {
+    .ifinmail-guide-values { grid-template-columns: minmax(0, 1fr); }
+    .ifinmail-guide-values dd { margin-bottom: var(--ifinmail-space-2); }
+}
+
 /* ══════════════════════════════════════════════════════════════
    DNS Configuration
    ══════════════════════════════════════════════════════════════ */

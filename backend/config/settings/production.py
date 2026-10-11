@@ -13,6 +13,14 @@ ALLOWED_HOSTS = [host.strip() for host in _hosts_raw.split(',') if host.strip()]
 if not ALLOWED_HOSTS:
     raise ValueError('ALLOWED_HOSTS environment variable must be set in production')
 
+# Before DNS points here the server is only reachable by its address; accept it so the setup
+# guide and the console open at https://<server IP>/.
+_ipv4 = os.environ.get('SERVER_IP', '').strip()
+_ipv6 = os.environ.get('SERVER_IPV6', '').strip()
+for _address in (_ipv4, f'[{_ipv6}]' if _ipv6 else ''):  # IPv6 Host headers are bracketed
+    if _address and _address not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_address)
+
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')

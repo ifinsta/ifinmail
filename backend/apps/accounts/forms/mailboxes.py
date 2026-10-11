@@ -6,7 +6,9 @@ import re
 
 from django import forms
 
-_MB = 1024 * 1024
+from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES, MB
+
+_MB = MB
 _LOCAL_PART_RE = re.compile(r'^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$')
 
 
@@ -31,7 +33,7 @@ def clean_local_part(value: str) -> str:
 class MailboxCreateForm(forms.Form):
     local_part = forms.CharField(max_length=64, strip=True)
     domain = forms.CharField(max_length=255, strip=True)
-    quota_mb = forms.IntegerField(min_value=0, required=False, initial=0)
+    quota_mb = forms.IntegerField(min_value=0, required=False)
     is_admin = forms.BooleanField(required=False)
 
     def clean_local_part(self) -> str:
@@ -42,7 +44,11 @@ class MailboxCreateForm(forms.Form):
 
     @property
     def quota_bytes(self) -> int:
-        return int(self.cleaned_data.get('quota_mb') or 0) * _MB
+        """Blank = the 1024 MB default; explicit 0 = unlimited."""
+        quota_mb = self.cleaned_data.get('quota_mb')
+        if quota_mb is None:
+            return DEFAULT_QUOTA_BYTES
+        return int(quota_mb) * _MB
 
 
 class MailboxActionForm(forms.Form):
@@ -56,7 +62,11 @@ class MailboxActionForm(forms.Form):
 
     @property
     def quota_bytes(self) -> int:
-        return int(self.cleaned_data.get('quota_mb') or 0) * _MB
+        """Blank = the 1024 MB default; explicit 0 = unlimited."""
+        quota_mb = self.cleaned_data.get('quota_mb')
+        if quota_mb is None:
+            return DEFAULT_QUOTA_BYTES
+        return int(quota_mb) * _MB
 
 
 class SessionRevokeForm(forms.Form):

@@ -24,6 +24,7 @@ from backend.apps.domains.models import Domain
 
 from ..models import Alias, Mailbox
 from ..types.provisioning import AliasRow, MailboxError, MailboxRow
+from ..types.quota import DEFAULT_QUOTA_BYTES
 from ..types.reserved import RESERVED_LOCAL_PARTS
 
 logger = logging.getLogger('backend')
@@ -105,7 +106,7 @@ class MailboxService:
         local_part: str,
         password: str | None = None,
         *,
-        quota_bytes: int = 0,
+        quota_bytes: int = DEFAULT_QUOTA_BYTES,
         is_admin: bool = False,
         enforce_reserved: bool = False,
         adopt_existing_login: bool = False,
@@ -119,6 +120,8 @@ class MailboxService:
 
         ``adopt_existing_login`` lets the first-run wizard attach a mailbox to the
         administrator login that bootstrap created with the same address.
+
+        ``quota_bytes`` defaults to 1024 MB; pass ``0`` for unlimited.
         """
         domain = _get_domain(domain_name)
         local = validate_local_part(local_part, reserved_blocked=enforce_reserved)
@@ -167,7 +170,11 @@ class MailboxService:
     @staticmethod
     @transaction.atomic
     def claim_for_login(
-        user: MailUser, domain_name: str, local_part: str, *, quota_bytes: int = 0
+        user: MailUser,
+        domain_name: str,
+        local_part: str,
+        *,
+        quota_bytes: int = DEFAULT_QUOTA_BYTES,
     ) -> Mailbox:
         """Give an already-verified login its own mailbox address (self-registration).
 

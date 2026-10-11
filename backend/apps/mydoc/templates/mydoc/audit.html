@@ -1,0 +1,345 @@
+{% extends "mydoc/base.html" %}
+
+{% block title %}API Health Audit — MyDoc{% endblock %}
+
+{% block sidebar_sections %}
+<div class="mydoc-sidebar__section">
+    <div class="mydoc-sidebar__section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        Audit Overview
+    </div>
+    <a href="#audit-overview" class="mydoc-sidebar__link">
+        <span class="mydoc-sidebar__link-text">Summary</span>
+    </a>
+    <a href="#audit-categories" class="mydoc-sidebar__link">
+        <span class="mydoc-sidebar__link-text">Categories</span>
+    </a>
+    <a href="#audit-findings" class="mydoc-sidebar__link">
+        <span class="mydoc-sidebar__link-text">Findings</span>
+    </a>
+</div>
+
+<div class="mydoc-sidebar__section">
+    <div class="mydoc-sidebar__section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        Severity Filters
+    </div>
+    <a href="{% url 'mydoc:audit' %}" class="mydoc-sidebar__link {% if not active_severity and not active_rule %}mydoc-sidebar__link--active{% endif %}">
+        <span class="mydoc-sidebar__link-text">All Findings</span>
+        <span class="mydoc-sidebar__link-meta">{{ report.findings|length }}</span>
+    </a>
+    <a href="{% url 'mydoc:audit' %}?severity=critical" class="mydoc-sidebar__link {% if active_severity == 'critical' %}mydoc-sidebar__link--active{% endif %}">
+        <span class="mydoc-sidebar__link-text">Critical</span>
+        <span class="mydoc-sidebar__link-meta">{{ report.critical_count }}</span>
+    </a>
+    <a href="{% url 'mydoc:audit' %}?severity=warning" class="mydoc-sidebar__link {% if active_severity == 'warning' %}mydoc-sidebar__link--active{% endif %}">
+        <span class="mydoc-sidebar__link-text">Warnings</span>
+        <span class="mydoc-sidebar__link-meta">{{ report.warning_count }}</span>
+    </a>
+    <a href="{% url 'mydoc:audit' %}?severity=info" class="mydoc-sidebar__link {% if active_severity == 'info' %}mydoc-sidebar__link--active{% endif %}">
+        <span class="mydoc-sidebar__link-text">Info</span>
+        <span class="mydoc-sidebar__link-meta">{{ report.info_count }}</span>
+    </a>
+</div>
+
+{% if summary_by_rule %}
+<div class="mydoc-sidebar__section">
+    <div class="mydoc-sidebar__section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        Categories
+    </div>
+    {% for rule in summary_by_rule %}
+    <a href="{% url 'mydoc:audit' %}?rule={{ rule.rule_id }}" class="mydoc-sidebar__link {% if active_rule == rule.rule_id %}mydoc-sidebar__link--active{% endif %}">
+        <span class="mydoc-sidebar__link-text">{{ rule.title }}</span>
+        <span class="mydoc-sidebar__link-meta">{{ rule.count }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if audit_sidebar_sections %}
+<div class="mydoc-sidebar__section">
+    <div class="mydoc-sidebar__section-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        </svg>
+        {% if report.findings %}Affected Sections{% else %}Audited Sections{% endif %}
+    </div>
+    {% for section in audit_sidebar_sections %}
+    <a href="{% url 'mydoc:section' section_slug=section.slug %}" class="mydoc-sidebar__link mydoc-sidebar__link--stacked">
+        <span class="mydoc-sidebar__link-text">{{ section.name }}</span>
+        <span class="mydoc-sidebar__link-note">
+            {% if section.finding_count %}
+            {{ section.finding_count }} finding{{ section.finding_count|pluralize }}
+            {% else %}
+            {{ section.endpoint_count }} endpoint{{ section.endpoint_count|pluralize }} audited
+            {% endif %}
+        </span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="mydoc-content">
+    <!-- Breadcrumb -->
+    <div class="mydoc-section-header__breadcrumb">
+        <a href="{% url 'mydoc:index' %}">API Docs</a>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        <span>API Health Audit</span>
+    </div>
+
+    <!-- Audit Header -->
+    <div class="mydoc-audit-header" id="audit-overview">
+        <div class="mydoc-audit-header__info">
+            <h1 class="mydoc-audit-header__title">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                API Health Audit
+            </h1>
+            <p class="mydoc-audit-header__description">
+                Proactive quality checks across {{ report.endpoints_audited }} endpoints in {{ report.sections_audited }} sections.
+            </p>
+            <div class="mydoc-audit-header__actions">
+                <button class="mydoc-btn mydoc-btn--primary mydoc-btn--sm" id="mydoc-generate-report" type="button">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    Generate Report File
+                </button>
+                <a href="{% url 'mydoc:audit' %}?format=json" class="mydoc-btn mydoc-btn--ghost mydoc-btn--sm" target="_blank">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Export JSON
+                </a>
+            </div>
+        </div>
+        <div class="mydoc-audit-grade" style="--grade-color: {{ report.grade_color }}">
+            <div class="mydoc-audit-grade__letter">{{ report.grade }}</div>
+            <div class="mydoc-audit-grade__score">{{ report.score }}/100</div>
+        </div>
+    </div>
+
+    <!-- Report generation notification -->
+    <div class="mydoc-audit-notification" id="mydoc-audit-notification" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span id="mydoc-notification-text"></span>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('mydoc-generate-report');
+        if (!btn) return;
+
+        btn.addEventListener('click', function() {
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            fetch('{% url "mydoc:audit-report" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var notification = document.getElementById('mydoc-audit-notification');
+                var text = document.getElementById('mydoc-notification-text');
+                if (notification && text) {
+                    text.textContent = 'Report saved to: ' + data.path;
+                    notification.style.display = 'flex';
+                    notification.className = 'mydoc-audit-notification mydoc-audit-notification--success';
+                }
+            })
+            .catch(function(err) {
+                var notification = document.getElementById('mydoc-audit-notification');
+                var text = document.getElementById('mydoc-notification-text');
+                if (notification && text) {
+                    text.textContent = 'Failed to generate report: ' + err.message;
+                    notification.style.display = 'flex';
+                    notification.className = 'mydoc-audit-notification mydoc-audit-notification--error';
+                }
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>' +
+                    '<polyline points="14 2 14 8 20 8"></polyline>' +
+                    '<line x1="16" y1="13" x2="8" y2="13"></line>' +
+                    '<line x1="16" y1="17" x2="8" y2="17"></line>' +
+                    '</svg> Generate Report File';
+            });
+        });
+
+        function getCookie(name) {
+            var value = '; ' + document.cookie;
+            var parts = value.split('; ' + name + '=');
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+    });
+    </script>
+
+    <!-- Summary Cards -->
+    <div class="mydoc-audit-summary">
+        <a href="{% url 'mydoc:audit' %}?severity=critical" class="mydoc-audit-card mydoc-audit-card--critical {% if active_severity == 'critical' %}mydoc-audit-card--active{% endif %}">
+            <div class="mydoc-audit-card__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </div>
+            <div class="mydoc-audit-card__count">{{ report.critical_count }}</div>
+            <div class="mydoc-audit-card__label">Critical</div>
+        </a>
+        <a href="{% url 'mydoc:audit' %}?severity=warning" class="mydoc-audit-card mydoc-audit-card--warning {% if active_severity == 'warning' %}mydoc-audit-card--active{% endif %}">
+            <div class="mydoc-audit-card__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+            </div>
+            <div class="mydoc-audit-card__count">{{ report.warning_count }}</div>
+            <div class="mydoc-audit-card__label">Warnings</div>
+        </a>
+        <a href="{% url 'mydoc:audit' %}?severity=info" class="mydoc-audit-card mydoc-audit-card--info {% if active_severity == 'info' %}mydoc-audit-card--active{% endif %}">
+            <div class="mydoc-audit-card__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+            </div>
+            <div class="mydoc-audit-card__count">{{ report.info_count }}</div>
+            <div class="mydoc-audit-card__label">Info</div>
+        </a>
+        <a href="{% url 'mydoc:audit' %}" class="mydoc-audit-card mydoc-audit-card--total {% if not active_severity %}mydoc-audit-card--active{% endif %}">
+            <div class="mydoc-audit-card__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+            </div>
+            <div class="mydoc-audit-card__count">{{ report.findings|length }}</div>
+            <div class="mydoc-audit-card__label">All Findings</div>
+        </a>
+    </div>
+
+    <!-- Rules Summary -->
+    {% if summary_by_rule %}
+    <div class="mydoc-audit-rules" id="audit-categories">
+        <h3 class="mydoc-audit-section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            Issues by Category
+        </h3>
+        <div class="mydoc-audit-rules__grid">
+            {% for rule in summary_by_rule %}
+            <a href="{% url 'mydoc:audit' %}?rule={{ rule.rule_id }}" class="mydoc-audit-rule {% if active_rule == rule.rule_id %}mydoc-audit-rule--active{% endif %}">
+                <div class="mydoc-audit-rule__header">
+                    <span class="mydoc-audit-badge mydoc-audit-badge--{{ rule.severity }}">{{ rule.severity|upper }}</span>
+                    <span class="mydoc-audit-rule__count">
+                        {{ rule.count }} finding{{ rule.count|pluralize }},
+                        {{ rule.affected_endpoint_count }} endpoint{{ rule.affected_endpoint_count|pluralize }}
+                    </span>
+                </div>
+                <div class="mydoc-audit-rule__title">{{ rule.title }}</div>
+                <div class="mydoc-audit-rule__recommendation">{{ rule.recommendation|truncatechars:120 }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Findings List -->
+    <div class="mydoc-audit-findings" id="audit-findings">
+        <h3 class="mydoc-audit-section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            {% if active_severity %}{{ active_severity|title }} Findings{% elif active_rule %}{{ active_rule|title }} Findings{% else %}All Findings{% endif %}
+            <span class="mydoc-audit-section-count">({{ filtered_findings|length }})</span>
+        </h3>
+
+        {% if filtered_findings %}
+        <div class="mydoc-audit-findings__list">
+            {% for finding in filtered_findings %}
+            <div class="mydoc-audit-finding mydoc-audit-finding--{{ finding.severity.value }}">
+                <div class="mydoc-audit-finding__header">
+                    <span class="mydoc-audit-badge mydoc-audit-badge--{{ finding.severity.value }}">{{ finding.severity_label }}</span>
+                    <span class="mydoc-audit-finding__rule-id">{{ finding.rule_id }}</span>
+                    <a href="{% url 'mydoc:endpoint' section_slug=finding.section_slug endpoint_slug=finding.endpoint_slug %}" class="mydoc-audit-finding__link">
+                        <code>{{ finding.endpoint_path }}</code>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                </div>
+                <div class="mydoc-audit-finding__title">{{ finding.title }}</div>
+                <div class="mydoc-audit-finding__desc">{{ finding.description }}</div>
+                {% if finding.affected_endpoint_count > 1 %}
+                <div class="mydoc-audit-finding__desc">
+                    Affected route aliases:
+                    {% for path in finding.affected_endpoint_paths %}
+                    <code>{{ path }}</code>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="mydoc-audit-finding__fix">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>{{ finding.recommendation }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="mydoc-audit-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <p>No findings match the current filters.</p>
+            <a href="{% url 'mydoc:audit' %}" class="mydoc-btn mydoc-btn--primary">View All</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

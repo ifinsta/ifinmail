@@ -47,6 +47,7 @@ verify — every row must exist on disk.
 | `admin/settings_appearance.html` | SettingsAppearance (+Dark/+Contrast) |
 | `admin/settings_certificates.html` | (TLS extension) |
 | `admin/settings_network.html` | (Network extension) |
+| `admin/settings_account.html` | (Account extension) |
 | `admin/settings_dns_server.html`, `settings_dns_zone.html` | (DNS extension) |
 | `admin/settings_mailboxes.html`, `settings_aliases.html` | (Mailbox extension) |
 

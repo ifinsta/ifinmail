@@ -9,6 +9,7 @@ from backend.apps.domains.models import Domain
 
 from ..models import Alias, Mailbox
 from ..services import MailService
+from ..types.quota import DEFAULT_QUOTA_BYTES
 
 
 def create_unmanaged_table(model: type) -> None:
@@ -75,4 +76,4 @@ class MailServiceTests(TransactionTestCase):
         domain = Domain.objects.create(name='create.example')
         mb = MailService.create_mailbox(domain=domain, local_part='newuser')
         self.assertEqual(mb.local_part, 'newuser')
-        self.assertEqual(mb.quota_bytes, 0)
+        self.assertEqual(mb.quota_bytes, DEFAULT_QUOTA_BYTES)

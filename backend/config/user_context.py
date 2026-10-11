@@ -15,11 +15,8 @@ def user_context(request: HttpRequest) -> dict[str, str]:
     email: str = getattr(user, 'email', '') or ''
     initials = email[:2].upper() if email else 'AD'
 
-    import contextlib
-
-    full_name = 'Admin Root'
-    with contextlib.suppress(Exception):
-        full_name = user.get_full_name() or 'Admin Root'
+    # Real values only: the profile name, else the email's local part.
+    full_name = getattr(user, 'get_full_name', lambda: '')() or email.split('@')[0] or 'Account'
 
     if user.is_superuser:
         role = 'SUPERUSER'

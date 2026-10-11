@@ -10,9 +10,18 @@ ALTER TABLE domains ADD COLUMN IF NOT EXISTS ip_address INET;
 -- delete is applied by the Django ORM.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID;
 
+-- MailUser.full_name is mapped by migration accounts.0005 (state-only).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128) NOT NULL DEFAULT '';
+
+-- MailUser.mfa_required is mapped by migration accounts.0006 (state-only).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_required BOOLEAN NOT NULL DEFAULT TRUE;
+
 -- Dovecot reads the mailbox quota to enforce it at login and delivery.
 GRANT SELECT ON domains TO dovecot;
 GRANT SELECT ON mailboxes TO dovecot;
+
+-- New mailboxes default to 1024 MB (0 stays available as explicit "unlimited").
+ALTER TABLE mailboxes ALTER COLUMN quota_bytes SET DEFAULT 1073741824;
 
 -- Django migrations (admin log, axes) add foreign keys to users; that needs REFERENCES.
 -- Without it the api's first `migrate` fails and the container never becomes healthy.

@@ -13,6 +13,35 @@
             </div>
         </div>
 
+        <div class="ifinmail-stat-row" role="group" aria-label="{% trans 'Space budget' %}">
+            <div class="ifinmail-stat-cell">
+                <span class="ifinmail-stat-cell__label">{% blocktrans with total=quota_budget.disk_total %}Disk free of {{ total }}{% endblocktrans %}</span>
+                <div class="ifinmail-stat-cell__value-wrapper">
+                    <span class="ifinmail-stat-cell__dot ifinmail-stat-cell__dot--{{ quota_budget.disk_status }}"></span>
+                    <span class="ifinmail-stat-cell__value">{{ quota_budget.disk_free }}</span>
+                </div>
+            </div>
+            <div class="ifinmail-stat-cell">
+                <span class="ifinmail-stat-cell__label">{% blocktrans count n=quota_budget.mailbox_count %}Quota allocated ({{ n }} mailbox){% plural %}Quota allocated ({{ n }} mailboxes){% endblocktrans %}</span>
+                <div class="ifinmail-stat-cell__value-wrapper">
+                    <span class="ifinmail-stat-cell__dot ifinmail-stat-cell__dot--info"></span>
+                    <span class="ifinmail-stat-cell__value">{{ quota_budget.allocated }}</span>
+                </div>
+            </div>
+            <div class="ifinmail-stat-cell">
+                <span class="ifinmail-stat-cell__label">{% trans 'Still unallocated' %}</span>
+                <div class="ifinmail-stat-cell__value-wrapper">
+                    <span class="ifinmail-stat-cell__dot ifinmail-stat-cell__dot--{{ quota_budget.available_status }}"></span>
+                    <span class="ifinmail-stat-cell__value">{% if quota_budget.overcommitted %}{% blocktrans with over=quota_budget.overcommit_by %}Over by {{ over }}{% endblocktrans %}{% else %}{{ quota_budget.headroom }}{% endif %}</span>
+                </div>
+            </div>
+        </div>
+        {% if quota_budget.overcommitted %}
+        <p class="ifinmail-error-banner" role="status">{% trans 'Quotas promise more space than the disk can hold. The disk fills up before the quotas do — lower a quota or add storage.' %}</p>
+        {% elif quota_budget.unlimited_count %}
+        <p class="ifinmail-help-text">{% blocktrans count n=quota_budget.unlimited_count %}{{ n }} unlimited mailbox can use any free space and is not counted in the allocated figure.{% plural %}{{ n }} unlimited mailboxes can use any free space and are not counted in the allocated figure.{% endblocktrans %}</p>
+        {% endif %}
+
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mb-add">
             <h2 class="ifinmail-panel-title" id="mb-add">{% trans 'Add a mailbox' %}</h2>
             {% if not domains %}
@@ -33,8 +62,14 @@
                         </select>
                     </div>
                     <div class="ifinmail-field">
-                        <label for="mb-quota">{% trans 'Quota (MB, 0 = unlimited)' %}</label>
-                        <input class="ifinmail-input" id="mb-quota" name="quota_mb" type="number" min="0" value="0">
+                        <label for="mb-quota">{% trans 'Quota (MB, 0 = unlimited, default 1024)' %}</label>
+                        <input class="ifinmail-input" id="mb-quota" name="quota_mb" type="number" min="0" value="{{ default_quota_mb }}">
+                        {% if quota_budget.headroom_mb is not None %}
+                        <small class="ifinmail-field-hint" data-quota-hint="mb-quota" data-headroom-mb="{{ quota_budget.headroom_mb }}"
+                               data-text-left="{% trans '{n} left to allocate' %}"
+                               data-text-over="{% trans 'Exceeds the unallocated space by {n}' %}"
+                               data-text-unlimited="{% trans 'Unlimited — not counted against the budget' %}">{% blocktrans with left=quota_budget.headroom %}{{ left }} left to allocate{% endblocktrans %}</small>
+                        {% endif %}
                     </div>
                 </div>
                 <label class="ifinmail-check"><input type="checkbox" name="is_admin"> <span>{% trans 'Can sign in to this admin console' %}</span></label>
@@ -92,8 +127,14 @@
                 <input type="hidden" name="action" value="quota">
                 <input type="hidden" name="address" value="" id="mailbox-manage-quota-address">
                 <div class="ifinmail-field">
-                    <label for="mailbox-manage-quota">{% trans 'Quota (MB, 0 = unlimited)' %}</label>
-                    <input class="ifinmail-input" id="mailbox-manage-quota" name="quota_mb" type="number" min="0" value="0">
+                    <label for="mailbox-manage-quota">{% trans 'Quota (MB, 0 = unlimited, default 1024)' %}</label>
+                    <input class="ifinmail-input" id="mailbox-manage-quota" name="quota_mb" type="number" min="0" value="{{ default_quota_mb }}" data-current-mb="0">
+                    {% if quota_budget.headroom_mb is not None %}
+                    <small class="ifinmail-field-hint" data-quota-hint="mailbox-manage-quota" data-headroom-mb="{{ quota_budget.headroom_mb }}"
+                           data-text-left="{% trans '{n} left to allocate' %}"
+                           data-text-over="{% trans 'Exceeds the unallocated space by {n}' %}"
+                           data-text-unlimited="{% trans 'Unlimited — not counted against the budget' %}"></small>
+                    {% endif %}
                 </div>
                 <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set quota' %}</button></div>
             </form>

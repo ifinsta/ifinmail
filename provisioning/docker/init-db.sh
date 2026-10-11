@@ -44,6 +44,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(128) NOT NULL DEFAUL
 -- on role delete is applied by the ORM. No SQL REFERENCES here: this script
 -- runs before migrations create accounts_role).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID;
+-- Profile display name (Django migration accounts.0005 is state-only).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(128) NOT NULL DEFAULT '';
+-- Per-user second-factor requirement (Django migration accounts.0006 is state-only).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_required BOOLEAN NOT NULL DEFAULT TRUE;
 -- The Domain model maps this column, so a SELECT without it fails everywhere.
 ALTER TABLE domains ADD COLUMN IF NOT EXISTS ip_address INET;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;
@@ -54,7 +58,8 @@ CREATE TABLE IF NOT EXISTS mailboxes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     domain_id UUID REFERENCES domains(id) ON DELETE CASCADE,
     local_part VARCHAR(128) NOT NULL,
-    quota_bytes BIGINT DEFAULT 0,
+    -- 0 = unlimited; 1073741824 = the 1024 MB default new mailboxes get.
+    quota_bytes BIGINT DEFAULT 1073741824,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(domain_id, local_part)
 );

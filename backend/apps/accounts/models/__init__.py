@@ -36,10 +36,14 @@ class MailUserManager(BaseUserManager['MailUser']):
 class MailUser(AbstractBaseUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.CharField(max_length=255, unique=True)
+    full_name = models.CharField(max_length=128, blank=True, default='')
     password_hash = models.CharField(max_length=512, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
+    # Console staff must hold a verified second factor unless they turn it off
+    # themselves (proving possession first). Re-enrolling sets it back to True.
+    mfa_required = models.BooleanField(default=True)
     role = models.ForeignKey(
         'accounts.Role', null=True, blank=True, on_delete=models.SET_NULL, related_name='users'
     )
@@ -56,6 +60,10 @@ class MailUser(AbstractBaseUser):
 
     def __str__(self) -> str:
         return self.email
+
+    def get_full_name(self) -> str:
+        """The profile display name; empty when the user has not set one."""
+        return self.full_name
 
     def set_password(self, raw_password: str | None) -> None:
         """Store both Django and Dovecot-compatible password hashes."""

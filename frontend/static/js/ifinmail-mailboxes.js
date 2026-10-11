@@ -45,6 +45,7 @@
         initNameCleanup();
         initManageModal();
         initCopyButtons();
+        initQuotaHints();
     });
 
     /* ── Name cleanup ──────────────────────────────────── */
@@ -121,6 +122,10 @@
             }
             if (quotaInput) {
                 quotaInput.value = quotaMb;
+                quotaInput.setAttribute('data-current-mb', quotaMb);
+                if (typeof quotaInput.quotaHintUpdate === 'function') {
+                    quotaInput.quotaHintUpdate();
+                }
             }
             if (statusAddress) {
                 statusAddress.value = address;
@@ -172,6 +177,74 @@
             }
         });
     }
+    /* ── Quota budget hints ──────────────────────────── */
+
+    /* Live hint under a quota input: shows what stays unallocated after the
+       entered value, and warns (does not block) when it would exceed the disk.
+       Budget math: headroom + the mailbox's current quota − the new value.
+       (0 = unlimited is not counted against the budget.) */
+    function initQuotaHints() {
+        var hints = document.querySelectorAll('[data-quota-hint]');
+        for (var i = 0; i < hints.length; i++) {
+            attachQuotaHint(hints[i]);
+        }
+    }
+
+    function attachQuotaHint(hint) {
+        var input = document.getElementById(hint.getAttribute('data-quota-hint'));
+        if (!input) {
+            return;
+        }
+        var headroom = parseFloat(hint.getAttribute('data-headroom-mb'));
+        if (isNaN(headroom)) {
+            return;
+        }
+
+        function currentMb() {
+            var value = parseFloat(input.getAttribute('data-current-mb') || '0');
+            return isNaN(value) ? 0 : value;
+        }
+
+        function update() {
+            var entered = parseFloat(input.value);
+            if (isNaN(entered) || entered < 0) {
+                entered = 0;
+            }
+            if (entered === 0) {
+                hint.textContent = hint.getAttribute('data-text-unlimited') || '';
+                hint.classList.remove('ifinmail-field-hint--ok', 'ifinmail-field-hint--err');
+                return;
+            }
+            var left = headroom + currentMb() - entered;
+            var text;
+            if (left < 0) {
+                text = hint.getAttribute('data-text-over') || '';
+                hint.classList.add('ifinmail-field-hint--err');
+                hint.classList.remove('ifinmail-field-hint--ok');
+            } else {
+                text = hint.getAttribute('data-text-left') || '';
+                hint.classList.add('ifinmail-field-hint--ok');
+                hint.classList.remove('ifinmail-field-hint--err');
+            }
+            hint.textContent = text.replace('{n}', formatMb(Math.abs(left)));
+        }
+
+        input.quotaHintUpdate = update;
+        input.addEventListener('input', update);
+        input.addEventListener('change', update);
+        update();
+    }
+
+    /* 1024 MB -> '1 GB', 512 -> '512 MB' */
+    function formatMb(mb) {
+        var value = Math.round(mb);
+        if (value >= 1024) {
+            var gb = value / 1024;
+            return (gb >= 100 ? Math.round(gb) : Math.round(gb * 10) / 10) + ' GB';
+        }
+        return value + ' MB';
+    }
+
     /* ── Copy buttons (setup links) ──────────────────── */
 
     function initCopyButtons() {

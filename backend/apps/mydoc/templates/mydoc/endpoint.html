@@ -1,0 +1,467 @@
+{% extends "mydoc/base.html" %}
+
+{% block title %}{% if endpoint %}{{ endpoint.display_path|default:endpoint.path }}{% else %}Endpoint Not Found{% endif %} — API Documentation{% endblock %}
+
+{% block sidebar_sections %}
+{% for s in sections %}
+<div class="mydoc-sidebar__section">
+    <div class="mydoc-sidebar__section-title">{% include "mydoc/icon.html" with icon=s.icon size="14" %} {{ s.name }}</div>
+    {% for ep in s.endpoints %}
+    <a href="{% url 'mydoc:endpoint' section_slug=s.slug endpoint_slug=ep.slug %}"
+       class="mydoc-sidebar__link {% if current_section_slug == s.slug and current_endpoint_slug == ep.slug %}mydoc-sidebar__link--active{% endif %}"
+       title="{{ ep.display_path|default:ep.path }}">
+        {% for ms in ep.method_styles %}
+        <span class="mydoc-method-dot" style="background: {{ ms.color }}" title="{{ ms.method }}"></span>
+        {% endfor %}
+        <span class="mydoc-sidebar__link-text">{{ ep.view_name|default:ep.action_name|default:ep.display_path|default:ep.path }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block content %}
+<div class="mydoc-content">
+    {% if endpoint %}
+    <!-- Breadcrumb -->
+    <div class="mydoc-section-header__breadcrumb">
+        <a href="{% url 'mydoc:index' %}">API Docs</a>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        <a href="{% url 'mydoc:section' section_slug=section.slug %}">{{ section.name }}</a>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        <span>{{ endpoint.view_name|default:endpoint.display_path|default:endpoint.path }}</span>
+    </div>
+
+    <!-- Endpoint Header -->
+    <div class="mydoc-endpoint-header">
+        <div class="mydoc-endpoint-header__methods">
+            {% for ms in endpoint.method_styles %}
+            <span class="mydoc-method-badge mydoc-method-badge--{{ ms.method|lower }} mydoc-method-badge--lg">
+                {{ ms.method }}
+            </span>
+            {% endfor %}
+            {% if endpoint.intent %}
+            <span class="mydoc-intent-badge mydoc-intent-badge--{{ endpoint.intent.value }}" title="Endpoint intent: {{ endpoint.intent.value }}">{{ endpoint.intent.value|upper }}</span>
+            {% endif %}
+        </div>
+        <code class="mydoc-endpoint-header__path">{{ endpoint.display_path|default:endpoint.path }}</code>
+    </div>
+
+    {% if endpoint.docstring %}
+    <div class="mydoc-endpoint-description">
+        <p>{{ endpoint.docstring|linebreaksbr }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Inline Audit Warnings -->
+    {% if audit_findings %}
+    <div class="mydoc-inline-audit">
+        <div class="mydoc-inline-audit__header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span>{{ audit_findings|length }} Quality Issue{{ audit_findings|length|pluralize }}</span>
+            {% if audit_critical %}
+            <span class="mydoc-audit-badge mydoc-audit-badge--critical">{{ audit_critical }} Critical</span>
+            {% endif %}
+            {% if audit_warning %}
+            <span class="mydoc-audit-badge mydoc-audit-badge--warning">{{ audit_warning }} Warning{{ audit_warning|pluralize }}</span>
+            {% endif %}
+        </div>
+        {% for finding in audit_findings %}
+        <div class="mydoc-inline-audit__item mydoc-inline-audit__item--{{ finding.severity.value }}">
+            <div class="mydoc-inline-audit__item-header">
+                <span class="mydoc-audit-badge mydoc-audit-badge--{{ finding.severity.value }} mydoc-audit-badge--sm">{{ finding.severity_label }}</span>
+                <strong>{{ finding.title }}</strong>
+            </div>
+            <p class="mydoc-inline-audit__desc">{{ finding.description }}</p>
+            <div class="mydoc-inline-audit__fix">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                {{ finding.recommendation }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Two-Column Layout -->
+    <div class="mydoc-endpoint-detail">
+        <!-- Left Column: Info -->
+        <div class="mydoc-endpoint-detail__info">
+            <!-- URL Parameters (dynamic resolution) -->
+            {% if endpoint.url_params %}
+            <div class="mydoc-detail-card">
+                <h3 class="mydoc-detail-card__title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                    URL Parameters
+                </h3>
+                {% for param in endpoint.url_params %}
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label"><code>{{ param.name }}</code></span>
+                    <div class="mydoc-detail-card__tags">
+                        <span class="mydoc-tag">{{ param.param_type }}</span>
+                        {% if param.required %}<span class="mydoc-tag mydoc-tag--required">required</span>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Authentication & Permissions -->
+            {% if endpoint.authentication or endpoint.permissions %}
+            <div class="mydoc-detail-card">
+                <h3 class="mydoc-detail-card__title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    Authentication &amp; Permissions
+                </h3>
+                {% if endpoint.authentication %}
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label">Authentication</span>
+                    <div class="mydoc-detail-card__tags">
+                        {% for auth in endpoint.authentication %}
+                        <span class="mydoc-tag">{{ auth }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if endpoint.permissions %}
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label">Permissions</span>
+                    <div class="mydoc-detail-card__tags">
+                        {% for perm in endpoint.permissions %}
+                        <span class="mydoc-tag mydoc-tag--warning">{{ perm }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Serializer Fields -->
+            {% if endpoint.serializer_fields %}
+            <div class="mydoc-detail-card">
+                <h3 class="mydoc-detail-card__title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                        <line x1="9" y1="20" x2="15" y2="20"></line>
+                        <line x1="12" y1="4" x2="12" y2="20"></line>
+                    </svg>
+                    {% if endpoint.serializer_name %}{{ endpoint.serializer_name }}{% else %}Fields{% endif %}
+                </h3>
+                <div class="mydoc-fields-table">
+                    <div class="mydoc-fields-table__header">
+                        <span>Field</span>
+                        <span>Type</span>
+                        <span>Required</span>
+                        <span>Description</span>
+                    </div>
+                    {% for field in endpoint.serializer_fields %}
+                    <div class="mydoc-fields-table__row">
+                        <span class="mydoc-fields-table__name">
+                            <code>{{ field.name }}</code>
+                            {% if field.read_only %}
+                            <span class="mydoc-tag mydoc-tag--xs mydoc-tag--muted">read-only</span>
+                            {% endif %}
+                            {% if field.write_only %}
+                            <span class="mydoc-tag mydoc-tag--xs mydoc-tag--info">write-only</span>
+                            {% endif %}
+                        </span>
+                        <span class="mydoc-fields-table__type">
+                            <code>{{ field.field_type }}</code>
+                        </span>
+                        <span class="mydoc-fields-table__required">
+                            {% if field.required %}
+                            <span class="mydoc-dot mydoc-dot--required" title="Required"></span>
+                            {% else %}
+                            <span class="mydoc-dot mydoc-dot--optional" title="Optional"></span>
+                            {% endif %}
+                        </span>
+                        <span class="mydoc-fields-table__desc">
+                            {{ field.help_text|default:"—" }}
+                            {% if field.max_length %}
+                            <span class="mydoc-fields-table__constraint">max: {{ field.max_length }}</span>
+                            {% endif %}
+                            {% if field.choices %}
+                            <span class="mydoc-fields-table__constraint">
+                                choices: {{ field.choices|join:", " }}
+                            </span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Additional Metadata -->
+            <div class="mydoc-detail-card">
+                <h3 class="mydoc-detail-card__title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    Metadata
+                </h3>
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label">View Class</span>
+                    <code class="mydoc-detail-card__value">{{ endpoint.view_class }}</code>
+                </div>
+                {% if endpoint.filter_backends %}
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label">Filters</span>
+                    <div class="mydoc-detail-card__tags">
+                        {% for fb in endpoint.filter_backends %}
+                        <span class="mydoc-tag">{{ fb }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if endpoint.pagination_class %}
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label">Pagination</span>
+                    <code class="mydoc-detail-card__value">{{ endpoint.pagination_class }}</code>
+                </div>
+                {% endif %}
+                {% if endpoint.namespace %}
+                <div class="mydoc-detail-card__row">
+                    <span class="mydoc-detail-card__label">Namespace</span>
+                    <code class="mydoc-detail-card__value">{{ endpoint.namespace }}</code>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column: Code Examples + Playground -->
+        <div class="mydoc-endpoint-detail__examples">
+
+            <!-- ════════════════════════════════════════════════════════
+                 API PLAYGROUND (Try It Out)
+                 ════════════════════════════════════════════════════════ -->
+            {% if playground_enabled %}
+            <div class="mydoc-playground" id="mydoc-playground">
+                <div class="mydoc-playground__header">
+                    <h3 class="mydoc-playground__title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        API Playground
+                    </h3>
+                    <div class="mydoc-playground__controls">
+                        <select class="mydoc-playground__method-select" id="playground-method">
+                            {% for m in endpoint.methods %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="mydoc-playground__send" id="playground-send" type="button">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                            Send Request
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Auth Token input -->
+                <div class="mydoc-playground__auth">
+                    <label class="mydoc-playground__label">Authorization</label>
+                    <div class="mydoc-playground__auth-row">
+                        <select class="mydoc-playground__auth-type" id="playground-auth-type">
+                            <option value="token">Token</option>
+                            <option value="bearer">Bearer</option>
+                            <option value="session">Session (Cookie)</option>
+                            <option value="none">None</option>
+                        </select>
+                        <input type="text" class="mydoc-playground__auth-input" id="playground-auth-token"
+                               placeholder="Paste your token here..." autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Request Body (for POST/PUT/PATCH) -->
+                <div class="mydoc-playground__body" id="playground-body-section">
+                    <label class="mydoc-playground__label">Request Body (JSON)</label>
+                    <textarea class="mydoc-playground__textarea" id="playground-body"
+                              rows="8" spellcheck="false">{% if request_example %}{{ request_example }}{% else %}{}{% endif %}</textarea>
+                </div>
+
+                <!-- Response -->
+                <div class="mydoc-playground__response" id="playground-response-section" style="display:none;">
+                    <div class="mydoc-playground__response-header">
+                        <span class="mydoc-playground__label">Response</span>
+                        <span class="mydoc-playground__status" id="playground-status"></span>
+                        <span class="mydoc-playground__time" id="playground-time"></span>
+                    </div>
+                    <div class="mydoc-playground__response-tabs">
+                        <button class="mydoc-playground__tab mydoc-playground__tab--active" data-tab="body">Body</button>
+                        <button class="mydoc-playground__tab" data-tab="headers">Headers</button>
+                    </div>
+                    <pre class="mydoc-playground__response-body" id="playground-response-body"><code></code></pre>
+                    <pre class="mydoc-playground__response-headers" id="playground-response-headers" style="display:none;"><code></code></pre>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ════════════════════════════════════════════════════════
+                 CODE SNIPPETS (Multi-Language)
+                 ════════════════════════════════════════════════════════ -->
+            <div class="mydoc-code-snippets">
+                <div class="mydoc-code-snippets__tabs" id="snippet-tabs">
+                    {% if "curl" in code_snippets %}
+                    <button class="mydoc-code-snippets__tab mydoc-code-snippets__tab--active" data-lang="curl">cURL</button>
+                    {% endif %}
+                    {% if "python" in code_snippets %}
+                    <button class="mydoc-code-snippets__tab" data-lang="python">Python</button>
+                    {% endif %}
+                    {% if "javascript" in code_snippets %}
+                    <button class="mydoc-code-snippets__tab" data-lang="javascript">JavaScript</button>
+                    {% endif %}
+                </div>
+
+                <!-- cURL -->
+                {% if "curl" in code_snippets %}
+                <div class="mydoc-code-block mydoc-snippet" data-lang="curl">
+                    <div class="mydoc-code-block__header">
+                        <span class="mydoc-code-block__title">cURL</span>
+                        <button class="mydoc-code-block__copy" data-copy-target="snippet-curl" title="Copy to clipboard">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre class="mydoc-code-block__code" id="snippet-curl"><code>curl -X {{ endpoint.methods.0 }} \
+  {{ request.scheme }}://{{ request.get_host }}{{ endpoint.display_path|default:endpoint.path }} \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json"{% if request_example %} \
+  -d '{{ request_example }}'{% endif %}</code></pre>
+                </div>
+                {% endif %}
+
+                <!-- Python -->
+                {% if "python" in code_snippets %}
+                <div class="mydoc-code-block mydoc-snippet" data-lang="python" style="display:none;">
+                    <div class="mydoc-code-block__header">
+                        <span class="mydoc-code-block__title">Python (requests)</span>
+                        <button class="mydoc-code-block__copy" data-copy-target="snippet-python" title="Copy to clipboard">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre class="mydoc-code-block__code" id="snippet-python"><code>import requests
+
+url = "{{ request.scheme }}://{{ request.get_host }}{{ endpoint.display_path|default:endpoint.path }}"
+headers = {
+    "Authorization": "Token YOUR_TOKEN",
+    "Content-Type": "application/json",
+}
+{% if request_example %}payload = {{ request_example }}
+
+response = requests.{{ endpoint.methods.0|lower }}(url, json=payload, headers=headers){% else %}response = requests.{{ endpoint.methods.0|lower }}(url, headers=headers){% endif %}
+print(response.status_code)
+print(response.json())</code></pre>
+                </div>
+                {% endif %}
+
+                <!-- JavaScript -->
+                {% if "javascript" in code_snippets %}
+                <div class="mydoc-code-block mydoc-snippet" data-lang="javascript" style="display:none;">
+                    <div class="mydoc-code-block__header">
+                        <span class="mydoc-code-block__title">JavaScript (fetch)</span>
+                        <button class="mydoc-code-block__copy" data-copy-target="snippet-javascript" title="Copy to clipboard">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre class="mydoc-code-block__code" id="snippet-javascript"><code>const response = await fetch("{{ request.scheme }}://{{ request.get_host }}{{ endpoint.display_path|default:endpoint.path }}", {
+  method: "{{ endpoint.methods.0 }}",
+  headers: {
+    "Authorization": "Token YOUR_TOKEN",
+    "Content-Type": "application/json",
+  },{% if request_example %}
+  body: JSON.stringify({{ request_example }}),{% endif %}
+});
+
+const data = await response.json();
+console.log(data);</code></pre>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Request/Response Examples -->
+            {% if request_example %}
+            <div class="mydoc-code-block">
+                <div class="mydoc-code-block__header">
+                    <span class="mydoc-code-block__title">Request Body Example</span>
+                    <button class="mydoc-code-block__copy" data-copy-target="request-code" title="Copy to clipboard">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+                <pre class="mydoc-code-block__code" id="request-code"><code>{{ request_example }}</code></pre>
+            </div>
+            {% endif %}
+
+            {% if response_example %}
+            <div class="mydoc-code-block">
+                <div class="mydoc-code-block__header">
+                    <span class="mydoc-code-block__title">Response Example</span>
+                    <button class="mydoc-code-block__copy" data-copy-target="response-code" title="Copy to clipboard">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+                <pre class="mydoc-code-block__code" id="response-code"><code>{{ response_example }}</code></pre>
+            </div>
+            {% endif %}
+
+            <!-- History -->
+            <div class="mydoc-history" id="mydoc-history" style="display:none;">
+                <h4 class="mydoc-history__title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="1 4 1 10 7 10"></polyline>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                    </svg>
+                    Recent Requests
+                </h4>
+                <div class="mydoc-history__list" id="mydoc-history-list"></div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="mydoc-empty">
+        <h3>Endpoint Not Found</h3>
+        <p>The requested API endpoint could not be found.</p>
+        <a href="{% url 'mydoc:index' %}" class="mydoc-btn mydoc-btn--primary">Back to API Docs</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Endpoint metadata for JS playground -->
+<script>
+    window.__MYDOC_ENDPOINT__ = {{ endpoint_meta_json|safe }};
+    window.__MYDOC_FIELDS__ = {{ fields_meta_json|safe }};
+</script>
+{% endblock %}

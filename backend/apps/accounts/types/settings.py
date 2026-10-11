@@ -32,6 +32,7 @@ class SettingsIcon(StrEnum):
     LANGUAGE = 'language'
     CERTIFICATE = 'certificate'
     NETWORK = 'network'
+    ACCOUNT = 'account'
 
 
 @dataclass(frozen=True)

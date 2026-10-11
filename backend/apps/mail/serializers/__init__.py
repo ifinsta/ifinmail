@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from backend.apps.mail.services.postfix_runtime import OutboundState
 from backend.apps.mail.types.provisioning import AliasRow, MailboxRow
+from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
 
 
 @dataclass(frozen=True)
@@ -18,7 +19,7 @@ class MailboxCreateIn:
     domain_name: str
     local_part: str
     password: str | None = None
-    quota_bytes: int = 0
+    quota_bytes: int = DEFAULT_QUOTA_BYTES
     is_admin: bool = False
 
 

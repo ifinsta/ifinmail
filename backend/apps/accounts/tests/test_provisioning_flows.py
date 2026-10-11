@@ -192,6 +192,63 @@ class MailboxPagesTests(_Base):
         self.assertContains(response, 'two dots')
         self.assertFalse(Mailbox.objects.exists())
 
+    def test_console_created_mailboxes_default_to_1024_mb(self) -> None:
+        from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
+
+        # No quota_mb field at all (older form posts) and a blank field both
+        # mean "default", not "unlimited".
+        for payload in (
+            {'local_part': 'bob', 'domain': 'ifinmail.test'},
+            {'local_part': 'carol', 'domain': 'ifinmail.test', 'quota_mb': ''},
+        ):
+            self.client.post(reverse('accounts:mailboxes_create'), payload, follow=True)
+        quotas = set(Mailbox.objects.values_list('quota_bytes', flat=True))
+        self.assertEqual(quotas, {DEFAULT_QUOTA_BYTES})
+
+    def test_the_page_shows_the_space_budget(self) -> None:
+        gb = 1024 * 1024 * 1024
+        with patch(
+            'backend.apps.mail.services.quota._disk_usage',
+            return_value=(10 * gb, 6 * gb),
+        ):
+            Mailbox.objects.create(domain=Domain.objects.get(), local_part='a', quota_bytes=4 * gb)
+            response = self.client.get(reverse('accounts:mailboxes'))
+        self.assertContains(response, 'Disk free')
+        self.assertContains(response, 'Still unallocated')
+        self.assertContains(response, '6.0 GB')  # 10 - 4 left to allocate
+        # The quota inputs carry the live-budget hint payload.
+        self.assertContains(response, 'data-quota-hint="mb-quota"')
+        self.assertContains(response, 'data-headroom-mb="6144"')
+
+    def test_overcommitting_a_quota_warns_but_is_allowed(self) -> None:
+        gb = 1024 * 1024 * 1024
+        with patch(
+            'backend.apps.mail.services.quota._disk_usage',
+            return_value=(2 * gb, 1 * gb),
+        ):
+            response = self.client.post(
+                reverse('accounts:mailboxes_create'),
+                {'local_part': 'big', 'domain': 'ifinmail.test', 'quota_mb': str(4 * 1024)},
+                follow=True,
+            )
+        self.assertTrue(Mailbox.objects.filter(local_part='big').exists())
+        self.assertContains(response, 'promise')
+        self.assertContains(response, 'mail volume')
+
+    def test_setting_a_quota_within_budget_does_not_warn(self) -> None:
+        gb = 1024 * 1024 * 1024
+        with patch(
+            'backend.apps.mail.services.quota._disk_usage',
+            return_value=(100 * gb, 90 * gb),
+        ):
+            Mailbox.objects.create(domain=Domain.objects.get(), local_part='a')
+            response = self.client.post(
+                reverse('accounts:mailboxes_action'),
+                {'action': 'quota', 'address': 'a@ifinmail.test', 'quota_mb': '1024'},
+                follow=True,
+            )
+        self.assertNotContains(response, 'promise')
+
     def test_a_name_with_an_at_sign_is_rejected(self) -> None:
         response = self.client.post(
             reverse('accounts:mailboxes_create'),

@@ -1,6 +1,9 @@
 """accounts — web.py: re-export layer for urls.py → web.py → views/ contract."""
 
 from .views import (
+    account_name,
+    account_page,
+    account_password,
     aliases_create,
     aliases_delete,
     aliases_page,
@@ -56,6 +59,9 @@ from .views import (
 )
 
 __all__ = [
+    'account_name',
+    'account_page',
+    'account_password',
     'aliases_create',
     'aliases_delete',
     'aliases_page',

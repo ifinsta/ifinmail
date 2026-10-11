@@ -1,5 +1,6 @@
 """accounts views package — re-exports all public view functions."""
 
+from .account import account_name, account_page, account_password
 from .auth import login_view, logout_view
 from .branding import branding_identity, branding_reset, branding_save
 from .dashboard import (
@@ -49,6 +50,9 @@ from .spam import spam_add_provider, spam_filtering, spam_set_sensitivity
 from .users import user_management, users_export, users_kill_sessions
 
 __all__ = [
+    'account_name',
+    'account_page',
+    'account_password',
     'aliases_create',
     'aliases_delete',
     'aliases_page',

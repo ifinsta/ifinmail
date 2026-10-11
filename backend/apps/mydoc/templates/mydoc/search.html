@@ -1,0 +1,43 @@
+{% extends "mydoc/base.html" %}
+
+{% block title %}Search — API Documentation{% endblock %}
+
+{% block content %}
+<div class="mydoc-content">
+    <div class="mydoc-section-header">
+        <h1 class="mydoc-section-header__title">Search Results</h1>
+        {% if query %}
+        <p class="mydoc-section-header__description">
+            Showing results for "<strong>{{ query }}</strong>"
+        </p>
+        {% endif %}
+    </div>
+
+    {% if results %}
+    <div class="mydoc-endpoints-list">
+        {% for r in results %}
+        <a href="{% url 'mydoc:endpoint' section_slug=r.section_slug endpoint_slug=r.endpoint_slug %}" class="mydoc-endpoint-row">
+            <div class="mydoc-endpoint-row__methods">
+                {% for m in r.endpoint_methods %}
+                <span class="mydoc-method-badge mydoc-method-badge--{{ m|lower }}">{{ m }}</span>
+                {% endfor %}
+            </div>
+            <div class="mydoc-endpoint-row__info">
+                <code class="mydoc-endpoint-row__path">{{ r.endpoint_path }}</code>
+                {% if r.endpoint_description %}
+                <span class="mydoc-endpoint-row__desc">{{ r.endpoint_description }}</span>
+                {% endif %}
+            </div>
+            <div class="mydoc-endpoint-row__meta">
+                <span class="mydoc-endpoint-row__tag">{{ r.section_name }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% elif query %}
+    <div class="mydoc-empty mydoc-empty--compact">
+        <p>No results found for "{{ query }}"</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

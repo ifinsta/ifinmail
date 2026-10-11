@@ -34,7 +34,7 @@ from ..forms.mailboxes import (
 )
 from ..types.permissions import TOKEN_SCOPES, PermissionCode
 from .auth import require_perm
-from .mailboxes import _actor, _quota_label
+from .mailboxes import _actor, _quota_budget_context, _quota_label
 
 _PROFILE = require_perm(PermissionCode.MAIL_MANAGE)
 _ACTIVITY_LIMIT = 50
@@ -91,6 +91,7 @@ def mailbox_profile(request: HttpRequest, mailbox_id: uuid.UUID) -> HttpResponse
             'invite_pending': bool(user is None or not user.has_usable_password()),
             'quota_label': _quota_label(mailbox.quota_bytes),
             'quota_mb': mailbox.quota_bytes // (1024 * 1024),
+            'quota_budget': _quota_budget_context(),
             'created': mailbox.created_at.date().isoformat() if mailbox.created_at else '',
             'last_login': user.last_login if user and user.last_login else None,
             'sessions': sessions,

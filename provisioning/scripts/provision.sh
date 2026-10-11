@@ -451,7 +451,7 @@ preflight_checks() {
     if ss -lnup 2>/dev/null | grep -qE '(^|[ *])(0\.0\.0\.0|\*|\[::\]):53 '; then
         echo "WARNING: Something else already answers DNS on port 53; the DNS server cannot start."
         echo "         Stop it, or set DNS_SERVER_ENABLED=0 in $ENV_FILE to keep DNS elsewhere."
-    elif ss -lnup 2>/dev/null | grep -q '127\.0\.0\.53:53' && [ -z "${DNS_BIND_IP:-}" ]; then
+    elif ss -lnup 2>/dev/null | grep -qE '127\.0\.0\.5[34](%[^:]+)?:53 ' && [ -z "${DNS_BIND_IP:-}" ]; then
         if [ -n "${SERVER_IP:-}" ]; then
             echo "systemd-resolved holds 127.0.0.53:53; binding the DNS server to $SERVER_IP only."
             echo "DNS_BIND_IP=$SERVER_IP" >> "$ENV_FILE"

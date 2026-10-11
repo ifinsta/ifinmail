@@ -164,6 +164,15 @@ run_noninteractive() {
     local admin_email="${ADMIN_EMAIL:-admin@$domain}"
     local admin_user="${ADMIN_USERNAME:-admin}"
 
+    # Re-running the one command must not rotate secrets: the database volume
+    # was initialised with the passwords already in .env.
+    if [ -f "$env_file" ]; then
+        echo "Existing configuration found at $env_file; keeping it (delete it to start over)."
+        cd "$INSTALL_DIR"
+        DOMAIN="$domain" bash provisioning/scripts/provision.sh
+        return
+    fi
+
     echo "Non-interactive mode — generating .env from environment variables..."
 
     umask 077

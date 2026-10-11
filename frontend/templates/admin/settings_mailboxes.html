@@ -68,6 +68,48 @@
         </section>
     </div>
 </section>
+
+<!-- Manage Mailbox Modal -->
+<div class="ifinmail-modal-overlay" id="mailbox-manage-modal" role="dialog" aria-modal="true" aria-labelledby="mailbox-manage-title">
+    <div class="ifinmail-modal ifinmail-modal-dialog">
+        <div class="ifinmail-modal-header">
+            <h3 class="ifinmail-modal-title" id="mailbox-manage-title">{% trans 'Manage mailbox' %}</h3>
+            <button class="ifinmail-modal-close" id="mailbox-manage-close" aria-label="{% trans 'Close' %}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="ifinmail-modal-body">
+            <p><code class="ifinmail-text--mono" id="mailbox-manage-address"></code> · <a class="ifinmail-link-strong" href="#" id="mailbox-manage-profile">{% trans 'View full profile' %} <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></p>
+            <p class="ifinmail-settings-row__help ifinmail-hidden" id="mailbox-manage-pending">{% trans 'Invite pending — the owner has not set a password yet. Each setup link is single-use.' %}</p>
+            <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="invite">
+                <input type="hidden" name="address" value="" id="mailbox-manage-invite-address">
+                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Copy setup link' %}</button></div>
+            </form>
+            <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="quota">
+                <input type="hidden" name="address" value="" id="mailbox-manage-quota-address">
+                <div class="ifinmail-field">
+                    <label for="mailbox-manage-quota">{% trans 'Quota (MB, 0 = unlimited)' %}</label>
+                    <input class="ifinmail-input" id="mailbox-manage-quota" name="quota_mb" type="number" min="0" value="0">
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set quota' %}</button></div>
+            </form>
+            <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <input type="hidden" name="address" value="" id="mailbox-manage-status-address">
+                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="disable" id="mailbox-manage-disable">{% trans 'Disable' %}</button>
+                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="enable" id="mailbox-manage-enable">{% trans 'Enable' %}</button>
+                <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="delete" data-confirm="{% trans 'Remove this mailbox and its login? Stored mail stays on disk.' %}">{% trans 'Delete' %}</button>
+            </form>
+        </div>
+        <div class="ifinmail-modal-footer">
+            <button type="button" class="ifinmail-btn ifinmail-btn--ghost" data-action="close-manage-mailbox">{% trans 'Cancel' %}</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

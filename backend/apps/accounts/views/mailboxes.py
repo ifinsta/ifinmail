@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -23,9 +23,11 @@ from ..forms.mailboxes import (
     RegistrationToggleForm,
 )
 from ..services.registration_policy import registration_open, set_registration_open
-from .auth import _is_staff
+from ..types.permissions import PermissionCode
+from .auth import require_perm
 
-_STAFF = user_passes_test(_is_staff, login_url='accounts:login')
+_MAIL = require_perm(PermissionCode.MAIL_MANAGE)
+
 _MB = 1024 * 1024
 
 
@@ -47,7 +49,7 @@ def _quota_label(quota_bytes: int) -> str:
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_GET
 def mailboxes_page(request: HttpRequest) -> HttpResponse:
     rows = [
@@ -78,7 +80,7 @@ def _setup_url(request: HttpRequest, address: str) -> str:
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_POST
 def mailboxes_create(request: HttpRequest) -> HttpResponse:
     form = MailboxCreateForm(request.POST)
@@ -113,7 +115,7 @@ def mailboxes_create(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_POST
 def mailboxes_action(request: HttpRequest) -> HttpResponse:
     form = MailboxActionForm(request.POST)
@@ -124,8 +126,22 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
     try:
         if action == 'invite':
             link = _setup_url(request, address)
-            message = f'Setup link for {address} (single-use, expires automatically): {link}'
             audit_action = 'mailbox_invite_issued'
+            if form.cleaned_data.get('return_to') == 'profile':
+                # One-time handoff: the profile page shows the link in a
+                # copyable panel instead of a wall of text in a flash message.
+                request.session['invite_link'] = {'address': address, 'link': link}
+                AuditService.record(
+                    action=audit_action, user=_actor(request), detail=address
+                )
+                messages.success(
+                    request,
+                    f'Setup link ready for {address} — copy it below. It is single-use.',
+                )
+                mailbox_id = MailboxService.mailbox_id_for(address)
+                if mailbox_id is not None:
+                    return redirect('accounts:mailbox_profile', mailbox_id=mailbox_id)
+            message = f'Setup link for {address} (single-use, expires automatically): {link}'
         elif action == 'quota':
             MailboxService.set_quota(address, form.quota_bytes)
             message = f'Quota for {address} set to {_quota_label(form.quota_bytes)}.'
@@ -134,6 +150,15 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
                 raise MailboxError('You cannot disable your own account.')
             MailboxService.set_active(address, action == 'enable')
             message = f'{address} {"enabled" if action == "enable" else "disabled"}.'
+        elif action in ('grant_admin', 'revoke_admin'):
+            if address == (request.user.email or '').lower():
+                raise MailboxError('Your own admin rights cannot be changed here.')
+            MailboxService.set_admin(address, action == 'grant_admin')
+            message = (
+                f'{address} can now sign in to the admin console.'
+                if action == 'grant_admin'
+                else f'{address} can no longer sign in to the admin console.'
+            )
         else:
             if address == (request.user.email or '').lower():
                 raise MailboxError('You cannot delete your own account.')
@@ -196,7 +221,7 @@ def mailbox_setup(request: HttpRequest, uidb64: str, token: str) -> HttpResponse
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_POST
 def registration_toggle(request: HttpRequest) -> HttpResponse:
     form = RegistrationToggleForm(request.POST)
@@ -216,7 +241,7 @@ def registration_toggle(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_GET
 def aliases_page(request: HttpRequest) -> HttpResponse:
     return render(
@@ -232,7 +257,7 @@ def aliases_page(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_POST
 def aliases_create(request: HttpRequest) -> HttpResponse:
     form = AliasCreateForm(request.POST)
@@ -254,7 +279,7 @@ def aliases_create(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_MAIL
 @require_POST
 def aliases_delete(request: HttpRequest) -> HttpResponse:
     form = AliasDeleteForm(request.POST)

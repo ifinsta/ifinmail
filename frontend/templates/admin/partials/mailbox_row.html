@@ -5,39 +5,6 @@
     <td>{% if item.row.is_admin %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'Admin' %}</span>{% else %}{% trans 'User' %}{% endif %}</td>
     <td>{% if item.row.is_active %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Active' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Disabled' %}</span>{% endif %}</td>
     <td>
-        <details class="ifinmail-manage">
-            <summary>{% trans 'Manage' %}<span class="ifinmail-sr-only"> {{ item.row.address }}</span></summary>
-            <div class="ifinmail-manage__forms">
-                {% if item.row.invite_pending %}
-                <p class="ifinmail-settings-row__help">{% trans 'Invite pending — the owner has not set a password yet. Each link is single-use.' %}</p>
-                {% endif %}
-                <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="invite">
-                    <input type="hidden" name="address" value="{{ item.row.address }}">
-                    <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Copy setup link' %}</button></div>
-                </form>
-                <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="quota">
-                    <input type="hidden" name="address" value="{{ item.row.address }}">
-                    <div class="ifinmail-field">
-                        <label for="q-{{ item.row.id }}">{% trans 'Quota (MB, 0 = unlimited)' %}</label>
-                        <input class="ifinmail-input" id="q-{{ item.row.id }}" name="quota_mb" type="number" min="0" value="{{ item.quota_mb }}">
-                    </div>
-                    <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set quota' %}</button></div>
-                </form>
-                <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
-                    {% csrf_token %}
-                    <input type="hidden" name="address" value="{{ item.row.address }}">
-                    {% if item.row.is_active %}
-                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="disable">{% trans 'Disable' %}</button>
-                    {% else %}
-                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="enable">{% trans 'Enable' %}</button>
-                    {% endif %}
-                    <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="delete" data-confirm="{% trans 'Remove this mailbox and its login? Stored mail stays on disk.' %}">{% trans 'Delete' %}</button>
-                </form>
-            </div>
-        </details>
+        <button type="button" class="ifinmail-link-strong" data-action="open-manage-mailbox" data-id="{{ item.row.id }}" data-address="{{ item.row.address }}" data-quota-mb="{{ item.quota_mb }}" data-active="{% if item.row.is_active %}1{% else %}0{% endif %}" data-invite-pending="{% if item.row.invite_pending %}1{% else %}0{% endif %}">{% trans 'Manage' %}<span class="ifinmail-sr-only"> {{ item.row.address }}</span></button>
     </td>
 </tr>

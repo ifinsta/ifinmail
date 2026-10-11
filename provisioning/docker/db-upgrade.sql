@@ -5,6 +5,11 @@
 -- domains.ip_address is mapped by the Domain model (the migration for it is state-only).
 ALTER TABLE domains ADD COLUMN IF NOT EXISTS ip_address INET;
 
+-- MailUser.role_id is mapped by migration accounts.0003 (state-only: the users
+-- table is owned by init-db.sh). Plain UUID, no REFERENCES: SET_NULL on role
+-- delete is applied by the Django ORM.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID;
+
 -- Dovecot reads the mailbox quota to enforce it at login and delivery.
 GRANT SELECT ON domains TO dovecot;
 GRANT SELECT ON mailboxes TO dovecot;

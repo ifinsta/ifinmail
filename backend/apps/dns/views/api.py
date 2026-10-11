@@ -3,11 +3,13 @@
 import logging
 import os
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
+from backend.apps.accounts.types.permissions import PermissionCode
+from backend.apps.accounts.views.auth import require_perm
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
 from backend.apps.domains.models import Domain
 from backend.apps.domains.services.provisioning import (
@@ -17,15 +19,13 @@ from backend.apps.domains.services.provisioning import (
 from backend.apps.domains.services.verification import DomainVerificationService
 from backend.services.monitoring import MonitoringService
 
-from ._helpers import _is_staff
-
 logger = logging.getLogger('backend')
 
 
 @require_POST
 @ensure_csrf_cookie
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 def dns_configure(request: HttpRequest) -> JsonResponse:
     """POST endpoint: configure DNS records via the selected provider."""
     provider_name = request.POST.get('provider', '').lower()
@@ -87,7 +87,7 @@ def dns_configure(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 def dns_status(request: HttpRequest) -> JsonResponse:
     """GET endpoint: return current DNS record verification status."""
     domain = request.GET.get('domain', os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', '')))

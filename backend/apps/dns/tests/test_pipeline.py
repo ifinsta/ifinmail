@@ -117,6 +117,11 @@ class DnsEndpointTests(MailTablesTestCase):
         super().setUp()
         admin = MailUser.objects.create_user('root@ifinmail.test', 'Correct-Horse-9', is_staff=True)
         self.client.force_login(admin, backend=MODEL_BACKEND)
+        from django.utils import timezone
+
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
 
     def test_registering_a_domain_runs_the_whole_pipeline_and_reports_each_step(self) -> None:
         with (

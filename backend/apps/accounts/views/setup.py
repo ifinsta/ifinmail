@@ -5,7 +5,7 @@ import os
 import re
 
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 
@@ -19,8 +19,9 @@ from backend.apps.mail.services import MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.services.audit import AuditService
 
+from ..types.permissions import PermissionCode
 from ._constants import _DOMAIN_RE, _IPIFY_URL
-from .auth import _is_staff
+from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
@@ -95,7 +96,7 @@ def _create_first_account(email: str, password: str, request: HttpRequest) -> st
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SETUP_MANAGE)
 def setup_wizard(request: HttpRequest) -> HttpResponse:
     """Redirect to the current setup wizard step."""
     if _setup_is_complete():
@@ -104,7 +105,7 @@ def setup_wizard(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SETUP_MANAGE)
 def setup_step(request: HttpRequest, step: str) -> HttpResponse:
     """Render a setup wizard step."""
     if SetupState.is_marked_complete():
@@ -238,7 +239,7 @@ def _wizard_set_zone_mode(domain: str, authoritative: bool, request: HttpRequest
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SETUP_MANAGE)
 def setup_advance(request: HttpRequest) -> HttpResponse:
     """POST handler that advances the wizard one step."""
     if request.method != 'POST':

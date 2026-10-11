@@ -8,7 +8,7 @@ from contextlib import suppress
 from datetime import UTC
 from typing import Any
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.utils import OperationalError
@@ -23,8 +23,9 @@ from backend.apps.mail.services import MailService
 from backend.services.audit import AuditService
 from backend.services.monitoring import MonitoringService
 
+from ..types.permissions import PermissionCode
 from ._constants import _APP_DIR, _LETSENCRYPT_DIR, _MAIL_VHOSTS_DIR
-from .auth import _is_staff
+from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
@@ -304,7 +305,7 @@ def _get_activity() -> list[dict[str, str]]:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.CONSOLE_ACCESS)
 def dashboard(request: HttpRequest) -> HttpResponse:
     """Platform admin dashboard — live stats, service health, DNS status, activity."""
     stats = _get_stats()
@@ -392,7 +393,7 @@ def _get_tls_info() -> dict[str, Any]:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def dashboard_rescan(request: HttpRequest) -> JsonResponse:
     """Force a full rescan of DNS and TLS health for all domains."""
@@ -417,7 +418,7 @@ def dashboard_rescan(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def dashboard_shell(request: HttpRequest) -> JsonResponse:
     """Disabled: shell execution from the web UI is not production-safe."""
@@ -435,7 +436,7 @@ def dashboard_shell(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
     """Purge archived audit log entries, keeping the most recent 500."""
@@ -476,7 +477,7 @@ def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def dashboard_reboot(request: HttpRequest) -> JsonResponse:
     """Disabled: service restarts must go through deployment automation."""

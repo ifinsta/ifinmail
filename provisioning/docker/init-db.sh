@@ -34,11 +34,16 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN DEFAULT TRUE,
     is_staff BOOLEAN DEFAULT FALSE,
     is_superuser BOOLEAN DEFAULT FALSE,
+    role_id UUID,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(email)
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(128) NOT NULL DEFAULT '';
+-- RBAC role link (Django migration accounts.0003 owns the relation; SET_NULL
+-- on role delete is applied by the ORM. No SQL REFERENCES here: this script
+-- runs before migrations create accounts_role).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID;
 -- The Domain model maps this column, so a SELECT without it fails everywhere.
 ALTER TABLE domains ADD COLUMN IF NOT EXISTS ip_address INET;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;

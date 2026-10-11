@@ -143,7 +143,7 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
             SettingsItem(
                 'language',
                 _('Language & region'),
-                _('Interface language and time zone.'),
+                _('Interface language and time zone (read-only, set at deployment).'),
                 SettingsIcon.LANGUAGE,
                 _PAGE,
                 ('locale', 'timezone', 'time zone', 'translation'),

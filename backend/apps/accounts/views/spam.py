@@ -4,7 +4,7 @@ import json
 import logging
 import os
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
@@ -12,7 +12,8 @@ from django.views.decorators.http import require_POST
 
 from backend.services.audit import AuditService
 
-from .auth import _is_staff
+from ..types.permissions import PermissionCode
+from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
@@ -50,7 +51,7 @@ def _save_spam_settings(settings: dict) -> None:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SECURITY_MANAGE)
 def spam_filtering(request: HttpRequest) -> HttpResponse:
     """Spam filtering controls screen."""
     spam_settings = _load_spam_settings()
@@ -63,7 +64,7 @@ def spam_filtering(request: HttpRequest) -> HttpResponse:
         {
             'active_section': 'spam',
             'header_search_placeholder': 'Search logs...',
-            'provider_headers': [_('Provider Host'), _('Type'), _('Latency'), _('Actions')],
+            'provider_headers': [_('Provider Host'), _('Type'), _('Latency')],
             'providers': providers,
             'blocked_spam': spam_settings.get('blocked_spam', '0'),
             'blocked_spam_trend': '',
@@ -79,7 +80,7 @@ def spam_filtering(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SECURITY_MANAGE)
 @require_POST
 def spam_set_sensitivity(request: HttpRequest) -> JsonResponse:
     """Set global spam sensitivity level."""
@@ -114,7 +115,7 @@ def spam_set_sensitivity(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SECURITY_MANAGE)
 @require_POST
 def spam_add_provider(request: HttpRequest) -> JsonResponse:
     """Add a new DNSBL provider."""
@@ -128,6 +129,13 @@ def spam_add_provider(request: HttpRequest) -> JsonResponse:
         )
     spam_settings = _load_spam_settings()
     providers = spam_settings.get('providers', [])
+    # Do not add a provider that is already listed (same host, case-insensitive).
+    if any(str(p.get('host', '')).lower() == host.lower() for p in providers):
+        return JsonResponse(
+            {'status': 'err', 'error': 'Provider already listed'},
+            status=409,
+            content_type='application/json; charset=utf-8',
+        )
     providers.append(
         {
             'host': host,

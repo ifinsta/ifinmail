@@ -76,6 +76,13 @@ class MailboxService:
         return f'{mailbox.local_part}@{mailbox.domain.name}'
 
     @staticmethod
+    def mailbox_id_for(address: str) -> str | None:
+        """Mailbox id for ``address``, or None when there is no such mailbox."""
+        local, domain = split_address(address)
+        mailbox = Mailbox.objects.filter(local_part=local, domain__name=domain).first()
+        return str(mailbox.id) if mailbox is not None else None
+
+    @staticmethod
     def exists(address: str) -> bool:
         local, domain = split_address(address)
         return Mailbox.objects.filter(local_part=local, domain__name=domain).exists()
@@ -228,6 +235,18 @@ class MailboxService:
             MailboxService._ensure_not_last_admin(user)
         user.is_active = active
         user.save(update_fields=['is_active'])
+
+    @staticmethod
+    @transaction.atomic
+    def set_admin(address: str, is_admin: bool) -> None:
+        """Grant or revoke console-admin rights (never removes the last admin)."""
+        user = MailboxService.get_user(address)
+        if user.is_staff == is_admin:
+            return
+        if not is_admin and not user.is_superuser:
+            MailboxService._ensure_not_last_admin(user)
+        user.is_staff = is_admin
+        user.save(update_fields=['is_staff'])
 
     @staticmethod
     @transaction.atomic

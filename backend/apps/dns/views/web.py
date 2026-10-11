@@ -7,12 +7,14 @@ import re
 from collections.abc import Callable
 from contextlib import suppress
 
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
+from backend.apps.accounts.types.permissions import PermissionCode
+from backend.apps.accounts.views.auth import require_perm
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
 from backend.apps.domains.services import DomainService
 from backend.apps.domains.services.provisioning import (
@@ -23,7 +25,7 @@ from backend.apps.mail.services.postfix_runtime import OutboundConfigError, Post
 from backend.services.audit import AuditService
 from backend.services.monitoring import MonitoringService
 
-from ._helpers import _build_records, _get_server_ip, _is_staff
+from ._helpers import _build_records, _get_server_ip
 
 logger = logging.getLogger('backend')
 
@@ -38,7 +40,7 @@ def _get_dns_status(domain: str) -> dict:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 def dns_config_page(request: HttpRequest) -> HttpResponse:
     """Render the DNS configuration page."""
     domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
@@ -191,7 +193,7 @@ def _is_subdomain(domain_name: str, parent_domain: str | None) -> bool:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 @require_POST
 def dns_register_domain(request: HttpRequest) -> JsonResponse:
     """Register a new domain or subdomain and build its DNS records."""
@@ -280,7 +282,7 @@ def dns_register_domain(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 def dns_export_records(request: HttpRequest) -> HttpResponse:
     """Export all DNS records as a CSV download."""
     domain_name = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
@@ -329,7 +331,7 @@ def _outbound_response(
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 @require_POST
 def dns_toggle_proxy(request: HttpRequest) -> JsonResponse:
     """Toggle the global SMTP proxy (all outbound mail goes through MAIL_SMTP_PROXY)."""
@@ -344,7 +346,7 @@ def dns_toggle_proxy(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 @require_POST
 def dns_toggle_relay(request: HttpRequest) -> JsonResponse:
     """Toggle the smart-host relay (outbound via MAIL_SMART_HOST)."""
@@ -359,7 +361,7 @@ def dns_toggle_relay(request: HttpRequest) -> JsonResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.DNS_MANAGE)
 @require_POST
 def dns_set_hop_count(request: HttpRequest) -> JsonResponse:
     """Update Postfix hopcount_limit."""

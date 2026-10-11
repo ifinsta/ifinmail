@@ -54,9 +54,13 @@
         formData.append('accent_color', document.getElementById('accent-color-input').value);
         formData.append('heading_font', document.getElementById('heading-font').value);
         formData.append('body_font', document.getElementById('body-font').value);
-        var favInput = document.querySelector('#favicon-form input[type=file]');
+        var favInput = document.getElementById('favicon-file');
         if (favInput && favInput.files.length > 0) {
             formData.append('favicon', favInput.files[0]);
+        }
+        var logoInput = document.getElementById('logo-file');
+        if (logoInput && logoInput.files.length > 0) {
+            formData.append('logo', logoInput.files[0]);
         }
 
         fetch(url, {
@@ -121,6 +125,19 @@
         for (var i = 0; i < fontSelectors.length; i++) {
             fontSelectors[i].addEventListener('change', previewFonts);
         }
+
+        // Show the chosen file name in each upload dropzone for feedback.
+        ['logo-file', 'favicon-file'].forEach(function (id) {
+            var input = document.getElementById(id);
+            if (!input) return;
+            input.addEventListener('change', function () {
+                var label = document.querySelector('label[for="' + id + '"]');
+                var hint = label && label.querySelector('.ifinmail-text--muted');
+                if (hint && input.files.length > 0) {
+                    hint.textContent = input.files[0].name;
+                }
+            });
+        });
 
         var saveBtn = document.querySelector('[data-action="save-branding"]');
         if (saveBtn) saveBtn.addEventListener('click', function (e) { e.preventDefault(); saveBranding(); });

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -22,9 +22,10 @@ from ..forms.server import (
     RateForm,
     UnblockForm,
 )
-from .auth import _get_client_ip, _is_staff
+from ..types.permissions import PermissionCode
+from .auth import _get_client_ip, require_perm
 
-_STAFF = user_passes_test(_is_staff, login_url='accounts:login')
+_SECURITY = require_perm(PermissionCode.SECURITY_MANAGE)
 
 
 def _actor(request: HttpRequest) -> str | None:
@@ -39,7 +40,7 @@ def _first_error(form: object) -> str:
 
 # -- certificates -----------------------------------------------------------
 @login_required
-@_STAFF
+@_SECURITY
 @require_GET
 def certificates_page(request: HttpRequest) -> HttpResponse:
     names = [d.name for d in DomainService.get_all_domains()]
@@ -61,7 +62,7 @@ def certificates_page(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_SECURITY
 @require_POST
 def certificates_action(request: HttpRequest) -> HttpResponse:
     form = CertificateActionForm(request.POST)
@@ -80,7 +81,7 @@ def certificates_action(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_SECURITY
 @require_POST
 def certificates_upload(request: HttpRequest) -> HttpResponse:
     form = CertificateUploadForm(request.POST)
@@ -107,7 +108,7 @@ def certificates_upload(request: HttpRequest) -> HttpResponse:
 
 # -- network ----------------------------------------------------------------
 @login_required
-@_STAFF
+@_SECURITY
 @require_GET
 def network_page(request: HttpRequest) -> HttpResponse:
     probes = EntryPointService.probe_all()
@@ -140,7 +141,7 @@ def network_page(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_SECURITY
 @require_POST
 def network_toggle(request: HttpRequest) -> HttpResponse:
     form = EntryPointForm(request.POST)
@@ -165,7 +166,7 @@ def network_toggle(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_SECURITY
 @require_POST
 def network_block(request: HttpRequest) -> HttpResponse:
     form = BlockForm(request.POST)
@@ -195,7 +196,7 @@ def network_block(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_SECURITY
 @require_POST
 def network_unblock(request: HttpRequest) -> HttpResponse:
     form = UnblockForm(request.POST)
@@ -210,7 +211,7 @@ def network_unblock(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@_STAFF
+@_SECURITY
 @require_POST
 def network_rate(request: HttpRequest) -> HttpResponse:
     form = RateForm(request.POST)

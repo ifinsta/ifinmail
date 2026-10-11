@@ -5,7 +5,7 @@ import logging
 import os
 
 from django.conf import settings as django_settings
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
@@ -13,7 +13,8 @@ from django.views.decorators.http import require_POST
 from backend.config.branding import DEFAULT_ACCENT, DEFAULT_PRIMARY, DEFAULT_SECONDARY
 from backend.services.audit import AuditService
 
-from .auth import _is_staff
+from ..types.permissions import PermissionCode
+from .auth import require_perm
 
 logger = logging.getLogger('backend')
 
@@ -68,7 +69,7 @@ def _save_overrides(data: dict) -> None:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 def branding_identity(request: HttpRequest) -> HttpResponse:
     """Branding and identity settings screen."""
     overrides = _load_overrides()
@@ -85,9 +86,10 @@ def branding_identity(request: HttpRequest) -> HttpResponse:
 
     # Current logo filename derived from brand config or environment
     brand = getattr(django_settings, 'BRAND_CONFIG', None)
-    current_logo = brand.logo_url if brand and brand.logo_url else ''
-    if not current_logo:
-        current_logo = os.environ.get('BRAND_LOGO_FILENAME', 'header_logo_v2.png')
+    logo_url = overrides.get('logo_url') or (brand.logo_url if brand else '') or ''
+    if not logo_url:
+        logo_url = os.environ.get('BRAND_LOGO_URL', '')
+    current_logo = logo_url or os.environ.get('BRAND_LOGO_FILENAME', 'header_logo_v2.png')
     logo_filename = current_logo.rsplit('/', 1)[-1] if current_logo else 'header_logo_v2.png'
 
     return render(
@@ -101,6 +103,7 @@ def branding_identity(request: HttpRequest) -> HttpResponse:
             'secondary_color': secondary_color,
             'accent_color': accent_color,
             'current_logo_filename': logo_filename,
+            'current_logo_url': logo_url,
             'heading_font': heading_font,
             'body_font': body_font,
             'favicon_url': favicon_url,
@@ -111,7 +114,7 @@ def branding_identity(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def branding_save(request: HttpRequest) -> HttpResponse:
     """Save branding overrides (colors, fonts) and optional favicon upload."""
@@ -148,6 +151,23 @@ def branding_save(request: HttpRequest) -> HttpResponse:
         )
         changed = True
 
+    # Logo upload (PNG/SVG/JPG/WebP), stored under media/branding/
+    uploaded_logo = request.FILES.get('logo')
+    if uploaded_logo:
+        ext = os.path.splitext(uploaded_logo.name)[1].lower()
+        if ext in {'.png', '.svg', '.jpg', '.jpeg', '.webp'}:
+            logo_dir = os.path.join(_MEDIA_ROOT, 'branding')
+            os.makedirs(logo_dir, exist_ok=True)
+            logo_name = f'logo{ext}'
+            logo_path = os.path.join(logo_dir, logo_name)
+            with open(logo_path, 'wb+') as dest:
+                for chunk in uploaded_logo.chunks():
+                    dest.write(chunk)
+            overrides['logo_url'] = (
+                f'{getattr(django_settings, "MEDIA_URL", "/media/")}branding/{logo_name}'
+            )
+            changed = True
+
     if changed:
         try:
             _save_overrides(overrides)
@@ -175,17 +195,22 @@ def branding_save(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@user_passes_test(_is_staff, login_url='accounts:login')
+@require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def branding_reset(request: HttpRequest) -> HttpResponse:
     """Reset all branding overrides to system defaults."""
     try:
         if os.path.isfile(_BRANDING_OVERRIDES_FILE):
             os.remove(_BRANDING_OVERRIDES_FILE)
-        # Also remove uploaded favicon
-        favicon_path = os.path.join(_MEDIA_ROOT, 'branding', 'favicon.ico')
+        # Also remove uploaded favicon and logo assets
+        branding_dir = os.path.join(_MEDIA_ROOT, 'branding')
+        favicon_path = os.path.join(branding_dir, 'favicon.ico')
         if os.path.isfile(favicon_path):
             os.remove(favicon_path)
+        for logo_name in ('logo.png', 'logo.svg', 'logo.jpg', 'logo.jpeg', 'logo.webp'):
+            logo_path = os.path.join(branding_dir, logo_name)
+            if os.path.isfile(logo_path):
+                os.remove(logo_path)
 
         # Dynamic hot-reload of branding config to reset defaults
         from backend.config.branding import BrandingConfig

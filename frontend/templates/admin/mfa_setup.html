@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name|default:'ifinmail' %}Two-factor setup — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block body_layout %}
+<main class="ifinmail-login">
+
+  <div class="ifinmail-login-card">
+    <div class="ifinmail-login-card__brand">
+      <span class="ifinmail-wordmark">{{ brand.name|default:'ifinmail' }}</span>
+      {% if brand.logo_url %}
+        <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
+      {% else %}
+        <span class="ifinmail-login-card__logo">{{ brand.logo_svg|safe }}</span>
+      {% endif %}
+    </div>
+
+    <h1 class="ifinmail-login-card__title">{% trans 'Two-factor authentication' %}</h1>
+
+    {% if stage == 'start' %}
+
+      <p class="ifinmail-login-card__subtitle">
+        {% if status.enabled %}
+          {% trans 'An authenticator is active on this login. Starting again replaces it.' %}
+        {% else %}
+          {% trans 'Add an authenticator app as a second step after your password.' %}
+        {% endif %}
+      </p>
+
+      <form method="post" action="" class="ifinmail-login-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Begin setup' %}</button>
+      </form>
+
+      {% if status.enabled %}
+      <form method="post" action="" class="ifinmail-login-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="regenerate">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--full">{% trans 'New recovery codes' %}</button>
+      </form>
+      <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed with remaining=status.recovery_remaining %}{{ remaining }} unused recovery codes remain.{% endblocktrans %}</p>
+      {% endif %}
+
+    {% elif stage == 'confirm' %}
+
+      {% if secret %}
+      <p class="ifinmail-login-card__subtitle">{% trans 'Scan this QR code with your authenticator app, or add the key manually. Then enter the 6-digit code.' %}</p>
+      {% if qr %}
+      <div class="ifinmail-mfa-qr-wrap">
+        <img class="ifinmail-mfa-qr" src="{{ qr }}" width="208" height="208" alt="{% trans 'QR code for authenticator setup' %}">
+      </div>
+      {% endif %}
+      <div class="ifinmail-mfa-field">
+        <span class="ifinmail-overline">{% trans 'Setup key' %}</span>
+        <div class="ifinmail-mfa-copy-row">
+          <div class="ifinmail-codebox ifinmail-mfa-code" id="mfa-secret">{{ secret }}</div>
+          <button type="button" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm ifinmail-mfa-copy" data-action="copy-field" data-copy-from="mfa-secret" data-label-copy="{% trans 'Copy' %}" data-label-done="{% trans 'Copied' %}">{% trans 'Copy' %}</button>
+        </div>
+      </div>
+      <div class="ifinmail-mfa-field">
+        <span class="ifinmail-overline">{% trans 'Manual entry URI' %}</span>
+        <div class="ifinmail-mfa-copy-row">
+          <div class="ifinmail-codebox ifinmail-mfa-code" id="mfa-uri">{{ uri }}</div>
+          <button type="button" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm ifinmail-mfa-copy" data-action="copy-field" data-copy-from="mfa-uri" data-label-copy="{% trans 'Copy' %}" data-label-done="{% trans 'Copied' %}">{% trans 'Copy' %}</button>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if error %}
+        <div class="ifinmail-login-error">{{ error }}</div>
+      {% endif %}
+
+      {% if secret %}
+      <form method="post" action="" class="ifinmail-login-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm">
+        <div class="ifinmail-login-form__group">
+          <label class="ifinmail-login-form__label" for="id_code">{% trans '6-digit code' %}</label>
+          <input type="text" name="code" id="id_code" class="ifinmail-login-form__input" required minlength="6" maxlength="32" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
+        </div>
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Verify & activate' %}</button>
+      </form>
+      {% else %}
+      <form method="post" action="" class="ifinmail-login-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start">
+        <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Start again' %}</button>
+      </form>
+      {% endif %}
+
+    {% else %}
+
+      <p class="ifinmail-login-card__subtitle">{% trans 'Authenticator active. Store these one-time recovery codes somewhere safe — each works once if you lose your device.' %}</p>
+      {% for code in recovery_codes %}
+      <div class="ifinmail-codebox">{{ code }}</div>
+      {% endfor %}
+      <a href="{% url 'accounts:dashboard' %}" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Done' %}</a>
+
+    {% endif %}
+  </div>
+
+  <p class="ifinmail-login-card__register">
+    <a href="{% url 'accounts:dashboard' %}">{% trans 'Back to console' %}</a>
+  </p>
+
+</main>
+{% endblock %}

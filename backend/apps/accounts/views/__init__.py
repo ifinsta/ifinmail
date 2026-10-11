@@ -20,11 +20,19 @@ from .mailboxes import (
     mailboxes_page,
     registration_toggle,
 )
+from .mfa import mailbox_mfa_reset, mfa_setup, mfa_verify
 from .password_reset import (
     password_reset,
     password_reset_complete,
     password_reset_confirm,
     password_reset_done,
+)
+from .profile import (
+    mailbox_profile,
+    mailbox_role_action,
+    mailbox_sessions_action,
+    mailbox_token_action,
+    mailbox_token_create,
 )
 from .registration import (
     check_username_availability,
@@ -45,9 +53,17 @@ __all__ = [
     'aliases_delete',
     'aliases_page',
     'mailbox_setup',
+    'mailbox_profile',
+    'mailbox_role_action',
+    'mailbox_sessions_action',
+    'mailbox_token_action',
+    'mailbox_token_create',
+    'mailbox_mfa_reset',
     'mailboxes_action',
     'mailboxes_create',
     'mailboxes_page',
+    'mfa_setup',
+    'mfa_verify',
     'registration_toggle',
 
     'branding_identity',

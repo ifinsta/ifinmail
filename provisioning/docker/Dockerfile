@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements/base.txt requirements/base.txt
-COPY requirements/production.txt requirements/production.txt
-RUN pip install --no-cache-dir --retries 5 -r requirements/production.txt
+# Install Python dependencies from the compiled lockfile (see `make lock`).
+# requirements/production.txt stays the human-edited source of truth.
+COPY requirements/prod.lock requirements/prod.lock
+RUN pip install --no-cache-dir --retries 5 -r requirements/prod.lock
 
 # Copy application code
 COPY . .

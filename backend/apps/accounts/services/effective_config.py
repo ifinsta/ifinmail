@@ -314,7 +314,8 @@ class EffectiveConfig:
                     _secret('SENTRY_DSN', label=str(_('Sentry'))),
                     ConfigRow(
                         str(_('Environment')),
-                        _env('SENTRY_ENVIRONMENT', 'production'),
+                        _env('SENTRY_ENVIRONMENT')
+                        or ('development' if settings.DEBUG else 'production'),
                         'SENTRY_ENVIRONMENT',
                     ),
                     ConfigRow(
@@ -442,7 +443,8 @@ class EffectiveConfig:
                 (
                     ConfigRow(
                         str(_('Version')),
-                        _env('APP_VERSION', 'v2.4.0-stable'),
+                        _env('APP_VERSION')
+                        or ('dev' if settings.DEBUG else 'v2.4.0-stable'),
                         'APP_VERSION',
                         mono=True,
                     ),

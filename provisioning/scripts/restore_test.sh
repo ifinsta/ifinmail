@@ -1,7 +1,7 @@
 #!/bin/bash
-# ifinmail restore_test.sh — Monthly restore verification
+# ifinmail restore_test.sh — Weekly restore verification (non-destructive)
 # The backup you never test is not a backup.
-# Schedule: monthly (23 5 1 * *)
+# Schedule: weekly via cron (30 4 * * 0, installed by provision.sh)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -18,6 +18,18 @@ if [ -f "$ENV_FILE" ]; then
     set +a
 fi
 GPG_PASSPHRASE="${BACKUP_GPG_PASSPHRASE:-}"
+NOTIFY_URL="${BACKUP_NOTIFY_URL:-}"
+
+notify_failure() {
+    local msg="$1"
+    echo "ERROR: $msg" >&2
+    if [ -n "$NOTIFY_URL" ]; then
+        curl -fsS --connect-timeout 10 --max-time 30 -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"ifinmail restore drill FAILED: $msg\"}" "$NOTIFY_URL" || true
+    fi
+}
+trap 'notify_failure "see /var/log/ifinmail-restore-test.log"' ERR
 
 echo "=== ifinmail Restore Test ==="
 mkdir -p "$TEST_DIR"
@@ -29,7 +41,7 @@ if [ -z "$LATEST" ]; then
 fi
 
 if [ -z "$LATEST" ]; then
-    echo "ERROR: No backups found in /backups/"
+    notify_failure "no backups found in /backups"
     rm -rf "$TEST_DIR" 2>/dev/null || true
     exit 1
 fi
@@ -41,7 +53,7 @@ if [[ "$LATEST" == *.gpg ]]; then
     echo "  Backup is GPG encrypted, decrypting..."
     DECRYPTED="${LATEST%.gpg}"
     if ! gpg --yes --pinentry-mode=loopback --passphrase "$GPG_PASSPHRASE" --decrypt --output "$DECRYPTED" "$LATEST" 2>/dev/null; then
-        echo "ERROR: Failed to decrypt backup (GPG key missing or wrong passphrase?)"
+        notify_failure "could not decrypt backup (GPG key missing or wrong passphrase?)"
         rm -rf "$TEST_DIR"
         exit 1
     fi
@@ -147,11 +159,27 @@ else
     PASS=$((PASS+1))
 fi
 
+# 7. Check runtime state, mail queue and filter data (new format; older backups lack them)
+echo -n "  Runtime/queue/filter data: "
+EXTRA_COUNT=0
+[ -d "$TEST_DIR/runtime" ] && EXTRA_COUNT=$((EXTRA_COUNT+1))
+[ -d "$TEST_DIR/spool" ] && EXTRA_COUNT=$((EXTRA_COUNT+1))
+[ -d "$TEST_DIR/rspamd-data" ] && EXTRA_COUNT=$((EXTRA_COUNT+1))
+if [ "$EXTRA_COUNT" -eq 3 ]; then
+    echo "PASS (runtime, spool, rspamd-data present)"
+    PASS=$((PASS+1))
+else
+    echo "WARN ($EXTRA_COUNT/3 present — backup predates the extended format)"
+    PASS=$((PASS+1))
+fi
+
 # Summary
 echo ""
 echo "  Results: $PASS passed, $FAIL failed"
 if [ "$FAIL" -gt 0 ]; then
     echo "=== RESTORE TEST FAILED — INVESTIGATE IMMEDIATELY ==="
+    notify_failure "$FAIL check(s) failed — see /var/log/ifinmail-restore-test.log"
+    exit 1
 else
     echo "=== Restore test passed ==="
 fi

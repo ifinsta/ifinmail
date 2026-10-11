@@ -54,6 +54,12 @@ format-check:
 collectstatic:
 	python manage.py collectstatic --noinput --clear
 
+# Regenerate the pinned production lockfile after editing requirements/*.txt,
+# then run the test suite and dependency audit before committing.
+lock:
+	python -m piptools compile --resolver=backtracking --output-file=requirements/prod.lock requirements/production.txt
+	python -m pip_audit -r requirements/prod.lock
+
 createsuperuser:
 	python manage.py createsuperuser
 

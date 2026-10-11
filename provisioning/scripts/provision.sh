@@ -275,7 +275,7 @@ obtain_certificate() {
     issuer="$(openssl x509 -in "$live_dir/fullchain.pem" -noout -issuer 2>/dev/null || true)"
     if [[ "$issuer" != *"Let's Encrypt"* ]]; then
         echo "Attempting Let's Encrypt certificate for $DOMAIN and $MAIL_HOSTNAME..."
-        if "$SCRIPT_DIR/obtain-ssl.sh"; then
+        if bash "$SCRIPT_DIR/obtain-ssl.sh"; then
             return
         fi
 

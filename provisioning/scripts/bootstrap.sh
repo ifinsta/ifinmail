@@ -2,6 +2,8 @@
 # ifinmail bootstrap.sh — one-command setup from fresh Ubuntu/Debian VPS to running mail server.
 # Usage: curl -sSL https://raw.githubusercontent.com/ifinsta/ifinmail/main/provisioning/scripts/bootstrap.sh | bash
 set -euo pipefail
+# Never let apt/debconf prompt: under "curl | bash" stdin is the script itself.
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_URL="${REPO_URL:-https://github.com/ifinsta/ifinmail.git}"
@@ -123,7 +125,7 @@ run_setup() {
     echo ""
     echo "=== Running provision script ==="
     cd "$INSTALL_DIR"
-    provisioning/scripts/provision.sh
+    bash provisioning/scripts/provision.sh
 }
 
 verify_stack() {
@@ -232,7 +234,7 @@ EOF
     echo ""
     echo "=== Running provision script ==="
     cd "$INSTALL_DIR"
-    DOMAIN="$domain" provisioning/scripts/provision.sh
+    DOMAIN="$domain" bash provisioning/scripts/provision.sh
 }
 
 main() {

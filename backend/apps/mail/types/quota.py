@@ -18,7 +18,9 @@ class QuotaBudget:
     """How much mailbox quota the mail volume can still promise.
 
     ``disk_total_bytes``/``disk_free_bytes`` are ``None`` when the disk could
-    not be inspected; ``headroom_bytes`` is then ``None`` as well.
+    not be inspected, and ``stored_bytes``/``unfilled_bytes`` are ``None`` when
+    the mail volume could not be walked; the derived properties are then
+    ``None`` as well.
     """
 
     disk_total_bytes: int | None
@@ -26,13 +28,31 @@ class QuotaBudget:
     allocated_bytes: int
     mailbox_count: int
     unlimited_count: int
+    stored_bytes: int | None = None
+    unfilled_bytes: int | None = None
+
+    @property
+    def available_bytes(self) -> int | None:
+        """The pool quota-limited mail can grow into: disk free + mail stored.
+
+        Only quota-limited mailboxes are counted; unlimited mailboxes are
+        neither counted nor constrained. ``None`` when the disk is unreadable.
+        """
+        if self.disk_free_bytes is None:
+            return None
+        return self.disk_free_bytes + (self.stored_bytes or 0)
 
     @property
     def headroom_bytes(self) -> int | None:
-        """Disk size minus all finite quotas; negative means overcommitted."""
-        if self.disk_total_bytes is None:
+        """Disk free minus the unfilled part of the promises.
+
+        Answers: if every quota-limited mailbox fills up, does the disk hold?
+        Negative means the promises cannot fit even if mail grows into every
+        free byte. ``None`` when the disk or the mail volume is unreadable.
+        """
+        if self.disk_free_bytes is None or self.unfilled_bytes is None:
             return None
-        return self.disk_total_bytes - self.allocated_bytes
+        return self.disk_free_bytes - self.unfilled_bytes
 
     @property
     def overcommitted(self) -> bool:

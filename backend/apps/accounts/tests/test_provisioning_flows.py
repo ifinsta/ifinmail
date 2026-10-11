@@ -214,11 +214,12 @@ class MailboxPagesTests(_Base):
             Mailbox.objects.create(domain=Domain.objects.get(), local_part='a', quota_bytes=4 * gb)
             response = self.client.get(reverse('accounts:mailboxes'))
         self.assertContains(response, 'Disk free')
-        self.assertContains(response, 'Still unallocated')
-        self.assertContains(response, '6.0 GB')  # 10 - 4 left to allocate
+        self.assertContains(response, 'Left to allocate')
+        # 6 free minus the 4 promised (nothing stored) = 2 left to allocate.
+        self.assertContains(response, '2.0 GB')
         # The quota inputs carry the live-budget hint payload.
         self.assertContains(response, 'data-quota-hint="mb-quota"')
-        self.assertContains(response, 'data-headroom-mb="6144"')
+        self.assertContains(response, 'data-headroom-mb="2048"')
 
     def test_overcommitting_a_quota_warns_but_is_allowed(self) -> None:
         gb = 1024 * 1024 * 1024

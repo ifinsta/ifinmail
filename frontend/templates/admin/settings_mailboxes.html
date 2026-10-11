@@ -22,6 +22,13 @@
                 </div>
             </div>
             <div class="ifinmail-stat-cell">
+                <span class="ifinmail-stat-cell__label">{% trans 'Mail stored' %}</span>
+                <div class="ifinmail-stat-cell__value-wrapper">
+                    <span class="ifinmail-stat-cell__dot ifinmail-stat-cell__dot--info"></span>
+                    <span class="ifinmail-stat-cell__value">{{ quota_budget.stored }}</span>
+                </div>
+            </div>
+            <div class="ifinmail-stat-cell">
                 <span class="ifinmail-stat-cell__label">{% blocktrans count n=quota_budget.mailbox_count %}Quota allocated ({{ n }} mailbox){% plural %}Quota allocated ({{ n }} mailboxes){% endblocktrans %}</span>
                 <div class="ifinmail-stat-cell__value-wrapper">
                     <span class="ifinmail-stat-cell__dot ifinmail-stat-cell__dot--info"></span>
@@ -29,7 +36,7 @@
                 </div>
             </div>
             <div class="ifinmail-stat-cell">
-                <span class="ifinmail-stat-cell__label">{% trans 'Still unallocated' %}</span>
+                <span class="ifinmail-stat-cell__label">{% trans 'Left to allocate' %}</span>
                 <div class="ifinmail-stat-cell__value-wrapper">
                     <span class="ifinmail-stat-cell__dot ifinmail-stat-cell__dot--{{ quota_budget.available_status }}"></span>
                     <span class="ifinmail-stat-cell__value">{% if quota_budget.overcommitted %}{% blocktrans with over=quota_budget.overcommit_by %}Over by {{ over }}{% endblocktrans %}{% else %}{{ quota_budget.headroom }}{% endif %}</span>
@@ -37,7 +44,7 @@
             </div>
         </div>
         {% if quota_budget.overcommitted %}
-        <p class="ifinmail-error-banner" role="status">{% trans 'Quotas promise more space than the disk can hold. The disk fills up before the quotas do — lower a quota or add storage.' %}</p>
+        <p class="ifinmail-error-banner" role="status">{% trans 'Promised quotas exceed the available space: filling every mailbox would need more room than the disk has left. Lower a quota or add storage.' %}</p>
         {% elif quota_budget.unlimited_count %}
         <p class="ifinmail-help-text">{% blocktrans count n=quota_budget.unlimited_count %}{{ n }} unlimited mailbox can use any free space and is not counted in the allocated figure.{% plural %}{{ n }} unlimited mailboxes can use any free space and are not counted in the allocated figure.{% endblocktrans %}</p>
         {% endif %}

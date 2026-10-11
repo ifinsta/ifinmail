@@ -29,6 +29,10 @@ Notes:
 
 * Always use `venv\Scripts\python` — system Python lacks `ninja` and fails
   collection with `ModuleNotFoundError: No module named 'ninja'`.
+* `.env` is loaded automatically by `backend.config.settings.development`
+  (real environment variables win, empty values count as unset), so
+  `cp .env.example .env` is enough — no manual export needed. `DOMAIN` and
+  `MAIL_DOMAIN` are interchangeable; `DOMAIN` wins when both are set.
 * `USE_SQLITE=1` (default in `.env.example`) avoids Postgres/Redis locally.
 * Windows: `test_provisioning_contract.py:ShellSyntaxTests` skips without bash.
 * Before committing: `ruff check backend`, `ruff format --check backend`,

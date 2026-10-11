@@ -1,6 +1,10 @@
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# backend/apps/mydoc is imported from another project (its imports point at
+# backend.apps.core.mydoc / backend.apps.core.accounts) and is quarantined the
+# same way as its tests below, until it is removed or ported here.
+extend-exclude = ["backend/apps/mydoc"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
@@ -11,10 +15,17 @@ quote-style = "single"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "backend.config.settings.testing"
 python_files = ["test_*.py", "*_test.py"]
+# backend/apps/mydoc is imported from another project: its tests reference
+# backend.apps.core.mydoc / backend.apps.core.accounts and need
+# djangorestframework, which is not a dependency here. Excluded until the app
+# is removed or ported; run it explicitly with: pytest -o addopts="" backend/apps/mydoc
+addopts = "--ignore=backend/apps/mydoc"
 
 [tool.coverage.run]
 source = ["backend"]
-omit = ["*/migrations/*", "*/tests/*", "*/__init__.py"]
+# */mydoc/* is quarantined with the pytest/ruff excludes above; measuring its
+# unexecuted lines would sink the gate without testing anything.
+omit = ["*/migrations/*", "*/tests/*", "*/__init__.py", "backend/apps/mydoc/*"]
 
 [tool.coverage.report]
 show_missing = true

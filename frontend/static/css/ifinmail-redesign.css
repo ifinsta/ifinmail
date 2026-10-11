@@ -39,6 +39,20 @@ html.ifinmail-shell .ifinmail-admin-brand {
     border-bottom: 0;
 }
 
+/* The brand name block grows to fill the row so the minimize toggle sits flush
+   right, matching the secondary sidebar. Hidden in rail mode, where the toggle
+   re-centers via justify-content. */
+html.ifinmail-shell .ifinmail-admin-brand-top > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* The sidebar minimize control sits quiet in the brand row until hovered */
+html.ifinmail-shell .ifinmail-admin-brand .ifinmail-collapse-toggle {
+    flex: none;
+    color: var(--ifinmail-color-text-muted);
+}
+
 html.ifinmail-shell .ifinmail-admin-brand-name {
     font-size: var(--ifinmail-font-size-lg);
     font-weight: var(--ifinmail-font-weight-bold);
@@ -179,6 +193,20 @@ html.ifinmail-shell .ifinmail-avatar {
     border-radius: var(--ifinmail-radius-full);
     font-size: var(--ifinmail-font-size-body-small);
     font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+/* Account menu open: keep the trigger quietly highlighted while expanded
+   (one step above the hover tint; driven by aria-expanded from the JS) */
+html.ifinmail-shell .ifinmail-avatar-button[aria-expanded="true"],
+html.ifinmail-shell .ifinmail-header-profile--button[aria-expanded="true"] {
+    background: var(--ifinmail-surface-container-high);
+}
+
+/* .ifinmail-btn-reset zeroes padding; the account triggers need inline breathing
+   room so the hover/open highlight does not hug the avatar and chevron */
+html.ifinmail-shell .ifinmail-avatar-button.ifinmail-btn-reset,
+html.ifinmail-shell .ifinmail-header-profile--button.ifinmail-btn-reset {
+    padding-inline: var(--ifinmail-space-2_5);
 }
 
 /* ─── Page header ─── */
@@ -580,16 +608,6 @@ html.ifinmail-shell .ifinmail-section-gap { margin-top: var(--ifinmail-space-5);
 
 html.ifinmail-shell .ifinmail-admin-brand-mark {
     background: transparent;
-}
-
-html.ifinmail-shell .ifinmail-admin-footer-action--button {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-    text-align: left;
 }
 
 html.ifinmail-shell .ifinmail-avatar--inline {
@@ -1415,6 +1433,11 @@ html.ifinmail-shell .ifinmail-wordmark {
     text-decoration: none;
 }
 
+/* No logo uploaded: the system name is the brand on auth cards at every width. */
+html.ifinmail-shell .ifinmail-login-card__brand--name .ifinmail-wordmark {
+    display: inline-block;
+}
+
 /* Sign-in page: notice for mailbox-only logins */
 html.ifinmail-shell .ifinmail-login-notice {
     display: flex;
@@ -2021,7 +2044,8 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
         padding: 0;
     }
 
-    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-brand-top > div {
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-brand-top > div,
+    html.ifinmail-shell[data-sidebar="collapsed"] .ifinmail-admin-brand-mark {
         display: none;
     }
 
@@ -2080,22 +2104,72 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
         overflow-y: auto;
         overscroll-behavior: contain;
         scrollbar-width: thin;
-        transition: width 150ms var(--ifinmail-easing-standard);
+        scrollbar-color: transparent transparent;
+        transition: width 150ms var(--ifinmail-easing-standard), scrollbar-color 200ms ease;
     }
 
-    /* Search row is as tall as the header and stays put while the list scrolls */
+    /* Same hairline scrollbar as the app sidebar: invisible at rest, 4 px on hover */
+    html.ifinmail-shell .ifinmail-settings__nav:hover {
+        scrollbar-color: var(--ifinmail-color-border-light) transparent;
+    }
+
+    html.ifinmail-shell .ifinmail-settings__nav::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    html.ifinmail-shell .ifinmail-settings__nav::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    html.ifinmail-shell .ifinmail-settings__nav::-webkit-scrollbar-thumb {
+        background: transparent;
+        border-radius: 10px;
+        transition: background-color 200ms ease;
+    }
+
+    html.ifinmail-shell .ifinmail-settings__nav:hover::-webkit-scrollbar-thumb {
+        background: var(--ifinmail-color-border-light);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__nav::-webkit-scrollbar-thumb:hover {
+        background: var(--ifinmail-color-text-muted);
+    }
+
+    /* Title row + search stay put while the list scrolls */
     html.ifinmail-shell .ifinmail-settings__toolbar {
         position: sticky;
         top: 0;
         z-index: 1;
         display: flex;
-        align-items: center;
-        gap: var(--ifinmail-space-1);
-        height: var(--ifinmail-header-height);
+        flex-direction: column;
+        gap: var(--ifinmail-space-2);
         margin-bottom: var(--ifinmail-space-1);
-        padding: 0 var(--ifinmail-space-2);
+        padding: 0 var(--ifinmail-space-2) var(--ifinmail-space-2);
         background: var(--ifinmail-surface-container-lowest);
         border-bottom: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__title-row {
+        display: flex;
+        align-items: center;
+        gap: var(--ifinmail-space-2);
+        height: var(--ifinmail-header-height);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__title-row > .ifinmail-icon {
+        flex: none;
+        color: var(--ifinmail-color-text-secondary);
+    }
+
+    html.ifinmail-shell .ifinmail-settings__title-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: var(--ifinmail-font-size-base);
+        font-weight: 600;
+        color: var(--ifinmail-color-text-primary);
     }
 
     html.ifinmail-shell .ifinmail-settings__group,
@@ -2105,7 +2179,7 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
     }
 
     html.ifinmail-shell .ifinmail-settings__toolbar .ifinmail-settings__search {
-        flex: 1 1 auto;
+        flex: none;
         min-width: 0;
         margin: 0;
     }
@@ -2156,21 +2230,22 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
     }
 
     html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar {
+        padding: 0 0 var(--ifinmail-space-1);
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__title-row {
         justify-content: center;
-        padding: 0;
+    }
+
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__title-row > .ifinmail-icon,
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__title-text,
+    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__search {
+        display: none;
     }
 
     html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__group {
         padding-right: var(--ifinmail-space-1_5);
         padding-left: var(--ifinmail-space-1_5);
-    }
-
-    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar .ifinmail-settings__search {
-        display: none;
-    }
-
-    html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__toolbar .ifinmail-icon {
-        transform: rotate(180deg);
     }
 
     html.ifinmail-shell[data-settings-rail="collapsed"] .ifinmail-settings__group-title {
@@ -2198,7 +2273,7 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
 
 /* The collapse controls only exist where the sidebar is a column; the phone uses the drawer */
 @media (max-width: 767px) {
-    html.ifinmail-shell .ifinmail-admin-nav-footer .ifinmail-collapse-toggle {
+    html.ifinmail-shell .ifinmail-admin-brand .ifinmail-collapse-toggle {
         display: none;
     }
 }

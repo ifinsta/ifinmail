@@ -11,6 +11,7 @@ from celery.schedules import crontab
 from django.core.checks import Error, register
 
 from backend.config.branding import BrandingConfig
+from backend.config.env import primary_domain
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 # Secret key: DJANGO_SECRET_KEY is the runtime variable (set directly in
@@ -235,7 +236,7 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
 EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
-_domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+_domain = primary_domain()
 DEFAULT_FROM_EMAIL = os.environ.get(
     'DEFAULT_FROM_EMAIL', f'noreply@{_domain}' if _domain else 'noreply@localhost'
 )

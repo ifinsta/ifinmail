@@ -29,6 +29,11 @@ Rules:
   `production` in containers, `testing` under pytest (`pyproject.toml`).
   `.env.example` ships `development` so `make check` never surprises with
   `check --deploy`.
+* Development loads the repo `.env` automatically
+  (`backend/config/settings/development.py` → `backend/config/env.py`); real
+  environment variables win and empty values count as unset. All code resolves
+  the primary domain through `primary_domain()`: `DOMAIN` first, then
+  `MAIL_DOMAIN`.
 * `USE_SQLITE=1` (or unset `DB_HOST`) uses `db.sqlite3` + `LocMemCache` for
   local dev with no Postgres/Redis. Unset it and set `DB_HOST`/`REDIS_URL` to
   test against real services.

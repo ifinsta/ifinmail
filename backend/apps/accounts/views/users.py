@@ -23,11 +23,11 @@ from .auth import require_perm
 logger = logging.getLogger('backend')
 
 
-def _initials(email: str) -> str:
-    """Up-to-two-letter monogram from the mailbox's local part."""
-    local = email.split('@', 1)[0]
-    letters = [c for c in local if c.isalnum()]
-    return ''.join(letters[:2]).upper() or '?'
+def _initials(user) -> str:
+    """Single first letter for the avatar, from the profile name or email."""
+    name = (getattr(user, 'full_name', '') or '').strip() or user.email.split('@', 1)[0]
+    letters = [c for c in name if c.isalnum()]
+    return letters[:1][0].upper() if letters else '?'
 
 
 def _admin_directory_rows() -> list[dict[str, str]]:
@@ -39,9 +39,9 @@ def _admin_directory_rows() -> list[dict[str, str]]:
         last_login = user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else ''
         rows.append(
             {
-                'name': user.email,
+                'name': user.get_full_name() or user.email,
                 'email': user.email,
-                'initials': _initials(user.email),
+                'initials': _initials(user),
                 'role': RoleService.role_label(user),
                 'status': 'Active' if user.is_active else 'Inactive',
                 'last_active': user.last_login.isoformat() if user.last_login else '',

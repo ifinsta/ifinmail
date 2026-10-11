@@ -36,29 +36,28 @@
                     &mdash;
                     {% endif %}
                 </span>
-                <span class="ifinmail-badge ifinmail-badge--warning">{{ dnssec_status|default:'—' }}</span>
+                <span class="ifinmail-badge{% if dnssec_warn %} ifinmail-badge--warning{% endif %}">{{ dnssec_status|default:'—' }}</span>
             </article>
             {% endwith %}
             <article class="ifinmail-stat-panel ifinmail-domain-stat ifinmail-span-3">
                 <span class="ifinmail-stat-label">{% trans 'Domains' %}</span>
-                <span class="ifinmail-stat-big">{{ nameserver_count|default:'0' }}</span>
+                <span class="ifinmail-stat-big">{{ domain_count|default:'0' }}</span>
                 <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Registered' %}</span>
             </article>
             <article class="ifinmail-panel ifinmail-domain-stat ifinmail-span-3">
-                <span class="ifinmail-stat-label">{% trans 'Mail routing cluster' %}</span>
-                {% for host in cluster_hosts %}
+                <span class="ifinmail-stat-label">{% trans 'Outbound delivery' %}</span>
+                {% for row in outbound_rows %}
                 <div class="ifinmail-cluster-host-row">
-                    <span class="ifinmail-status-dot{% if host.idle %} ifinmail-status-dot--idle{% else %} ifinmail-status-dot--success{% endif %}"></span>
-                    <span>{{ host.host|default:'?' }}</span>
-                    <strong class="ifinmail-cluster-host-status">{{ host.status|default:'' }}</strong>
-                </div>
-                {% empty %}
-                <div class="ifinmail-empty-state ifinmail-empty-state--compact">
-                    <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v5H4zM4 14h16v4H4z"/><path d="M8 8.5h.01M8 16h.01"/></svg>
-                    <p>{% trans 'No routing cluster has been configured.' %}</p>
-                    <a class="ifinmail-link-strong" href="#mail-routing-controls">{% trans 'Configure outbound routing →' %}</a>
+                    <span class="ifinmail-status-dot{% if row.enabled %} ifinmail-status-dot--success{% else %} ifinmail-status-dot--idle{% endif %}"></span>
+                    <span>{{ row.label }}</span>
+                    <strong class="ifinmail-cluster-host-status">{% if row.enabled %}{% trans 'On' %}{% else %}{% trans 'Off' %}{% endif %}</strong>
                 </div>
                 {% endfor %}
+                <div class="ifinmail-cluster-host-row">
+                    <span class="ifinmail-status-dot ifinmail-status-dot--success"></span>
+                    <span>{% trans 'Hop limit' %}</span>
+                    <strong class="ifinmail-cluster-host-status">{{ max_hop_count }}</strong>
+                </div>
             </article>
 
             <article class="ifinmail-table-panel ifinmail-span-12" tabindex="0" role="region" aria-labelledby="dns_config-table-title">

@@ -1,0 +1,10 @@
+{% comment %}
+Brand mark: the uploaded logo only. Without a logo the brand name text next to
+this spot carries the identity — the system never draws a placeholder mark.
+
+Usage: {% include "includes/brand_mark.html" with mark_class="ifinmail-landing-nav__logo" %}
+Optional: ``size`` sets the img width/height attributes (px, default 32).
+{% endcomment %}
+{% if brand.logo_url %}
+<img src="{{ brand.logo_url }}" alt="" width="{{ size|default:'32' }}" height="{{ size|default:'32' }}" class="{{ mark_class }} ifinmail-brand-logo">
+{% endif %}

@@ -10,19 +10,24 @@ from contextlib import suppress
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.accounts.types.permissions import PermissionCode
 from backend.apps.accounts.views.auth import require_perm
 from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.tls import TLSService
+from backend.apps.dns.models import DNSZone
 from backend.apps.dns.services import PROVIDER_MAP, DNSService
+from backend.apps.dns.types.zones import ZoneMode
 from backend.apps.domains.services import DomainService
 from backend.apps.domains.services.provisioning import (
     DomainProvisioningError,
     ProvisioningService,
 )
 from backend.apps.mail.services.postfix_runtime import OutboundConfigError, PostfixRuntime
+from backend.config.env import primary_domain
 
 from ._helpers import _build_records, _get_server_ip
 
@@ -31,7 +36,21 @@ logger = logging.getLogger('backend')
 
 def _configured_domain() -> str:
     """The primary mail domain from the environment (empty when unset)."""
-    return os.environ.get('DOMAIN') or os.environ.get('MAIL_DOMAIN') or ''
+    return primary_domain()
+
+
+def _format_ssl_expiry(info: dict[str, object]) -> tuple[str, str]:
+    """Row text and trend class for one domain's certificate state."""
+    covered = info.get('covered')
+    days = info.get('days')
+    status = info.get('status')
+    if covered is None:
+        return str(_('No certificate')), ''
+    if not covered:
+        return str(_('Not covered')), 'warn'
+    if isinstance(days, int):
+        return f'{days}d', ('warn' if status in ('warn', 'err') else '')
+    return '—', ''
 
 
 @login_required
@@ -93,10 +112,20 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
         toolbox_spf_record = 'v=spf1 mx -all'
 
     dns_registry_rows = []
-    for registered_domain in DomainService.get_all_domains():
+    registered_domains = list(DomainService.get_all_domains())
+    ssl_by_domain = (
+        TLSService.expiry_by_domain([d.name for d in registered_domains])
+        if registered_domains
+        else {}
+    )
+    hosted_zones = set(DNSZone.objects.values_list('zone', flat=True))
+    for registered_domain in registered_domains:
         auth_status = []
         auth_status.append('SPF' if registered_domain.spf_verified else 'SPF pending')
         auth_status.append('DKIM' if registered_domain.dkim_verified else 'DKIM pending')
+        ssl_expiry, ssl_status_class = _format_ssl_expiry(
+            ssl_by_domain.get(registered_domain.name, {})
+        )
         dns_registry_rows.append(
             {
                 'name': registered_domain.name,
@@ -106,10 +135,44 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
                 ),
                 'mx_status_class': '' if registered_domain.mx_verified else 'warn',
                 'auth_records': ' / '.join(auth_status),
-                'ssl_expiry': str(_('See TLS health')),
-                'actions': '',
+                'ssl_expiry': ssl_expiry,
+                'ssl_status_class': ssl_status_class,
+                'zone_url': (
+                    reverse('dns:zone', args=[registered_domain.name])
+                    if registered_domain.name in hosted_zones
+                    else ''
+                ),
             }
         )
+
+    # Propagation is derived from the stored verification outcomes (refreshed by
+    # "Full Zone Refresh" and the periodic domains.verify_all job) — four checks
+    # per registered domain.
+    total_checks = len(registered_domains) * 4
+    passed_checks = sum(
+        int(d.mx_verified) + int(d.spf_verified) + int(d.dkim_verified) + int(d.dmarc_verified)
+        for d in registered_domains
+    )
+    if total_checks:
+        propagation_sync = f'{round(100 * passed_checks / total_checks)}%'
+        propagation_pct = f'{passed_checks}/{total_checks} ' + str(_('checks verified'))
+    else:
+        propagation_sync = '—'
+        propagation_pct = str(_('No domains'))
+
+    # DNSSEC health covers the zones this server hosts (Knot signs them unless a
+    # zone has signing switched off).
+    authoritative_zones = list(DNSZone.objects.filter(mode=ZoneMode.AUTHORITATIVE.value))
+    if authoritative_zones:
+        dnssec_off = sum(1 for zone in authoritative_zones if not zone.dnssec)
+        dnssec_issues = str(dnssec_off)
+        dnssec_status = (
+            f'{len(authoritative_zones) - dnssec_off}/{len(authoritative_zones)} '
+            + str(_('signed'))
+        )
+    else:
+        dnssec_issues = ''
+        dnssec_status = str(_('No hosted zones'))
 
     context = {
         'domain': domain,
@@ -124,13 +187,16 @@ def dns_config_page(request: HttpRequest) -> HttpResponse:
             _('Actions'),
         ],
         'dns_registry_rows': dns_registry_rows,
-        'propagation_sync': str(_('Manual')),
-        'propagation_pct': str(_('Unchecked')),
-        'dnssec_issues': '',
-        'dnssec_status': str(_('Not monitored')),
-        'nameserver_count': str(len(dns_registry_rows)),
-        'cluster_hosts': [],
-        'is_mock': False,
+        'propagation_sync': propagation_sync,
+        'propagation_pct': propagation_pct,
+        'dnssec_issues': dnssec_issues,
+        'dnssec_status': dnssec_status,
+        'dnssec_warn': bool(authoritative_zones) and dnssec_issues != '0',
+        'domain_count': str(len(dns_registry_rows)),
+        'outbound_rows': [
+            {'label': str(_('SMTP proxy')), 'enabled': outbound.smtp_proxy_enabled},
+            {'label': str(_('Smart host relay')), 'enabled': outbound.smart_host_enabled},
+        ],
         'dkim_selector': os.environ.get('DKIM_SELECTOR') or 'default',
         'toolbox_spf_record': toolbox_spf_record,
         'active_section': 'dns',
@@ -244,6 +310,9 @@ def dns_register_domain(request: HttpRequest) -> JsonResponse:
             domain_name,
             ip_address=ip_address,
             actor=request.user.email if request.user.is_authenticated else None,
+            # Registration stays bounded: live DNS checks are deferred to the
+            # periodic domains.verify_all job and the on-demand verify action.
+            verify=False,
         )
         return JsonResponse(
             {

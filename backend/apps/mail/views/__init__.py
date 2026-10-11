@@ -18,6 +18,7 @@ from django.views.decorators.http import require_http_methods
 
 from backend.apps.domains.models import Domain
 from backend.apps.mail.services.mta_sts import MtaStsService
+from backend.config.env import primary_domain
 
 _EMAIL_RE = re.compile(r'^[^@\s<>&"\']{1,64}@([A-Za-z0-9.-]{1,253})$')
 _AUTODISCOVER_EMAIL_RE = re.compile(rb'<EMailAddress>\s*([^<\s]{3,254})\s*</EMailAddress>', re.I)
@@ -56,7 +57,7 @@ def _client_domain(request: HttpRequest, email: str = '') -> str:
             if domain is None:
                 raise Http404('Unknown domain')
             return domain
-    return os.environ.get('MAIL_DOMAIN', os.environ.get('DOMAIN', ''))
+    return primary_domain()
 
 
 @require_http_methods(['GET'])

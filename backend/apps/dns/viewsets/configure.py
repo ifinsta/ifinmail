@@ -1,7 +1,6 @@
 """DNS configure viewset — POST endpoint (API flow)."""
 
 import logging
-import os
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, JsonResponse
@@ -20,6 +19,7 @@ from backend.apps.domains.services.provisioning import (
     DomainProvisioningError,
     ProvisioningService,
 )
+from backend.config.env import primary_domain
 
 logger = logging.getLogger('backend')
 
@@ -30,7 +30,7 @@ logger = logging.getLogger('backend')
 @require_perm(PermissionCode.DNS_MANAGE)
 def dns_configure(request: HttpRequest) -> JsonResponse:
     """POST endpoint: configure DNS records via the selected provider."""
-    parsed = DNSConfigureRequest.from_post(request.POST, os.environ.get('DOMAIN', ''))
+    parsed = DNSConfigureRequest.from_post(request.POST, primary_domain())
 
     if parsed.provider not in PROVIDER_MAP:
         response = DNSConfigureResponse(

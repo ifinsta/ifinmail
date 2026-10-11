@@ -217,6 +217,25 @@ class TLSService:
             return None
 
     @staticmethod
+    def expiry_by_domain(domain_names: list[str]) -> dict[str, dict[str, object]]:
+        """Per-domain certificate state from the active certificate (one file read).
+
+        Returns ``{domain: {'covered': bool | None, 'days': int | None,
+        'status': 'ok' | 'warn' | 'err' | 'unknown'}}`` — ``covered`` is None
+        when there is no certificate to check at all.
+        """
+        cert = TLSService.active_certificate()
+        result: dict[str, dict[str, object]] = {}
+        for name in domain_names:
+            if cert is None:
+                result[name] = {'covered': None, 'days': None, 'status': 'unknown'}
+            elif cert.covers(name):
+                result[name] = {'covered': True, 'days': cert.days_left, 'status': cert.status}
+            else:
+                result[name] = {'covered': False, 'days': None, 'status': 'warn'}
+        return result
+
+    @staticmethod
     def coverage(domain_names: list[str], cert: CertInfo | None) -> list[HostCoverage]:
         resolver = _public_resolver()
         here = os.environ.get('SERVER_IP', '').strip()

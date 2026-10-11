@@ -1691,7 +1691,7 @@ select.ifinmail-input {
 }
 
 .ifinmail-admin-brand-top {
-    align-items: flex-start;
+    align-items: center;
     gap: 8px;
 }
 
@@ -1829,7 +1829,7 @@ select.ifinmail-input {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 0 6px;
+    padding: 0 var(--ifinmail-space-2_5);
     border-radius: 8px;
     color: var(--ifinmail-color-text-primary);
     text-decoration: none;
@@ -2824,6 +2824,13 @@ select.ifinmail-input {
     font-weight: var(--ifinmail-font-weight-bold);
     font-size: var(--ifinmail-font-size-caption);
     border-radius: var(--ifinmail-radius-sm);
+}
+
+/* Uploaded logo replaces the default square: no tint behind the image. */
+.ifinmail-landing-nav__logo.ifinmail-brand-logo,
+.ifinmail-landing-footer__logo.ifinmail-brand-logo {
+    background: transparent;
+    object-fit: contain;
 }
 
 .ifinmail-landing-footer__name {

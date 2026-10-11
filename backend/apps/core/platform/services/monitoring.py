@@ -10,6 +10,8 @@ from typing import Any
 
 from django.core.cache import cache
 
+from backend.config.env import primary_domain
+
 logger = logging.getLogger('backend')
 
 _LETSENCRYPT_DIR = os.environ.get('LETSENCRYPT_DIR', '/etc/letsencrypt')
@@ -47,7 +49,7 @@ class MonitoringService:
     def check_tls_expiry() -> dict[str, Any]:
         """Check TLS certificate expiry. Returns dict with days and status."""
         mail_hostname = os.environ.get('MAIL_HOSTNAME', '')
-        domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+        domain = primary_domain()
         cert_paths = []
         if mail_hostname:
             cert_paths.append(

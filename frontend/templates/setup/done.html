@@ -13,6 +13,7 @@
   </div>
 
   <div class="ifinmail-setup-card">
+    {% include "includes/card_brand.html" %}
     <h1 class="ifinmail-admin-title">{% trans 'Your mail server is ready' %}</h1>
     <p class="ifinmail-setup-description">
       {% blocktrans trimmed %}{{ domain }} is now configured to send and receive email. Here's what to do next:{% endblocktrans %}

@@ -7,6 +7,8 @@ import subprocess
 from datetime import UTC, datetime
 from typing import Any
 
+from backend.config.env import primary_domain
+
 logger = logging.getLogger('backend')
 
 _IPIFY_URL = 'https://api.ipify.org'
@@ -30,7 +32,7 @@ class DeliverabilityService:
     @staticmethod
     def run_all_checks(domain: str | None = None) -> dict[str, Any]:
         """Run all deliverability checks. Returns a dict of check results."""
-        domain = domain or os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+        domain = domain or primary_domain()
         server_ip = DeliverabilityService._get_server_ip()
         mail_hostname = os.environ.get('MAIL_HOSTNAME', f'mail.{domain}' if domain else '')
 
@@ -299,7 +301,7 @@ class DeliverabilityService:
     def _check_tls() -> dict[str, Any]:
         """Check TLS certificate validity."""
         mail_hostname = os.environ.get('MAIL_HOSTNAME', '')
-        domain = os.environ.get('DOMAIN', os.environ.get('MAIL_DOMAIN', ''))
+        domain = primary_domain()
         cert_paths = []
         if mail_hostname:
             cert_paths.append(

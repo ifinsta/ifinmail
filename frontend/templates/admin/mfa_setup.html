@@ -7,14 +7,7 @@
 <main class="ifinmail-login">
 
   <div class="ifinmail-login-card">
-    <div class="ifinmail-login-card__brand">
-      <span class="ifinmail-wordmark">{{ brand.name|default:'ifinmail' }}</span>
-      {% if brand.logo_url %}
-        <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
-      {% else %}
-        <span class="ifinmail-login-card__logo">{{ brand.logo_svg|safe }}</span>
-      {% endif %}
-    </div>
+    {% include "includes/card_brand.html" %}
 
     <h1 class="ifinmail-login-card__title">{% trans 'Two-factor authentication' %}</h1>
 

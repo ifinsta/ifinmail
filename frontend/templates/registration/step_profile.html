@@ -8,6 +8,7 @@
 <main class="ifinmail-reg">
 
   <div class="ifinmail-reg-card ifinmail-fade-in">
+    {% include "includes/card_brand.html" %}
     {% include "registration/_stepper.html" with current=1 %}
 
     <h1 class="ifinmail-reg-card__title">{% trans 'Create your profile' %}</h1>

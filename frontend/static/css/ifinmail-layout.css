@@ -67,6 +67,10 @@ html {
 }
 
 .ifinmail-admin-brand-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding: 10px var(--ifinmail-space-4);
     min-height: var(--ifinmail-header-height);
     /* Matches main header height */

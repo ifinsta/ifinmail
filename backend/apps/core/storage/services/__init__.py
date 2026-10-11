@@ -116,6 +116,7 @@ class StorageService:
             content_type=client_mime or 'application/octet-stream',
             size_bytes=file.size,
             entity_type=entity_type,
-            entity_id=entity_id,
+            # UUIDField cannot store ''; unset means NULL (Postgres rejects '').
+            entity_id=entity_id or None,
         )
         return stored

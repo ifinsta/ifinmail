@@ -87,9 +87,7 @@ class MailboxProfileTests(MailTablesTestCase):
         alice_client.force_login(alice, backend=MODEL_BACKEND)
         alice_client.get(reverse('accounts:dashboard'))
         alice_key = alice_client.session.session_key
-        self.assertTrue(
-            Session.objects.filter(session_key=alice_key).exists()
-        )
+        self.assertTrue(Session.objects.filter(session_key=alice_key).exists())
         # Revoking someone else's session works and is audited on the profile.
         response = self.client.post(
             self.sessions_url(mailbox.id),
@@ -126,15 +124,11 @@ class MailboxProfileTests(MailTablesTestCase):
     def test_grant_and_revoke_admin_rights(self) -> None:
         mailbox, _ = MailboxService.create('ifinmail.test', 'alice', GOOD)
         act = reverse('accounts:mailboxes_action')
-        self.client.post(
-            act, {'action': 'grant_admin', 'address': 'alice@ifinmail.test'}
-        )
+        self.client.post(act, {'action': 'grant_admin', 'address': 'alice@ifinmail.test'})
         self.assertTrue(MailUser.objects.get(email='alice@ifinmail.test').is_staff)
         html = self.client.get(self.profile_url(mailbox.id)).content.decode()
         self.assertIn('Remove admin rights', html)
-        self.client.post(
-            act, {'action': 'revoke_admin', 'address': 'alice@ifinmail.test'}
-        )
+        self.client.post(act, {'action': 'revoke_admin', 'address': 'alice@ifinmail.test'})
         self.assertFalse(MailUser.objects.get(email='alice@ifinmail.test').is_staff)
 
     def test_last_admin_cannot_be_demoted(self) -> None:
@@ -158,9 +152,7 @@ class MailboxProfileTests(MailTablesTestCase):
                 'return_to': 'profile',
             },
         )
-        self.assertRedirects(
-            response, self.profile_url(mailbox.id), fetch_redirect_response=False
-        )
+        self.assertRedirects(response, self.profile_url(mailbox.id), fetch_redirect_response=False)
         html = self.client.get(self.profile_url(mailbox.id)).content.decode()
         self.assertIn('id="invite-link-value"', html)
         self.assertIn('data-action="copy-invite"', html)
@@ -188,8 +180,6 @@ class MailboxProfileTests(MailTablesTestCase):
             reverse('accounts:mailbox_setup', kwargs={'uidb64': uid, 'token': token}),
             {'password': GOOD, 'password2': GOOD},
         )
-        self.assertTrue(
-            authenticate(username='alice@ifinmail.test', password=GOOD) is not None
-        )
+        self.assertTrue(authenticate(username='alice@ifinmail.test', password=GOOD) is not None)
         html = self.client.get(self.profile_url(mailbox.id)).content.decode()
         self.assertNotIn('Invite pending', html)

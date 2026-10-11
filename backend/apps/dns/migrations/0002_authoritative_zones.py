@@ -6,17 +6,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("dns", "0001_initial"),
+        ('dns', '0001_initial'),
     ]
 
     operations = [
         migrations.CreateModel(
-            name="DNSZone",
+            name='DNSZone',
             fields=[
                 (
-                    "id",
+                    'id',
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -24,38 +23,38 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
-                ("zone", models.CharField(max_length=255, unique=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('zone', models.CharField(max_length=255, unique=True)),
                 (
-                    "mode",
+                    'mode',
                     models.CharField(
                         choices=[
-                            ("authoritative", "Authoritative"),
-                            ("external", "External"),
+                            ('authoritative', 'Authoritative'),
+                            ('external', 'External'),
                         ],
-                        default="authoritative",
+                        default='authoritative',
                         max_length=16,
                     ),
                 ),
-                ("serial", models.BigIntegerField(default=0)),
+                ('serial', models.BigIntegerField(default=0)),
                 (
-                    "content_hash",
-                    models.CharField(blank=True, default="", max_length=64),
+                    'content_hash',
+                    models.CharField(blank=True, default='', max_length=64),
                 ),
-                ("dnssec", models.BooleanField(default=True)),
-                ("published_at", models.DateTimeField(blank=True, null=True)),
+                ('dnssec', models.BooleanField(default=True)),
+                ('published_at', models.DateTimeField(blank=True, null=True)),
             ],
             options={
-                "db_table": "dns_zones",
-                "ordering": ["zone"],
+                'db_table': 'dns_zones',
+                'ordering': ['zone'],
             },
         ),
         migrations.CreateModel(
-            name="CustomDNSRecord",
+            name='CustomDNSRecord',
             fields=[
                 (
-                    "id",
+                    'id',
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -63,19 +62,19 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
-                ("zone", models.CharField(db_index=True, max_length=255)),
-                ("name", models.CharField(default="@", max_length=255)),
-                ("rtype", models.CharField(max_length=8)),
-                ("value", models.TextField()),
-                ("ttl", models.PositiveIntegerField(default=3600)),
-                ("priority", models.PositiveIntegerField(blank=True, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('zone', models.CharField(db_index=True, max_length=255)),
+                ('name', models.CharField(default='@', max_length=255)),
+                ('rtype', models.CharField(max_length=8)),
+                ('value', models.TextField()),
+                ('ttl', models.PositiveIntegerField(default=3600)),
+                ('priority', models.PositiveIntegerField(blank=True, null=True)),
             ],
             options={
-                "db_table": "dns_custom_records",
-                "ordering": ["zone", "name", "rtype"],
-                "unique_together": {("zone", "name", "rtype", "value")},
+                'db_table': 'dns_custom_records',
+                'ordering': ['zone', 'name', 'rtype'],
+                'unique_together': {('zone', 'name', 'rtype', 'value')},
             },
         ),
     ]

@@ -11,7 +11,6 @@ import uuid
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -25,7 +24,6 @@ from backend.apps.domains.services import DomainService
 from backend.apps.mail.models import Alias, Mailbox
 from backend.apps.mail.services import MailboxService
 from backend.services.audit import AuditService
-from backend.services.models import AuditEvent
 
 from ..forms.mailboxes import (
     MailboxActionForm,
@@ -61,18 +59,10 @@ def mailbox_profile(request: HttpRequest, mailbox_id: uuid.UUID) -> HttpResponse
         if user is not None
         else []
     )
-    activity = list(
-        AuditEvent.objects.filter(Q(user=address) | Q(detail=address)).order_by('-time')[
-            :_ACTIVITY_LIMIT
-        ]
-    )
-    inbound_aliases = list(
-        Alias.objects.filter(destination=address).order_by('source')
-    )
+    activity = AuditService.get_for_subject(address, _ACTIVITY_LIMIT)
+    inbound_aliases = list(Alias.objects.filter(destination=address).order_by('source'))
     current_role = (
-        Role.objects.filter(pk=user.role_id).first()
-        if user is not None and user.role_id
-        else None
+        Role.objects.filter(pk=user.role_id).first() if user is not None and user.role_id else None
     )
     pending = request.session.pop('invite_link', None)
     invite_link = (
@@ -262,15 +252,11 @@ def mailbox_token_action(request: HttpRequest, mailbox_id: uuid.UUID) -> HttpRes
             AuditService.record(
                 action='api_token_rotated', user=_actor(request), detail=f'{address} {row.prefix}'
             )
-            messages.success(
-                request, f'Token {row.name} rotated — copy the new secret below.'
-            )
+            messages.success(request, f'Token {row.name} rotated — copy the new secret below.')
         else:
             if not TokenService.revoke(user, token_id):
                 raise TokenError('That token is already gone.')
-            AuditService.record(
-                action='api_token_revoked', user=_actor(request), detail=address
-            )
+            AuditService.record(action='api_token_revoked', user=_actor(request), detail=address)
             messages.success(request, f'Token revoked for {address}.')
     except TokenError as exc:
         messages.error(request, str(exc))

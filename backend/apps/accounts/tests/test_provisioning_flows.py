@@ -157,9 +157,7 @@ class MailboxPagesTests(_Base):
         self.assertTrue(pending.invite_pending)
         self.assertIsNone(authenticate(username=address, password='New-Pass-1234'))
         act = reverse('accounts:mailboxes_action')
-        response = self.client.post(
-            act, {'action': 'invite', 'address': address}, follow=True
-        )
+        response = self.client.post(act, {'action': 'invite', 'address': address}, follow=True)
         self.assertContains(response, 'Setup link for alice@ifinmail.test')
         # Owner accepts the setup link (single-use).
         from backend.apps.mail.services import MailboxInviteService
@@ -173,9 +171,7 @@ class MailboxPagesTests(_Base):
             follow=True,
         )
         self.assertTrue(authenticate(username=address, password='New-Pass-1234'))
-        self.assertIsNone(
-            MailboxInviteService.check_token(uid, token)
-        )  # single-use: consumed
+        self.assertIsNone(MailboxInviteService.check_token(uid, token))  # single-use: consumed
         self.assertFalse(MailboxService.list_rows()[0].invite_pending)
         self.client.post(act, {'action': 'quota', 'address': address, 'quota_mb': '0'})
         self.assertEqual(Mailbox.objects.get().quota_bytes, 0)
@@ -240,9 +236,7 @@ class MailboxPagesTests(_Base):
 
     def test_an_invalid_setup_link_is_rejected(self) -> None:
         MailboxService.create('ifinmail.test', 'alice', None)
-        bad = reverse(
-            'accounts:mailbox_setup', kwargs={'uidb64': 'bad', 'token': 'bad-token'}
-        )
+        bad = reverse('accounts:mailbox_setup', kwargs={'uidb64': 'bad', 'token': 'bad-token'})
         response = self.client.get(bad)
         self.assertContains(response, 'Invalid setup link')
         self.assertIsNone(authenticate(username='alice@ifinmail.test', password='x'))

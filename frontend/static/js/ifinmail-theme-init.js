@@ -41,6 +41,8 @@
             if (!meta.hasAttribute('data-default')) {
                 meta.setAttribute('data-default', meta.getAttribute('content') || '');
             }
+            /* Values mirror --ifinmail-color-surface-1 from the dark and contrast
+               theme blocks (this runs before the stylesheets load). */
             meta.setAttribute(
                 'content',
                 scheme === 'light' ? meta.getAttribute('data-default') : (scheme === 'dark' ? '#0B1220' : '#000000')

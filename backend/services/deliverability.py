@@ -201,7 +201,7 @@ class DeliverabilityService:
             'detail': f'Listed on {listed_count} blacklist(s)',
             'fix': (
                 "Visit the RBL's delisting page. Common causes: compromised account, "
-                "open relay, or a previous owner sent spam."
+                'open relay, or a previous owner sent spam.'
             ),
             'listings': listings,
         }
@@ -276,7 +276,7 @@ class DeliverabilityService:
                 'status': 'fail',
                 'detail': f'Port {port} refused — Postfix may not be running',
                 'fix': (
-                    "Check that Postfix is running: docker compose ps postfix. "
+                    'Check that Postfix is running: docker compose ps postfix. '
                     "If it's not, restart the stack."
                 ),
             }
@@ -344,7 +344,7 @@ class DeliverabilityService:
                         'days': days,
                         'fix': (
                             "Certificate renews automatically. If it doesn't, "
-                            "check certbot container logs."
+                            'check certbot container logs.'
                         ),
                     }
                 else:

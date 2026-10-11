@@ -2,19 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ifinmail</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+    <title>ifinmail</title>
     <link type="text/css" rel="stylesheet" href="styles.css">
 </head>
-<body style="text-align: center; align-content: center">
-    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">
-        <circle cx="25" cy="25" r="20" stroke="#ccc" stroke-width="4" fill="none"/>
-        <circle cx="25" cy="25" r="20" stroke="#333" stroke-width="4" fill="none" stroke-linecap="round"
-                stroke-dasharray="90 125">
-            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s"
-                              repeatCount="indefinite"/>
-        </circle>
-    </svg>
+<body>
+    <main class="splash" aria-busy="true">
+        <span class="splash__wordmark">ifinmail</span>
+        <svg class="splash__spinner" xmlns="http://www.w3.org/2000/svg" width="32" height="32"
+             viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="2" opacity="0.2"/>
+            <path d="M16 3a13 13 0 0 1 13 13" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+        </svg>
+    </main>
     <script type="application/javascript" src="webApp.js"></script>
 </body>
 </html>

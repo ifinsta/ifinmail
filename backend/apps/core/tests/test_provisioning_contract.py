@@ -8,6 +8,7 @@ by Django's own tests, so the files are checked directly.
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -118,9 +119,22 @@ class ContainerContractTests(SimpleTestCase):
         self.assertIn('manage.py provision_domains', _read('entrypoint.sh'))
 
 
-@pytest.mark.skipif(
-    subprocess.run(['which', 'bash'], capture_output=True).returncode != 0, reason='needs bash'
-)
+def _shell_works(exe: str | None) -> bool:
+    """True only for a working shell (WSL's bash stub counts as missing)."""
+    if not exe:
+        return False
+    try:
+        result = subprocess.run([exe, '--version'], capture_output=True, text=True, timeout=10)
+        return result.returncode == 0 and 'GNU' in (result.stdout + result.stderr)
+    except Exception:
+        return False
+
+
+_BASH_WORKS = _shell_works(shutil.which('bash'))
+_SH_WORKS = _shell_works(shutil.which('sh'))
+
+
+@pytest.mark.skipif(not _BASH_WORKS, reason='needs working bash')
 class ShellSyntaxTests(SimpleTestCase):
     def test_every_provisioning_script_parses(self) -> None:
         scripts = [
@@ -187,6 +201,7 @@ class AuthoritativeServerContractTests(SimpleTestCase):
             'action: transfer', conf
         )  # transfers only to the secondaries the console lists
 
+    @pytest.mark.skipif(not _SH_WORKS, reason='needs working sh')
     def test_the_container_scripts_are_valid_shell(self) -> None:
         for path in (
             ('dns', 'entrypoint.sh'),

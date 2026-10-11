@@ -1,22 +1,14 @@
-"""Read-only domain inventory (external monitoring, CMDB sync). Scope: dns.manage."""
+"""Domain inventory viewset (external monitoring, CMDB sync). Scope: dns.manage."""
 
 from __future__ import annotations
 
-from ninja import Router, Schema
+from ninja import Router
 
-from backend.apps.accounts.api.auth import require_scope
+from backend.apps.accounts.serializers import DomainOut
+from backend.apps.accounts.viewsets.auth import require_scope
 from backend.apps.domains.services import DomainService
 
 router = Router(tags=['domains'])
-
-
-class DomainOut(Schema):
-    name: str
-    verified: bool
-    mx_verified: bool
-    spf_verified: bool
-    dkim_verified: bool
-    dmarc_verified: bool
 
 
 @router.get('/domains', response=list[DomainOut])
@@ -36,3 +28,6 @@ def list_domains(request) -> list[DomainOut]:
             [d.name for d in DomainService.get_all_domains()]
         )
     ]
+
+
+__all__ = ['router']

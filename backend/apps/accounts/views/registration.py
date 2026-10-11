@@ -221,6 +221,7 @@ def step_verify_confirm(request: HttpRequest, uidb64: str, token: str) -> HttpRe
 
     user_model = get_user_model()
     from django.core.exceptions import ValidationError
+
     try:
         uid = urlsafe_base64_decode(uidb64).decode()
         user = user_model.objects.get(pk=uid)

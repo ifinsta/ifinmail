@@ -105,6 +105,88 @@ class AuditService:
         return cls._events[-limit:]
 
     # ------------------------------------------------------------------
+    # Queries (single interface for all AuditEvent reads — cross-app code
+    # must use these, never ``backend.services.models`` directly).
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _memory_search(cls, action: str | None = None, **filters: object) -> list[dict]:
+        def match(event: dict) -> bool:
+            if action is not None and event.get('action') != action:
+                return False
+            return all(event.get(key) == value for key, value in filters.items())
+
+        return [e for e in cls._events if match(e)]
+
+    @classmethod
+    def has(cls, action: str, **filters: object) -> bool:
+        """True when at least one event matches (database first, memory fallback)."""
+        try:
+            audit_event = _get_audit_model()
+            return audit_event.objects.filter(action=action, **filters).exists()
+        except Exception:
+            return bool(cls._memory_search(action, **filters))
+
+    @classmethod
+    def count(cls, action: str | None = None, **filters: object) -> int:
+        """Number of matching events (database first, memory fallback)."""
+        try:
+            audit_event = _get_audit_model()
+            if action is None:
+                return audit_event.objects.filter(**filters).count()
+            return audit_event.objects.filter(action=action, **filters).count()
+        except Exception:
+            return len(cls._memory_search(action, **filters))
+
+    @classmethod
+    def details(cls, limit: int = 200) -> list[str]:
+        """Most recent event details, newest first (for content assertions)."""
+        try:
+            audit_event = _get_audit_model()
+            return list(
+                audit_event.objects.order_by('-time').values_list('detail', flat=True)[:limit]
+            )
+        except Exception:
+            return [str(e.get('detail', '')) for e in reversed(cls._events[-limit:])]
+
+    @classmethod
+    def get_for_subject(cls, subject: str, limit: int = 50) -> list[dict]:
+        """Events involving ``subject`` as actor or target, newest first."""
+        try:
+            from django.db.models import Q
+
+            audit_event = _get_audit_model()
+            rows = audit_event.objects.filter(Q(user=subject) | Q(detail=subject)).order_by(
+                '-time'
+            )[:limit]
+            return [
+                {
+                    'time': e.time.isoformat() if hasattr(e.time, 'isoformat') else str(e.time),
+                    'user': e.user,
+                    'action': e.action,
+                    'detail': e.detail,
+                    'severity': e.severity,
+                }
+                for e in rows
+            ]
+        except Exception:
+            matched = [
+                e for e in cls._events if e.get('user') == subject or e.get('detail') == subject
+            ]
+            return list(reversed(matched[-limit:]))
+
+    @classmethod
+    def purge_keeping(cls, recent: int = 500) -> tuple[int, int]:
+        """Delete all but the ``recent`` newest rows. Returns ``(deleted, before)``."""
+        audit_event = _get_audit_model()
+        total_before = audit_event.objects.count()
+        if total_before <= recent:
+            return 0, total_before
+        keep_ids = list(audit_event.objects.order_by('-time').values_list('id', flat=True)[:recent])
+        deleted, _ = audit_event.objects.exclude(id__in=keep_ids).delete()
+        return deleted, total_before
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 

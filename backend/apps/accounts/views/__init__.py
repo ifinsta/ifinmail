@@ -65,7 +65,6 @@ __all__ = [
     'mfa_setup',
     'mfa_verify',
     'registration_toggle',
-
     'branding_identity',
     'branding_reset',
     'branding_save',

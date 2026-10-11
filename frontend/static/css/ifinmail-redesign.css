@@ -695,13 +695,14 @@ html.ifinmail-shell .ifinmail-logo-preview {
 
 /* MFA enrollment: QR code + copyable setup key / URI rows.
    The QR sits on a forced white ground because a scannable code must be dark-on-light
-   regardless of the active (possibly dark) theme. */
+   regardless of the active (possibly dark) theme; --ifinmail-color-white is
+   theme-independent by design. */
 html.ifinmail-shell .ifinmail-mfa-qr-wrap {
     display: flex;
     justify-content: center;
     margin: var(--ifinmail-space-3) 0;
     padding: var(--ifinmail-space-3);
-    background: #fff;
+    background: var(--ifinmail-color-white);
     border: 1px solid var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius);
 }

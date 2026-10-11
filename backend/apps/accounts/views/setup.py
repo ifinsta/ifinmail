@@ -151,6 +151,7 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
         from django.utils.translation import gettext_lazy as _
 
         from backend.apps.dns.services import PROVIDER_MAP
+
         provider_meta = {
             'cloudflare': {
                 'help': str(_('Requires an API token with DNS:Edit permission.')),
@@ -177,7 +178,9 @@ def setup_step(request: HttpRequest, step: str) -> HttpResponse:
                 'name': cls.provider_name if hasattr(cls, 'provider_name') else pid.capitalize(),
                 'help': provider_meta.get(pid, {}).get('help', ''),
                 'help_url': provider_meta.get(pid, {}).get('help_url', ''),
-                'placeholder': provider_meta.get(pid, {}).get('placeholder', f'{pid.capitalize()} API Token'),
+                'placeholder': provider_meta.get(pid, {}).get(
+                    'placeholder', f'{pid.capitalize()} API Token'
+                ),
                 'second_field': provider_meta.get(pid, {}).get('second_field'),
             }
             for pid, (cls, fields, label) in PROVIDER_MAP.items()

@@ -78,8 +78,7 @@ class DigitalOceanProvider:
                 return DNSResult(
                     success=False,
                     message=(
-                        'Domain not configured in DigitalOcean DNS. '
-                        'Add it to DigitalOcean first.'
+                        'Domain not configured in DigitalOcean DNS. Add it to DigitalOcean first.'
                     ),
                 )
             return DNSResult(success=False, message=str(e))

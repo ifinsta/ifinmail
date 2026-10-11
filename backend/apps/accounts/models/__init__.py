@@ -73,9 +73,7 @@ class TOTPDevice(models.Model):
     """A verified authenticator-app second factor. Secrets are Fernet-encrypted."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        MailUser, on_delete=models.CASCADE, related_name='totp_devices'
-    )
+    user = models.ForeignKey(MailUser, on_delete=models.CASCADE, related_name='totp_devices')
     name = models.CharField(max_length=64, default='Authenticator app')
     secret_encrypted = models.TextField()
     verified = models.BooleanField(default=False)
@@ -95,9 +93,7 @@ class MFARecoveryCode(models.Model):
     """Single-use recovery codes (only hashes stored) for MFA bypass."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        MailUser, on_delete=models.CASCADE, related_name='mfa_recovery_codes'
-    )
+    user = models.ForeignKey(MailUser, on_delete=models.CASCADE, related_name='mfa_recovery_codes')
     code_hash = models.CharField(max_length=128)
     used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
@@ -156,9 +152,7 @@ class APIToken(models.Model):
     """A scoped first-party token. Only the SHA-256 hash is stored."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        MailUser, on_delete=models.CASCADE, related_name='api_tokens'
-    )
+    user = models.ForeignKey(MailUser, on_delete=models.CASCADE, related_name='api_tokens')
     name = models.CharField(max_length=64)
     prefix = models.CharField(max_length=16, unique=True)
     token_hash = models.CharField(max_length=64)

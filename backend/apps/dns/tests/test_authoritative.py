@@ -403,9 +403,9 @@ class DNSPagesTests(_Base):
             reverse('dns:record_add'),
             {'zone': self.z, 'name': 'a', 'rtype': 'A', 'value': '192.0.2.1'},
         )
-        from backend.services.models import AuditEvent
+        from backend.services.audit import AuditService
 
-        self.assertTrue(AuditEvent.objects.filter(action='dns_record_added').exists())
+        self.assertTrue(AuditService.has('dns_record_added'))
 
     def test_the_domain_exists_check_uses_real_domains(self) -> None:
         self.assertEqual(Domain.objects.filter(name=self.z).count(), 1)

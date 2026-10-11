@@ -127,16 +127,14 @@ class MFALoginFlowTests(MailTablesTestCase):
     def test_wrong_code_keeps_you_out_and_is_audited(self) -> None:
         _, secret = TOTPService.start_enrollment(self.user)
         TOTPService.confirm_enrollment(self.user, _code_now(secret))
-        self.client.post(
-            reverse('accounts:login'), {'email': self.user.email, 'password': GOOD}
-        )
+        self.client.post(reverse('accounts:login'), {'email': self.user.email, 'password': GOOD})
         response = self.client.post(reverse('accounts:mfa_verify'), {'code': '000000'})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'did not match')
         self.assertNotIn('_auth_user_id', self.client.session)
-        from backend.services.models import AuditEvent
+        from backend.services.audit import AuditService
 
-        self.assertTrue(AuditEvent.objects.filter(action='mfa_failed').exists())
+        self.assertTrue(AuditService.has('mfa_failed'))
 
     def test_verify_rate_limits_after_five_bad_codes(self) -> None:
         with override_settings(
@@ -149,9 +147,7 @@ class MFALoginFlowTests(MailTablesTestCase):
             )
             for _ in range(5):
                 self.client.post(reverse('accounts:mfa_verify'), {'code': '000000'})
-            response = self.client.post(
-                reverse('accounts:mfa_verify'), {'code': _code_now(secret)}
-            )
+            response = self.client.post(reverse('accounts:mfa_verify'), {'code': _code_now(secret)})
             self.assertContains(response, 'Too many attempts')
             self.assertNotIn('_auth_user_id', self.client.session)
 
@@ -190,9 +186,7 @@ class MFALoginFlowTests(MailTablesTestCase):
         MailUser.objects.create_user('alice@ifinmail.test', GOOD)
         self.client.force_login(self.user, backend=MODEL_BACKEND)
         self._staff_session()
-        _, secret = TOTPService.start_enrollment(
-            MailUser.objects.get(email='alice@ifinmail.test')
-        )
+        _, secret = TOTPService.start_enrollment(MailUser.objects.get(email='alice@ifinmail.test'))
         TOTPService.confirm_enrollment(
             MailUser.objects.get(email='alice@ifinmail.test'), _code_now(secret)
         )
@@ -278,12 +272,8 @@ class SessionInventoryTests(MailTablesTestCase):
 
 class PasswordResetAuditTests(MailTablesTestCase):
     def test_reset_request_and_completion_are_audited(self) -> None:
-        from backend.services.models import AuditEvent
+        from backend.services.audit import AuditService
 
         MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
-        self.client.post(
-            reverse('accounts:password_reset'), {'email': 'admin@ifinmail.test'}
-        )
-        self.assertTrue(
-            AuditEvent.objects.filter(action='password_reset_requested').exists()
-        )
+        self.client.post(reverse('accounts:password_reset'), {'email': 'admin@ifinmail.test'})
+        self.assertTrue(AuditService.has('password_reset_requested'))

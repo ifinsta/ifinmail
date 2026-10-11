@@ -85,9 +85,7 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
         action = request.POST.get('action', 'start')
         if action == 'start':
             uri, secret = TOTPService.start_enrollment(request.user)
-            AuditService.record(
-                action='mfa_enrollment_started', user=_actor(request), detail=''
-            )
+            AuditService.record(action='mfa_enrollment_started', user=_actor(request), detail='')
             return render(
                 request,
                 'admin/mfa_setup.html',
@@ -101,9 +99,7 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
             )
         if action == 'confirm':
             try:
-                codes = TOTPService.confirm_enrollment(
-                    request.user, request.POST.get('code', '')
-                )
+                codes = TOTPService.confirm_enrollment(request.user, request.POST.get('code', ''))
             except MFAError as exc:
                 return render(
                     request,
@@ -132,9 +128,7 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
                 messages.error(request, 'Enroll an authenticator first.')
                 return redirect('accounts:mfa_setup')
             codes = TOTPService.fresh_recovery_codes(request.user)
-            AuditService.record(
-                action='mfa_recovery_regenerated', user=_actor(request), detail=''
-            )
+            AuditService.record(action='mfa_recovery_regenerated', user=_actor(request), detail='')
             return render(
                 request,
                 'admin/mfa_setup.html',
@@ -144,9 +138,7 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
                     'recovery_codes': codes,
                 },
             )
-    return render(
-        request, 'admin/mfa_setup.html', {'stage': 'start', 'status': status}
-    )
+    return render(request, 'admin/mfa_setup.html', {'stage': 'start', 'status': status})
 
 
 # -- login verification --------------------------------------------------------

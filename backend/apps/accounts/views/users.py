@@ -27,7 +27,7 @@ def _initials(email: str) -> str:
     """Up-to-two-letter monogram from the mailbox's local part."""
     local = email.split('@', 1)[0]
     letters = [c for c in local if c.isalnum()]
-    return (''.join(letters[:2]).upper() or '?')
+    return ''.join(letters[:2]).upper() or '?'
 
 
 def _admin_directory_rows() -> list[dict[str, str]]:

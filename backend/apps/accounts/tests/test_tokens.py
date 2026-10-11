@@ -42,9 +42,7 @@ class TokenServiceTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
         RoleService.ensure_seed()
-        MailUser.objects.create_user(
-            'root@ifinmail.test', GOOD, is_staff=True, is_superuser=True
-        )
+        MailUser.objects.create_user('root@ifinmail.test', GOOD, is_staff=True, is_superuser=True)
         self.user = MailUser.objects.create_user('api@ifinmail.test', GOOD, is_staff=True)
 
     def test_create_verify_rotate_revoke(self) -> None:
@@ -69,7 +67,9 @@ class TokenServiceTests(MailTablesTestCase):
     def test_scopes_cannot_exceed_owner_permissions(self) -> None:
         RoleService.assign(self.user, 'support')
         row, _ = TokenService.create(
-            self.user, 'narrow', ['console.access', 'dns.manage', 'audit.view'],
+            self.user,
+            'narrow',
+            ['console.access', 'dns.manage', 'audit.view'],
             expires_in_days=30,
         )
         self.assertEqual(set(row.scopes), {'console.access', 'audit.view'})
@@ -77,9 +77,7 @@ class TokenServiceTests(MailTablesTestCase):
             TokenService.create(self.user, 'empty', ['dns.manage'], expires_in_days=30)
 
     def test_expired_and_disabled_owners_fail_closed(self) -> None:
-        row, plain = TokenService.create(
-            self.user, 'short', ['console.access'], expires_in_days=30
-        )
+        row, plain = TokenService.create(self.user, 'short', ['console.access'], expires_in_days=30)
         row.expires_at = timezone.now() - timedelta(seconds=1)
         row.save(update_fields=['expires_at'])
         self.assertIsNone(TokenService.verify(plain))
@@ -124,9 +122,7 @@ class TokenEndpointTests(MailTablesTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
         self.assertEqual(self._get('/api/domains', self.plain).status_code, 200)
-        _, narrow = TokenService.create(
-            self.user, 'narrow', ['console.access'], expires_in_days=30
-        )
+        _, narrow = TokenService.create(self.user, 'narrow', ['console.access'], expires_in_days=30)
         self.assertEqual(self._get('/api/domains', narrow).status_code, 403)
 
     def test_role_narrowing_shrinks_live_tokens(self) -> None:
@@ -143,8 +139,7 @@ class TokenEndpointTests(MailTablesTestCase):
         body = self._get('/api/domains', self.plain).json()
         self.assertEqual(
             set(body[0]),
-            {'name', 'verified', 'mx_verified', 'spf_verified', 'dkim_verified',
-             'dmarc_verified'},
+            {'name', 'verified', 'mx_verified', 'spf_verified', 'dkim_verified', 'dmarc_verified'},
         )
         self.assertEqual(body[0]['name'], 'ifinmail.test')
 
@@ -191,7 +186,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
         self.assertIn('monitor', refreshed)
 
     def test_rotate_and_revoke_from_profile(self) -> None:
-        from backend.services.models import AuditEvent
+        from backend.services.audit import AuditService
 
         mailbox = self._profile('alice')
         url = reverse('accounts:mailbox_profile', kwargs={'mailbox_id': mailbox.id})
@@ -207,9 +202,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
         from backend.apps.accounts.models import APIToken
 
         row = APIToken.objects.get(user__email='alice@ifinmail.test')
-        action_url = reverse(
-            'accounts:mailbox_token_action', kwargs={'mailbox_id': mailbox.id}
-        )
+        action_url = reverse('accounts:mailbox_token_action', kwargs={'mailbox_id': mailbox.id})
         self.client.post(
             action_url,
             {'address': 'alice@ifinmail.test', 'token_id': str(row.id), 'action': 'rotate'},
@@ -223,7 +216,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
         )
         self.assertFalse(APIToken.objects.filter(pk=row.id).exists())
         for action in ('api_token_created', 'api_token_rotated', 'api_token_revoked'):
-            self.assertTrue(AuditEvent.objects.filter(action=action).exists())
+            self.assertTrue(AuditService.has(action))
 
     def test_non_staff_profile_cannot_mint_tokens(self) -> None:
         from backend.apps.mail.services import MailboxService

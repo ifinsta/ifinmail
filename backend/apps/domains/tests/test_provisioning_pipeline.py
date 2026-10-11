@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import base64
 import os
+import shutil
 import subprocess
+import unittest
 from unittest.mock import patch
 
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from backend.apps.core.services import SystemSettings
 from backend.apps.core.tests.mail_base import MailTablesTestCase
@@ -35,7 +38,9 @@ class DKIMTests(MailTablesTestCase):
         self.assertTrue(created)
         path = DKIMService.key_path('ifinmail.test', 'default')
         self.assertTrue(path.is_file())
-        self.assertEqual(path.stat().st_mode & 0o777, 0o644)
+        if os.name != 'nt':
+            # Windows ACLs do not enforce POSIX modes (production is Linux).
+            self.assertEqual(path.stat().st_mode & 0o777, 0o644)
         self.assertEqual(path.read_text(), key.private_key)
         self.assertTrue(path.name.startswith('ifinmail.test.default'))  # rspamd $domain.$selector
 
@@ -49,6 +54,7 @@ class DKIMTests(MailTablesTestCase):
         self.assertEqual(public.public_numbers(), private.public_key().public_numbers())
         self.assertEqual(public.key_size, 2048)
 
+    @unittest.skipIf(shutil.which('openssl') is None, 'needs openssl')
     def test_openssl_accepts_the_key_pair(self) -> None:
         key, _ = DKIMService.ensure(self.make_domain())
         path = DKIMService.key_path('ifinmail.test', 'default')
@@ -79,7 +85,15 @@ class DKIMTests(MailTablesTestCase):
         domain = self.make_domain()
         os.makedirs(self.dkim_dir)
         legacy = DKIMService.legacy_key_path('ifinmail.test', 'default')
-        subprocess.run(['openssl', 'genrsa', '-out', str(legacy), '2048'], capture_output=True)
+        # Generate the legacy key in-process (no openssl binary needed).
+        private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        legacy.write_text(
+            private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ).decode()
+        )
         legacy_pem = legacy.read_text()
         key, created = DKIMService.ensure(domain)
         self.assertTrue(created)

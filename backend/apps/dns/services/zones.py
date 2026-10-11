@@ -169,9 +169,7 @@ class ZoneService:
                     if glue_name and glue_name != '@':
                         records.append(ZoneRecord(name=glue_name, type='A', value=child_ip))
                         if ipv6:
-                            records.append(
-                                ZoneRecord(name=glue_name, type='AAAA', value=ipv6)
-                            )
+                            records.append(ZoneRecord(name=glue_name, type='AAAA', value=ipv6))
         # RFC 6186: lets mail clients find the right ports from the domain alone.
         for name, port in (
             ('_submission._tcp', 587),

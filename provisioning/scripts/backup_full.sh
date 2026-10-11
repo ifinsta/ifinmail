@@ -97,6 +97,17 @@ for volume in ifinmail_dns_data docker_dns_data "${COMPOSE_PROJECT_NAME:-docker}
     fi
 done
 
+# Calendars and contacts (CalDAV/CardDAV)
+mkdir -p "$BACKUP_ROOT/dav"
+for volume in ifinmail_dav_data docker_dav_data "${COMPOSE_PROJECT_NAME:-docker}_dav_data"; do
+    if docker volume ls --format '{{.Name}}' | grep -qx "$volume"; then
+        docker run --rm -v "$volume:/source_dav:ro" -v "$BACKUP_ROOT/dav:/backup_dav" \
+            alpine:latest sh -c "cp -a /source_dav/. /backup_dav/ && chmod -R go-rwx /backup_dav" 2>/dev/null \
+            || echo "  Warning: could not copy calendars and contacts from $volume"
+        break
+    fi
+done
+
 # 5. Manifest with SHA256 checksums
 echo "[5/6] Backing up TLS certificates..."
 mkdir -p "$BACKUP_ROOT/certs"

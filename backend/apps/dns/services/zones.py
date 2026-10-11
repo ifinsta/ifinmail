@@ -141,6 +141,12 @@ class ZoneService:
             records.append(
                 ZoneRecord(name=name, type='SRV', value=f'1 {port} {mail_host}', priority=0)
             )
+        # RFC 6764: calendar and contact apps find the DAV server (and its path) from the domain.
+        for service in ('_caldavs._tcp', '_carddavs._tcp'):
+            records.append(
+                ZoneRecord(name=service, type='SRV', value=f'1 443 {mail_host}', priority=0)
+            )
+            records.append(ZoneRecord(name=service, type='TXT', value='path=/dav/'))
         # Hostnames that carry mail: they must resolve even when they live in another zone.
         return records
 

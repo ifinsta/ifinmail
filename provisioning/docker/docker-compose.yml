@@ -203,6 +203,32 @@ services:
       retries: 3
       start_period: 10s
 
+  # --- Calendars and contacts (CalDAV/CardDAV) at https://<mail host>/dav/, checked against Dovecot ---
+  dav:
+    image: ifinmail/dav:latest
+    build: ./dav
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - dav_data:/var/lib/radicale
+      - rundir:/var/run/dovecot          # Dovecot's auth socket
+    depends_on:
+      dovecot:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 10s
+    mem_limit: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import http.client as h; c = h.HTTPConnection('127.0.0.1', 5232, timeout=5); c.request('GET', '/'); raise SystemExit(0 if c.getresponse().status < 500 else 1)\""]
+      interval: 30s
+      retries: 3
+      start_period: 15s
+
   # --- Authoritative DNS (Knot DNS): serves and DNSSEC-signs the zones the console publishes ---
   dns:
     image: ifinmail/dns:latest
@@ -527,6 +553,7 @@ volumes:
   static_data:
   runtime_data:   # files the console publishes for postfix, certbot, the DNS server and the firewall
   dns_data:       # DNSSEC keys and zone journals
+  dav_data:       # calendars and address books
 
 networks:
   default:

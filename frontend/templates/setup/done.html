@@ -14,37 +14,33 @@
 
   <div class="ifinmail-setup-card">
     {% include "includes/card_brand.html" %}
-    <h1 class="ifinmail-admin-title">{% trans 'Your mail server is ready' %}</h1>
+    <h1 class="ifinmail-admin-title">{% trans 'Almost there' %}</h1>
     <p class="ifinmail-setup-description">
-      {% blocktrans trimmed %}{{ domain }} is now configured to send and receive email. Here's what to do next:{% endblocktrans %}
+      {% blocktrans trimmed %}Here is where {{ domain }} stands. Anything still open can be finished from the dashboard, which keeps checking it for you.{% endblocktrans %}
     </p>
 
     <div class="ifinmail-setup-checklist">
-      <div class="ifinmail-setup-checklist-item{% if setup_domain_done %} ifinmail-setup-checklist-item--done{% endif %}">
-        <span class="ifinmail-setup-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
-        <span>{% blocktrans trimmed %}Domain configured — {{ domain }}{% endblocktrans %}</span>
+      <div class="ifinmail-setup-checklist-item{% if setup_domain_done %} ifinmail-setup-checklist-item--done{% else %} ifinmail-setup-checklist-item--pending{% endif %}">
+        <span class="ifinmail-setup-check">{% if setup_domain_done %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{% else %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>{% endif %}</span>
+        <span>{% if setup_domain_done %}{% blocktrans trimmed %}Domain added: {{ domain }}{% endblocktrans %}{% else %}{% trans 'No domain added yet' %}{% endif %}</span>
       </div>
-      <div class="ifinmail-setup-checklist-item{% if setup_dns_done %} ifinmail-setup-checklist-item--done{% endif %}">
-        <span class="ifinmail-setup-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
-        <span>{% trans 'DNS records configured' %}</span>
+      <div class="ifinmail-setup-checklist-item{% if setup_mailbox %} ifinmail-setup-checklist-item--done{% else %} ifinmail-setup-checklist-item--pending{% endif %}">
+        <span class="ifinmail-setup-check">{% if setup_mailbox %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>{% else %}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>{% endif %}</span>
+        <span>{% if setup_mailbox %}{% blocktrans trimmed with address=setup_mailbox.local_part %}Mailbox created: {{ address }}@{{ domain }}{% endblocktrans %}{% else %}{% trans 'No mailbox yet' %}<small>{% trans 'Add one later under Settings → Mailboxes.' %}</small>{% endif %}</span>
       </div>
-      <div class="ifinmail-setup-checklist-item{% if setup_account_done %} ifinmail-setup-checklist-item--done{% endif %}">
-        <span class="ifinmail-setup-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
-        <span>{% trans 'Email account created' %}</span>
+      <div class="ifinmail-setup-checklist-item ifinmail-setup-checklist-item--pending">
+        <span class="ifinmail-setup-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></span>
+        <span>{% trans 'DNS, reverse DNS and the certificate' %}<small>{% trans 'The dashboard’s Server readiness panel checks these live and shows exactly what is left at your registrar and VPS provider.' %}</small></span>
       </div>
     </div>
 
-    <div class="ifinmail-setup-next-steps ifinmail-mt-6">
-      <a href="{% url 'accounts:dashboard' %}" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Go to Dashboard' %}</a>
+    <form method="post" action="{% url 'accounts:setup_advance' %}" class="ifinmail-setup-actions">
+      {% csrf_token %}
+      <input type="hidden" name="current_step" value="done">
+      <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Finish and open the dashboard' %}</button>
       {% if ENABLE_NEXTCLOUD %}
       <a href="https://apps.nextcloud.com" target="_blank" rel="noopener" class="ifinmail-btn ifinmail-btn--outline">{% trans 'Install Nextcloud Companion' %}</a>
       {% endif %}
-    </div>
-
-    <form method="post" action="{% url 'accounts:setup_advance' %}" class="ifinmail-mt-4">
-      {% csrf_token %}
-      <input type="hidden" name="current_step" value="done">
-      <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Finish Setup' %}</button>
     </form>
   </div>
 </div>

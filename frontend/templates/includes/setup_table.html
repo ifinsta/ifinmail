@@ -1,8 +1,13 @@
 {% load i18n %}
+<div class="ifinmail-setup-table-wrap">
 <table class="ifinmail-setup-table">
+    <thead><tr><th scope="col">{% trans 'Type' %}</th><th scope="col">{% trans 'Name' %}</th><th scope="col">{% trans 'Value' %}</th></tr></thead>
+    <tbody>
     {% if dns_records is not None %}{% for rec in dns_records %}
     <tr><td><strong>{{ rec.type|default:'—' }}</strong></td><td>{{ rec.name|default:'' }}</td><td class="ifinmail-dns-cell{% if rec.type == 'TXT' %} ifinmail-dns-value{% endif %}">{{ rec.value|default:'' }}</td></tr>
     {% empty %}
     <tr><td colspan="3" class="ifinmail-cell-center">{% trans 'No DNS records available.' %}</td></tr>
     {% endfor %}{% endif %}
+    </tbody>
 </table>
+</div>

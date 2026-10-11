@@ -1268,9 +1268,60 @@ select.ifinmail-input {
    Setup Wizard
    ══════════════════════════════════════════════════════════════ */
 .ifinmail-setup-wizard {
+    /* One width for every step, centred: steps used to shrink to their content. */
+    width: 100%;
     max-width: 720px;
     margin: 0 auto;
     padding: var(--ifinmail-space-6);
+    box-sizing: border-box;
+}
+
+.ifinmail-setup-wizard .ifinmail-admin-title {
+    margin-bottom: var(--ifinmail-space-3);
+}
+
+.ifinmail-setup-wizard .ifinmail-dns-providers {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ifinmail-space-3);
+}
+
+.ifinmail-setup-wizard .ifinmail-guide-values {
+    margin: var(--ifinmail-space-2) 0 var(--ifinmail-space-5);
+}
+
+.ifinmail-setup-divider {
+    margin: var(--ifinmail-space-6) 0 var(--ifinmail-space-3);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-on-surface);
+}
+
+.ifinmail-setup-table-wrap {
+    margin-top: var(--ifinmail-space-4);
+    overflow-x: auto;
+    border: 1px solid var(--ifinmail-outline-variant);
+    border-radius: var(--ifinmail-radius-lg);
+}
+
+.ifinmail-setup-table-wrap .ifinmail-setup-table { margin: 0; width: 100%; }
+
+.ifinmail-setup-table th {
+    text-align: left;
+    font-size: var(--ifinmail-font-size-caption);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-on-surface-variant);
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    border-bottom: 1px solid var(--ifinmail-outline-variant);
+    background: var(--ifinmail-surface-container-low);
+}
+
+.ifinmail-setup-checklist-item--pending .ifinmail-setup-check { color: var(--ifinmail-outline); }
+
+.ifinmail-setup-check { flex-shrink: 0; display: inline-flex; }
+
+.ifinmail-setup-checklist-item small {
+    display: block;
+    color: var(--ifinmail-on-surface-variant);
+    font-size: var(--ifinmail-font-size-caption);
 }
 
 .ifinmail-setup-progress {
@@ -3676,3 +3727,10 @@ select.ifinmail-input {
 .ifinmail-login-firstrun p { margin: 0 0 var(--ifinmail-space-2); }
 .ifinmail-login-firstrun p:last-child { margin-bottom: 0; }
 .ifinmail-login-firstrun code { overflow-wrap: anywhere; user-select: all; }
+
+/* MFA enrollment: the code form sits below the setup key and URI boxes, not against them */
+.ifinmail-login-card .ifinmail-mfa-confirm {
+    margin-top: var(--ifinmail-space-6);
+    padding-top: var(--ifinmail-space-5);
+    border-top: 1px solid var(--ifinmail-outline-variant);
+}

@@ -79,7 +79,7 @@
       {% endif %}
 
       {% if secret %}
-      <form method="post" action="" class="ifinmail-login-form">
+      <form method="post" action="" class="ifinmail-login-form ifinmail-mfa-confirm">
         {% csrf_token %}
         <input type="hidden" name="action" value="confirm">
         <div class="ifinmail-login-form__group">

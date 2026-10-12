@@ -137,7 +137,7 @@ available the dashboard says so.
 ```bash
 cd ~/ifinmail
 sudo make version            # installed version, latest release, update history
-sudo make update             # latest release (or: sudo make update TO=v0.0.4)
+sudo make update             # latest release (or: sudo make update TO=v0.0.1)
 sudo make rollback           # back to the version before the last update
 ```
 

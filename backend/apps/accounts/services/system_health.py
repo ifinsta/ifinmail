@@ -671,17 +671,36 @@ def _security() -> list[HealthCheck]:
         TOTPDevice.objects.filter(user__in=admins, verified=True).values_list('user_id', flat=True)
     )
     without = [u.email for u in admins if u.pk not in enrolled]
-    checks.append(
-        HealthCheck(
-            'admin-2fa', GROUP_SECURITY, 'Two-factor sign-in', WARNING,
-            f'Not set up for: {", ".join(without)}.',
-            'Optional but strongly recommended for administrators: a stolen password alone then '
-            'cannot open the console.',
+    from backend.apps.accounts.services.mfa import TOTPService
+
+    enforced = TOTPService.enforced()
+    title = 'Two-factor sign-in'
+    if without and enforced:
+        two_factor = HealthCheck(
+            'admin-2fa', GROUP_SECURITY, title, WARNING,
+            f'Required, and not yet set up for: {", ".join(without)}.',
+            'They are sent to set it up at their next sign-in.',
             link=_url('accounts:mfa_setup'), link_label='Set up two-factor',
         )
-        if without
-        else HealthCheck('admin-2fa', GROUP_SECURITY, 'Two-factor sign-in', OK, 'Every administrator uses it.')
-    )
+    elif without:
+        two_factor = HealthCheck(
+            'admin-2fa', GROUP_SECURITY, title, WARNING,
+            f'Optional, and not set up for: {", ".join(without)}.',
+            'A stolen password alone can open the console. Set MFA_ENFORCEMENT=required in '
+            'the install directory\'s provisioning/.env and restart to make it mandatory.',
+            link=_url('accounts:mfa_setup'), link_label='Set up two-factor',
+        )
+    elif not enforced:
+        two_factor = HealthCheck(
+            'admin-2fa', GROUP_SECURITY, title, INFO,
+            'Every administrator uses it, but it is optional.',
+            'Set MFA_ENFORCEMENT=required so new administrators cannot skip it.',
+        )
+    else:
+        two_factor = HealthCheck(
+            'admin-2fa', GROUP_SECURITY, title, OK, 'Required, and every administrator uses it.'
+        )
+    checks.append(two_factor)
     if SystemSettings.get_bool(SettingKey.REGISTRATION_OPEN, False):
         checks.append(HealthCheck(
             'registration', GROUP_SECURITY, 'Public sign-up', INFO,

@@ -127,12 +127,12 @@ class MFAEnforcementMiddleware(MiddlewareMixin):
             return None
         if request.session.get('mfa_verified_at'):
             return None
-        if getattr(user, 'mfa_required', True) is False:
-            return None  # this login turned its own second factor off
-        if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
-            return None
         from backend.apps.accounts.services.mfa import TOTPService
 
+        if getattr(user, 'mfa_required', True) is False and not TOTPService.enforced():
+            return None  # this login turned its own second factor off (optional policy only)
+        if any(request.path.startswith(prefix) for prefix in self.exempt_prefixes):
+            return None
         if TOTPService.has_verified_device(user):
             return redirect('accounts:mfa_setup')  # enrolled, but this session never proved it
         if not TOTPService.prompt_due(user):

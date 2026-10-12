@@ -206,6 +206,10 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = (
 SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
 # Idle timeout (seconds) enforced by SessionIdleTimeoutMiddleware; 0 disables.
 SESSION_IDLE_TIMEOUT = int(os.environ.get('SESSION_IDLE_TIMEOUT', '1800'))
+# Two-factor policy for console (staff) logins: 'optional' offers enrollment and lets a
+# login postpone or switch it off; 'required' makes enrollment mandatory. Fresh installs
+# write 'required' into .env; an upgrade never changes an existing install's policy.
+MFA_ENFORCEMENT = os.environ.get('MFA_ENFORCEMENT', 'optional').strip().lower()
 SESSION_IDLE_UPDATE_INTERVAL = int(os.environ.get('SESSION_IDLE_UPDATE_INTERVAL', '60'))
 
 # Celery

@@ -189,6 +189,13 @@ BACKUP_ENCRYPT=true
 BACKUP_GPG_RECIPIENT=$BACKUP_GPG_RECIPIENT
 BACKUP_GPG_PASSPHRASE=$BACKUP_GPG_PASSPHRASE
 
+# --- Console security ---
+# Two-factor sign-in is mandatory for console logins on a new install. Existing installs keep
+# their policy until this line is added (optional = offered, may be postponed or switched off).
+MFA_ENFORCEMENT=required
+# Audit trail kept this many days (minimum 30). Telemetry and backups have their own settings.
+AUDIT_RETENTION_DAYS=365
+
 # --- Monitor thresholds ---
 MONITOR_QUEUE_WARN=50
 MONITOR_QUEUE_CRITICAL=200

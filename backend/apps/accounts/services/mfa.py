@@ -125,12 +125,22 @@ class TOTPService:
     REMIND_AFTER_DAYS = 7
 
     @staticmethod
+    def enforced() -> bool:
+        """True when policy makes two-factor mandatory for console logins (MFA_ENFORCEMENT)."""
+        from django.conf import settings
+
+        return str(getattr(settings, 'MFA_ENFORCEMENT', 'optional')).strip().lower() == 'required'
+
+    @staticmethod
     def prompt_due(user: object) -> bool:
         """Should this console login be sent to two-factor enrollment now?
 
-        Two-factor is offered, not forced: not once it is set up, not when the login turned it
-        off, and not while a "Remind me in a week" is running.
+        Under the default (optional) policy two-factor is offered, not forced: not once it is
+        set up, not when the login turned it off, and not while a "Remind me in a week" is
+        running. Under the ``required`` policy only a verified device ends the prompt.
         """
+        if TOTPService.enforced():
+            return not TOTPService.has_verified_device(user)
         if not getattr(user, 'mfa_required', True):
             return False
         remind_after = getattr(user, 'mfa_remind_after', None)
@@ -141,6 +151,8 @@ class TOTPService:
     @staticmethod
     def snooze(user: object, days: int | None = None) -> None:
         """Stop prompting this login for two-factor setup for ``days`` (default a week)."""
+        if TOTPService.enforced():
+            raise MFAError('Two-factor sign-in is required by your administrator.')
         user.mfa_remind_after = timezone.now() + timedelta(days=days or TOTPService.REMIND_AFTER_DAYS)
         user.save(update_fields=['mfa_remind_after'])
 
@@ -205,6 +217,8 @@ class TOTPService:
         consumed either way). Devices and codes are removed and enforcement is
         relaxed until the user enrolls again.
         """
+        if TOTPService.enforced():
+            raise MFAError('Two-factor sign-in is required by your administrator.')
         TOTPService.verify_login(user, code)  # raises MFAError when it does not match
         TOTPService.reset(user)
         user.mfa_required = False
@@ -281,4 +295,5 @@ class TOTPService:
             ],
             'recovery_remaining': TOTPService.remaining_recovery_codes(user),
             'pending': TOTPService.pending_device(user) is not None,
+            'enforced': TOTPService.enforced(),
         }

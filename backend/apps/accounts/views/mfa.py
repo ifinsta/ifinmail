@@ -83,6 +83,16 @@ def mfa_setup(request: HttpRequest) -> HttpResponse:
     status = TOTPService.status_for(request.user)
     if request.method == 'POST':
         action = request.POST.get('action', 'start')
+        if action == 'snooze' and TOTPService.enforced():
+            return render(
+                request,
+                'admin/mfa_setup.html',
+                {
+                    'stage': 'start',
+                    'status': status,
+                    'error': 'Two-factor sign-in is required by your administrator.',
+                },
+            )
         if action == 'snooze' and not status.get('enabled'):
             # Two-factor is optional: postpone the prompt, keep using the console.
             TOTPService.snooze(request.user)

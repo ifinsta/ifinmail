@@ -29,7 +29,9 @@
         <input type="hidden" name="action" value="start">
         <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% if status.enabled %}{% trans 'Replace authenticator' %}{% else %}{% trans 'Begin setup' %}{% endif %}</button>
       </form>
-      {% if not status.enabled %}
+      {% if status.enforced and not status.enabled %}
+      <p class="ifinmail-setup-hint">{% trans 'Your administrator requires two-factor sign-in. Set it up to continue.' %}</p>
+      {% elif not status.enabled %}
       <form method="post" action="{% url 'accounts:mfa_setup' %}" class="ifinmail-login-form ifinmail-mfa-snooze">
         {% csrf_token %}
         <input type="hidden" name="action" value="snooze">
@@ -46,6 +48,7 @@
       </form>
       <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed with remaining=status.recovery_remaining %}{{ remaining }} unused recovery codes remain.{% endblocktrans %}</p>
 
+      {% if not status.enforced %}
       <form method="post" action="" class="ifinmail-login-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="disable">
@@ -55,6 +58,7 @@
         </div>
         <button type="submit" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--full" data-confirm="{% trans 'Turn off two-factor? Your password alone will protect this login.' %}">{% trans 'Confirm with this code' %}</button>
       </form>
+      {% endif %}
       {% endif %}
 
     {% elif stage == 'confirm' %}
@@ -96,7 +100,7 @@
         </div>
         <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Verify & activate' %}</button>
       </form>
-      {% if not status.enabled %}
+      {% if not status.enabled and not status.enforced %}
       <form method="post" action="{% url 'accounts:mfa_setup' %}" class="ifinmail-login-form ifinmail-mfa-snooze">
         {% csrf_token %}
         <input type="hidden" name="action" value="snooze">

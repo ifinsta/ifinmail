@@ -583,6 +583,67 @@ def _backups() -> HealthCheck:
     )
 
 
+def _offsite_backup() -> HealthCheck:
+    """Is there a verified copy of the newest backup somewhere other than this disk?"""
+    from backend.apps.core.platform.services.runtime import read_runtime_file
+
+    title = 'Off-site backup'
+    raw = (read_runtime_file('offsite-status') or '').strip()
+    if not raw:
+        if not (read_runtime_file('last-backup-at') or '').strip():
+            return HealthCheck('offsite', GROUP_SERVER, title, WAITING, 'Shown after the first backup.')
+        raw = 'disabled'
+    state, _, rest = raw.partition(' ')
+    when_raw, _, detail = rest.partition(' ')
+    if state == 'ok':
+        try:
+            when = datetime.fromisoformat(when_raw.replace('Z', '+00:00'))
+        except ValueError:
+            return HealthCheck('offsite', GROUP_SERVER, title, UNKNOWN, f'Unreadable status: {raw}.')
+        hours = (datetime.now(UTC) - when).total_seconds() / 3600
+        level = OK if hours < 30 else WARNING if hours < 72 else ERROR
+        return HealthCheck(
+            'offsite', GROUP_SERVER, title, level,
+            f'A verified copy reached {detail or "the target"} {int(hours)} hour(s) ago.',
+            '' if level == OK else 'The nightly off-site copy has stopped. Check '
+            '/var/log/ifinmail-backup.log, then run "make offsite-check".',
+        )
+    if state == 'failed':
+        return HealthCheck(
+            'offsite', GROUP_SERVER, title, ERROR,
+            f'The last off-site copy failed: {detail or "no detail recorded"}.',
+            'Run "make offsite-check" in the install directory to see why.',
+        )
+    return HealthCheck(
+        'offsite', GROUP_SERVER, title, WARNING,
+        'Backups are stored only on this server. If its disk is lost, so are they.',
+        'Point the nightly backup at another host you control over SSH, then test it:',
+        [('Setting (provisioning/.env)', 'BACKUP_OFFSITE_TARGET=user@host:/backups/ifinmail'),
+         ('Test', 'make offsite-check')],
+    )
+
+
+def _backup_key() -> HealthCheck:
+    """Backups are encrypted, so the key must survive the server."""
+    from backend.apps.core.platform.services.runtime import read_runtime_file
+
+    title = 'Backup key'
+    raw = (read_runtime_file('backup-key-exported-at') or '').strip()
+    if raw:
+        return HealthCheck(
+            'backup-key', GROUP_SERVER, title, OK,
+            f'Exported {raw[:10]} and proven to open the newest backup. Keep the key file and its '
+            'passphrase off this server.',
+        )
+    return HealthCheck(
+        'backup-key', GROUP_SERVER, title, WARNING,
+        'The key that opens your backups exists only on this server. Lose the server and '
+        'the backups cannot be read.',
+        'Export it once and store it somewhere other than this server:',
+        [('Export', 'cd <install directory> && sudo make backup-key')],
+    )
+
+
 def _background_jobs() -> HealthCheck:
     from backend.apps.core.services import SystemSettings
     from backend.apps.core.types import SettingKey
@@ -737,6 +798,8 @@ def _collect() -> HealthReport:
     checks += _check(_disk)
     checks += _check(_memory)
     checks += _check(_backups)
+    checks += _check(_offsite_backup)
+    checks += _check(_backup_key)
     checks += _check(_background_jobs)
     checks += _check(_software_version)
     checks += _check(_security)

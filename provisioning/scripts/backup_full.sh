@@ -202,6 +202,11 @@ find /backups -name "ifinmail_backup_*.tar.gz*" -mtime +$RETENTION_DAYS -delete 
 SIZE=$(du -h "$ARCHIVE_NAME" | cut -f1)
 echo "=== Backup complete: $ARCHIVE_NAME ($SIZE) ==="
 
+# Off-site copy over SSH: a no-op unless BACKUP_OFFSITE_TARGET is set. A failure is reported
+# (and shown in System health) but does not fail the local backup, which is already complete.
+"$SCRIPT_DIR/backup_offsite.sh" send "$ARCHIVE_NAME" \
+    || echo "  Warning: the off-site copy failed; the local backup is intact."
+
 # Tell the console when the last successful backup finished (shown under Settings).
 record_backup_status() {
     local volume="${COMPOSE_PROJECT_NAME:-docker}_runtime_data"

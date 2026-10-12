@@ -104,6 +104,34 @@ Clients configure themselves: `autoconfig.<domain>` and `autodiscover.<domain>` 
 
 A `worker` and a `beat` container run the periodic jobs: DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days) and re-publishing the outbound settings. `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
 
+### Off-site copy and the backup key
+
+Backups are encrypted with GPG and, by default, stay on the same disk as the server. Two small
+steps make them survive losing it:
+
+1. **Send them somewhere else over SSH.** Set `BACKUP_OFFSITE_TARGET=user@host:/absolute/path`
+   in `provisioning/.env` (any host you control, or a storage box that offers SSH) and run
+   `sudo make offsite-check`. Every nightly backup is then copied, compared by SHA-256 and pruned to
+   the same retention. Plain (unencrypted) archives are never sent. System health shows the age of
+   the last verified copy and turns red if it stops.
+2. **Store the key away from the server.** The key that opens the backups is generated on this
+   server, so a lost server means unreadable backups. Run `sudo make backup-key` once: it writes
+   the key and its passphrase to `/root/ifinmail-backup-key`, proves that on their own they decrypt
+   the newest backup, and tells System health. Move both files to a password manager or an
+   encrypted drive, then delete them from the server. Do not store them next to the off-site
+   backups.
+
+To rehearse a recovery without touching the server: `scripts/backup_offsite.sh verify-key
+<key.asc> <passphrase-file>` decrypts the newest backup with only those files.
+
+If the only administrator loses their authenticator and recovery codes, run
+`docker compose exec api python manage.py reset_mfa admin@example.com` on the server; they
+enroll again at next sign-in and the action is written to the audit trail.
+
+The audit trail keeps 365 days (`AUDIT_RETENTION_DAYS`, minimum 30). Each entry is chained to the
+one before it; `docker compose exec api python manage.py verify_audit_chain` checks the chain and
+prints its head, and **Logs → Export** (`?format=jsonl`) downloads the full trail with hashes.
+
 ## Outbound relay settings
 
 Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. The console publishes them to a file that the postfix container applies with `postconf` and reloads within seconds (only an allow-list of keys is ever applied). The relay hostnames themselves come from `MAIL_SMART_HOST` and `MAIL_SMTP_PROXY` in the environment.

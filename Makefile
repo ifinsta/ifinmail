@@ -1,7 +1,7 @@
 .PHONY: migrate makemigrations run shell shell_plus dbshell check test coverage lint lint-fix \
         format fmt format-check collectstatic deploy createsuperuser audit clean lock \
         provision update rollback version uninstall reload rebuild up down build restart pull logs ps shell-api migrate-api manage \
-        health backup restore-test firewall makemessages compilemessages
+        health backup restore-test offsite-check backup-key firewall makemessages compilemessages
 
 # --- Django targets (local development) ---
 PORT ?= 8000
@@ -144,6 +144,13 @@ backup:
 
 restore-test:
 	provisioning/scripts/restore_test.sh
+
+# Off-site backup copy (SSH) and the key that opens it. See README "Backups".
+offsite-check:
+	provisioning/scripts/backup_offsite.sh check
+
+backup-key:
+	provisioning/scripts/backup_offsite.sh export-key $(or $(DIR),/root/ifinmail-backup-key)
 
 update:
 	provisioning/scripts/update.sh $(if $(TO),--to $(TO),)

@@ -120,6 +120,7 @@ class ConversationService:
             if proposal.get('error'):
                 raise AssistantError('This draft did not validate, so it cannot be applied.')
             plugin_id, settings = proposal['plugin_id'], proposal['settings']
+            ConversationService._check_matches_draft(proposal)
             try:
                 if InstallationService.get(plugin_id) is None:
                     InstallationService.install(plugin_id, settings, user)
@@ -141,6 +142,31 @@ class ConversationService:
             ),
         )
         return f'{proposal.get("plugin_name", plugin_id)} {verb}.'
+
+    @staticmethod
+    def _check_matches_draft(proposal: dict) -> None:
+        """Refuse to apply anything other than what the administrator was shown."""
+        from backend.apps.core.plugins.services import CatalogService, InstallationService
+        from backend.apps.core.plugins.services import manifest as manifests
+        from backend.apps.core.plugins.types import PluginError
+
+        plugin_id = proposal['plugin_id']
+        row = InstallationService.get(plugin_id)
+        entry = CatalogService.get(plugin_id)
+        if row is None and entry is None:
+            raise AssistantError('That plugin is no longer available.')
+        manifest = InstallationService.manifest_of(row) if row else entry.manifest
+        current = dict(row.settings) if row else {}
+        try:
+            result = manifests.clean_settings(manifest, {**current, **proposal['settings']})
+        except PluginError as exc:
+            raise AssistantError(f'The draft no longer validates: {exc}') from None
+        expected = proposal.get('expected', {})
+        if any(result.get(key) != value for key, value in expected.items()):
+            raise AssistantError(
+                'Applying would not give the values shown in this draft (the plugin changed '
+                'since). Nothing was changed; ask again for a fresh draft.'
+            )
 
     @staticmethod
     def test_connection() -> str:

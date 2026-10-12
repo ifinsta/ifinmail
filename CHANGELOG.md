@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.14
+- Fix: an assistant draft that **cleared** a setting with a default (for example "keep Trash
+  forever" on Mailbox care) was applied with the default instead (30 days), so Apply could do
+  something other than what the draft table showed. Drafts now clear explicitly, and Apply
+  re-validates and refuses unless the result is exactly what was shown. Found during the live
+  end-to-end check of the assistant on 2026-10-12: the 30-day Trash/Junk expiry was active on that
+  server for about 90 seconds and was removed at once; nobody accessed a mailbox in that window
+  and no message was old enough to be removed.
+- The draft table says "Default" instead of "Now" for a plugin that is not installed yet.
+
 ## v0.0.13
 - Fix: the assistant runs its checks in the `worker`, which could not see the mail queue report or
   the plugin acknowledgements, so it told administrators the queue was "not reported" and plugin

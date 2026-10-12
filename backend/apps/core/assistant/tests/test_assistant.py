@@ -367,6 +367,34 @@ class ProposalTests(_Base):
         with self.assertRaisesMessage(AssistantError, 'no proposal'):
             ConversationService.apply_proposal('other@ifinmail.test', str(step.pk))
 
+    def test_a_cleared_value_is_applied_as_cleared_not_as_the_default(self) -> None:
+        """Regression (found live): a draft emptying Trash/Junk expiry applied the default."""
+        self.connect()
+        step = self.propose(
+            'mailbox-care',
+            {'trash_days': None, 'junk_days': None, 'sent_days': None, 'quota_warnings': True},
+        )
+        self.assertEqual(step.proposal['expected']['trash_days'], None)
+        ConversationService.apply_proposal(ADMIN, str(step.pk))
+        settings = InstallationService.get('mailbox-care').settings
+        self.assertEqual(
+            (settings['trash_days'], settings['junk_days'], settings['quota_warnings']),
+            (None, None, True),
+        )
+        dovecot = (Path(self.runtime_dir) / 'dovecot-plugins.conf').read_text()
+        self.assertIn('autoexpunge_trash_days = \n', dovecot)
+        self.assertIn('quota_warnings = yes', dovecot)
+
+    def test_a_draft_that_would_apply_differently_is_refused(self) -> None:
+        self.connect()
+        step = self.propose('mailbox-care', {'trash_days': 14})
+        AssistantMessage.objects.filter(pk=step.pk).update(
+            proposal={**step.proposal, 'expected': {'trash_days': 7}}
+        )
+        with self.assertRaisesMessage(AssistantError, 'would not give the values shown'):
+            ConversationService.apply_proposal(ADMIN, str(step.pk))
+        self.assertIsNone(InstallationService.get('mailbox-care'))
+
     def test_invalid_drafts_secrets_and_its_own_settings_are_refused(self) -> None:
         self.connect()
         cases = (

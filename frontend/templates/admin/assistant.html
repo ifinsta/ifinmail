@@ -68,7 +68,7 @@
                 {% if not step.proposal.installed %}<p class="ifinmail-help-text">{% trans 'Applying also installs and enables this plugin.' %}</p>{% endif %}
                 <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Drafted changes' %}">
                     <table class="ifinmail-admin-table">
-                        <thead><tr><th>{% trans 'Setting' %}</th><th>{% trans 'Now' %}</th><th>{% trans 'Draft' %}</th></tr></thead>
+                        <thead><tr><th>{% trans 'Setting' %}</th><th>{% if step.proposal.installed %}{% trans 'Now' %}{% else %}{% trans 'Default' %}{% endif %}</th><th>{% trans 'Draft' %}</th></tr></thead>
                         <tbody>
                         {% for change in step.proposal.changes %}
                             <tr><td>{{ change.setting }}</td><td class="ifinmail-text--mono">{{ change.before|default_if_none:'—' }}</td><td class="ifinmail-text--mono">{{ change.after|default_if_none:'—' }}</td></tr>

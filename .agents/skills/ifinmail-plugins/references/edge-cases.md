@@ -1,4 +1,4 @@
-# Edge cases (310)
+# Edge cases (312)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -17,7 +17,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 252 tested, 19 verified live only, 35 code, 4 decision (310 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 254 tested, 19 verified live only, 35 code, 4 decision (312 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -416,4 +416,6 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 308 | Draft applied twice, or by another administrator | Refused | A |
 | 309 | Daily token budget used up; 8 model calls without an answer | Stops with a clear message | A |
 | 310 | Administrator without `system.manage` | No header button; pages and actions answer 403 | AV |
+| 311 | Draft clears a setting that has a default (e.g. Trash expiry) | Applied as cleared, never as the default (found in the live check of v0.0.12) | A |
+| 312 | Applying a draft would give other values than the table showed | Refused, nothing changed; ask for a fresh draft | A |
 

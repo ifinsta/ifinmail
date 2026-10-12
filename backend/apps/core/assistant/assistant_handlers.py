@@ -148,7 +148,9 @@ def _propose_plugin_settings(arguments: dict, context: ToolContext) -> dict:
     from backend.apps.core.plugins.types import PluginError, SettingsError
 
     plugin_id = str(arguments.get('plugin_id', ''))
-    wanted = arguments.get('settings') or {}
+    # "No value" means clear the setting. An empty string says so explicitly; None would be read
+    # as "not supplied" and quietly replaced by the default when the draft is applied.
+    wanted = {k: '' if v is None else v for k, v in (arguments.get('settings') or {}).items()}
     if plugin_id == ASSISTANT_PLUGIN:
         raise AssistantError('The assistant cannot change its own connection settings.')
     entry = CatalogService.get(plugin_id)
@@ -194,7 +196,8 @@ def _propose_plugin_settings(arguments: dict, context: ToolContext) -> dict:
         'plugin_id': plugin_id,
         'plugin_name': manifest.name,
         'installed': bool(row),
-        'settings': {k: after.get(k) for k in wanted},
+        'settings': wanted,  # exactly what Apply submits
+        'expected': {k: after.get(k) for k in wanted},  # what the table shows; checked on Apply
         'changes': changes,
     }
     return {

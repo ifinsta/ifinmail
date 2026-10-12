@@ -1,0 +1,9 @@
+# Postfix PostgreSQL sender-login lookup (smtpd_sender_login_maps): who may send as an address.
+# An address on a hosted domain is owned by the login of the same name; an alias is also owned by
+# each address it delivers to. Unknown addresses have no owner, so a logged-in user cannot use them.
+# Reads only domains and aliases: this role has no access to users (password hashes).
+user = postfix
+password = __POSTFIX_DB_PASSWORD__
+hosts = postgres
+dbname = ifinmail
+query = SELECT '%s' WHERE EXISTS (SELECT 1 FROM domains WHERE name = '%d') UNION SELECT destination FROM aliases WHERE source = '%s'

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.8
+- **Users can send only as themselves.** On the submission ports (587, 465) a logged-in user may
+  use as sender only their own address or an alias that forwards to them; anything else is refused
+  with "Sender address rejected: not owned by user". The From header of their mail must match that
+  sender (checked by Rspamd), so a user can no longer put a colleague's or the CEO's address in From
+  and have it DKIM-signed and pass DMARC. Port 25, the console's own mail and Sieve are unaffected,
+  and bounces (empty sender) still go out.
+- Ownership is read from domains and aliases only (`postfix/pgsql/sender_logins.cf`): the Postfix
+  database role still cannot read the users table. The Aliases page says that the mailboxes an
+  alias forwards to may send as it.
+
 ## v0.0.7
 - New built-in plugin **Mail policy essentials**, one plugin for the controls administrators need
   first, with defaults taken from Google Workspace and Microsoft 365 so it is safe to install

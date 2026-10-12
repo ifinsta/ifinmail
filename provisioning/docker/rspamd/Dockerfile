@@ -11,6 +11,7 @@ RUN mkdir -p /var/lib/rspamd /var/log/rspamd /etc/dkim
 
 # Copy local configuration overrides
 COPY local.d/ /etc/rspamd/local.d/
+COPY rspamd.local.lua /etc/rspamd/rspamd.local.lua
 
 COPY entrypoint.sh /entrypoint.sh
 COPY sync-plugins.sh /usr/local/bin/ifinmail-rspamd-sync

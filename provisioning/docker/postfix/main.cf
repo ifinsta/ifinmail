@@ -18,6 +18,8 @@ smtpd_delay_reject = yes
 virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_domains.cf
 virtual_mailbox_maps = pgsql:/etc/postfix/pgsql/virtual_mailboxes.cf
 virtual_alias_maps = pgsql:/etc/postfix/pgsql/virtual_aliases.cf
+# Who may send as which address (enforced on the submission ports, see master.cf).
+smtpd_sender_login_maps = pgsql:/etc/postfix/pgsql/sender_logins.cf
 virtual_mailbox_base = /var/mail/vhosts
 virtual_transport = lmtp:unix:/var/run/dovecot/lmtp
 virtual_uid_maps = static:5000

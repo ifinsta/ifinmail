@@ -95,6 +95,40 @@ class DatabaseContractTests(SimpleTestCase):
     def test_aliases_are_looked_up_by_full_address(self) -> None:
         self.assertIn("source = '%s'", _read('postfix', 'pgsql', 'virtual_aliases.cf'))
 
+    def test_postfix_may_read_every_table_its_maps_query(self) -> None:
+        init = _read('init-db.sh')
+        for path in sorted((DOCKER / 'postfix' / 'pgsql').glob('*.cf')):
+            for table in re.findall(r'FROM\s+(\w+)', path.read_text()):
+                self.assertIn(f'GRANT SELECT ON {table} TO postfix;', init, msg=path.name)
+
+
+class SenderIdentityContractTests(SimpleTestCase):
+    """A logged-in user may send only as their own address or an alias that delivers to them."""
+
+    def test_the_submission_ports_reject_a_sender_the_login_does_not_own(self) -> None:
+        master = _read('postfix', 'master.cf')
+        self.assertEqual(
+            master.count('-o smtpd_sender_restrictions=reject_sender_login_mismatch'), 2
+        )
+        self.assertIn(
+            'smtpd_sender_login_maps = pgsql:/etc/postfix/pgsql/sender_logins.cf',
+            _read('postfix', 'main.cf'),
+        )
+
+    def test_owners_come_from_hosted_domains_and_aliases_never_from_users(self) -> None:
+        query = _read('postfix', 'pgsql', 'sender_logins.cf')
+        self.assertIn("FROM domains WHERE name = '%d'", query)
+        self.assertIn("SELECT destination FROM aliases WHERE source = '%s'", query)
+        self.assertNotIn('users', query.split('query =')[1])  # password hashes stay unreadable
+
+    def test_rspamd_requires_the_from_header_to_match_for_logged_in_senders(self) -> None:
+        self.assertIn(
+            'COPY rspamd.local.lua /etc/rspamd/rspamd.local.lua', _read('rspamd', 'Dockerfile')
+        )
+        rule = _read('rspamd', 'rspamd.local.lua')
+        self.assertIn('if not task:get_user() then', rule)
+        self.assertIn("task:set_pre_result('reject'", rule)
+
 
 class ContainerContractTests(SimpleTestCase):
     def test_compose_runs_the_background_jobs_and_shares_the_runtime_volume(self) -> None:

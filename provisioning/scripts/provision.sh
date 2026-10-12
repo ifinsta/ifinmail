@@ -171,6 +171,7 @@ record_version() {
     else
         echo "APP_VERSION=$version" >> "$ENV_FILE"
     fi
+    # shellcheck disable=SC2034  # consumed by the .env writer that runs after this function
     APP_VERSION="$version"
 }
 

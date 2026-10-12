@@ -5,6 +5,7 @@ set -euo pipefail
 # Never let apt/debconf prompt: under "curl | bash" stdin is the script itself.
 export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 
+# shellcheck disable=SC2034  # kept for the sourced helper sections below
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_URL="${REPO_URL:-https://github.com/ifinsta/ifinmail.git}"
 INSTALL_DIR="${INSTALL_DIR:-${HOME:-/root}/ifinmail}"

@@ -23,6 +23,7 @@ set +a
 DOMAIN="${DOMAIN:?DOMAIN must be set in .env}"
 MAIL_HOSTNAME="${MAIL_HOSTNAME:-mail.$DOMAIN}"
 EMAIL="${ADMIN_EMAIL:-admin@$DOMAIN}"
+# shellcheck disable=SC2034  # read by the certbot invocation via the environment
 CERTBOT_WWW="$PROVISIONING_DIR/docker/nginx/www"
 CERTBOT_CERTS="$PROVISIONING_DIR/docker/certs"
 LIVE_DIR="$CERTBOT_CERTS/live/$MAIL_HOSTNAME"

@@ -433,3 +433,14 @@ class SelfSignedFirstBootContractTests(SimpleTestCase):
 
     def test_the_client_docs_describe_the_first_connect_prompt(self) -> None:
         self.assertIn('fingerprint', (ROOT / 'clients' / 'README.md').read_text().lower())
+
+
+class OutboundContainmentContractTests(SimpleTestCase):
+    def test_authenticated_senders_are_rate_limited(self) -> None:
+        """One stolen mailbox password must not be able to burn the server's IP reputation."""
+        conf = _read('rspamd', 'local.d', 'ratelimit.conf')
+        self.assertRegex(conf, r'selector = "user";')
+        self.assertRegex(conf, r'rate = "\d+ / 1h";')
+        self.assertIn('rcpt_domain', conf)
+        # The username only reaches Rspamd when Postfix passes the SASL login to the milter.
+        self.assertIn('{auth_authen}', _read('postfix', 'main.cf'))

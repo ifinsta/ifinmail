@@ -28,7 +28,7 @@
         <nav class="ifinmail-tabs" aria-label="{% trans 'Marketplace sections' %}">
             <a class="ifinmail-tab{% if tab == 'discover' %} ifinmail-tab--active{% endif %}" href="?tab=discover"{% if tab == 'discover' %} aria-current="page"{% endif %}>{% trans 'Discover' %}</a>
             <a class="ifinmail-tab{% if tab == 'installed' %} ifinmail-tab--active{% endif %}" href="?tab=installed"{% if tab == 'installed' %} aria-current="page"{% endif %}>{% blocktrans count n=installed_rows|length %}Installed ({{ n }}){% plural %}Installed ({{ n }}){% endblocktrans %}</a>
-            <a class="ifinmail-tab{% if tab == 'submissions' %} ifinmail-tab--active{% endif %}" href="?tab=submissions"{% if tab == 'submissions' %} aria-current="page"{% endif %}>{% trans 'Submissions' %}{% if pending_count %} <b class="ifinmail-nav-count" aria-label="{% blocktrans count n=pending_count %}{{ n }} waiting for review{% plural %}{{ n }} waiting for review{% endblocktrans %}">{{ pending_count }}</b>{% endif %}</a>
+            <a class="ifinmail-tab{% if tab == 'submissions' %} ifinmail-tab--active{% endif %}" href="?tab=submissions"{% if tab == 'submissions' %} aria-current="page"{% endif %}>{% trans 'Submissions' %}{% if pending_count %} <span class="ifinmail-badge ifinmail-badge--info" aria-label="{% blocktrans count n=pending_count %}{{ n }} waiting for review{% plural %}{{ n }} waiting for review{% endblocktrans %}">{{ pending_count }}</span>{% endif %}</a>
         </nav>
 
         {% if tab == 'discover' %}

@@ -22,7 +22,7 @@
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sm-about">
             <h2 class="ifinmail-panel-title" id="sm-about">{% trans 'Submission' %}</h2>
-            {% if manifest %}<p>{{ manifest.summary }}</p>{% for paragraph in manifest.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}{% endif %}
+            {% if manifest %}<div class="ifinmail-prose"><p>{{ manifest.summary }}</p>{% for paragraph in manifest.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</div>{% endif %}
             <dl class="ifinmail-settings-rows">
                 <div class="ifinmail-settings-row"><dt>{% trans 'Plugin id' %}</dt><dd class="ifinmail-text--mono">{{ submission.plugin_id }}</dd></div>
                 <div class="ifinmail-settings-row"><dt>{% trans 'Submitted by' %}</dt><dd>{{ submission.submitted_by }} · <span class="ifinmail-text--mono">{{ submission.created_at|date:"Y-m-d H:i" }}</span></dd></div>

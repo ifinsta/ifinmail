@@ -30,7 +30,7 @@
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-about">
             <h2 class="ifinmail-panel-title" id="pl-about">{% trans 'About' %}</h2>
-            {% for paragraph in manifest.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+            <div class="ifinmail-prose">{% for paragraph in manifest.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</div>
             <dl class="ifinmail-settings-rows">
                 <div class="ifinmail-settings-row"><dt>{% trans 'Publisher' %}</dt><dd>{{ manifest.publisher }}</dd></div>
                 <div class="ifinmail-settings-row"><dt>{% trans 'Category' %}</dt><dd>{{ manifest.category|capfirst }}</dd></div>

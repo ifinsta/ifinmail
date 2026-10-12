@@ -33,7 +33,7 @@ plugin.toml ──validate──> PluginManifest ──install──> PluginInst
 | Container side (re-validate, check config, reload, acknowledge) | `postfix/sync-overrides.sh`, `rspamd/sync-plugins.sh`, `dovecot/sync-plugins.sh` under `provisioning/docker/` | postfix, rspamd, dovecot containers |
 
 Full references: `references/manifest.md` (format and rules), `references/state-machines.md`
-(transitions, recovery, reconciliation), `references/edge-cases.md` (the 289 cases and where each is
+(transitions, recovery, reconciliation), `references/edge-cases.md` (the 295 cases and where each is
 handled).
 
 ## Principles (do not trade these away)
@@ -80,6 +80,11 @@ Only when a real plugin needs it. Name the outcome, not the mechanism.
    removing the setting, reconcile after a lost file.
 
 ## Writing a plugin (checklist)
+
+Group by what an administrator decides together, not one plugin per capability: a plugin may write
+several capabilities, and each part should still have an "off" value (an empty list, an unticked
+box, a choice such as `off`). The built-in set is Inbound protection, Sending and delivery policy,
+Mailbox care and Compliance journal, which between them offer every capability field exactly once.
 
 1. Copy `bundled/compliance-journal/plugin.toml`. Pick an id that says what it does (`kebab-case`).
 2. Declare only the settings an administrator must decide; give safe defaults to the rest.

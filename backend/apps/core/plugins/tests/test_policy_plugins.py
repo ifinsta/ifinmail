@@ -206,6 +206,11 @@ class CapabilityContractTests(SimpleTestCase):
                 'postfix.main': {'always_bcc': 'j@x.example'},
             },
         )
+        # "off" is a contract word; for the engine it means the setting is removed.
+        self.assertEqual(
+            registry.to_targets({'inbound.authentication': {'dmarc': 'off'}}),
+            {'rspamd.policy': {'dmarc_enforcement': ''}},
+        )
         # Empty means "remove the setting" on both sides.
         self.assertEqual(
             registry.to_targets({'inbound.greylisting': {'enabled': ''}}),
@@ -226,31 +231,27 @@ class CapabilityContractTests(SimpleTestCase):
         self.assertEqual(
             [t.key for t in registry.targets_of(journal.capability_keys())], ['postfix.main']
         )
-        policy = bundled['mail-policy']
-        self.assertEqual(
-            {t.service for t in registry.targets_of(policy.capability_keys())},
-            {'postfix', 'rspamd', 'dovecot'},
-        )
+        services = {
+            plugin: {t.service for t in registry.targets_of(m.capability_keys())}
+            for plugin, m in bundled.items()
+        }
+        self.assertEqual(services['inbound-protection'], {'rspamd'})
+        self.assertEqual(services['sending-policy'], {'postfix', 'rspamd', 'dovecot'})
+        self.assertEqual(services['mailbox-care'], {'dovecot'})
 
 
 class BundledPluginsTests(SimpleTestCase):
-    def test_all_bundled_plugins_load(self) -> None:
+    def test_four_plugins_cover_every_capability_once(self) -> None:
         self.assertEqual(CatalogService.bundled_errors(), ())
+        bundled = CatalogService.bundled()
         self.assertEqual(
-            sorted(e.plugin_id for e in CatalogService.bundled()),
-            [
-                'arc-forwarding',
-                'attachment-guard',
-                'compliance-journal',
-                'dmarc-enforcement',
-                'forwarding-control',
-                'mail-policy',
-                'mailbox-cleanup',
-                'partner-tls',
-            ],
+            sorted(e.plugin_id for e in bundled),
+            ['compliance-journal', 'inbound-protection', 'mailbox-care', 'sending-policy'],
         )
-        claimed = [k for e in CatalogService.bundled() for k in e.manifest.claimed_keys()]
+        claimed = [k for e in bundled for k in e.manifest.claimed_keys()]
         self.assertEqual(len(claimed), len(set(claimed)), 'two bundled plugins claim the same key')
+        every_field = {(c.key, f) for c in registry.capabilities() for f in c.fields}
+        self.assertEqual(set(claimed), every_field, 'a capability field no plugin offers')
 
 
 class LifecycleTests(MailTablesTestCase):
@@ -265,145 +266,154 @@ class LifecycleTests(MailTablesTestCase):
                 out[key.strip()] = value.strip()
         return out
 
-    def test_attachment_guard_and_dmarc_share_a_point(self) -> None:
-        InstallationService.install(
-            'attachment-guard', {'blocked_types': 'EXE, .js', 'action': 'quarantine'}, 'a'
-        )
-        InstallationService.install('dmarc-enforcement', {'mode': 'enforce'}, 'a')
+    def test_inbound_protection_defaults(self) -> None:
+        InstallationService.install('inbound-protection', {}, 'a')
+        values = self.file('rspamd-plugins.conf')
+        types = values['blocked_attachment_types'].split(',')
+        self.assertIn('exe', types)
+        self.assertIn('docm', types)
+        self.assertNotIn('pdf', types)
+        self.assertEqual(types, sorted(types))
         self.assertEqual(
-            self.file('rspamd-plugins.conf'),
+            {k: v for k, v in values.items() if k != 'blocked_attachment_types'},
             {
-                'arc_sealing': '',
-                'arc_trusted_sealers': '',
-                'blocked_attachment_action': 'quarantine',
-                'blocked_attachment_types': 'exe,js',
+                'arc_sealing': 'yes',
+                'arc_trusted_sealers': 'google.com,microsoft.com,yahoo.com',
+                'blocked_attachment_action': 'reject',
                 'dmarc_enforcement': 'enforce',
-                'greylisting': '',
+                'greylisting': 'on',
                 'send_limit_per_day': '',
                 'send_limit_per_minute': '',
                 'sender_allow_list': '',
                 'sender_block_list': '',
             },
         )
-        InstallationService.disable('dmarc-enforcement', 'a')
-        self.assertEqual(self.file('rspamd-plugins.conf')['dmarc_enforcement'], '')
-        self.assertEqual(self.file('rspamd-plugins.conf')['blocked_attachment_types'], 'exe,js')
 
-    def test_arc_forwarding_defaults_and_switches(self) -> None:
-        InstallationService.install('arc-forwarding', {}, 'a')
+    def test_each_part_of_inbound_protection_switches_off_on_its_own(self) -> None:
+        InstallationService.install('inbound-protection', {}, 'a')
+        for change, key, off in (
+            ({'blocked_types': ''}, 'blocked_attachment_types', ''),
+            ({'dmarc': 'off'}, 'dmarc_enforcement', ''),
+            ({'trusted_forwarders': ''}, 'arc_trusted_sealers', ''),
+            ({'seal_forwarded': ''}, 'arc_sealing', 'no'),  # an unticked box
+            ({'greylisting': ''}, 'greylisting', 'off'),
+        ):
+            with self.subTest(change=change):
+                InstallationService.configure('inbound-protection', change, 'a')
+                values = self.file('rspamd-plugins.conf')
+                self.assertEqual(values[key], off)
+        # The other parts kept their values throughout.
+        self.assertEqual(self.file('rspamd-plugins.conf')['blocked_attachment_action'], 'reject')
+
+    def test_inbound_protection_lists_and_refusals(self) -> None:
+        InstallationService.install(
+            'inbound-protection',
+            {
+                'blocked_types': 'EXE, .js',
+                'attachment_action': 'quarantine',
+                'block_senders': 'Spam.Example, bob@bad.example',
+                'allow_senders': 'partner.example',
+            },
+            'a',
+        )
         values = self.file('rspamd-plugins.conf')
-        self.assertEqual(values['arc_trusted_sealers'], 'google.com,microsoft.com,yahoo.com')
-        self.assertEqual(values['arc_sealing'], 'yes')
-        # A partial change keeps the other values; an empty checkbox value means off.
-        InstallationService.configure('arc-forwarding', {'trusted_sealers': ''}, 'a')
-        values = self.file('rspamd-plugins.conf')
-        self.assertEqual((values['arc_trusted_sealers'], values['arc_sealing']), ('', 'yes'))
-        InstallationService.configure('arc-forwarding', {'seal_forwarded': ''}, 'a')
-        self.assertEqual(self.file('rspamd-plugins.conf')['arc_sealing'], 'no')
+        self.assertEqual(values['blocked_attachment_types'], 'exe,js')
+        self.assertEqual(values['blocked_attachment_action'], 'quarantine')
+        self.assertEqual(values['sender_block_list'], 'bob@bad.example,spam.example')
+        self.assertEqual(values['sender_allow_list'], 'partner.example')
+        for bad in (
+            {'blocked_types': 'exe, ../etc'},
+            {'block_senders': 'evil;rm'},
+            {'dmarc': 'reject'},
+        ):
+            with self.subTest(bad=bad), self.assertRaises(SettingsError):
+                InstallationService.configure('inbound-protection', bad, 'a')
 
-    def test_arc_and_dmarc_enforcement_work_together(self) -> None:
-        InstallationService.install('dmarc-enforcement', {}, 'a')
-        InstallationService.install('arc-forwarding', {'seal_forwarded': 'on'}, 'a')
-        values = self.file('rspamd-plugins.conf')
-        self.assertEqual(values['dmarc_enforcement'], 'enforce')
-        self.assertEqual(values['arc_sealing'], 'yes')
+    def test_sending_policy_defaults_follow_the_large_providers(self) -> None:
+        InstallationService.install('sending-policy', {}, 'a')
+        self.assertEqual(
+            {k: v for k, v in self.file('rspamd-plugins.conf').items() if v},
+            {'send_limit_per_day': '2000', 'send_limit_per_minute': '30'},
+        )
+        self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '50')
+        self.assertEqual(self.file('postfix-sender-policy.conf'), {'internal_only_logins': ''})
+        # No partner domains: no TLS map at all (the certificate switch alone does nothing).
+        self.assertEqual(self.file('postfix-tls-policy.conf')['domains'], '')
+        self.assertEqual(self.file('dovecot-plugins.conf')['max_redirects'], '0')
 
-    def test_attachment_guard_defaults(self) -> None:
-        InstallationService.install('attachment-guard', {}, 'a')
-        types = self.file('rspamd-plugins.conf')['blocked_attachment_types'].split(',')
-        self.assertIn('exe', types)
-        self.assertIn('docm', types)
-        self.assertNotIn('pdf', types)
-        self.assertEqual(types, sorted(types))
+    def test_sending_policy_partners_and_internal_only(self) -> None:
+        InstallationService.install(
+            'sending-policy',
+            {
+                'partner_domains': 'Law.Example, bank.example',
+                'internal_only': 'Intern@ifinmail.test',
+            },
+            'a',
+        )
+        self.assertEqual(
+            self.file('postfix-tls-policy.conf'),
+            {'domains': 'bank.example,law.example', 'level': 'encrypt'},
+        )
+        InstallationService.configure('sending-policy', {'verify_certificate': 'on'}, 'a')
+        self.assertEqual(self.file('postfix-tls-policy.conf')['level'], 'secure')
+        self.assertEqual(
+            self.file('postfix-sender-policy.conf')['internal_only_logins'], 'intern@ifinmail.test'
+        )
+        for bad in (
+            {'partner_domains': 'bank.example, localhost'},
+            {'message_size_mb': '150'},
+            {'internal_only': 'not-an-address'},
+        ):
+            with self.subTest(bad=bad), self.assertRaises(SettingsError):
+                InstallationService.configure('sending-policy', bad, 'a')
+        InstallationService.uninstall('sending-policy', 'a')
+        self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '')
+        self.assertEqual(self.file('postfix-tls-policy.conf')['domains'], '')
+        self.assertEqual(self.file('dovecot-plugins.conf')['max_redirects'], '')
 
-    def test_bad_attachment_types_are_refused(self) -> None:
-        with self.assertRaises(SettingsError):
-            InstallationService.install('attachment-guard', {'blocked_types': 'exe, ../etc'}, 'a')
-
-    def test_mailbox_cleanup_and_forwarding_control_share_a_point(self) -> None:
-        InstallationService.install('mailbox-cleanup', {'trash_days': '7'}, 'a')
-        InstallationService.install('forwarding-control', {}, 'a')
+    def test_mailbox_care(self) -> None:
+        InstallationService.install('mailbox-care', {'trash_days': '7'}, 'a')
         self.assertEqual(
             self.file('dovecot-plugins.conf'),
             {
                 'autoexpunge_junk_days': '30',
                 'autoexpunge_sent_days': '',
                 'autoexpunge_trash_days': '7',
-                'max_redirects': '0',
-                'quota_warnings': '',
+                'max_redirects': '',
+                'quota_warnings': 'yes',
             },
         )
-        InstallationService.uninstall('mailbox-cleanup', 'a')
-        self.assertEqual(self.file('dovecot-plugins.conf')['autoexpunge_trash_days'], '')
-        self.assertEqual(self.file('dovecot-plugins.conf')['max_redirects'], '0')
-
-    def test_partner_tls(self) -> None:
-        with self.assertRaises(SettingsError):
-            InstallationService.install('partner-tls', {}, 'a')  # domains required
-        with self.assertRaises(SettingsError):
-            InstallationService.install('partner-tls', {'domains': 'bank.example, localhost'}, 'a')
-        InstallationService.install('partner-tls', {'domains': 'Law.Example, bank.example'}, 'a')
-        self.assertEqual(
-            self.file('postfix-tls-policy.conf'),
-            {'domains': 'bank.example,law.example', 'level': 'encrypt'},
-        )
-
-    def test_mail_policy_defaults_follow_the_large_providers(self) -> None:
-        InstallationService.install('mail-policy', {}, 'a')
-        self.assertEqual(
-            {k: v for k, v in self.file('rspamd-plugins.conf').items() if v},
-            {'greylisting': 'on', 'send_limit_per_day': '2000', 'send_limit_per_minute': '30'},
-        )
-        self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '50')
-        self.assertEqual(self.file('postfix-sender-policy.conf'), {'internal_only_logins': ''})
-        self.assertEqual(self.file('dovecot-plugins.conf')['quota_warnings'], 'yes')
-
-    def test_mail_policy_lists_and_switches(self) -> None:
-        InstallationService.install(
-            'mail-policy',
-            {
-                'block_senders': 'Spam.Example, bob@bad.example',
-                'allow_senders': 'partner.example',
-                'internal_only': 'Intern@ifinmail.test',
-                'greylisting': 'off',
-                'quota_warnings': '',
-            },
-            'a',
-        )
-        values = self.file('rspamd-plugins.conf')
-        self.assertEqual(values['sender_block_list'], 'bob@bad.example,spam.example')
-        self.assertEqual(values['sender_allow_list'], 'partner.example')
-        self.assertEqual(values['greylisting'], 'off')
-        self.assertEqual(
-            self.file('postfix-sender-policy.conf')['internal_only_logins'], 'intern@ifinmail.test'
-        )
+        InstallationService.configure('mailbox-care', {'quota_warnings': ''}, 'a')
         self.assertEqual(self.file('dovecot-plugins.conf')['quota_warnings'], 'no')
-        with self.assertRaises(SettingsError):
-            InstallationService.configure('mail-policy', {'message_size_mb': '150'}, 'a')
-        with self.assertRaises(SettingsError):
-            InstallationService.configure('mail-policy', {'block_senders': 'evil;rm'}, 'a')
-        InstallationService.uninstall('mail-policy', 'a')
-        self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '')
-        self.assertEqual(self.file('postfix-sender-policy.conf'), {'internal_only_logins': ''})
-        self.assertEqual(set(self.file('rspamd-plugins.conf').values()), {''})
 
-    def test_the_new_plugins_never_conflict_with_each_other(self) -> None:
+    def test_plugins_sharing_an_engine_file_leave_each_other_alone(self) -> None:
+        InstallationService.install('inbound-protection', {}, 'a')
+        InstallationService.install('sending-policy', {}, 'a')
+        InstallationService.install('mailbox-care', {}, 'a')
+        values = self.file('rspamd-plugins.conf')
+        self.assertEqual(
+            (values['dmarc_enforcement'], values['send_limit_per_day']), ('enforce', '2000')
+        )
+        InstallationService.disable('inbound-protection', 'a')
+        values = self.file('rspamd-plugins.conf')
+        self.assertEqual((values['dmarc_enforcement'], values['send_limit_per_day']), ('', '2000'))
+        InstallationService.uninstall('mailbox-care', 'a')
+        dovecot = self.file('dovecot-plugins.conf')
+        self.assertEqual((dovecot['autoexpunge_trash_days'], dovecot['max_redirects']), ('', '0'))
+
+    def test_all_four_install_together_without_conflict(self) -> None:
         Mailbox.objects.create(domain=self.make_domain(), local_part='journal')
         for plugin_id, settings in (
-            ('attachment-guard', {}),
-            ('dmarc-enforcement', {}),
-            ('forwarding-control', {}),
-            ('mailbox-cleanup', {}),
-            ('partner-tls', {'domains': 'bank.example'}),
-            ('arc-forwarding', {}),
-            ('mail-policy', {}),
+            ('inbound-protection', {}),
+            ('sending-policy', {}),
+            ('mailbox-care', {}),
             ('compliance-journal', {'archive_address': 'journal@ifinmail.test'}),
         ):
             try:
                 InstallationService.install(plugin_id, settings, 'a')
             except ConflictError as exc:  # pragma: no cover - the assertion below explains
                 self.fail(f'{plugin_id}: {exc}')
-        self.assertEqual(len(InstallationService.all()), 8)
+        self.assertEqual(len(InstallationService.all()), 4)
 
 
 def _bash_works() -> bool:
@@ -795,7 +805,7 @@ class ApplyStatusTests(MailTablesTestCase):
         status_dir = Path(self.tmp) / 'status'
         status_dir.mkdir()
         with patch.dict(os.environ, {'IFINMAIL_STATUS_DIR': str(status_dir)}):
-            InstallationService.install('dmarc-enforcement', {}, 'a')
+            InstallationService.install('inbound-protection', {}, 'a')
             statuses = InstallationService.apply_status()
         self.assertEqual(
             sorted(statuses),

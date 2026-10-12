@@ -1,4 +1,4 @@
-# Edge cases (289)
+# Edge cases (295)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -15,7 +15,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 232 tested, 19 verified live only, 35 code, 3 decision (289 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 237 tested, 19 verified live only, 35 code, 4 decision (295 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -312,7 +312,7 @@ plugin settings; a plugin can only act through registered capabilities.
 | 235 | Partner domain `localhost`, `a..b` or with shell characters | Refused by the console and the Postfix watcher | M, P2 |
 | 236 | Partner TLS without domains | `smtp_tls_policy_maps` removed; the map emptied | P2, live |
 | 237 | Mail to a domain not on the partner list | Unaffected (no map entry) | live |
-| 238 | Two plugins on one adapter target (Attachment guard + DMARC; Cleanup + Forwarding) | Both values rendered; disabling one leaves the other | L2 |
+| 238 | Two plugins on one adapter target (Inbound protection + Sending policy on the filter; Sending policy + Mailbox care on mailboxes) | Both values rendered; disabling one leaves the other | L2 |
 | 239 | Any two bundled plugins claiming the same key | Test fails | L2 |
 | 240 | Rspamd or Dovecot container recreated | Fragments rebuilt from the runtime file at start, before the daemon starts | contract |
 
@@ -337,7 +337,7 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 251 | Field with a default cleared on purpose | Stays empty (or fails `required`), never silently refilled | M |
 | 252 | `configure` with only some keys | The others keep their current values | L2 |
 
-## M. Mail policy essentials
+## M. Mail policy controls (now in Inbound protection, Sending and delivery policy, Mailbox care)
 
 | # | Case | Handling | Proof |
 | --- | --- | --- | --- |
@@ -354,7 +354,7 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 263 | One sending limit missing or invalid | No plugin rates rendered; the built-in limits apply | R |
 | 264 | Rspamd started before Redis was reachable | Limits counted but unenforced until a reload: the watcher reloads once Rspamd serves | live |
 | 265 | Redis restarted, even briefly | New `run_id` seen; Rspamd reloaded | live |
-| 266 | Mail policy disabled | Built-in 100/h and 40/h per-domain limits back | live |
+| 266 | Sending and delivery policy disabled | Built-in 100/h and 40/h per-domain limits back | live |
 | 267 | Message size 25 MB | `message_size_limit = 26214400`, advertised as `SIZE` | P, live |
 | 268 | Message size above 50 MB | Refused (console and Postfix watcher): Rspamd would neither scan nor DKIM-sign it | R, L2, P |
 | 269 | Message size removed | This server's 50 MB from `main.cf.template`, not Postfix's 10 MB | P, live |
@@ -383,4 +383,15 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 287 | Adapter cannot carry a value the capability accepted (binding bug) | Install refused with the reason; reconcile skips that plugin and logs it | code |
 | 288 | Plugin page apply status | Only the targets that plugin's capabilities write to; the waiting containers are named | R |
 | 289 | Marketplace "What it changes" | Capability title and field; no engine names or keys on the page | V |
+
+## O. Plugins that offer several capabilities
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 290 | One part of a merged plugin turned off (empty list, unticked box, DMARC `off`) | Only that engine setting changes; the other parts keep their values | L2 |
+| 291 | DMARC `off` | Translated to an empty engine value (setting removed), never sent as "off" | R, L2 |
+| 292 | Partner certificate switch on with no partner domains | No TLS map is written; nothing changes | L2 |
+| 293 | Built-in plugins together | Offer every capability field exactly once; a gap or overlap fails a test | R |
+| 294 | Two plugins writing the same engine file; one disabled or uninstalled | The other's values stay | L2 |
+| 295 | Removed plugin ids (attachment-guard, dmarc-enforcement, ...) | Gone from the catalog; no server had them installed, so nothing to migrate | decision |
 

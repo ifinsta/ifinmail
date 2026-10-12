@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.0.11
+- **Eight built-in plugins become four**, grouped by what an administrator decides together. One
+  plugin can now write several capabilities:
+  - **Inbound protection**: dangerous attachments, DMARC, ARC trusted forwarding, blocked and
+    allowed senders, greylisting (was Attachment guard, DMARC enforcement, ARC trusted forwarding
+    and half of Mail policy essentials).
+  - **Sending and delivery policy**: sending limits, largest message, internal-only mailboxes,
+    encrypted delivery to partner domains, forwarding-rule cap (was Partner TLS, Forwarding control
+    and the rest of Mail policy essentials).
+  - **Mailbox care**: Trash/Junk/Sent expiry and quota warnings (was Mailbox cleanup plus quota
+    warnings).
+  - **Compliance journal**: unchanged, kept on its own because it exposes all mail and needs a
+    dedicated mailbox.
+- Each part of a plugin can be switched off on its own (empty list, unticked box). DMARC gains an
+  `off` value in the capability contract for this. Partner domains are optional (empty = none).
+- Together the four plugins offer every capability field exactly once, so they never conflict;
+  a test fails if one is left out or offered twice. No server had the old plugins installed, so
+  nothing is migrated. 295 handled edge cases are documented.
+
 ## v0.0.10
 - **Plugins no longer know which mail software runs underneath.** Manifests (now
   `manifest_version = 2`) name engine-neutral **capabilities** such as `mail.journal`,

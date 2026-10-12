@@ -1,0 +1,100 @@
+manifest_version = 2
+
+[plugin]
+id = "inbound-protection"
+name = "Inbound protection"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "security"
+summary = "Block dangerous attachments and forged senders, keep forwarded mail deliverable, and choose who is always refused or always trusted."
+requires_core = "0.0.11"
+description = """
+The protections large providers apply to incoming mail, in one place and safe to install unchanged. Each part can be switched off on its own: empty a list, untick a box, or set DMARC to off.
+
+Attachments. Most malware arrives as a program, a script, a disk image or an Office document with macros, and ordinary people almost never need to send these by email. The filter checks each attachment's name and its actual content, including files inside archives, so a program renamed to invoice.pdf is still caught. Such messages are refused (the sender is told why) or delivered to Junk. Plain documents, PDFs, images and archives are not on the default list.
+
+Forged senders (DMARC). Banks, payment providers and most large companies publish a DMARC policy so their names cannot be used for phishing. Enforce does what the domain owner asked: reject or quarantine. Quarantine sends every failure to Junk instead. Domains with no policy are not affected.
+
+Forwarded and list mail (ARC). Forwarding and mailing lists can break a genuine message's signature and make it fail DMARC. Mail this server forwards is sealed with your domain's existing DKIM key, so Gmail, Outlook and others can trust it, and a valid seal from a forwarder you list lifts a DMARC rejection. The defaults are the large providers that seal everything they forward.
+
+Senders. Blocked senders are refused whether they appear in the envelope or the From header. Allowed senders follow Microsoft's guidance that allow entries are a risk: one counts only when SPF or DKIM proves the message really comes from them, and attachment and malware checks still apply. Greylisting asks suspicious first-time senders to retry a few minutes later; allowed senders are never delayed.
+"""
+
+[[settings]]
+key = "blocked_types"
+type = "text"
+label = "Blocked attachment types"
+help = "File extensions separated by commas. Leave empty to allow every type."
+max_length = 500
+default = "exe, scr, com, bat, cmd, pif, cpl, msi, msp, msc, jar, js, jse, vbs, vbe, wsf, wsh, ps1, psm1, hta, lnk, reg, iso, img, vhd, vhdx, docm, dotm, xlsm, xlam, pptm, one"
+
+[[settings]]
+key = "attachment_action"
+type = "choice"
+label = "When a blocked attachment is found"
+options = ["reject", "quarantine"]
+default = "reject"
+help = "reject: refused, and the sender is told why. quarantine: delivered to Junk."
+
+[[settings]]
+key = "dmarc"
+type = "choice"
+label = "Forged senders (DMARC)"
+options = ["enforce", "quarantine", "off"]
+default = "enforce"
+help = "enforce: follow the sender's policy. quarantine: all failures to Junk. off: only counts towards the spam score."
+
+[[settings]]
+key = "trusted_forwarders"
+type = "text"
+label = "Trusted forwarders"
+help = "Domains whose ARC seal lifts a DMARC rejection, separated by commas. Leave empty to trust none."
+max_length = 500
+default = "google.com, microsoft.com, yahoo.com"
+
+[[settings]]
+key = "seal_forwarded"
+type = "boolean"
+label = "Seal mail this server forwards"
+default = true
+
+[[settings]]
+key = "block_senders"
+type = "text"
+label = "Blocked senders"
+help = "Addresses or whole domains, separated by commas. Mail from them is refused."
+max_length = 500
+
+[[settings]]
+key = "allow_senders"
+type = "text"
+label = "Allowed senders"
+help = "Addresses or domains never treated as spam, when SPF or DKIM proves they sent it."
+max_length = 500
+
+[[settings]]
+key = "greylisting"
+type = "boolean"
+label = "Greylisting"
+default = true
+help = "Suspicious first-time senders retry after a few minutes. Untick to never delay mail."
+
+[[contributes]]
+capability = "inbound.attachments"
+values = { block_types = "{blocked_types}", action = "{attachment_action}" }
+
+[[contributes]]
+capability = "inbound.authentication"
+values = { dmarc = "{dmarc}" }
+
+[[contributes]]
+capability = "forwarding.arc"
+values = { trusted_forwarders = "{trusted_forwarders}", seal = "{seal_forwarded}" }
+
+[[contributes]]
+capability = "inbound.senders"
+values = { block = "{block_senders}", allow = "{allow_senders}" }
+
+[[contributes]]
+capability = "inbound.greylisting"
+values = { enabled = "{greylisting}" }

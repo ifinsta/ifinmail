@@ -390,7 +390,10 @@ def _capabilities() -> tuple[Capability, ...]:
                 'dmarc': _field(
                     (FILTER, 'dmarc_enforcement'),
                     "enforce: reject or quarantine as the sender's DMARC policy says; "
-                    'quarantine: send failures to Junk.',
+                    'quarantine: send failures to Junk; off: failures only count towards the '
+                    'spam score.',
+                    validator=_one_of('enforce', 'quarantine', 'off'),
+                    translate=lambda v: '' if v == 'off' else v,
                 )
             },
         ),

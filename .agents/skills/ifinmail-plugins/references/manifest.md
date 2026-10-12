@@ -80,7 +80,7 @@ comma-separated and normalised (lower-case, sorted, de-duplicated, at most 200 e
 | `inbound.senders` | `block`, `allow` | address/domain lists | Refused; never spam (only when SPF or DKIM proves the sender) |
 | `inbound.attachments` | `block_types` | extension list | Attachment types blocked (name and content) |
 | | `action` | `reject` / `quarantine` | Refuse, or deliver to Junk |
-| `inbound.authentication` | `dmarc` | `enforce` / `quarantine` | Act on senders' DMARC policies |
+| `inbound.authentication` | `dmarc` | `enforce` / `quarantine` / `off` | Act on senders' DMARC policies (`off` removes the engine setting) |
 | `inbound.greylisting` | `enabled` | yes/no | Delay suspicious first-time senders |
 | `forwarding.arc` | `trusted_forwarders` | domain list | A valid ARC chain from these lifts a DMARC rejection |
 | | `seal` | yes/no | Seal mail this server forwards |

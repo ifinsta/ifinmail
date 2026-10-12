@@ -142,6 +142,17 @@ class ContainerContractTests(SimpleTestCase):
         self.assertNotIn('runtime_data:/runtime:ro', compose)
         self.assertNotIn('profiles:', compose.split('  certbot:')[1].split('  # ---')[0])
 
+    def test_the_worker_sees_what_system_health_reads(self) -> None:
+        # The assistant runs System health in the worker: same status files and hints as the api.
+        import yaml
+
+        services = yaml.safe_load(_read('docker-compose.yml'))['services']
+        api, worker = services['api'], services['worker']
+        self.assertIn('mail_status:/var/lib/ifinmail/status:ro', worker['volumes'])
+        for key in ('IFINMAIL_INSTALL_DIR', 'DNS_SERVER_ENABLED', 'DAV_ENABLED', 'MAIL_HOSTNAME'):
+            self.assertIn(key, api['environment'], key)
+            self.assertIn(key, worker['environment'], key)
+
     def test_no_container_can_control_docker(self) -> None:
         # The Docker socket is root on the host; renewals are picked up by watching the file.
         compose = _read('docker-compose.yml')

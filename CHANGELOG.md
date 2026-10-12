@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.13
+- Fix: the assistant runs its checks in the `worker`, which could not see the mail queue report or
+  the plugin acknowledgements, so it told administrators the queue was "not reported" and plugin
+  status "unknown" while System health showed them correctly. The worker now mounts the status
+  folder (read-only) and has the install directory used in System health hints. Found while
+  verifying v0.0.12 end to end against a real model; a contract test keeps the two in step.
+
 ## v0.0.12
 - **Assistant**: ask the server why something is wrong and get a plain answer, or have it draft
   plugin settings for you to apply. Header button and "Ask the assistant" on failing System

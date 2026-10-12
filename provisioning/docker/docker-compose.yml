@@ -423,6 +423,7 @@ services:
       DNS_SERVER_ENABLED: ${DNS_SERVER_ENABLED:-1}
       DNS_SERVER_HOST: dns
       DAV_ENABLED: ${DAV_ENABLED:-1}
+      IFINMAIL_INSTALL_DIR: ${IFINMAIL_INSTALL_DIR:-}   # in System health hints
       APP_VERSION: ${APP_VERSION:-dev}
       UPDATE_CHECK_ENABLED: ${UPDATE_CHECK_ENABLED:-1}
       UPDATE_REPO: ${UPDATE_REPO:-ifinsta/ifinmail}
@@ -435,6 +436,9 @@ services:
       - ./certs:/etc/letsencrypt:ro
       - ./dkim:/etc/dkim
       - runtime_data:/var/lib/ifinmail/runtime
+      # System health reads the queue and plugin acknowledgements here; the assistant runs its
+      # checks in this container, so it must see what the console sees.
+      - mail_status:/var/lib/ifinmail/status:ro
     depends_on:
       api:
         condition: service_healthy

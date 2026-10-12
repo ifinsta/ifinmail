@@ -1,7 +1,7 @@
 # ifinmail Enterprise Readiness Plan — Status and Roadmap
 
 **Status:** Revision 3, 2026-10-12 · **Assessed:** branch `remediation/enterprise-phase-1` (not yet released; v0.0.1 is the last release)
-**Rating:** **3.4/5** on the branch (2.6/5 on v0.0.1, stated as 2.2/5 on 2026-10-11) · **Target:** 4.5/5
+**Rating:** **3.5/5** on the branch (2.6/5 on v0.0.1, stated as 2.2/5 on 2026-10-11) · **Target:** 4.5/5 (4.0 self-assessed; the last half point needs outside parties, see §3)
 **Companion docs:** `docs/enterprise-slo.md` (objectives) · `docs/risk-register.md` · `docs/secrets-map.md` · `docs/dr-runbook.md` · `docs/REMEDIATION-MILESTONES.md`
 
 > **Read this first: what 4.5 means.** The rubric in §2 defines 5 as *independently audited*. Nothing
@@ -36,7 +36,7 @@ The constraints are a single maintainer and a deliberately small dependency surf
 
 | # | Requirement | Status | Evidence on the branch |
 |---|---|---|---|
-| 1 | **Identity** — MFA enforced; idle/absolute timeouts; least-privilege roles; workforce SSO | **Partial** | `MFA_ENFORCEMENT=required` (default for new installs); password re-confirmation for role/admin/token/delete; 12 h/30 min sessions; three roles; break-glass `reset_mfa`. **No SSO** — deferral proposed (§6). |
+| 1 | **Identity** — MFA enforced; idle/absolute timeouts; least-privilege roles; workforce SSO on customer demand | **Met** (self-assessed) | `MFA_ENFORCEMENT=required` (default for new installs); password re-confirmation for role/admin/token/delete; 12 h/30 min sessions; three roles; break-glass `reset_mfa`. SSO deferred by decision D4 (approved 2026-10-12, §6). |
 | 2 | **Data** — encrypted, off-site, restore-tested; RPO/RTO measured | **Partial** | Verified off-site copy and proven key export built and tested end to end. Off-site target must be configured by the operator; **RTO never measured**. |
 | 3 | **Availability** — failure modes known, health observable, recovery is a runbook | **Partial** | Health checks, metrics, update/rollback, `dr-runbook.md`. The runbook has **not been executed end to end**. |
 | 4 | **Security** — pinned and scanned dependencies, CI gates, CSP enforced, secrets managed | **Met** (self-assessed) | Hashes enforced at build, weekly audit, secret scan, CSP enforced, `secrets-map.md`. No external penetration test. |
@@ -57,16 +57,16 @@ The constraints are a single maintainer and a deliberately small dependency surf
 
 | Pillar | v0.0.1 | Branch | Why |
 |---|---|---|---|
-| Identity & Access | 3 | **3** | Strong controls, but SSO is open. **4 if the SSO deferral is accepted.** |
+| Identity & Access | 3 | **4** | Controls enforced, tested and observable. SSO deferred by decision D4. |
 | Data Protection | 2 | **3** | Off-site + key escrow exist and are proven in isolation; off by default, RTO unmeasured. |
 | Availability & DR | 2 | **3** | Runbook, health, rollback exist; the rebuild drill has not run. |
-| Scalability | 2 | **2** | Vertical headroom only; no load test or capacity statement. |
+| Scalability | 2 | **2** | Vertical headroom only; probe and template exist, but no measurement has been run. |
 | Observability | 3 | **4** | Every SLO signal is a health check and a metric (`/api/metrics`); alert thresholds documented. |
 | Application security | 3 | **4** | CSP enforced, hashed lock enforced, step-up, rate limits, secrets mapped. Pen test outstanding (needed for 5). |
 | Governance | 2 | **4** | Chain, retention, export, purge fixed, risk register, SOC 2 mapping. |
 | Operability & quality | 4 | **4** | 769 tests, 78 % coverage, shellcheck clean, scheduled audit, proven update/rollback. |
 
-**Average: 3.4** (27 / 8). With the SSO deferral accepted: **3.5**.
+**Average: 3.5** (28 / 8).
 
 ---
 
@@ -74,10 +74,10 @@ The constraints are a single maintainer and a deliberately small dependency surf
 
 | Step | Moves | Needs | Maintainer effort |
 |---|---|---|---|
-| Run and log one rebuild drill from the off-site copy and escrowed key, using only the runbook | Data 3→4, Availability 3→4 | A spare VPS for a day | ~1 day |
-| Accept the SSO deferral (decision D4) | Identity 3→4 | A decision, not code | minutes |
-| Load-test the console and mail path; publish a capacity statement | Scalability 2→4 | Test host, one afternoon | ~1 day |
-| **Average after the three steps** | | | **4.0** |
+| ~~Accept the SSO deferral (D4)~~ | Identity 3→4 | **Done 2026-10-12** | — |
+| Run and log one rebuild drill from the off-site copy and escrowed key, using only the runbook (template and clock in `docs/enterprise-evidence/`) | Data 3→4, Availability 3→4 | A spare VPS for a day | ~1 day |
+| Run `provisioning/scripts/capacity_probe.py` from another machine against a staging server of production size; record the capacity statement | Scalability 2→4 | Staging host, one afternoon | ~half a day |
+| **Average after the two remaining steps** | | | **4.0** |
 | Independent penetration test of auth, session, invite tokens, DNS/DKIM, headers, backup crypto | Application security 4→5, Identity 4→5 | External tester (budget) | days of fixes |
 | Independent DR/backup review, or a SOC 2 Type I readiness assessment | Data 4→5, Governance 4→5 | External assessor | evidence pack ready |
 | **Average with those four at 5** | | | **4.5** |
@@ -127,6 +127,7 @@ the maintainer should not describe it as more.
 | G.4 Observability | `/api/metrics` Prometheus text, audit.view scope | 4 tests; no addresses or secrets |
 | M5 Send limits | Rspamd per-login and per-login+domain buckets | `rspamadm configtest` in the real image; contract test |
 | M7 (part) | `SECURITY.md` | n/a |
+| Evidence tooling | `capacity_probe.py` (stdlib only), drill and capacity templates | Probe verified for success and unreachable-target paths |
 | B.7 Secrets map | `docs/secrets-map.md` | verified table names against models |
 | 0.3 / B.5 | `risk-register.md`, `dr-runbook.md` | runbook flagged unexecuted |
 
@@ -134,9 +135,9 @@ the maintainer should not describe it as more.
 
 | Item | Needed | Why not done here |
 |---|---|---|
-| B.4 / G.1 Rebuild drill, measured RTO/RPO | A second host and a day | Cannot be done from this host; the single biggest evidence gap |
+| B.4 / G.1 Rebuild drill, measured RTO/RPO | A second host and a day; template ready in `docs/enterprise-evidence/` | Cannot be done from this host; the single biggest evidence gap |
 | G.2 Penetration test | External party | Independence is the point |
-| Capacity statement (Scalability) | A load test | Not run |
+| Capacity statement (Scalability) | Run `capacity_probe.py` against staging (tool built, tested against a stand-in server only) | Not run: a production-size staging host is not available here, and load-testing the live server is not safe |
 | G.5 Evidence pack (`docs/enterprise-evidence/`) | Drill log, test report, config exports | Assembled after the drill |
 | Verify branch protection requires CI | GitHub settings access | Not visible from the repo |
 | Release and deploy the branch | Owner approval | Nothing on this branch is live |
@@ -149,7 +150,7 @@ Deliberate deferrals, so the backlog does not grow by default.
 
 | Item | Why not now | Reverse when |
 |---|---|---|
-| **Workforce SSO (OIDC)** | Security-sensitive code (token validation, key rotation, JIT) or a new dependency for a feature no customer has asked for. Local roles already exist for a future claim mapping. | A signed customer requires it. Then OIDC authorization-code flow only; SAML only on explicit demand. |
+| **Workforce SSO (OIDC)** — *decided 2026-10-12 (D4)* | Security-sensitive code (token validation, key rotation, JIT) or a new dependency for a feature no customer has asked for. Local roles already exist for a future claim mapping. | A signed customer requires it. Then OIDC authorization-code flow only; SAML only on explicit demand. |
 | SCIM / LDAP directory sync | Same, plus a long tail of IdP quirks | Customer with more than ~50 mailboxes and an IdP |
 | Domain-scoped roles | Schema and permission changes across every view | A multi-domain customer with delegated administration |
 | Mail retention, legal hold, erasure (M1, M2) | Needs a component that can write the mail volume; the console mounts it read-only on purpose | A regulated customer; design as a separate audited job |
@@ -187,7 +188,7 @@ reject each before release.
 | D1 | New installs enforce MFA (`MFA_ENFORCEMENT=required`); existing installs unchanged | Approve | An administrator without an authenticator must set one up at first sign-in |
 | D2 | CSP enforced by default | Approve | A page that breaks is fixed by switching `CSP_REPORT_ONLY=true` |
 | D3 | Audit retention 365 days (telemetry and backups stay 30) | Approve | Database growth is small; adjust with `AUDIT_RETENTION_DAYS` |
-| D4 | Defer SSO until a customer requires it (§6) | Approve | Identity can score 4 |
+| D4 | Defer SSO until a customer requires it (§6) | **Approved by owner 2026-10-12** | Identity scores 4 |
 | D5 | No automated update bot; weekly audit instead | Approve | Maintainer reads one CI result a week |
 | D6 | Send limits 100/hour per login, 40/hour per login and recipient domain | Review | A bulk sender needs a higher limit before launch |
 | D7 | Password re-confirmation for role grants, admin rights, token creation, mailbox deletion | Approve | One extra field on four forms |
@@ -219,7 +220,7 @@ Type II). Nothing here substitutes for one.
 
 - Fifteen of sixteen findings are fixed, built or accepted with a written waiver; the rest are open
   only because they need a second host or an outside party.
-- Scores re-derived against an explicit rubric: 3.4/5, up from 2.6. The path to 4.0 and the
+- Scores re-derived against an explicit rubric: 3.5/5, up from 2.6. The path to 4.0 and the
   requirement for outside parties at 4.5 are stated in §3 rather than assumed.
 - Added operating principles, a "not doing" register with reversal triggers, and the maintainer's
   recurring time budget.

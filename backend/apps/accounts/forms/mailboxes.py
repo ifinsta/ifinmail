@@ -116,7 +116,7 @@ class TokenCreateForm(forms.Form):
     address = forms.CharField(max_length=255, strip=True)
     name = forms.CharField(max_length=64, strip=True)
     scopes = forms.MultipleChoiceField(required=False)
-    expires_in_days = forms.IntegerField(min_value=1, max_value=365)
+    expires_in_days = forms.IntegerField(min_value=1, max_value=90)
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         from backend.apps.accounts.types.permissions import TOKEN_SCOPES

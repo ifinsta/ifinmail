@@ -122,6 +122,10 @@
                 // Never carry one owner's contact address over to the next mailbox.
                 sendTo.value = '';
             }
+            var confirmPw = document.getElementById('mailbox-manage-pw');
+            if (confirmPw) {
+                confirmPw.value = '';
+            }
             if (quotaAddress) {
                 quotaAddress.value = address;
             }

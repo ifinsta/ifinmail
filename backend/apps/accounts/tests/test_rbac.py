@@ -136,7 +136,7 @@ class RoleAssignmentViewTests(MailTablesTestCase):
         mailbox_id = self._mailbox_id('alice')
         response = self.client.post(
             reverse('accounts:mailbox_role_action', kwargs={'mailbox_id': mailbox_id}),
-            {'address': 'alice@ifinmail.test', 'role': 'support'},
+            {'address': 'alice@ifinmail.test', 'role': 'support', 'confirm_password': GOOD},
             follow=True,
         )
         self.assertContains(response, 'is now Support')

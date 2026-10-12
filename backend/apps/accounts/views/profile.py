@@ -19,6 +19,7 @@ from backend.apps.accounts.models import MailUser, Role
 from backend.apps.accounts.services.mfa import TOTPService
 from backend.apps.accounts.services.roles import RoleError, RoleService
 from backend.apps.accounts.services.sessions import SessionError, UserSessionService
+from backend.apps.accounts.services.stepup import StepUpService
 from backend.apps.accounts.services.tokens import TokenError, TokenService
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.domains.services import DomainService
@@ -176,6 +177,10 @@ def mailbox_role_action(request: HttpRequest, mailbox_id: uuid.UUID) -> HttpResp
     if user.pk == request.user.pk:
         messages.error(request, 'Your own role cannot be changed here.')
         return redirect('accounts:mailbox_profile', mailbox_id=mailbox_id)
+    problem = StepUpService.confirm(request)
+    if problem:
+        messages.error(request, problem)
+        return redirect('accounts:mailbox_profile', mailbox_id=mailbox_id)
     try:
         role = RoleService.assign(user, form.cleaned_data['role'] or None)
     except RoleError as exc:
@@ -208,6 +213,10 @@ def mailbox_token_create(request: HttpRequest, mailbox_id: uuid.UUID) -> HttpRes
     form = TokenCreateForm(request.POST)
     if not form.is_valid():
         messages.error(request, 'That token request could not be read.')
+        return redirect('accounts:mailbox_profile', mailbox_id=mailbox_id)
+    problem = StepUpService.confirm(request)
+    if problem:
+        messages.error(request, problem)
         return redirect('accounts:mailbox_profile', mailbox_id=mailbox_id)
     try:
         _, address, user = _token_owner(mailbox_id, form.cleaned_data['address'].lower())

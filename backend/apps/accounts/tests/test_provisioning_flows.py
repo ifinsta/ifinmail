@@ -179,7 +179,9 @@ class MailboxPagesTests(_Base):
         self.assertFalse(MailUser.objects.get(email=address).is_active)
         self.client.post(act, {'action': 'enable', 'address': address})
         self.assertTrue(MailUser.objects.get(email=address).is_active)
-        response = self.client.post(act, {'action': 'delete', 'address': address}, follow=True)
+        response = self.client.post(
+            act, {'action': 'delete', 'address': address, 'confirm_password': GOOD}, follow=True
+        )
         self.assertContains(response, 'Removed alice@ifinmail.test')
         self.assertFalse(Mailbox.objects.exists())
 
@@ -357,7 +359,9 @@ class MailboxPagesTests(_Base):
         act = reverse('accounts:mailboxes_action')
         for action in ('delete', 'disable'):
             response = self.client.post(
-                act, {'action': action, 'address': self.admin.email}, follow=True
+                act,
+                {'action': action, 'address': self.admin.email, 'confirm_password': GOOD},
+                follow=True,
             )
             self.assertContains(response, 'your own account')
         self.assertTrue(MailUser.objects.filter(email=self.admin.email, is_active=True).exists())

@@ -29,6 +29,8 @@ from .roles import RoleService
 logger = logging.getLogger('backend')
 
 _TOKEN_PREFIX = 'ifm'
+# Longest lifetime a token may be given; owners rotate rather than keep one for a year.
+MAX_TOKEN_DAYS = 90
 _PREFIX_CHARS = string.ascii_letters + string.digits
 _PREFIX_LEN = 12
 
@@ -85,8 +87,8 @@ class TokenService:
         clean_name = (name or '').strip()[:64]
         if not clean_name:
             raise TokenError('Give the token a name, e.g. "uptime monitor".')
-        if expires_in_days <= 0 or expires_in_days > 365:
-            raise TokenError('Expiry must be between 1 and 365 days.')
+        if expires_in_days <= 0 or expires_in_days > MAX_TOKEN_DAYS:
+            raise TokenError(f'Expiry must be between 1 and {MAX_TOKEN_DAYS} days.')
         wanted = {str(scope) for scope in scopes or [] if str(scope) in TOKEN_SCOPES}
         if not wanted:
             raise TokenError('Pick at least one scope for the token.')

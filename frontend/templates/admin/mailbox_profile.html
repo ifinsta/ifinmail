@@ -162,9 +162,13 @@
                 <div class="ifinmail-settings-row">
                     <dt>{% trans 'Admin rights' %}</dt>
                     <dd>
-                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
                             {% csrf_token %}
                             <input type="hidden" name="address" value="{{ address }}">
+                            <div class="ifinmail-field">
+                                <label for="mp-admin-pw">{% trans 'Your password (confirms this change)' %}</label>
+                                <input class="ifinmail-input" id="mp-admin-pw" name="confirm_password" type="password" required autocomplete="current-password">
+                            </div>
                             {% if is_admin %}
                             <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="revoke_admin">{% trans 'Remove admin rights' %}</button>
                             {% else %}
@@ -190,24 +194,15 @@
                                     {% endfor %}
                                 </select>
                             </div>
+                            <div class="ifinmail-field">
+                                <label for="mp-role-pw">{% trans 'Your password (confirms this change)' %}</label>
+                                <input class="ifinmail-input" id="mp-role-pw" name="confirm_password" type="password" required autocomplete="current-password">
+                            </div>
                             <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Set role' %}</button></div>
                         </form>
                     </dd>
                 </div>
                 {% endif %}
-                <div class="ifinmail-settings-row">
-                    <dt>{% trans 'Admin rights' %}</dt>                    <dd>
-                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
-                            {% csrf_token %}
-                            <input type="hidden" name="address" value="{{ address }}">
-                            {% if is_admin %}
-                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="revoke_admin">{% trans 'Remove admin rights' %}</button>
-                            {% else %}
-                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="grant_admin">{% trans 'Make admin' %}</button>
-                            {% endif %}
-                        </form>
-                    </dd>
-                </div>
                 <div class="ifinmail-settings-row">
                     <dt>{% trans 'Second factor' %}</dt>
                     <dd>
@@ -274,8 +269,11 @@
                                 <select class="ifinmail-input" id="mp-token-expiry" name="expires_in_days">
                                     <option value="30">{% trans '30 days' %}</option>
                                     <option value="90" selected>{% trans '90 days' %}</option>
-                                    <option value="365">{% trans '365 days' %}</option>
                                 </select>
+                            </div>
+                            <div class="ifinmail-field">
+                                <label for="mp-token-pw">{% trans 'Your password (confirms this change)' %}</label>
+                                <input class="ifinmail-input" id="mp-token-pw" name="confirm_password" type="password" required autocomplete="current-password">
                             </div>
                             <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Create token' %}</button></div>
                             {% else %}
@@ -287,9 +285,13 @@
                 <div class="ifinmail-settings-row">
                     <dt>{% trans 'Danger zone' %}</dt>
                     <dd>
-                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
                             {% csrf_token %}
                             <input type="hidden" name="address" value="{{ address }}">
+                            <div class="ifinmail-field">
+                                <label for="mp-delete-pw">{% trans 'Your password (confirms this change)' %}</label>
+                                <input class="ifinmail-input" id="mp-delete-pw" name="confirm_password" type="password" required autocomplete="current-password">
+                            </div>
                             <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="delete" data-confirm="{% trans 'Remove this mailbox and its login? Stored mail stays on disk.' %}">{% trans 'Delete mailbox' %}</button>
                         </form>
                     </dd>

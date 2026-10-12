@@ -6,8 +6,9 @@ import uuid
 
 from django.contrib.auth import authenticate
 from django.contrib.sessions.models import Session
-from django.test import Client
+from django.test import Client, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from backend.apps.accounts.models import MailUser
 from backend.apps.core.tests.mail_base import MailTablesTestCase
@@ -124,11 +125,17 @@ class MailboxProfileTests(MailTablesTestCase):
     def test_grant_and_revoke_admin_rights(self) -> None:
         mailbox, _ = MailboxService.create('ifinmail.test', 'alice', GOOD)
         act = reverse('accounts:mailboxes_action')
-        self.client.post(act, {'action': 'grant_admin', 'address': 'alice@ifinmail.test'})
+        self.client.post(
+            act,
+            {'action': 'grant_admin', 'address': 'alice@ifinmail.test', 'confirm_password': GOOD},
+        )
         self.assertTrue(MailUser.objects.get(email='alice@ifinmail.test').is_staff)
         html = self.client.get(self.profile_url(mailbox.id)).content.decode()
         self.assertIn('Remove admin rights', html)
-        self.client.post(act, {'action': 'revoke_admin', 'address': 'alice@ifinmail.test'})
+        self.client.post(
+            act,
+            {'action': 'revoke_admin', 'address': 'alice@ifinmail.test', 'confirm_password': GOOD},
+        )
         self.assertFalse(MailUser.objects.get(email='alice@ifinmail.test').is_staff)
 
     def test_last_admin_cannot_be_demoted(self) -> None:
@@ -183,3 +190,75 @@ class MailboxProfileTests(MailTablesTestCase):
         self.assertTrue(authenticate(username='alice@ifinmail.test', password=GOOD) is not None)
         html = self.client.get(self.profile_url(mailbox.id)).content.decode()
         self.assertNotIn('Invite pending', html)
+
+
+class StepUpTests(MailTablesTestCase):
+    """Role grants, admin rights, tokens and deletion ask for the password again."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        from backend.apps.accounts.services.setup_state import SetupState
+        from backend.apps.domains.models import Domain
+        from backend.apps.mail.models import Mailbox
+
+        SetupState.mark_complete()
+        self.admin = MailUser.objects.create_user(
+            'root@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
+        self.client.force_login(self.admin)
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
+        domain = Domain.objects.create(name='ifinmail.test')
+        self.mailbox = Mailbox.objects.create(domain=domain, local_part='alice')
+        MailUser.objects.create_user('alice@ifinmail.test', GOOD, is_staff=False)
+
+    def _act(self, action: str, **extra: str):
+        return self.client.post(
+            reverse('accounts:mailboxes_action'),
+            {'action': action, 'address': 'alice@ifinmail.test', **extra},
+            follow=True,
+        )
+
+    def test_a_missing_or_wrong_password_changes_nothing_and_is_audited(self) -> None:
+        from backend.apps.core.platform.services.audit import AuditService
+
+        for action in ('grant_admin', 'delete'):
+            self.assertContains(self._act(action), 'Enter your password')
+            self.assertContains(
+                self._act(action, confirm_password='not-it'), 'That password is not correct'
+            )
+        alice = MailUser.objects.get(email='alice@ifinmail.test')
+        self.assertFalse(alice.is_staff)
+        self.assertTrue(MailUser.objects.filter(email='alice@ifinmail.test').exists())
+        self.assertTrue(AuditService.has('stepup_failed', severity='warning'))
+
+    def test_the_right_password_lets_it_through(self) -> None:
+        self._act('grant_admin', confirm_password=GOOD)
+        self.assertTrue(MailUser.objects.get(email='alice@ifinmail.test').is_staff)
+
+    def test_lower_risk_actions_do_not_ask(self) -> None:
+        response = self._act('quota', quota_mb='10')
+        self.assertContains(response, 'Quota for alice@ifinmail.test')
+
+    @override_settings(
+        CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+    )
+    def test_repeated_wrong_passwords_are_cut_off(self) -> None:
+        from django.core.cache import cache
+
+        cache.clear()
+        for _ in range(5):
+            self._act('delete', confirm_password='nope')
+        response = self._act('delete', confirm_password=GOOD)
+        self.assertContains(response, 'Too many wrong passwords')
+        self.assertTrue(MailUser.objects.filter(email='alice@ifinmail.test').exists())
+        cache.clear()
+
+    def test_tokens_are_capped_at_ninety_days(self) -> None:
+        from backend.apps.accounts.services.tokens import MAX_TOKEN_DAYS, TokenError, TokenService
+
+        self.assertEqual(MAX_TOKEN_DAYS, 90)
+        user = MailUser.objects.get(email='alice@ifinmail.test')
+        with self.assertRaises(TokenError):
+            TokenService.create(user, 'x', ['console.access'], expires_in_days=91)

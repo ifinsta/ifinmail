@@ -175,6 +175,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
                 'name': 'monitor',
                 'scopes': ['console.access'],
                 'expires_in_days': '90',
+                'confirm_password': GOOD,
             },
         )
         self.assertRedirects(response, url, fetch_redirect_response=False)
@@ -197,6 +198,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
                 'name': 'monitor',
                 'scopes': ['console.access'],
                 'expires_in_days': '90',
+                'confirm_password': GOOD,
             },
         )
         from backend.apps.accounts.models import APIToken
@@ -233,6 +235,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
                 'name': 'x',
                 'scopes': ['console.access'],
                 'expires_in_days': '30',
+                'confirm_password': GOOD,
             },
             follow=True,
         )

@@ -37,6 +37,7 @@ from ..forms.mailboxes import (
     RegistrationToggleForm,
 )
 from ..services.registration_policy import registration_open, set_registration_open
+from ..services.stepup import StepUpService
 from ..types.permissions import PermissionCode
 from .auth import require_perm
 
@@ -45,6 +46,9 @@ logger = logging.getLogger('backend')
 _MAIL = require_perm(PermissionCode.MAIL_MANAGE)
 
 _MB = MB
+
+# Changes to who can do what, or that destroy a login, ask for the password again.
+_STEP_UP_ACTIONS = ('delete', 'grant_admin', 'revoke_admin')
 
 
 def _actor(request: HttpRequest) -> str | None:
@@ -242,6 +246,11 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
         messages.error(request, _first_error(form))
         return redirect('accounts:mailboxes')
     action, address = form.cleaned_data['action'], form.cleaned_data['address'].lower()
+    if action in _STEP_UP_ACTIONS:
+        problem = StepUpService.confirm(request)
+        if problem:
+            messages.error(request, problem)
+            return redirect('accounts:mailboxes')
     before = QuotaService.get_budget()
     try:
         if action == 'invite':

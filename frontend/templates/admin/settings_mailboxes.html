@@ -158,6 +158,10 @@
             <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
                 {% csrf_token %}
                 <input type="hidden" name="address" value="" id="mailbox-manage-status-address">
+                <div class="ifinmail-field">
+                    <label for="mailbox-manage-pw">{% trans 'Your password (needed to delete)' %}</label>
+                    <input class="ifinmail-input" id="mailbox-manage-pw" name="confirm_password" type="password" autocomplete="current-password">
+                </div>
                 <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="disable" id="mailbox-manage-disable">{% trans 'Disable' %}</button>
                 <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="enable" id="mailbox-manage-enable">{% trans 'Enable' %}</button>
                 <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="delete" data-confirm="{% trans 'Remove this mailbox and its login? Stored mail stays on disk.' %}">{% trans 'Delete' %}</button>

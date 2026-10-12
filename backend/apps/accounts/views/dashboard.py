@@ -444,14 +444,22 @@ def dashboard_shell(request: HttpRequest) -> JsonResponse:
 @require_perm(PermissionCode.SYSTEM_MANAGE)
 @require_POST
 def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
-    """Purge archived audit log entries, keeping the most recent 500."""
+    """Apply the audit retention window now.
+
+    Only entries older than ``AUDIT_RETENTION_DAYS`` can be removed; nothing inside
+    the window can be deleted from the console, so an administrator cannot erase the
+    record of their own actions.
+    """
     try:
-        deleted, total_before = AuditService.purge_keeping(500)
-        if total_before > 500:
+        deleted, total_before = AuditService.purge_expired()
+        if deleted:
             AuditService.record(
                 action='log_purge',
                 user=request.user.email if request.user.is_authenticated else None,
-                detail=f'Purged {deleted} audit entries (before={total_before})',
+                detail=(
+                    f'Removed {deleted} audit entries older than '
+                    f'{AuditService.retention_days()} days (before={total_before})'
+                ),
             )
             return JsonResponse(
                 {
@@ -463,7 +471,11 @@ def dashboard_log_purge(request: HttpRequest) -> JsonResponse:
                 content_type='application/json; charset=utf-8',
             )
         return JsonResponse(
-            {'status': 'ok', 'deleted': 0, 'message': 'Below threshold — nothing to purge'},
+            {
+                'status': 'ok',
+                'deleted': 0,
+                'message': f'Nothing older than {AuditService.retention_days()} days to remove',
+            },
             content_type='application/json; charset=utf-8',
         )
     except Exception as e:

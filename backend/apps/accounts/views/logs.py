@@ -1,11 +1,13 @@
 """Logs view — system logs and audit trail."""
 
 import csv
+import json
 import logging
+from collections.abc import Iterator
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
@@ -127,25 +129,41 @@ def logs(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_perm(PermissionCode.AUDIT_VIEW)
 def logs_export(request: HttpRequest) -> HttpResponse:
-    """Export audit events as a CSV download."""
+    """Export the retained audit trail as CSV (default) or JSONL (``?format=jsonl``).
+
+    Both read the database, not the per-process memory buffer. JSONL carries the
+    sequence number and hash link of each event, and ``X-Audit-Head`` holds the
+    newest ``seq:hash`` so it can be recorded off-host to detect later truncation.
+    """
     level = request.GET.get('level', '').strip().upper()
-    events = AuditService.get_recent(500)
+    fmt = request.GET.get('format', 'csv').strip().lower()
+    rows = AuditService.export_rows(severity=level)
+
+    if fmt == 'jsonl':
+        head = AuditService.verify_chain()
+
+        def lines() -> Iterator[str]:
+            for row in rows:
+                yield json.dumps(row, ensure_ascii=False, separators=(',', ':')) + '\n'
+
+        response = StreamingHttpResponse(lines(), content_type='application/x-ndjson')
+        response['Content-Disposition'] = 'attachment; filename=audit_log.jsonl'
+        response['X-Audit-Head'] = f'{head["head_seq"] or 0}:{head["head_hash"]}'
+        response['X-Audit-Chain'] = 'ok' if head['ok'] else 'broken'
+        return response
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename=audit_log.csv'
     writer = csv.writer(response)
     writer.writerow(['Timestamp', 'Level', 'Service/Action', 'Message', 'User'])
-    for e in reversed(events):
-        severity = e.get('severity', 'info')
-        if level and severity.upper() != level:
-            continue
+    for e in rows:
         writer.writerow(
             [
-                e.get('time', '').replace('T', ' ')[:19],
-                severity.upper(),
-                e.get('action', ''),
-                e.get('detail', ''),
-                e.get('user', 'system'),
+                e['time'].replace('T', ' ')[:19],
+                e['severity'].upper(),
+                e['action'],
+                e['detail'],
+                e['user'] or 'system',
             ]
         )
     return response

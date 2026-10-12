@@ -1,237 +1,325 @@
-# ifinmail Enterprise Readiness Proposal — End to End
+# ifinmail Enterprise Readiness Plan — Status and Roadmap
 
-**Status:** Proposal · **Baseline rating:** 2.2/5 (Developing) · **Target:** 4/5 (Enterprise-pilotable) in ~120 days
-**Companion docs:** `docs/REMEDIATION-MILESTONES.md` (engineering standard), `README.md` (operations baseline)
+**Status:** Revised plan (revision 2, 2026-10-12) · **Release assessed:** v0.0.1 (`main`)
+**Rating:** 2.6/5 today (was stated as 2.2/5 on 2026-10-11) · **Target:** 4/5 "enterprise-pilotable"
+**Companion docs:** `docs/enterprise-slo.md` (objectives), `docs/REMEDIATION-MILESTONES.md` (engineering standard), `README.md` (operations baseline)
+
+> **How to read this document.** The first version was a proposal written against a baseline that
+> has since moved: MFA, roles, API tokens, session policy and CI all shipped. This revision
+> re-checks every claim against the code, marks each work item **Done / Partial / Open**, and
+> adds the gaps the first version did not see. Where the code and an earlier claim disagree, the
+> code wins and the disagreement is listed in §3.
 
 ---
 
 ## 1. What "enterprise-ready" means here (definition of done)
 
-An enterprise customer (or their security review) can answer **yes** to all of these:
+An enterprise customer, or their security review, can answer **yes** to all six. Status is
+measured against the code, not against intent.
 
-1. **Identity:** Admin access requires MFA; workforce SSO (OIDC) available; sessions expire on idle + absolute timeouts; least-privilege roles exist.
-2. **Data:** Backups are encrypted, off-site, and **restore-tested on a schedule**; stated RPO/RTO are measured, not assumed.
-3. **Availability:** Failure modes are known, health is observable, and recovery is a runbook — not an improvisation.
-4. **Security:** Dependencies are pinned and scanned, CI gates every merge, CSP enforced, secrets managed with rotation.
-5. **Governance:** Every privileged action is audited in a tamper-evident, exportable trail; retention policy is single and consistent.
-6. **Operability:** Upgrades are safe/repeatable; on-call knows what pages, what to do, and what "healthy" looks like.
+| # | Requirement | Status | Why |
+|---|---|---|---|
+| 1 | **Identity** — admin MFA enforced; workforce SSO (OIDC); idle and absolute session timeouts; least-privilege roles | **Partial** | TOTP, 12 h absolute / 30 min idle timeouts and three roles ship. MFA is *offered, not enforced*: enrollment can be snoozed a week and a user can switch it off with a code. No SSO. |
+| 2 | **Data** — backups encrypted, off-site, restore-tested on a schedule; RPO/RTO measured | **Partial** | Encrypted, broad scope, weekly restore test. No off-site copy, no key escrow, RPO/RTO never measured. |
+| 3 | **Availability** — known failure modes, observable health, recovery is a runbook | **Partial** | Health tiers and safe update/rollback exist. Single host; no runbook; no rebuild drill. |
+| 4 | **Security** — pinned and scanned dependencies, CI gates merges, CSP enforced, secrets managed | **Partial** | CI with `pip-audit`, secret scan, lint, shellcheck. CSP still report-only; lockfile unhashed; no automated dependency updates. |
+| 5 | **Governance** — privileged actions audited in a tamper-evident, exportable trail; one retention policy | **Open** | Audit trail is capped at 10,000 rows, mutable, CSV-only export. Retention is not time-based. |
+| 6 | **Operability** — safe, repeatable upgrades; on-call knows what pages and what to do | **Partial** | `make update`/`rollback`/`uninstall` with database snapshots are proven. No runbooks or on-call guidance. |
 
-**Out of scope (explicit):** built-in webmail, multi-region active/active HA, FedRAMP/ISO certification audits themselves. Those are Phase 5+ options, not blockers for a pilot.
+**Out of scope (explicit):** built-in webmail, multi-region active/active HA, and the compliance
+audits themselves (SOC 2 / ISO 27001 / FedRAMP). Those are post-pilot options.
 
 ### Assumptions
 
-- Team of 2–4 engineers, part-time security reviewer available for Weeks 4, 8, 12.
-- Baseline is the current single-VPS Docker Compose topology (kept; hardened, not replaced).
-- Each work item follows the repo's **Milestone Completion Packet** standard (`REMEDIATION-MILESTONES.md:23-39`): architecture, schema, service/job/config/health/audit contracts, security review, UX evidence, test evidence, operational note. No packet → not done.
+- A small team (1–4 engineers) and a security reviewer who may be external and part-time.
+- The topology stays **single VPS, Docker Compose**: hardened, not replaced.
+- Each item follows the **Milestone Completion Packet** standard (`REMEDIATION-MILESTONES.md:23-39`).
+  No packet, not done.
 
 ---
 
-## 2. Baseline (where we start)
+## 2. Where we are (re-scored)
 
-| Pillar | Score | One-line evidence |
-|---|---|---|
-| Identity & Access | 2/5 | Axes lockout + audit exist; **no MFA/SSO**; 2-role RBAC; 2-week default sessions; no API tokens |
-| Data Protection | 2/5 | TLS/DNSSEC/GPG backups; **backups on same disk**, no off-site; keys in DB/env |
-| Availability & DR | 2/5 | Health tiers + monitor script; **single-host SPOF**; RPO ~24h (unstated); manual RTO |
-| Scalability | 2/5 | Vertical headroom modeled; no horizontal path; downtime deploys |
-| Observability | 3/5 | DB telemetry w/ PII scrub + dedup, correlation IDs, health tiers; no metrics/OTEL; webhook-only alerts |
-| App Security | 3/5 | Harden headers, CSP report-only, fail-closed env; **unpinned deps, no CI/scans**; HSTS 1h |
-| Compliance/Governance | 2/5 | Audit trail exists; mutable log, no SIEM export, retention mismatch (30d vs 7d) |
-| Operability/Quality | 3/5 | Idempotent provisioning, broad tests, runbook README; **no CI** |
+Scores use a fixed rubric so they can be re-measured rather than argued:
 
-**Single sentence:** the product is *operationally honest* (it reports its own state well) but *structurally fragile* (one host, one disk, two roles, no second factor).
+| Score | Meaning |
+|---|---|
+| 1 | Absent |
+| 2 | Exists, but a known gap defeats the control |
+| 3 | Works as built on a single host; enforcement or evidence still open |
+| 4 | Evidenced: tested, measured, exportable, reviewed |
+| 5 | Independently audited |
+
+| Pillar | 2026-10-11 | Now | Evidence |
+|---|---|---|---|
+| Identity & Access | 2 | **3** | TOTP + recovery codes (`services/mfa.py`), `Role` model with Owner / Administrator / Support, scoped hashed API tokens, session list with revoke. Not enforced; no SSO; no step-up re-auth. |
+| Data Protection | 2 | **2** | GPG-encrypted backups of Postgres, mail, DKIM, certs, DNSSEC keys, calendars, runtime state, queue spool and Rspamd data. **No off-site copy; decryption key lives only on the host.** |
+| Availability & DR | 2 | **2** | Health tiers, backup-age alert, snapshot-before-update and automatic rollback. Single host, no runbook, RTO unmeasured. |
+| Scalability | 2 | **2** | Vertical headroom only; no horizontal path. Acceptable for pilot. |
+| Observability | 3 | **3** | Telemetry with PII scrub, correlation IDs, health tiers, webhook alerts. No metrics endpoint, no OpenTelemetry. |
+| Application security | 3 | **3** | HSTS one year, session cookie policy, `check --deploy` in CI. CSP report-only; lockfile has no hashes. |
+| Governance | 2 | **2** | Audit events exist but are count-capped and mutable (see §3, finding F1). |
+| Operability & quality | 3 | **4** | CI gates, ~720 tests, idempotent provisioning, proven update / rollback / uninstall. Runbooks missing. |
+
+**Average: 2.6.** The first version stated 2.2, but its own table averaged 2.4; the rubric above
+removes that ambiguity.
+
+**One sentence:** the product is *operationally honest and now meaningfully access-controlled*,
+but it is still *structurally fragile* (one host, one disk, no off-site copy) and its audit trail
+would not survive an incident review.
 
 ---
 
-## 3. Phased flow (end to end)
+## 3. Findings: what the code says versus what was claimed
+
+Severity is judged against the §1 definition of done.
+
+| ID | Sev. | Finding | Evidence | Fix (item) |
+|---|---|---|---|---|
+| F1 | **High** | **The audit trail is capped at 10,000 rows**, oldest deleted first, by the application itself. A login flood can evict the evidence you need. It also contradicts the "30 days everywhere" statement in `enterprise-slo.md`. | `core/platform/services/audit.py:39,220`; model docstring | G.3 |
+| F2 | **High** | **MFA is not enforced.** Enrollment can be snoozed for a week, and `disable_second_factor` turns it off with a valid code. Fails requirement 1 as written. | `accounts/services/mfa.py:200`; `tests/test_mfa_optional.py` | A.6 |
+| F3 | **High** | **No off-site backup.** A disk or host loss still destroys data *and* backups. The original risk register rated this Critical. | no off-site code in `provisioning/`, README or `.env.example` | B.1 |
+| F4 | **High** | **Backup decryption key is host-local.** The GPG key and its passphrase are generated on the server and the passphrase is appended to `.env`, which is itself inside the backup. After host loss the backups cannot be opened unless the key was exported separately. | `provision.sh:266-300`; `backup_full.sh:72-73` | B.6 |
+| F5 | Med | Audit rows are not append-only, hash-chained or exportable beyond CSV; no SIEM schema. | `AuditEvent` model; `views/logs.py:135` | G.3 |
+| F6 | Med | CSP defaults to report-only; no soak data recorded. | `settings/production.py:85` | C.1 |
+| F7 | Med | Token expiry allows up to 365 days; policy said 90. | `forms/mailboxes.py:119`, `services/tokens.py:88` | E.2 |
+| F8 | Med | **DKIM private keys are stored in plaintext** in the database and on disk (Rspamd needs the file). Compliance map claimed "secrets encrypted at rest". | `domains/models/__init__.py:33` | B.7 |
+| F9 | Med | `requirements/prod.lock` is pinned but has **no hashes**; automated dependency updates are no longer configured (`.github/dependabot.yml` is absent). | `prod.lock`; repo tree | D.2 |
+| F10 | Med | No step-up re-authentication for high-risk actions (role grant, token create, mailbox delete). | no matches in `backend/` | F.1 |
+| F11 | Med | **Referenced deliverables do not exist:** `docs/dr-runbook.md`, `docs/risk-register.md`, `docs/enterprise-evidence/`. RTO ≤ 4 h is therefore an assertion. | repo tree | B.4, B.5, 0.3, G.5 |
+| F12 | Low | Four `test_quota_budget` tests fail in the local test container. CI is stated to block red merges, so confirm whether CI is green or the gate is not enforced. | pytest run 2026-10-12: 715 passed, 4 failed, 4 skipped | 0.1 |
+| F13 | Low | `enterprise-slo.md` states audit retention is 30 days and cites a runbook that does not exist. | `docs/enterprise-slo.md` | update with F1, F11 |
+| F14 | **High** | **Any `system.manage` user can erase the audit trail** down to 500 rows from the dashboard "log purge" action; the purge is recorded only after the evidence is gone. | `views/dashboard.py` `dashboard_log_purge`; `AuditService.purge_keeping` | G.3 |
+| F15 | Med | **The audit "export" was not an export:** it read a 200-event in-memory buffer that differs per worker process, so the CSV omitted most of the trail. | `views/logs.py` `logs_export` | G.3 |
+
+**Fixed in this release (2026-10-12):** the console's own email (mailbox setup links, registration
+verification) was silently failing because the app tried to send from a mail server inside its own
+container. System email now goes through an internal-only Postfix port (10025) that is never
+published and accepts only the Docker network. A contract test guards this.
+
+---
+
+## 4. Work-item status
+
+### Phase 0 — Assess and baseline
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| 0.1 | Freeze baseline metrics | **Open** | Record test pass rate and duration, `pip-audit` count, backup size and duration, full-rebuild time. Resolve F12 first. |
+| 0.2 | Adopt SLO sheet | **Done** | `docs/enterprise-slo.md`; correct F13. |
+| 0.3 | Risk register | **Open** | `docs/risk-register.md` missing (F11). |
+| 0.4 | Retention unification | **Partial** | Telemetry and backups are 30 d in `.env.example`. Audit is count-capped, not time-based (F1). |
+| 0.5 | Landing-page honesty | **Done** | MFA now exists; the landing template makes no unsupported MFA claim. |
+
+### Workstream A — Multi-factor authentication
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| A.1 | TOTP device model | **Done** | Fernet-encrypted secrets, recovery codes. |
+| A.2 | Enrollment UX | **Done** | QR code, verification, recovery codes shown once. |
+| A.3 | Login enforcement and rate limit | **Partial** | Enrolled users must present a code; attempts are rate-limited and audited. Enrollment itself is optional (F2). |
+| A.4 | Session binding | **Done** | `mfa_verified_at` held in session. |
+| A.5 | Tests | **Done** | `test_mfa.py`, `test_mfa_optional.py`, `test_mfa_qr.py`. |
+| A.6 | **Enforcement policy (new)** | **Open** | Setting "require MFA for staff": removes snooze and self-disable when on, with a documented two-person break-glass path. |
+
+### Workstream B — Backups and recovery
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| B.1 | Off-site copy | **Open** | Nightly push of the encrypted archive to an S3-compatible or SSH target; credentials in env; failure alerts through `BACKUP_NOTIFY_URL`. **Do first.** |
+| B.2 | Backup scope | **Done** | Postgres, mail, DKIM, certs, DNSSEC, DAV, runtime, queue spool, Rspamd data. |
+| B.3 | Scheduled restore test | **Partial** | Weekly cron installed (`provision.sh:460`); backup age shown in System health. Extend assertions to DKIM count, DS presence, cert archive. |
+| B.4 | Full rebuild drill | **Open** | Fresh VPS to working mail; measure RTO; repeat until ≤ 4 h. |
+| B.5 | DR runbook | **Open** | `docs/dr-runbook.md` (F11). |
+| B.6 | **Backup key escrow (new)** | **Open** | Export the key pair and passphrase to an off-host secret store at provision time; add a restore test that decrypts using only the escrowed copy (F4). |
+| B.7 | **Secrets-at-rest map (new)** | **Open** | Inventory every secret (DKIM, DNS provider tokens, TOTP, API tokens, backup key), state its protection, and encrypt the DB-held ones or record a waiver (F8). |
+
+### Workstream C — Quick security wins
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| C.1 | HSTS one year; CSP enforce | **Partial** | HSTS done. CSP still report-only by default; run a one-week soak on `/csp-report/` data, then flip (F6). |
+| C.2 | Session baseline | **Done** | 12 h absolute, 30 min idle, `SameSite=Lax`, expire at browser close. |
+
+### Workstream D — CI and supply chain
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| D.1 | CI pipeline | **Done** | `ci.yml`: `check --deploy`, pytest with 70 % coverage gate, `pip-audit`, ruff, gitleaks, shellcheck, compose validation. Verify branch protection requires it. |
+| D.2 | Pin, hash, update | **Partial** | Pinned via `pip-compile`; add `--generate-hashes`; restore automated updates (Renovate, a scheduled CI job, or a documented weekly manual review) and publish the CVE SLA (F9). |
+| D.3 | Image hygiene | **Partial** | `make reload` and unattended OS updates exist; base-image refresh cadence not documented. |
+
+### Workstream E — Authorization
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| E.1 | Roles | **Done** | Owner, Administrator, Support; nine permission codes; legacy staff mapped. **Open:** domain-scoped roles (§5). |
+| E.2 | API tokens | **Partial** | Hashed, scoped (role and setup administration excluded), expiring, rotate and revoke. Cap expiry at 90 days (F7); confirm input schemas. |
+| E.3 | Credential-lifecycle audit | **Partial** | Role assignment, invite issued/accepted/sent, session revoke, MFA events are audited. Needs a checked list covering every row in the original acceptance criteria. |
+
+### Workstream F — Session control
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| F.1 | Idle, absolute, step-up | **Partial** | Timeouts done. Step-up re-auth for role grant, token create, mailbox delete missing (F10). |
+| F.2 | Session inventory | **Done** | Per-profile session list, per-session and revoke-all, audited. |
+| F.3 | SSO / OIDC | **Open** | Only a design note exists in `types/permissions.py`: IdP claims will map onto local roles and enforcement never reads the IdP. |
+
+### Workstream G — Prove it
+
+| # | Item | Status | Notes |
+|---|---|---|---|
+| G.1 | RTO/RPO measurement | **Open** | Four weekly restore tests plus one unannounced runbook-only drill. |
+| G.2 | Lightweight pen test | **Open** | Auth, session, invite-token, DNS/DKIM, headers, backup crypto. Budget externally. |
+| G.3 | Audit export and retention | **Open — priority** | Time-based purge (replacing the row cap); JSONL export with documented schema read from the database; append-only control (hash chain); the dashboard purge limited to expired rows (F1, F5, F14, F15). |
+| G.4 | Observability uplift | **Open** | JSON log formatter, Prometheus `/metrics` (backup age, queue depth, cert days, probe status), alert thresholds mapped to SLOs. |
+| G.5 | Evidence pack | **Open** | Architecture and data-flow, secrets map (B.7), RTO/RPO data, pen-test report, CI history, role matrix. |
+
+---
+
+## 5. Gaps the first version did not cover (mail-specific)
+
+For a *mail server* these are the questions a procurement review asks after MFA and backups.
+
+| # | Requirement | Current state | Proposed |
+|---|---|---|---|
+| M1 | **Mail retention, legal hold, archiving** | Retention policy covers telemetry, audit and backups, never the mail itself. | Per-domain retention setting; legal-hold flag that blocks deletion; documented archive export. |
+| M2 | **Erasure on request** | Deleting a mailbox leaves its mail on disk (the console mounts the mail volume read-only). | Admin-initiated, audited purge job with a grace period, run by a component that can write the volume. |
+| M3 | **Domain-scoped administration** | Roles are global. | Role assignments carry a domain scope; Support and Administrator roles honour it. |
+| M4 | **Directory sync (SCIM / LDAP)** | JIT provisioning only (planned); no leaver handling. | SCIM v2 users endpoint behind a scoped token; deprovision disables the mailbox and revokes sessions and tokens. |
+| M5 | **Outbound abuse containment** | No per-mailbox send-rate limits or compromised-account detection. | Per-mailbox hourly/daily caps, auto-suspend on anomaly, alert to the owner role. One stolen password otherwise burns the server's IP reputation. |
+| M6 | **Transport security policy** | DNSSEC is already in place. | Publish MTA-STS and TLS-RPT; DANE (TLSA) records; ingest DMARC aggregate reports into System health. |
+| M7 | **Disclosure and supply chain** | None. | `SECURITY.md` with contact and response times; SBOM per release; sign release images. |
+| M8 | **Break-glass recovery** | Mentioned as a risk, no procedure. | Documented offline Owner recovery with a two-person rule and mandatory audit entry. |
+
+---
+
+## 6. Roadmap (re-planned from current state)
 
 ```
-Phase 0  Assess & Baseline        (Week 1)      → frozen scope, SLOs, risk register
-Phase 1  Pilot-Ready: IAM+DR      (Weeks 2–5)   → MFA, off-site backups, restore drill  →  ~3.0/5
-Phase 2  Harden: Supply+Sessions  (Weeks 6–9)   → CI/scans, RBAC/tokens, session mgmt    →  ~3.5/5
-Phase 3  Prove it: DR+Evidence    (Weeks 10–12) → measured RTO/RPO, pen-test fixes, packet →  4.0/5
-Phase 4  Operate: Continuous      (Week 13+)    → SLOs, rotations, reviews as routine
+Phase 1  Close what is built     (2–3 wks)  → audit trail, MFA enforced, off-site + key escrow, CSP, token cap
+Phase 2  Prove it                (3–4 wks)  → runbook, measured RTO/RPO, risk register, metrics, pen test, evidence pack
+Phase 3  Mail-grade enterprise   (4–6 wks)  → OIDC, domain-scoped roles, MTA-STS/DANE, retention and erasure, send limits
+Phase 4  Operate                 (continuous)
 ```
 
-Each phase has **entry criteria** (what must be true to start), **workstreams with acceptance criteria**, and **exit criteria** (what must be true to advance). A phase does not start until the previous phase's exit criteria are signed off.
+Each phase keeps the original rule: it does not start until the previous phase's exit criteria
+are signed off by the accountable owner.
 
-**RACI convention used below:** R = builds it, A = accepts it (sign-off), C = consulted, I = informed.
+### Phase 1 — Close what is built
+
+**Entry:** this revision accepted. **Exit:** F1–F4, F6, F7, F9, F10, F14, F15 closed; rating ≥ 3.0.
+
+| Order | Item | Reason for the order |
+|---|---|---|
+| 1 | G.3 audit retention + export + append-only | Every other control is only as credible as the log. |
+| 2 | B.1 + B.6 off-site backup and key escrow | Removes the critical single-host loss risk; one without the other is useless. |
+| 3 | A.6 MFA enforcement policy | Makes requirement 1 literally true. |
+| 4 | C.1 CSP enforce, D.2 hashes + update automation, E.2 token cap, F.1 step-up | Small, independent changes. |
+| 5 | 0.1 baseline + F12 | Settles whether CI really gates merges. |
+
+**Exit demo:** trigger a login flood and show the earlier privileged events still present;
+destroy a scratch host and restore from the off-site copy using only the escrowed key; show a
+staff login refusing to proceed without enrolled MFA.
+
+### Phase 2 — Prove it
+
+**Entry:** Phase 1 exit. **Exit:** F11 closed; four consecutive weekly restore tests green; one
+runbook-only drill inside the published RTO; criticals and highs from the pen test fixed and
+retested; rating ≥ 3.5.
+
+Items: B.3, B.4, B.5, 0.3, G.1, G.2, G.4, G.5, B.7.
+
+### Phase 3 — Mail-grade enterprise
+
+**Entry:** Phase 2 exit. **Exit:** one pilot customer integrated through OIDC with domain-scoped
+roles; MTA-STS/TLS-RPT live; retention and erasure demonstrable; rating ≥ 4.0.
+
+Items: F.3 (OIDC first, SAML only on signed customer demand), E.1 domain scope (M3), M1, M2, M4,
+M5, M6, M7, M8.
+
+### Phase 4 — Operate
+
+A cadence, not a project. Each line needs a named owner and a calendar entry or it will rot.
+
+| Cadence | Item |
+|---|---|
+| Weekly | Dependency scan review; restore-test result review |
+| Monthly | Base-image refresh; access review (roles, tokens, staff); off-site copy integrity spot-check |
+| Quarterly | DR drill by a rotating engineer using only the runbook; secrets rotation (backup key, DNS provider tokens, OIDC); SLO review |
+| Per release | Completion packet; auth/session regression test; retention verification |
+| Annual | Access recertification; architecture revisit (managed Postgres, object-store mail); compliance mapping refresh |
 
 ---
 
-## Phase 0 — Assess & Baseline (Week 1)
-
-**Goal:** freeze scope, agree SLOs, stand up the CHANGELOG of record.
-**Entry:** this proposal approved. **Exit:** risk register + SLO sheet + Phase-1 backlog signed by engineering lead (A).
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| 0.1 | Freeze baseline metrics | Record: test suite pass rate + duration, `pip-audit` findings count, backup size/duration, full-rebuild time measured once (stopwatch, documented) |
-| 0.2 | Adopt SLO sheet | RPO ≤ 24h (interim), RTO ≤ 4h (interim, manual), console availability ≥ 99.5% monthly (single host, stated honestly), backup age alert > 25h = CRITICAL (already in `monitor.py`) |
-| 0.3 | Risk register | Top-10 risks with owner + mitigation phase (single-host loss, credential compromise without MFA, unpinned dep CVE, same-disk backup loss, session hijack window) |
-| 0.4 | Retention unification | One decision recorded: single retention value (recommend 30d) applied to telemetry, audit, backups; fix `.env.example` 7-vs-30 mismatch |
-| 0.5 | Landing-page honesty | Remove or gate the "MFA support" marketing claim until Phase 1 ships (`frontend/templates/landing.html:253`) |
-
-**Deliverables:** `docs/enterprise-slo.md`, `docs/risk-register.md`, frozen Phase-1 backlog.
-
----
-
-## Phase 1 — Pilot-Ready: Identity + Data Survival (Weeks 2–5)
-
-**Goal:** survive the two questions that kill enterprise deals: *"Do you support MFA/SSO?"* and *"Prove you can restore my mail."*
-**Entry:** Phase 0 exit signed. **Exit:** admin enrollment in TOTP enforced on new setups; off-site backup copy verified; one full rebuild drill completed with measured RTO; rating ~3.0/5.
-
-### Workstream A — Multi-factor authentication (R: backend eng, A: eng lead, C: security reviewer)
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| A.1 | TOTP device model | `TOTPDevice(user, secret_encrypted, verified_at, last_used)`; secrets encrypted at rest (Fernet via Django SECRET_KEY, same pattern as DNS credentials); recovery codes hashed, single-use; migrations + indexes |
-| A.2 | Enrollment + verification UX | Setup-wizard and settings flows: QR code, 2-code verification, 10 recovery codes shown once; states covered (empty/loading/success/error) per repo Experience Bar |
-| A.3 | Enforcement | Staff login requires verified device; `login_blocked`/new `mfa_*` audit events; rate-limit code attempts (reuse Axes/IP limiter pattern); backup-code use audited |
-| A.4 | Session binding | Successful MFA binds `mfa_verified_at` into session; `mailbox_setup` invite-accept flow already captures viewer pre-change (keep that pattern) |
-| A.5 | Tests + packet | Unit (token drift ±1 step, replay rejected), view (unenrolled staff blocked post-password), e2e enroll→logout→login; completion packet per repo standard |
-
-**Explicitly deferred to Phase 2:** WebAuthn/passkeys, SSO/OIDC (shipped as "SSO ready" only after A is stable).
-
-### Workstream B — Backups that can actually save you (R: platform eng, A: eng lead)
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| B.1 | Off-site copy | Nightly `backup_full.sh` output (already GPG-encrypted) synced to S3-compatible/rSync target; target credentials in env, never in repo; alert on copy failure via existing `BACKUP_NOTIFY_URL` |
-| B.2 | Backup scope fix | Add `runtime_data` (zones/Knot/postfix/firewall state), `postfix_spool` (queued mail), `rspamd_data` (Bayes) to the manifest — or record signed waivers for each exclusion |
-| B.3 | Automate restore test | Cron-install `restore_test.sh` weekly; extend to assert DKIM count, DNSSEC DS presence, cert archive presence; results mailed + visible in console (reuse `last-backup-at` pattern) |
-| B.4 | Full rebuild drill (the money item) | Fresh VPS → `make provision` → `pg_restore` → copy `mail_data/dkim/certs/dns_data` → verify mail flow + DNSSEC + console; **measure wall-clock RTO**, record gaps, re-run until RTO ≤ 4h |
-| B.5 | Runbook | `docs/dr-runbook.md`: prerequisites, step-by-step rebuild, verification checklist (send/receive, DNSSEC, certs, console login), rollback notes, on-call contacts |
-
-### Workstream C — Quick security wins (fold into Phase 1 sprints)
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| C.1 | HSTS 1 year + CSP enforce (staged) | `SECURE_HSTS_SECONDS=31536000`; CSP `REPORT_ONLY=false` behind env flag, 1-week report-only soak first using existing `/csp-report/` telemetry |
-| C.2 | Session baseline | `SESSION_COOKIE_AGE` (e.g. 12h), `SESSION_EXPIRE_AT_BROWSER_CLOSE=True` for non-staff, `SESSION_COOKIE_SAMESITE=Lax` explicit; document the 2-week → 12h change in release notes |
-
-**Phase 1 exit demo (must be demonstrable live):** enroll TOTP → logout → login blocked without code → login with code; trigger backup → show off-site copy receipt; tabletop the rebuild drill timeline with measured numbers.
-
----
-
-## Phase 2 — Harden: Supply Chain, Access Control, Sessions (Weeks 6–9)
-
-**Goal:** make every change traceable and every privilege minimal. Target ~3.5/5.
-**Entry:** Phase 1 exit signed. **Exit:** CI green on every PR; MFA + roles + tokens live; session policy enforced; rating ~3.5/5.
-
-### Workstream D — CI + dependency supply chain (R: platform eng, A: eng lead)
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| D.1 | CI pipeline (new `.github/workflows/ci.yml`) | Jobs: `manage.py check --deploy`, `pytest`, `ruff check`, `pip-audit`, secret scan (gitleaks), shellcheck for `provisioning/scripts`; PR cannot merge red (branch protection) |
-| D.2 | Pin + hash dependencies | `pip-compile` lockfile with hashes for prod image; Dependabot/Renovate weekly; documented CVE-SLA (critical ≤ 7d, high ≤ 30d) |
-| D.3 | Image hygiene | `make reload` path documented; base-image refresh cadence monthly; `unattended-upgrades` verified covering host (already enabled in `provision.sh`) |
-
-### Workstream E — Authorization worth auditing (R: backend eng, A: eng lead, C: security reviewer)
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| E.1 | Roles | `Role` model (e.g. Owner, Admin, Support-read-only, Billing) mapped to explicit permission sets; replace bare `is_staff` gates on at least console settings; migration path for existing staff; `unassigned_roles`/`rbac_status` UI becomes real |
-| E.2 | First-party API tokens | Scoped service-account tokens (read/write scopes, expiry ≤ 90d, rotation endpoint, revocation list); Ninja schemas validate every input (close the empty-`serializers.py` gap); token use audited |
-| E.3 | Credential-lifecycle audit | Password set/reset, invite issued/accepted, token created/rotated/revoked, role granted/revoked all emit structured audit events (actor, target, IP, correlation ID) |
-
-### Workstream F — Session control (R: backend eng, A: eng lead)
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| F.1 | Idle vs absolute timeout | Idle 30 min + absolute 12h (env-tunable); high-risk actions (role grant, token create, mailbox delete) require fresh password/MFA re-auth |
-| F.2 | Session inventory | Per-user device/session list with per-session revoke (finish the `live_sessions: []` stub); revocation audited; admin kill-switch retained |
-| F.3 | SSO/OIDC (start) | `mozilla-django-oidc` (or equivalent) behind feature flag for one IdP; staff-only initially; JIT provisioning mapped to lowest role; full rollout in Phase 3 if stable |
-
----
-
-## Phase 3 — Prove It: Measured DR, Adversarial Review, Evidence Pack (Weeks 10–12)
-
-**Goal:** replace claims with measurements and produce the artifact a CISO actually reads. Target 4.0/5.
-**Entry:** Phase 2 exit signed. **Exit:** signed evidence pack; pen-test criticals fixed; SLOs measured ≥ 4 weeks; pilot approved.
-
-| # | Work item | Acceptance criteria |
-|---|---|---|
-| G.1 | RTO/RPO measurement | 4 consecutive weekly restore tests green; 1 unannounced rebuild drill (different engineer follows only the runbook); RTO/RPO published in `docs/enterprise-slo.md` with data |
-| G.2 | Lightweight pen test | Scoped test (auth, session, invite-token entropy/expiry, DNS/DKIM, headers, backup crypto); all criticals/highs fixed + retested; report filed in evidence pack |
-| G.3 | Audit export + retention | SIEM export (JSONL download + documented schema); retention single-value enforced by scheduled purge; audit table append-only by policy (documented control, technical WORM if cheap) |
-| G.4 | Observability uplift (cheap, high-value) | JSON log formatter (keep human console format in dev), Prometheus `/metrics` (backup age, queue depth, cert days, probe status — all already computed), alert thresholds mapped to SLOs; PagerDuty/Opsgenie webhook documented |
-| G.5 | Evidence pack | `docs/enterprise-evidence/` : architecture diagram, data-flow + secrets map, RTO/RPO measurements, pen-test report + fixes, CI/scan history, retention config, DR runbook, role matrix, incident contacts |
-
-**Phase 3 exit demo:** from a laptop with only the runbook + secrets: rebuild, restore, verify mail + DNSSEC + MFA login, inside published RTO. If it fails, Phase 3 repeats.
-
----
-
-## Phase 4 — Operate (Week 13+, continuous)
-
-Not a project — a cadence. Each item has an owner and a calendar entry, or it will rot.
-
-| Cadence | Item | Owner |
-|---|---|---|
-| Weekly | Dependency scan review; restore-test result review | Eng lead |
-| Monthly | Base-image refresh; access review (roles, tokens, staff list); backup-copy integrity spot-check | Eng lead + Owner admin |
-| Quarterly | DR drill (rotating engineer, runbook-only); secrets rotation (GPG, DNS provider keys, OIDC); SLO review | Eng lead |
-| Per-release | Completion packet; pen-test regression on auth/session surface; retention verification | Feature owner |
-| Annual | Full access recertification; DR architecture revisit (managed PG / object-store mail?); compliance mapping refresh (SOC 2 CC6/CC7) | Leadership |
-
----
-
-## 4. End-to-end expectations map (who expects what, when)
-
-| Stakeholder | Phase 0 | Phase 1 | Phase 2 | Phase 3 | Phase 4 |
-|---|---|---|---|---|---|
-| Executive sponsor | Approves scope/SLOs | Sees MFA + backup receipts demo | Sees CI enforcement | Signs evidence pack, approves pilot | Quarterly SLO review |
-| Engineering lead (A) | Signs backlog | Signs A.5/B.5 packets | Signs D/E/F packets | Signs evidence + pen-test fixes | Owns cadence |
-| Security reviewer (C) | Threat-model lite (top-10) | Reviews A.1/A.3, B.1 crypto | Reviews E.1/E.2, F.3 | Runs/witnesses pen test | Annual recert |
-| Customer (pilot) | Nothing promised | "MFA live, backups off-site" | "Roles + tokens, SSO beta" | Receives evidence pack + SLOs | SLA-backed support |
-| On-call | — | DR runbook draft | Alert tuning | Runbook-only drill | Paged per SLOs |
-
----
-
-## 5. Risks & mitigations
+## 7. Risks and mitigations
 
 | Risk | Likelihood / Impact | Mitigation |
 |---|---|---|
-| Single-host loss before B.1 lands | Med / **Critical** | Do B.1 first (Week 2); interim manual off-site copy documented Day 1 |
-| MFA enrollment lockout (lost device, no codes) | Med / High | Recovery codes + documented break-glass owner procedure; never allow self-service bypass without two-person rule |
-| Scope creep into HA/multi-region | Med / Med | Explicit out-of-scope list (§1); revisit only in Phase 5 |
-| SSO IdP diversity (SAML vs OIDC) | Med / Med | OIDC first behind flag; SAML only on signed customer demand |
-| Audit-log growth / DB bloat | Low / Med | Existing purge jobs kept; verify retention job covers audit + telemetry + backups in one place |
-| Upgrade downtime during hardening | High / Low | Announced windows; `make reload` rehearsed on staging VPS first |
+| Host or disk loss before B.1 and B.6 land | Med / **Critical** | Do B.1 and B.6 together first; until then, a documented manual copy of backups *and* the key to an off-host location. |
+| Evidence evicted from the audit trail during an incident | **High** / High | G.3 first; interim: raise the row cap and export daily. |
+| MFA enforcement locks out the only Owner | Med / High | Recovery codes, break-glass (M8), and enforcement staged: warn, then require for new staff, then all staff. |
+| Backups exist but cannot be decrypted | Med / **Critical** | B.6 plus a restore test that uses only the escrowed key. |
+| Dependency CVE lands unnoticed (updates now manual) | Med / High | D.2: restore automation or a calendared weekly review with a recorded owner. |
+| Scope creep into HA / multi-region | Med / Med | Explicit out-of-scope list (§1). |
+| Tests fail locally but CI reports green | Low / High | F12 resolved in Phase 1; branch protection verified. |
 
 ---
 
-## 6. Effort sketch (planning aid, not a quote)
+## 8. Effort sketch (planning aid, not a quote)
 
-Assumes 2–4 engineers, familiar with codebase. In engineer-weeks:
+In engineer-weeks, assuming two engineers who know the codebase:
 
-- Phase 0: 0.5 · Phase 1: 4–6 (MFA ~2.5, backups/DR ~2, quick wins ~0.5) · Phase 2: 5–7 (CI/deps ~1, RBAC/tokens ~2.5, sessions ~1, SSO start ~1.5) · Phase 3: 3–4 (drills + pen-test fixes + evidence) · External pen test: budget separately.
-- Contingency: +20% (single-host surprises are the norm, not the exception).
-
----
-
-## 7. Compliance mapping (lightweight, SOC 2-oriented)
-
-| Trust criterion | Covered by |
-|---|---|
-| CC6.1 (logical access) | MFA (A), roles (E.1), session control (C.2/F) |
-| CC6.2 (credentials) | Password validators + invite flow (shipped), rotation policy (Phase 4), token expiry (E.2) |
-| CC6.3 (encryption) | TLS/HSTS, GPG backups, secret encryption at rest (A.1 pattern + E) |
-| CC7.2 (monitoring) | Health tiers, telemetry, monitor webhooks, metrics (G.4) |
-| CC7.3 (incidents) | Audit trail + export (G.3), DR runbook (B.5), incident contacts (G.5) |
-| CC8.1 (change mgmt) | CI gates (D.1), completion packets, branch protection |
+- Phase 1: 2–3 (audit ~1, backups + escrow ~1, MFA policy ~0.5, small items ~0.5)
+- Phase 2: 3–4 (drills and runbook ~1.5, metrics ~1, pen-test fixes ~1–1.5); external pen test budgeted separately
+- Phase 3: 4–6 (OIDC ~1.5, domain scope ~1, retention/erasure ~1.5, transport policy ~0.5, send limits ~1)
+- Contingency: +20 %. Single-host surprises are the norm.
 
 ---
 
-## 8. Decision log (fill as we go)
+## 9. Compliance mapping (SOC 2-oriented, lightweight)
 
-| Date | Decision | By | Rationale |
-|---|---|---|---|
-| — | Retention = 30d everywhere | TBD | Unify telemetry/audit/backup; fix `.env.example` mismatch |
-| — | OIDC before SAML | TBD | Broader IdP coverage per integration; SAML on demand |
-| — | Single-host retained through pilot | TBD | Cost/simplicity; revisit managed-PG/object-store in Phase 5 |
-| — | RPO ≤ 24h / RTO ≤ 4h interim | TBD | Matches daily backups + manual rebuild; tighten after measurement |
+| Criterion | Covered by | Status |
+|---|---|---|
+| CC6.1 logical access | MFA (A), roles (E.1), sessions (C.2, F) | Partial — enforcement (A.6), step-up (F.1) |
+| CC6.2 credentials | Invite flow, password validators, token expiry (E.2) | Partial — token cap, rotation policy |
+| CC6.3 encryption | TLS/HSTS, GPG backups, TOTP secrets | Partial — DKIM keys plaintext (F8), key escrow (F4) |
+| CC7.2 monitoring | Health tiers, telemetry, webhooks, metrics (G.4) | Partial — no metrics endpoint |
+| CC7.3 incidents | Audit trail and export (G.3), runbook (B.5) | Open — F1, F11 |
+| CC8.1 change management | CI gates (D.1), completion packets, update/rollback | Partial — verify branch protection |
+| A1 availability | SLOs, backups, restore tests, DR drill | Partial — RTO/RPO unmeasured |
+| C1 confidentiality | Encryption, retention (M1), erasure (M2) | Open |
+
+SOC 2 requires an independent auditor and an observation period. Until one is engaged, treat
+this table as readiness tracking, not a claim.
 
 ---
 
-*End of proposal. Next step: approve §1–§3 scope, then open Phase 0 items (0.1–0.5) as tracked work.*
+## 10. Decision log
+
+| Date | Decision | Status | By | Rationale |
+|---|---|---|---|---|
+| 2026-10-11 | Retention 30 days for telemetry, audit and backups | Adopted in SLO doc; **not implemented for audit** (F1) | TBD | Single policy; fix 7-vs-30 mismatch |
+| 2026-10-11 | RPO ≤ 24 h, RTO ≤ 4 h interim | Adopted; **unmeasured** | TBD | Daily backups plus manual rebuild |
+| — | Require MFA for staff (A.6) | **Open — recommended** | TBD | Required by §1 requirement 1 |
+| — | Automated dependency updates: Renovate / scheduled job / manual cadence | **Open** | TBD | Config removed from repo (F9) |
+| — | OIDC before SAML | Proposed | TBD | Broader IdP coverage; SAML on signed demand |
+| — | Single host retained through pilot | Proposed | TBD | Cost and simplicity; revisit in Phase 4 annual review |
+
+---
+
+## Appendix — Revision notes
+
+**Revision 2 (2026-10-12)** changes against the 2026-10-11 proposal:
+
+- Re-scored every pillar against the code using a fixed rubric (§2); corrected the stated
+  baseline average (2.2 → 2.4 under the original scores).
+- Marked all work items Done / Partial / Open with evidence (§4).
+- Added findings F1–F15, notably the 10,000-row audit cap, the dashboard purge that can erase the
+  trail, optional MFA, the host-local backup key and missing deliverables (§3).
+- Added items A.6, B.6, B.7 and the mail-specific requirements M1–M8 (§5).
+- Replaced the calendar-week phases with a roadmap from the current state (§6).
+- Recorded the system-email fix shipped on 2026-10-12.
+
+**Follow-ups outside this file:** correct `docs/enterprise-slo.md` (F13) and remove the
+"30 days everywhere" audit claim until G.3 ships.

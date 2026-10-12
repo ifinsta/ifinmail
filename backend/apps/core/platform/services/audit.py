@@ -3,15 +3,30 @@
 Persists audit events to the database via the AuditEvent model with
 an in-memory fallback when the database is unavailable.  Keeps the
 last 200 events in memory for fast dashboard access via get_recent().
-Automatically purges the oldest DB records when the table exceeds
-10,000 events.
+
+Retention is time-based (``AUDIT_RETENTION_DAYS``, default 365, minimum 30).
+Each persisted event stores the SHA-256 of its own fields plus the previous
+event's hash, so an edited or removed row inside the retention window breaks
+the chain and ``verify_chain`` reports where.  The chain proves *integrity of
+what is stored*; it cannot show that the newest rows were never deleted, so
+the head hash is included in every export for pinning off-host.
 """
 
+import hashlib
+import json
 import logging
-from datetime import UTC, datetime
+import os
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger('backend')
+
+DEFAULT_RETENTION_DAYS = 365
+MIN_RETENTION_DAYS = 30
+# Two writers can race for the same sequence number; the unique constraint
+# makes the loser retry instead of forking the chain.
+_CHAIN_RETRIES = 5
 
 # Lazy-import to avoid circular imports when models are not yet registered.
 _AuditEvent = None
@@ -36,7 +51,6 @@ class AuditService:
 
     _events: list[dict] = []
     _max_memory_events: int = 200
-    _max_db_events: int = 10_000
 
     # ------------------------------------------------------------------
     # Public API
@@ -175,16 +189,105 @@ class AuditService:
             ]
             return list(reversed(matched[-limit:]))
 
+    # ------------------------------------------------------------------
+    # Retention, integrity and export
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def retention_days() -> int:
+        """Days an event is kept (``AUDIT_RETENTION_DAYS``; never below the minimum)."""
+        try:
+            days = int(os.environ.get('AUDIT_RETENTION_DAYS', str(DEFAULT_RETENTION_DAYS)))
+        except ValueError:
+            days = DEFAULT_RETENTION_DAYS
+        return max(days, MIN_RETENTION_DAYS)
+
     @classmethod
-    def purge_keeping(cls, recent: int = 500) -> tuple[int, int]:
-        """Delete all but the ``recent`` newest rows. Returns ``(deleted, before)``."""
+    def purge_expired(cls, now: datetime | None = None) -> tuple[int, int]:
+        """Delete events older than the retention window. Returns ``(deleted, before)``.
+
+        The newest chained event is always kept so the chain keeps its head, and
+        nothing inside the window can be removed through this call.
+        """
+        from django.utils import timezone
+
         audit_event = _get_audit_model()
         total_before = audit_event.objects.count()
-        if total_before <= recent:
-            return 0, total_before
-        keep_ids = list(audit_event.objects.order_by('-time').values_list('id', flat=True)[:recent])
-        deleted, _ = audit_event.objects.exclude(id__in=keep_ids).delete()
+        cutoff = (now or timezone.now()) - timedelta(days=cls.retention_days())
+        expired = audit_event.objects.filter(time__lt=cutoff)
+        head = audit_event.objects.filter(seq__isnull=False).order_by('-seq').first()
+        if head is not None:
+            expired = expired.exclude(pk=head.pk)
+        deleted, _ = expired.delete()
         return deleted, total_before
+
+    @staticmethod
+    def digest(
+        seq: int, when: datetime, user: str, action: str, detail: str, severity: str, prev: str
+    ) -> str:
+        """SHA-256 over a canonical encoding of one event and its predecessor's hash."""
+        payload = json.dumps(
+            [seq, when.astimezone(UTC).isoformat(timespec='microseconds'), user, action]
+            + [detail, severity, prev],
+            separators=(',', ':'),
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+    @classmethod
+    def verify_chain(cls) -> dict[str, Any]:
+        """Walk the chain oldest to newest.
+
+        Returns ``{'ok', 'checked', 'head_seq', 'head_hash', 'error'}``. ``error`` names
+        the first sequence number that fails and why (``hash`` = fields were changed,
+        ``link`` = a row between two others was removed or reordered).
+        """
+        audit_event = _get_audit_model()
+        rows = audit_event.objects.filter(seq__isnull=False).order_by('seq').iterator()
+        checked, prev_seq, prev_hash = 0, None, ''
+        for row in rows:
+            expected = cls.digest(
+                row.seq, row.time, row.user, row.action, row.detail, row.severity, row.prev_hash
+            )
+            if expected != row.entry_hash:
+                return cls._chain_result(False, checked, prev_seq, prev_hash, row.seq, 'hash')
+            # The oldest retained row is the anchor: its predecessor was purged.
+            if prev_seq is not None and (row.prev_hash != prev_hash or row.seq != prev_seq + 1):
+                return cls._chain_result(False, checked, prev_seq, prev_hash, row.seq, 'link')
+            checked, prev_seq, prev_hash = checked + 1, row.seq, row.entry_hash
+        return cls._chain_result(True, checked, prev_seq, prev_hash, None, '')
+
+    @staticmethod
+    def _chain_result(
+        ok: bool, checked: int, head_seq: int | None, head_hash: str, bad: int | None, why: str
+    ) -> dict[str, Any]:
+        error = None if ok else {'seq': bad, 'reason': why}
+        return {
+            'ok': ok,
+            'checked': checked,
+            'head_seq': head_seq,
+            'head_hash': head_hash,
+            'error': error,
+        }
+
+    @classmethod
+    def export_rows(cls, severity: str = '') -> Iterator[dict[str, Any]]:
+        """Every retained event, oldest first, straight from the database."""
+        audit_event = _get_audit_model()
+        rows = audit_event.objects.all()
+        if severity:
+            rows = rows.filter(severity__iexact=severity)
+        for row in rows.order_by('time', 'seq').iterator():
+            yield {
+                'seq': row.seq,
+                'time': row.time.astimezone(UTC).isoformat(timespec='microseconds'),
+                'user': row.user,
+                'action': row.action,
+                'detail': row.detail,
+                'severity': row.severity,
+                'prev_hash': row.prev_hash,
+                'entry_hash': row.entry_hash,
+            }
 
     # ------------------------------------------------------------------
     # Internals
@@ -192,33 +295,42 @@ class AuditService:
 
     @classmethod
     def _persist_to_db(cls, event_data: dict) -> bool:
-        """Create a database row and trigger purge if needed.
+        """Append one event to the hash chain.
 
         Returns ``True`` on success, ``False`` when the database is not
-        available.
+        available (the caller still keeps the event in memory).
         """
         try:
+            from django.db import IntegrityError, transaction
+            from django.utils import timezone
+
             audit_event = _get_audit_model()
-            audit_event.objects.create(**event_data)
-            cls._purge_old_events()
-            return True
+            for _attempt in range(_CHAIN_RETRIES):
+                try:
+                    with transaction.atomic():
+                        head = (
+                            audit_event.objects.filter(seq__isnull=False).order_by('-seq').first()
+                        )
+                        seq = head.seq + 1 if head else 1
+                        prev = head.entry_hash if head else ''
+                        now = timezone.now()
+                        entry = cls.digest(
+                            seq,
+                            now,
+                            event_data['user'],
+                            event_data['action'],
+                            event_data['detail'],
+                            event_data['severity'],
+                            prev,
+                        )
+                        audit_event.objects.create(
+                            time=now, seq=seq, prev_hash=prev, entry_hash=entry, **event_data
+                        )
+                    return True
+                except IntegrityError:
+                    continue
+            logger.warning('AUDIT: chain write lost the sequence race %d times', _CHAIN_RETRIES)
+            return False
         except Exception as exc:
             logger.warning('AUDIT: DB persist failed — %s', exc)
             return False
-
-    @classmethod
-    def _purge_old_events(cls) -> None:
-        """Delete the oldest records when the table exceeds the configured limit."""
-        try:
-            audit_event = _get_audit_model()
-            total = audit_event.objects.count()
-            if total <= cls._max_db_events:
-                return
-
-            excess = total - cls._max_db_events
-            # Identify the ``excess`` oldest rows by time (ASC).
-            doomed_ids = audit_event.objects.order_by('time').values_list('id', flat=True)[:excess]
-            audit_event.objects.filter(id__in=list(doomed_ids)).delete()
-            logger.info('AUDIT: Purged %d events (limit=%d)', excess, cls._max_db_events)
-        except Exception as exc:
-            logger.warning('AUDIT: Purge failed — %s', exc)

@@ -231,6 +231,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'mail.apply_postfix_overrides',
         'schedule': crontab(minute='2,12,22,32,42,52'),
     },
+    'audit-maintenance': {
+        'task': 'core.audit_maintenance',
+        'schedule': crontab(hour=3, minute=50),
+    },
     'telemetry-purge': {
         'task': 'telemetry.purge',
         'schedule': crontab(hour=3, minute=30),

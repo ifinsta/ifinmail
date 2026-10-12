@@ -1,4 +1,4 @@
-"""Core jobs: certificate expiry monitoring."""
+"""Core jobs: certificate expiry monitoring, audit-trail maintenance."""
 
 from __future__ import annotations
 
@@ -58,3 +58,22 @@ def check_for_updates() -> dict[str, object]:
 
     status = UpdateService.check()
     return {'current': status.current, 'latest': status.latest, 'available': status.available}
+
+
+@shared_task(name='core.audit_maintenance')
+def audit_maintenance() -> dict[str, object]:
+    """Apply audit retention, then verify the hash chain and raise an alarm if it is broken."""
+    deleted, before = AuditService.purge_expired()
+    chain = AuditService.verify_chain()
+    if not chain['ok']:
+        error = chain['error'] or {}
+        AuditService.record(
+            action='audit_chain_broken',
+            detail=(
+                f'Audit trail fails verification at seq {error.get("seq")} '
+                f'({error.get("reason")})'
+            ),
+            severity='err',
+        )
+        logger.error('Audit chain broken: %s', error)
+    return {'deleted': deleted, 'before': before, **chain}

@@ -1,0 +1,52 @@
+manifest_version = 2
+
+[plugin]
+id = "assistant"
+name = "Assistant"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "operations"
+summary = "Ask your server why something is wrong and get a plain answer, or let it draft plugin settings for you to apply. Uses any OpenAI-compatible model you connect."
+requires_core = "0.0.12"
+install_by_default = true
+description = """
+The assistant answers questions about this server, such as "why is mail to gmail.com bouncing?" or "is anything wrong with my DNS?", by looking at the same checks as System health, the plugins and the audit trail, and explains the cause and the fix in plain language. It can also draft plugin settings ("block executables, keep interns internal") that you review and apply with one click.
+
+It does nothing until you connect a model: enter the API base URL and model of any OpenAI-compatible service, for example https://api.openai.com/v1, https://api.anthropic.com/v1/, https://openrouter.ai/api/v1, or a model on your own network such as http://192.168.1.5:11434/v1 (Ollama). The model must support tool calling; Test connection checks that.
+
+What is sent: your question and the results of the checks it runs (states, DNS findings, plugin settings, audit events). Never message contents, passwords or keys; secret-looking values are removed before anything leaves the server. The API key is stored encrypted and sent only to the API host. The assistant can only read and draft; it cannot change anything by itself. Conversations are kept for 30 days. Uninstalling it removes it for good; it is not reinstalled by updates.
+"""
+
+[[settings]]
+key = "base_url"
+type = "text"
+label = "API base URL"
+help = "OpenAI-compatible, usually ending in /v1. Leave empty to keep the assistant off."
+max_length = 300
+
+[[settings]]
+key = "model"
+type = "text"
+label = "Model"
+help = "For example gpt-4o-mini, claude-sonnet-4-5, llama3.1:8b."
+max_length = 120
+
+[[settings]]
+key = "api_key"
+type = "secret"
+label = "API key"
+help = "Stored encrypted. Leave empty to keep the current key; not needed for most local models."
+max_length = 500
+
+[[settings]]
+key = "daily_tokens"
+type = "integer"
+label = "Daily token budget"
+min = 1000
+max = 10000000
+default = 200000
+help = "The assistant stops for the day when it has used this many tokens."
+
+[[contributes]]
+capability = "assistant.model"
+values = { base_url = "{base_url}", model = "{model}", api_key = "{api_key}", daily_tokens = "{daily_tokens}" }

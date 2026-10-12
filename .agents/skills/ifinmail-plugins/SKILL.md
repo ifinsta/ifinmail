@@ -33,7 +33,7 @@ plugin.toml ──validate──> PluginManifest ──install──> PluginInst
 | Container side (re-validate, check config, reload, acknowledge) | `postfix/sync-overrides.sh`, `rspamd/sync-plugins.sh`, `dovecot/sync-plugins.sh` under `provisioning/docker/` | postfix, rspamd, dovecot containers |
 
 Full references: `references/manifest.md` (format and rules), `references/state-machines.md`
-(transitions, recovery, reconciliation), `references/edge-cases.md` (the 295 cases and where each is
+(transitions, recovery, reconciliation), `references/edge-cases.md` (the 310 cases and where each is
 handled).
 
 ## Principles (do not trade these away)

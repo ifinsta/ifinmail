@@ -18,6 +18,6 @@
             {% for label, value in check.values %}<dt>{{ label }}</dt><dd><code>{{ value }}</code></dd>{% endfor %}
         </dl>
         {% endif %}
-        {% if check.link %}<p class="ifinmail-guide-step__link"><a href="{{ check.link }}">{{ check.link_label }} &rarr;</a></p>{% endif %}
+        {% if check.link or assistant_ready and check.state == 'error' or assistant_ready and check.state == 'warning' %}<p class="ifinmail-guide-step__link">{% if check.link %}<a href="{{ check.link }}">{{ check.link_label }} &rarr;</a>{% endif %}{% if assistant_ready and check.state == 'error' or assistant_ready and check.state == 'warning' %}{% if check.link %} · {% endif %}<a href="{% url 'accounts:assistant' %}?q={% filter urlencode %}{% blocktrans trimmed with title=check.title group=check.group summary=check.summary %}System health says "{{ title }}" ({{ group }}): {{ summary }} Why, and how do I fix it?{% endblocktrans %}{% endfilter %}">{% trans 'Ask the assistant' %}</a>{% endif %}</p>{% endif %}
     {% endif %}
 </li>

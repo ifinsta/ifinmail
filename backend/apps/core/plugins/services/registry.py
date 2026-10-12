@@ -73,6 +73,9 @@ class AdapterTarget:
     key: str = ''
     # The container that applies it, named in status messages for the administrator.
     service: str = ''
+    # Consumed inside the console itself: no runtime file (so secrets never reach the shared
+    # runtime volume), always applied. Its values are read with InstallationService.
+    in_process: bool = False
     keys: dict[str, TargetKey] = {}
     runtime_file: str = ''
     ack_file: str = ''
@@ -90,12 +93,16 @@ class AdapterTarget:
 
     def publish(self, text: str) -> bool:
         """Write the file only when its content changes. Returns whether it was written."""
+        if self.in_process:
+            return False
         if read_runtime_file(self.runtime_file) == text:
             return False
         write_runtime_file(self.runtime_file, text)
         return True
 
     def applied_status(self) -> ApplyStatus:
+        if self.in_process:
+            return ApplyStatus.APPLIED
         current = read_runtime_file(self.runtime_file)
         if current is None:
             return ApplyStatus.UNKNOWN
@@ -129,6 +136,8 @@ class CapabilityField:
     # Contract value -> engine value (e.g. "yes" -> "on"); None passes it through. Empty stays
     # empty (the setting is removed).
     translate: Callable[[str], str] | None = None
+    # Carries a ``secret`` setting (stored encrypted); may only be bound to an in-process target.
+    secret: bool = False
 
 
 class Capability:
@@ -152,7 +161,7 @@ _setting_types: dict[str, tuple[str, LiveCheck]] = {}
 
 
 def register_target(target: AdapterTarget) -> None:
-    if not target.key or not target.keys or not target.runtime_file:
+    if not target.key or not target.keys or not (target.runtime_file or target.in_process):
         raise ValueError('an adapter target needs a key, allowed keys and a runtime file')
     _targets[target.key] = target
 
@@ -179,6 +188,8 @@ def register_capability(capability: Capability) -> None:
         target = _targets.get(spec.target[0])
         if target is None or spec.target[1] not in target.keys:
             raise ValueError(f'{capability.key}.{name} is bound to unknown target {spec.target}')
+        if spec.secret and not target.in_process:
+            raise ValueError(f'{capability.key}.{name} is secret but its target writes a file')
         if spec.target in bound:
             raise ValueError(f'{capability.key}.{name} and {bound[spec.target]} share a target')
     _capabilities[capability.key] = capability

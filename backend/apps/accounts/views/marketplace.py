@@ -20,6 +20,7 @@ from backend.apps.core.plugins.services import (
     registry,
 )
 from backend.apps.core.plugins.services import manifest as manifests
+from backend.apps.core.plugins.services import secrets as plugin_secrets
 from backend.apps.core.plugins.services.catalog import is_compatible
 from backend.apps.core.plugins.services.manifest import PluginManifest
 from backend.apps.core.plugins.types import (
@@ -96,7 +97,9 @@ def _fields(
                 'id': f'pl-{spec.key}',
                 'spec': spec,
                 'kind': spec.base_type,
-                'value': '' if value is None else value,
+                # A secret is never sent back to the browser, only whether one is stored.
+                'value': '' if value is None or spec.type == 'secret' else value,
+                'is_set': spec.type == 'secret' and bool(value),
                 'error': errors.get(spec.key, ''),
             }
         )
@@ -104,18 +107,26 @@ def _fields(
 
 
 def _posted_settings(request: HttpRequest, manifest: PluginManifest) -> dict[str, object]:
-    return {
+    posted = {
         spec.key: request.POST.get(f'{SETTING_PREFIX}{spec.key}', '') for spec in manifest.settings
     }
+    # An empty secret field keeps the stored secret (it is never shown, so it cannot be "kept").
+    for spec in manifest.settings:
+        if spec.type == 'secret' and not str(posted.get(spec.key, '')).strip():
+            posted.pop(spec.key)
+    return posted
 
 
 def _changes(manifest: PluginManifest, settings: dict | None) -> list[dict]:
     """What the plugin writes, in words, with the values it would produce right now."""
     rows = []
+    secret_names = {s.key for s in manifest.settings if s.type == 'secret'}
     for contribution in manifest.contributes:
         capability = registry.get_capability(contribution.capability)
         for key, template in contribution.values:
             value = manifests.expand(template, settings or {}) if settings else ''
+            if secret_names & set(manifests.placeholders(template)):
+                value = plugin_secrets.MASK if value else ''
             rows.append(
                 {
                     'capability': capability.title if capability else contribution.capability,
@@ -324,9 +335,7 @@ def _done_message(result) -> str:
         Operation.RETRY: 'applied',
         Operation.UNINSTALL: 'uninstalled',
     }
-    tail = (
-        '' if result.to_state == ABSENT else ' Postfix applies the change within about 10 seconds.'
-    )
+    tail = '' if result.to_state == ABSENT else ' Changes take effect within about 10 seconds.'
     return f'{result.plugin_id}: {words[result.operation]}.{tail}'
 
 

@@ -21,3 +21,5 @@ class SettingKey(StrEnum):
     ENTRYPOINTS = 'network.entrypoints'
     NETWORK_BLOCKLIST = 'network.blocklist'
     NETWORK_RATE_LIMITS = 'network.rate_limits'
+    # Bundled plugins with install_by_default already offered once (installed, or later removed).
+    PLUGIN_DEFAULTS_OFFERED = 'plugins.defaults_offered'

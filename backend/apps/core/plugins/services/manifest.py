@@ -15,6 +15,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 
 from backend.apps.core.plugins.services import registry
+from backend.apps.core.plugins.services import secrets as plugin_secrets
 from backend.apps.core.plugins.types import (
     CATEGORIES,
     MANIFEST_VERSION,
@@ -34,7 +35,7 @@ CONTROL_RE = re.compile(r'[\x00-\x1f\x7f]')
 DESCRIPTION_CONTROL_RE = re.compile(r'[\x00-\x08\x0b-\x1f\x7f]')
 PLACEHOLDER_RE = re.compile(r'\{\{|\}\}|\{([^{}]*)\}|[{}]')
 
-BUILTIN_TYPES = ('text', 'integer', 'boolean', 'choice', 'email')
+BUILTIN_TYPES = ('text', 'integer', 'boolean', 'choice', 'email', 'secret')
 MAX_SETTINGS = 20
 MAX_CONTRIBUTIONS = 10
 TRUE_WORDS = ('on', 'true', '1', 'yes')
@@ -49,6 +50,7 @@ _PLUGIN_KEYS = {
     'summary',
     'description',
     'requires_core',
+    'install_by_default',
 }
 _SETTING_KEYS = {
     'key',
@@ -111,6 +113,8 @@ class PluginManifest:
     contributes: tuple[Contribution, ...]
     sha256: str
     text: str = field(repr=False)
+    # Installed once on every server (bundled plugins only); an uninstall is respected.
+    install_by_default: bool = False
 
     @property
     def version_tuple(self) -> tuple[int, int, int]:
@@ -224,6 +228,10 @@ def _validate(data: Mapping, problems: list, text: str) -> PluginManifest | None
     requires_core = _str(plugin, 'requires_core', 'plugin', problems, lo=5, hi=20, required=False)
     if requires_core and not parse_version(requires_core):
         problems.append(('plugin.requires_core', 'must be MAJOR.MINOR.PATCH, e.g. 0.0.4'))
+    install_by_default = plugin.get('install_by_default', False)
+    if not isinstance(install_by_default, bool):
+        problems.append(('plugin.install_by_default', 'must be true or false'))
+        install_by_default = False
 
     settings = _validate_settings(data.get('settings', []), problems)
     contributes = _validate_contributions(data.get('contributes'), settings, problems)
@@ -242,6 +250,7 @@ def _validate(data: Mapping, problems: list, text: str) -> PluginManifest | None
         contributes=tuple(contributes),
         sha256=hashlib.sha256(text.encode('utf-8')).hexdigest(),
         text=text,
+        install_by_default=install_by_default,
     )
 
 
@@ -307,12 +316,12 @@ def _validate_settings(raw: object, problems: list) -> list[SettingSpec]:
             problems.append((f'{where}.options', 'is required for a choice'))
         if 'max_length' in item:
             if (
-                base != 'text'
+                base not in ('text', 'secret')
                 or not _is_int(item['max_length'])
                 or not 1 <= item['max_length'] <= 500
             ):
                 problems.append(
-                    (f'{where}.max_length', 'only text settings take max_length (1-500)')
+                    (f'{where}.max_length', 'only text and secret settings take max_length (1-500)')
                 )
             else:
                 spec_kwargs['max_length'] = item['max_length']
@@ -320,7 +329,9 @@ def _validate_settings(raw: object, problems: list) -> list[SettingSpec]:
             key=key, type=kind, label=label, help=help_text, required=required, **spec_kwargs
         )
         if 'default' in item:
-            if registry.setting_type(kind) is not None:
+            if kind == 'secret':
+                problems.append((f'{where}.default', 'secret settings cannot have a default'))
+            elif registry.setting_type(kind) is not None:
                 problems.append((f'{where}.default', f'"{kind}" settings cannot have a default'))
             elif known:
                 try:
@@ -340,6 +351,7 @@ def _validate_contributions(
     if len(raw) > MAX_CONTRIBUTIONS:
         problems.append(('contributes', f'at most {MAX_CONTRIBUTIONS} entries'))
     declared = {s.key for s in settings}
+    secret_keys = {s.key for s in settings if s.type == 'secret'}
     claimed: set[tuple[str, str]] = set()
     result: list[Contribution] = []
     for i, item in enumerate(raw):
@@ -377,6 +389,14 @@ def _validate_contributions(
             for name in names:
                 if name not in declared:
                     problems.append((loc, f'refers to undeclared setting "{name}"'))
+            field_spec = capability.fields.get(key) if capability is not None else None
+            is_secret_field = bool(field_spec and field_spec.secret)
+            whole = len(names) == 1 and template == '{' + names[0] + '}'
+            if secret_keys & set(names) and not (whole and is_secret_field):
+                # A secret may only travel whole, to a field that keeps it inside the console.
+                problems.append((loc, 'a secret setting may only be a secret field, whole'))
+            if is_secret_field and not (len(names) == 1 and names[0] in secret_keys):
+                problems.append((loc, 'a secret field takes exactly one secret setting'))
             if capability is not None and key in capability.fields and not names:
                 # A literal value: check it now rather than at install time.
                 error = capability.validate(key, capability.normalize(key, template))
@@ -441,6 +461,17 @@ def _clean_value(spec: SettingSpec, raw: object, *, live: bool) -> object:
         if spec.required:
             raise ValueError('is required')
         return None
+    if base == 'secret':
+        if plugin_secrets.is_encrypted(raw):
+            return raw  # already stored; never decrypted here
+        if not isinstance(raw, str):
+            raise ValueError('must be text')
+        text = raw.strip()
+        if CONTROL_RE.search(text) or ' ' in text:
+            raise ValueError('must not contain spaces or control characters')
+        if len(text) > spec.max_length:
+            raise ValueError(f'must be at most {spec.max_length} characters')
+        return plugin_secrets.encrypt(text)
     if base == 'integer':
         if isinstance(raw, bool):
             raise ValueError('must be a whole number')

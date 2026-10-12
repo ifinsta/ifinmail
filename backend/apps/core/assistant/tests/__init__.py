@@ -1,0 +1,1 @@
+"""core.assistant — tests placeholder."""

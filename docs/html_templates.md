@@ -43,6 +43,7 @@ verify — every row must exist on disk.
 | `admin/marketplace_plugin.html` | (Marketplace extension) | one plugin: about, what it changes, settings, update, manage |
 | `admin/marketplace_submit.html` | (Marketplace extension) | submit a `plugin.toml` for review |
 | `admin/marketplace_submission.html` | (Marketplace extension) | review a submission (approve, reject, withdraw, retire) |
+| `admin/assistant.html` | (Assistant extension) | `accounts/views/assistant.py` — ask, answers with "What was sent", drafted plugin changes with Apply, recent conversations; empty state until a model is connected |
 | `admin/partials/plugin_fields.html` | (Marketplace extension) | setting fields rendered from a plugin manifest |
 
 ## Settings hub (`SettingsCatalogue` in `accounts/services/settings_catalogue.py`)

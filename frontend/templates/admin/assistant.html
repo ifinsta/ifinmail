@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Assistant — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Assistant' %}</h1>
+                <p class="ifinmail-page-subtitle">
+                    {% if configured %}{% blocktrans trimmed with model=model host=host %}Answers come from <span class="ifinmail-text--mono">{{ model }}</span> at <span class="ifinmail-text--mono">{{ host }}</span>. It reads this server's checks and drafts changes; it never changes anything by itself.{% endblocktrans %}
+                    {% else %}{% trans 'Ask why something is wrong and get a plain answer, or have it draft plugin settings for you to apply.' %}{% endif %}
+                </p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:marketplace_plugin' plugin_id='assistant' %}">{% trans 'Connection settings' %}</a>
+                {% if configured %}
+                <form method="post" action="{% url 'accounts:assistant_test' %}">
+                    {% csrf_token %}
+                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Test connection' %}</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% include "includes/flash_messages.html" %}
+
+        {% if not configured %}
+        <section class="ifinmail-panel ifinmail-settings-section">
+            <div class="ifinmail-empty-state">
+                <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-7 7v3l-2 3h18l-2-3v-3a7 7 0 0 0-7-7Z"/><path d="M9 19a3 3 0 0 0 6 0"/></svg>
+                <p><strong>{% trans 'No model is connected' %}</strong></p>
+                <p>{% trans 'Enter the API base URL and model of any OpenAI-compatible service. Nothing is sent anywhere until you do.' %}</p>
+                <p><a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'accounts:marketplace_plugin' plugin_id='assistant' %}">{% trans 'Connect a model' %}</a></p>
+            </div>
+        </section>
+        {% else %}
+
+        {% if conversation %}
+        {% for turn in turns %}
+        <section class="ifinmail-panel ifinmail-settings-section ifinmail-assistant-turn" aria-label="{% trans 'Question and answer' %}">
+            <p class="ifinmail-assistant-question">{{ turn.question.content }}</p>
+
+            {% if turn.steps %}
+            <details class="ifinmail-assistant-sent">
+                <summary>{% blocktrans trimmed count n=turn.steps|length with host=conversation.provider_host %}What was sent to {{ host }}: {{ n }} check{% plural %}What was sent to {{ host }}: {{ n }} checks{% endblocktrans %}</summary>
+                <ol class="ifinmail-assistant-steps">
+                    {% for step in turn.steps %}
+                    <li>
+                        <span class="ifinmail-text--mono">{{ step.tool_name }}</span>{% if step.tool_arguments %} <span class="ifinmail-help-text ifinmail-text--mono">{{ step.tool_arguments }}</span>{% endif %}
+                        <pre class="ifinmail-codebox ifinmail-assistant-data">{{ step.content }}</pre>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </details>
+            {% endif %}
+
+            {% for answer in turn.answers %}<div class="ifinmail-prose ifinmail-assistant-answer">{{ answer.content|linebreaksbr }}</div>{% endfor %}
+
+            {% for step in turn.proposals %}
+            <div class="ifinmail-assistant-proposal">
+                <h2 class="ifinmail-panel-title">{% blocktrans trimmed with plugin=step.proposal.plugin_name %}Draft: {{ plugin }}{% endblocktrans %}</h2>
+                {% if not step.proposal.installed %}<p class="ifinmail-help-text">{% trans 'Applying also installs and enables this plugin.' %}</p>{% endif %}
+                <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Drafted changes' %}">
+                    <table class="ifinmail-admin-table">
+                        <thead><tr><th>{% trans 'Setting' %}</th><th>{% trans 'Now' %}</th><th>{% trans 'Draft' %}</th></tr></thead>
+                        <tbody>
+                        {% for change in step.proposal.changes %}
+                            <tr><td>{{ change.setting }}</td><td class="ifinmail-text--mono">{{ change.before|default_if_none:'—' }}</td><td class="ifinmail-text--mono">{{ change.after|default_if_none:'—' }}</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </article>
+                {% if step.proposal_applied_at %}
+                <p><span class="ifinmail-badge ifinmail-badge--success">{% trans 'Applied' %}</span> <span class="ifinmail-help-text">{% blocktrans trimmed with who=step.proposal_applied_by when=step.proposal_applied_at|date:'Y-m-d H:i' %}by {{ who }} at {{ when }}{% endblocktrans %}</span></p>
+                {% else %}
+                <form method="post" action="{% url 'accounts:assistant_apply' message_id=step.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="conversation" value="{{ conversation.pk }}">
+                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Apply these settings' %}</button>
+                    <span class="ifinmail-help-text">{% trans 'Validated again when you apply; recorded in the audit trail.' %}</span>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% endfor %}
+
+        {% if running %}
+        <p class="ifinmail-assistant-working" role="status" data-assistant-poll="{% url 'accounts:assistant_status' conversation_id=conversation.pk %}">{% trans 'Working on it. This page updates by itself.' %}</p>
+        {% elif conversation.status == 'failed' %}
+        <p class="ifinmail-error-banner" role="alert">{{ conversation.error }}</p>
+        {% endif %}
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="as-ask">
+            <h2 class="ifinmail-panel-title" id="as-ask">{% if conversation %}{% trans 'Follow-up question' %}{% else %}{% trans 'Ask about this server' %}{% endif %}</h2>
+            <form method="post" action="{% url 'accounts:assistant_ask' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                {% if conversation %}<input type="hidden" name="conversation" value="{{ conversation.pk }}">{% endif %}
+                <label class="ifinmail-sr-only" for="as-question">{% trans 'Question' %}</label>
+                <textarea class="ifinmail-input" id="as-question" name="question" rows="3" maxlength="2000" required aria-describedby="as-question-help" placeholder="{% trans 'For example: why is mail to gmail.com bouncing? Is my DNS set up correctly? Block executables and keep interns internal.' %}"{% if running %} disabled{% endif %}>{{ prefill }}</textarea>
+                <small class="ifinmail-help-text" id="as-question-help">{% blocktrans trimmed with today=usage.today budget=usage.budget %}Your question and the results of the checks it runs are sent to the model; never message contents, passwords or keys. Today: {{ today }} of {{ budget }} tokens.{% endblocktrans %}</small>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit"{% if running %} disabled{% endif %}>{% trans 'Ask' %}</button>{% if conversation %} <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:assistant' %}">{% trans 'New conversation' %}</a>{% endif %}</div>
+            </form>
+        </section>
+
+        {% if conversations %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="as-recent">
+            <h2 class="ifinmail-panel-title" id="as-recent">{% trans 'Recent conversations' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Kept for 30 days, visible only to you.' %}</p>
+            <ul class="ifinmail-assistant-history">
+                {% for item in conversations %}
+                <li><a href="{% url 'accounts:assistant_conversation' conversation_id=item.pk %}"{% if conversation and item.pk == conversation.pk %} aria-current="page"{% endif %}>{{ item.title }}</a> <span class="ifinmail-help-text ifinmail-text--mono">{{ item.updated_at|date:'Y-m-d H:i' }}</span></li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ifinmail-assistant.js' %}"></script>
+{% endblock %}

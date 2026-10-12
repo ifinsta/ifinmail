@@ -8,6 +8,8 @@ class MailConfig(AppConfig):
 
     def ready(self) -> None:
         # Extension points and setting types this app offers to plugins.
+        from backend.apps.mail.assistant_handlers import register as register_tools
         from backend.apps.mail.services.plugin_points import register
 
         register()
+        register_tools()

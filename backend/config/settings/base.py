@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # ifinmail platform services (audit trail, TLS, monitoring, runtime files)
     'backend.apps.core.platform.apps.PlatformConfig',
     'backend.apps.core.plugins.apps.PluginsConfig',
+    'backend.apps.core.assistant.apps.AssistantConfig',
     # ifinmail apps
     'backend.apps.accounts.apps.AccountsConfig',
     'backend.apps.devices.apps.DevicesConfig',
@@ -252,6 +253,11 @@ CELERY_BEAT_SCHEDULE = {
     'check-for-updates': {
         'task': 'core.check_for_updates',
         'schedule': crontab(minute=40, hour='*/6'),
+    },
+    'assistant-purge': {
+        # Assistant conversations are kept 30 days.
+        'task': 'assistant.purge',
+        'schedule': crontab(hour=3, minute=40),
     },
     'telemetry-digest': {
         'task': 'telemetry.digest',

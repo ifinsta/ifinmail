@@ -1,0 +1,1 @@
+"""core.assistant — forms placeholder."""

@@ -16,6 +16,7 @@ category = "compliance"            # compliance | security | delivery | operatio
 summary = "One line, 1-160 characters."
 description = """Plain text, at most 4000 characters. Rendered escaped; blank lines are paragraphs."""
 requires_core = "0.0.10"           # optional: lowest core release this works with
+install_by_default = false         # optional; bundled only: installed once per server, an uninstall is respected
 
 [[settings]]                       # 0-20 entries
 key = "archive_address"            # ^[a-z][a-z0-9_]{0,39}$, unique
@@ -41,6 +42,7 @@ values = { archive_address = "{archive_address}" }
 | `choice` | string | one of `options` (1-50 unique strings) |
 | `email` | string | lower-cased; one `@`; no spaces, quotes, commas or control characters |
 | `mailbox` | string | an `email` that is an existing mailbox on this server (registered by the mail app); checked again when the plugin is enabled |
+| `secret` | string | an API key or token: no spaces; encrypted at rest (`plugin-secret:` + Fernet, key derived from `SECRET_KEY`); never shown again (password field, "•••• set"), an empty field keeps it; no default; may only be the **whole value** of a capability field marked `secret`, and such fields may only be bound to an in-console adapter target, so a secret never reaches a runtime file |
 
 Defaults are validated with the type rules except the live check of `mailbox` (it cannot have a
 meaningful default and is rejected if one is given).
@@ -87,6 +89,7 @@ comma-separated and normalised (lower-case, sorted, de-duplicated, at most 200 e
 | `mailbox.retention` | `trash_days`, `junk_days`, `sent_days` | 1-3650 | Delete messages in that folder after N days |
 | `mailbox.forwarding` | `max_redirects` | 0-20 | Addresses one filter rule may forward to (0 = none) |
 | `mailbox.quota_warnings` | `enabled` | yes/no | Notice in the Inbox at 80% and 95% of the quota |
+| `assistant.model` | `base_url`, `model`, `api_key` (secret), `daily_tokens` | http(s) URL, model name, secret, 1000-10000000 | The administrator assistant's OpenAI-compatible model (in-console target `console.assistant`) |
 
 **Adding a capability:** only when a real plugin needs it. Name the outcome, not the mechanism; give
 every field one documented meaning and plain units; bind each field to exactly one adapter target key
@@ -96,6 +99,10 @@ every field one documented meaning and plain units; bind each field to exactly o
 translations) in `_capabilities()`. Manifests, installations and their settings do not change.
 
 # Adapter (engine side: plugins never see this)
+
+Most targets are files applied by a container. A target with `in_process = True` (only
+`console.assistant` today) has no file and is always "applied": the console reads its values with
+`InstallationService.capability_values()`. Secret fields may only be bound to such targets.
 
 Each adapter target is a `key = value` file on the runtime volume, applied by a watcher in the
 container that owns the software. `registry.to_targets()` turns capability values into target values

@@ -135,6 +135,26 @@ checked twice (by the console and by the container that applies it).
   `.agents/skills/ifinmail-plugins/`. In a development checkout, check a manifest with
   `python manage.py validate_plugin path/to/plugin.toml`.
 
+### Assistant
+
+The **Assistant** (speech-bubble button in the header, for administrators with `system.manage`)
+answers questions about this server ("why is mail to gmail.com bouncing?") from the same checks as
+System health, the plugins and the audit trail, and can draft plugin settings that you apply with
+one click. Failing System health checks offer "Ask the assistant".
+
+- It is a built-in plugin, installed on every server and **inert until you connect a model**:
+  Marketplace → Assistant, then the API base URL and model of any OpenAI-compatible service
+  (OpenAI, Anthropic's compatible endpoint, OpenRouter, Groq, Mistral, a local Ollama or vLLM...).
+  The model must support tool calling; **Test connection** checks it. Uninstalling it is final.
+- **It cannot change anything by itself.** Its tools only read, or draft a change that is validated
+  and shown with an Apply button; applying is your click, recorded in the audit trail.
+- **What is sent:** your question and the results of the checks it runs. Never message contents,
+  passwords or keys; secret-looking values are removed first, and every answer shows exactly what
+  was sent and to which host. The API key is stored encrypted and sent only to that host
+  (redirects refused, cloud metadata addresses blocked).
+- Limits: a daily token budget (default 200,000), 8 model calls per question, one question at a
+  time per administrator; conversations are kept 30 days. Answers are prepared by the `worker`.
+
 ### Off-site copy and the backup key
 
 Backups are encrypted with GPG and, by default, stay on the same disk as the server. Two small

@@ -142,7 +142,7 @@ class CapabilityContractTests(SimpleTestCase):
     ENGINE_WORDS = ('postfix', 'dovecot', 'rspamd', 'sieve', 'milter', 'main.cf', 'postconf')
 
     def test_bundled_manifests_never_name_the_mail_software(self) -> None:
-        engine_keys = {key for t in registry.targets() for key in t.keys}
+        engine_keys = {key for t in registry.targets() if not t.in_process for key in t.keys}
         for entry in CatalogService.bundled():
             text = entry.manifest.text.lower()
             with self.subTest(plugin=entry.plugin_id):
@@ -241,12 +241,21 @@ class CapabilityContractTests(SimpleTestCase):
 
 
 class BundledPluginsTests(SimpleTestCase):
-    def test_four_plugins_cover_every_capability_once(self) -> None:
+    def test_bundled_plugins_cover_every_capability_once(self) -> None:
         self.assertEqual(CatalogService.bundled_errors(), ())
         bundled = CatalogService.bundled()
         self.assertEqual(
             sorted(e.plugin_id for e in bundled),
-            ['compliance-journal', 'inbound-protection', 'mailbox-care', 'sending-policy'],
+            [
+                'assistant',
+                'compliance-journal',
+                'inbound-protection',
+                'mailbox-care',
+                'sending-policy',
+            ],
+        )
+        self.assertEqual(
+            [e.plugin_id for e in bundled if e.manifest.install_by_default], ['assistant']
         )
         claimed = [k for e in bundled for k in e.manifest.claimed_keys()]
         self.assertEqual(len(claimed), len(set(claimed)), 'two bundled plugins claim the same key')
@@ -810,6 +819,7 @@ class ApplyStatusTests(MailTablesTestCase):
         self.assertEqual(
             sorted(statuses),
             [
+                'console.assistant',
                 'dovecot.policy',
                 'postfix.main',
                 'postfix.sender_policy',

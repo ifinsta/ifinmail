@@ -1,4 +1,4 @@
-# Edge cases (295)
+# Edge cases (310)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -6,6 +6,8 @@ Every case below is handled. **Proof** says how we know:
 | --- | --- |
 | `M` | `backend/apps/core/plugins/tests/test_manifest.py` |
 | `L` | `backend/apps/core/plugins/tests/test_lifecycle.py` |
+| `A` | `backend/apps/core/assistant/tests/test_assistant.py` (a real local OpenAI-compatible server) |
+| `AV` | `backend/apps/accounts/tests/test_assistant_views.py` |
 | `S` | `backend/apps/core/plugins/tests/test_submissions.py` |
 | `P` | `backend/apps/core/plugins/tests/test_postfix_sync.py` (the real watcher script, stubbed binaries) |
 | `B` | `backend/apps/core/plugins/tests/test_scheduling.py` |
@@ -15,7 +17,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 237 tested, 19 verified live only, 35 code, 4 decision (295 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 252 tested, 19 verified live only, 35 code, 4 decision (310 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -394,4 +396,24 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 293 | Built-in plugins together | Offer every capability field exactly once; a gap or overlap fails a test | R |
 | 294 | Two plugins writing the same engine file; one disabled or uninstalled | The other's values stay | L2 |
 | 295 | Removed plugin ids (attachment-guard, dmarc-enforcement, ...) | Gone from the catalog; no server had them installed, so nothing to migrate | decision |
+
+## P. Secrets, default installs and the Assistant plugin
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 296 | API key saved | Encrypted in the database; never in a runtime file, page, repr or audit entry | A, AV |
+| 297 | Plugin saved again with the key field empty | Stored key kept | A, AV |
+| 298 | Secret used in an ordinary field, glued into a longer value, or a literal in a secret field | Manifest refused | A |
+| 299 | Secret capability field bound to a file target | `ValueError` at registration | A |
+| 300 | `install_by_default` plugin | Installed once by reconcile; inert until configured; never reinstalled after an uninstall | A |
+| 301 | Stored key unreadable (SECRET_KEY changed) | "enter it again"; nothing sent | A |
+| 302 | Endpoint is a metadata address, has credentials in the URL, or is not http(s) | Refused before any request | A |
+| 303 | Provider answers with a redirect | Refused; the key is not sent to the redirect target | A |
+| 304 | 401 / 404 / 429 / 5xx / not chat-completions | Plain explanation; 429 and 5xx retried once | A |
+| 305 | Model calls an unknown tool or passes bad arguments | Told so in the tool result; the run continues | A |
+| 306 | Text in a tool result tells the model to change something | No tool can change anything; drafts need a person's click | A |
+| 307 | Draft invalid, for a secret, or for the assistant's own settings | Refused with the reason; no Apply button | A |
+| 308 | Draft applied twice, or by another administrator | Refused | A |
+| 309 | Daily token budget used up; 8 model calls without an answer | Stops with a clear message | A |
+| 310 | Administrator without `system.manage` | No header button; pages and actions answer 403 | AV |
 

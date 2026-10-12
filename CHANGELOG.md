@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.12
+- **Assistant**: ask the server why something is wrong and get a plain answer, or have it draft
+  plugin settings for you to apply. Header button and "Ask the assistant" on failing System
+  health checks. Works with any OpenAI-compatible API (chat completions with tool calling);
+  other API styles can be added behind the same provider interface later.
+  - Built-in plugin, installed by default and inert until a model URL is set; Test connection
+    checks that the model can call tools. Uninstalling it is respected by later updates.
+  - Tools: System health, mailboxes and aliases, plugins and their settings, recent audit
+    events (read), and drafting plugin settings (validated, applied only by your click).
+  - Safety: message contents are never available to it; tool results are redacted (keys,
+    tokens, passwords, private keys) and shown under each answer with the host they went to;
+    the key is encrypted at rest and sent only to the API host; redirects and cloud metadata
+    addresses are refused; daily token budget, 8 steps per question, one question at a time;
+    30-day retention; `system.manage` only; everything recorded in the audit trail.
+- Plugin layer: a `secret` setting type (encrypted, never shown again, only usable by fields
+  that stay inside the console), `install_by_default` for bundled plugins, and in-console adapter
+  targets. 310 handled edge cases are documented.
+
 ## v0.0.11
 - **Eight built-in plugins become four**, grouped by what an administrator decides together. One
   plugin can now write several capabilities:

@@ -14,6 +14,8 @@
         </select>
         {% elif f.kind == 'integer' %}
         <input class="ifinmail-input ifinmail-text--mono" id="{{ f.id }}" name="{{ f.name }}" type="number" inputmode="numeric" value="{{ f.value }}"{% if f.spec.min is not None %} min="{{ f.spec.min }}"{% endif %}{% if f.spec.max is not None %} max="{{ f.spec.max }}"{% endif %}{% if f.spec.required %} required{% endif %}{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}>
+        {% elif f.kind == 'secret' %}
+        <input class="ifinmail-input ifinmail-text--mono" id="{{ f.id }}" name="{{ f.name }}" type="password" value="" maxlength="{{ f.spec.max_length }}" autocomplete="new-password" spellcheck="false" placeholder="{% if f.is_set %}{% trans '•••• set — leave empty to keep' %}{% else %}{% trans 'not set' %}{% endif %}"{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}>
         {% else %}
         <input class="ifinmail-input{% if f.kind == 'email' %} ifinmail-text--mono{% endif %}" id="{{ f.id }}" name="{{ f.name }}" type="{% if f.kind == 'email' %}email{% else %}text{% endif %}" value="{{ f.value }}"{% if f.kind == 'text' %} maxlength="{{ f.spec.max_length }}"{% endif %} autocomplete="off" autocapitalize="off" spellcheck="false"{% if f.spec.required %} required{% endif %}{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}>
         {% endif %}

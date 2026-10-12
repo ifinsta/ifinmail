@@ -1,6 +1,14 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
+from .views.assistant import (
+    assistant,
+    assistant_apply,
+    assistant_ask,
+    assistant_conversation,
+    assistant_status,
+    assistant_test,
+)
 from .views.marketplace import (
     marketplace,
     marketplace_plugin,
@@ -181,6 +189,16 @@ urlpatterns = [
     path('users/export/', users_export, name='users_export'),
     path('users/kill-sessions/', users_kill_sessions, name='users_kill_sessions'),
     # Marketplace (plugins)
+    path('assistant/', assistant, name='assistant'),
+    path('assistant/ask/', assistant_ask, name='assistant_ask'),
+    path('assistant/test/', assistant_test, name='assistant_test'),
+    path(
+        'assistant/<uuid:conversation_id>/',
+        assistant_conversation,
+        name='assistant_conversation',
+    ),
+    path('assistant/<uuid:conversation_id>/status/', assistant_status, name='assistant_status'),
+    path('assistant/proposals/<uuid:message_id>/apply/', assistant_apply, name='assistant_apply'),
     path('marketplace/', marketplace, name='marketplace'),
     path('marketplace/submit/', marketplace_submit, name='marketplace_submit'),
     path(

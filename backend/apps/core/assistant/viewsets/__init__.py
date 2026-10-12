@@ -1,0 +1,1 @@
+"""core.assistant — viewsets placeholder."""

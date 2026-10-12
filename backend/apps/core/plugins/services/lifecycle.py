@@ -228,21 +228,44 @@ class InstallationService:
 
     # ------------------------------------------------------------------ reconciliation
 
+    @staticmethod
+    def _enabled_values() -> list[tuple[str, dict[str, dict[str, str]]]]:
+        """(plugin id, {capability: {field: value}}) for every enabled installation."""
+        out = []
+        for row in PluginInstallation.objects.all():
+            if _effective_state(row) != InstallationState.ENABLED:
+                continue
+            try:
+                rendered = manifests.rendered_values(manifests.load(row.manifest), row.settings)
+            except PluginError as exc:
+                # Never let one broken row block the others; it is reported on its page.
+                logger.warning('Plugin %s cannot be rendered: %s', row.plugin_id, exc)
+                continue
+            out.append((row.plugin_id, rendered))
+        return out
+
+    @classmethod
+    def capability_values(cls, capability: str) -> dict[str, str]:
+        """Current values of one capability from enabled plugins (for in-console consumers).
+
+        Secret fields come back encrypted; only their consumer decrypts them."""
+        merged: dict[str, str] = {}
+        for _, rendered in cls._enabled_values():
+            for key, value in rendered.get(capability, {}).items():
+                merged.setdefault(key, value)
+        return merged
+
     @classmethod
     def publish_all(cls) -> dict[str, bool]:
         """Render every adapter target from the database; write only what changed.
 
         Plugins speak capabilities; ``registry.to_targets`` turns them into engine values."""
         values: dict[str, dict[str, str]] = {t.key: {} for t in registry.targets()}
-        for row in PluginInstallation.objects.all():
-            if _effective_state(row) != InstallationState.ENABLED:
-                continue
+        for plugin_id, rendered in cls._enabled_values():
             try:
-                manifest = manifests.load(row.manifest)
-                engine = registry.to_targets(manifests.rendered_values(manifest, row.settings))
-            except (PluginError, ValueError) as exc:
-                # Never let one broken row block the others; it is reported on its page.
-                logger.warning('Plugin %s cannot be rendered: %s', row.plugin_id, exc)
+                engine = registry.to_targets(rendered)
+            except ValueError as exc:
+                logger.warning('Plugin %s cannot be rendered: %s', plugin_id, exc)
                 continue
             for target_key, pairs in engine.items():
                 bucket = values.setdefault(target_key, {})
@@ -254,14 +277,44 @@ class InstallationService:
         return changed
 
     @classmethod
+    def install_defaults(cls) -> list[str]:
+        """Install bundled plugins marked ``install_by_default`` once per server.
+
+        Each id is recorded as offered whether or not the install succeeds, so a plugin the
+        administrator later uninstalls is never brought back. Returns the ids installed now."""
+        from backend.apps.core.services import SystemSettings
+        from backend.apps.core.types import SettingKey
+
+        offered = set(SystemSettings.get(SettingKey.PLUGIN_DEFAULTS_OFFERED, []) or [])
+        installed: list[str] = []
+        for entry in CatalogService.bundled():
+            if not entry.manifest.install_by_default or entry.plugin_id in offered:
+                continue
+            if not PluginInstallation.objects.filter(plugin_id=entry.plugin_id).exists():
+                try:
+                    cls.install(entry.plugin_id, {}, 'system')
+                except PluginError as exc:  # retried on the next reconcile
+                    logger.warning('Default plugin %s was not installed: %s', entry.plugin_id, exc)
+                    continue
+                installed.append(entry.plugin_id)
+            SystemSettings.mutate(
+                SettingKey.PLUGIN_DEFAULTS_OFFERED,
+                lambda ids, pid=entry.plugin_id: sorted({*(ids or []), pid}),
+                [],
+            )
+        return installed
+
+    @classmethod
     def reconcile(cls) -> dict[str, object]:
-        """Finish stale operations and republish every target (idempotent, cheap)."""
+        """Finish stale operations, install defaults once, republish every target (cheap)."""
         finished = 0
         for row in PluginInstallation.objects.filter(state__in=list(TRANSIENT_STATES)):
             if _stale(row):
                 cls._finish_stale(row)
                 finished += 1
-        return {'finished_stale': finished, 'written': cls.publish_all()}
+        written = cls.publish_all()
+        defaults = cls.install_defaults()  # each install publishes its own change
+        return {'finished_stale': finished, 'defaults': defaults, 'written': written}
 
     # ------------------------------------------------------------------ internals
 

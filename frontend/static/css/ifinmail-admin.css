@@ -974,11 +974,6 @@ button.ifinmail-link-strong {
     max-width: 404px !important;
 }
 
-.ifinmail-login-card:hover,
-.ifinmail-reg-card:hover {
-    border-color: var(--ifinmail-border-strong) !important;
-}
-
 .ifinmail-login-card__brand,
 .ifinmail-reg-card__logo {
     margin-bottom: var(--ifinmail-space-4) !important;

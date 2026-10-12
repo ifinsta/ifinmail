@@ -84,8 +84,9 @@ cp -a /backups/restore/dkim/keys/. provisioning/docker/dkim/
 Volumes are named `<compose project>_<name>` (`docker volume ls`). Start only the database first:
 
 ```bash
-cd ~/ifinmail/provisioning/docker && docker compose up -d postgres
-docker compose exec -T postgres pg_restore -U ifinmail -d ifinmail --clean --if-exists \
+cd ~/ifinmail && COMPOSE="docker compose --env-file provisioning/.env -f provisioning/docker/docker-compose.yml"
+$COMPOSE up -d postgres
+$COMPOSE exec -T postgres pg_restore -U ifinmail -d ifinmail --clean --if-exists \
     < /backups/restore/postgresql/ifinmail.dump
 ```
 
@@ -105,7 +106,7 @@ Then `sudo make up`.
 | Check | How | Pass |
 |---|---|---|
 | Console sign-in with MFA | open `https://<mail host>/` | enters, shows your domains and mailboxes |
-| Audit trail intact | `docker compose exec api python manage.py verify_audit_chain` | `Audit chain intact.` |
+| Audit trail intact | `make audit-verify` | `Audit chain intact.` |
 | Mail is present | sign a mailbox in with a mail app (IMAP 993) | existing mail visible |
 | DKIM | System health → `<domain>` → DKIM | same selector and key as before |
 | DNSSEC | System health → DNSSEC | zone signed with the *old* keys; DS at registrar still matches |

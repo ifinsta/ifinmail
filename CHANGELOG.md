@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.3
+- `make audit-verify` and `make reset-mfa EMAIL=...` replace the `docker compose exec` commands
+  documented in v0.0.2, which failed without the environment file.
+
 ## v0.0.2
 Enterprise hardening. Existing installs keep their current policy until switched on in
 `provisioning/.env` (see `docs/enterprise-next-steps.md`).

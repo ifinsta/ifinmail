@@ -125,11 +125,11 @@ To rehearse a recovery without touching the server: `scripts/backup_offsite.sh v
 <key.asc> <passphrase-file>` decrypts the newest backup with only those files.
 
 If the only administrator loses their authenticator and recovery codes, run
-`docker compose exec api python manage.py reset_mfa admin@example.com` on the server; they
+`sudo make reset-mfa EMAIL=admin@example.com` on the server; they
 enroll again at next sign-in and the action is written to the audit trail.
 
 The audit trail keeps 365 days (`AUDIT_RETENTION_DAYS`, minimum 30). Each entry is chained to the
-one before it; `docker compose exec api python manage.py verify_audit_chain` checks the chain and
+one before it; `sudo make audit-verify` checks the chain and
 prints its head, and **Logs → Export** (`?format=jsonl`) downloads the full trail with hashes.
 
 ## Outbound relay settings

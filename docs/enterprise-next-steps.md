@@ -13,7 +13,7 @@ Do these in order. Each has a prerequisite and a finish line.
 | **Needs** | You, ~1 hour |
 | **Do** | Push the branch, open a PR, read the diff. Decide D1–D3 and D5–D8 in §8 of the proposal (D4 is already approved). Merge, tag, then `sudo make update` on the server. |
 | **Watch for** | Migration `0002_audit_hash_chain` runs on update. Older audit rows have no chain position and sit outside it; the chain starts with the first new event. |
-| **Done when** | `make version` shows the new release; `docker compose exec api python manage.py verify_audit_chain` prints `Audit chain intact.` |
+| **Done when** | `make version` shows the new release; `sudo make audit-verify` prints `Audit chain intact.` |
 
 ## 2. Switch the protections on for the existing server
 

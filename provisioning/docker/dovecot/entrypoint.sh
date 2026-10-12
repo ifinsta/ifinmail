@@ -27,4 +27,8 @@ chmod 0755 /var/mail/vhosts
 # Certificates come from the whole Let's Encrypt tree (live/ files link into archive/).
 ln -sfn "/etc/letsencrypt/live/${MAIL_HOSTNAME:?MAIL_HOSTNAME is required}" /etc/dovecot/certs
 
+# Plugin settings (dovecot.policy): apply once before Dovecot starts, then watch for changes.
+DOVECOT_RELOAD=true /usr/local/bin/ifinmail-dovecot-sync --once || true
+/usr/local/bin/ifinmail-dovecot-sync &
+
 exec "$@"

@@ -366,7 +366,7 @@ def _validate_contributions(
                     problems.append((loc, f'refers to undeclared setting "{name}"'))
             if point is not None and key in point.keys and not names:
                 # A literal value: check it now rather than at install time.
-                error = point.validate(key, template)
+                error = point.validate(key, point.normalize(key, template))
                 if error:
                     problems.append((loc, error))
             pairs.append((key, template))
@@ -504,6 +504,7 @@ def rendered_values(
             if point is None:
                 problems[f'{contribution.point}.{key}'] = 'extension point is not available'
                 continue
+            value = point.normalize(key, value)
             error = point.validate(key, value)
             if error:
                 problems[f'{contribution.point}.{key}'] = error

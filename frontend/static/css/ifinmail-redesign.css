@@ -2294,3 +2294,9 @@ html.ifinmail-shell dd.ifinmail-cell-wrap {
 html.ifinmail-shell .ifinmail-prose > p + p {
     margin-top: var(--ifinmail-space-2);
 }
+
+/* Tables with long descriptive cells scroll inside their panel on narrow screens instead of
+   squeezing a column to a few characters (the panel already scrolls horizontally). */
+html.ifinmail-shell .ifinmail-admin-table--wide {
+    min-width: 40rem;
+}

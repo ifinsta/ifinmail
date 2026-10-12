@@ -1,0 +1,29 @@
+manifest_version = 1
+
+[plugin]
+id = "dmarc-enforcement"
+name = "DMARC enforcement"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "security"
+summary = "Act on senders' DMARC policies, so mail forged in the name of a protected domain is rejected or sent to Junk."
+requires_core = "0.0.5"
+description = """
+Domains publish a DMARC policy to say what should happen to mail that claims to come from them but fails authentication: nothing, quarantine, or reject. Banks, payment providers and most large companies publish quarantine or reject, precisely so their names cannot be used for phishing.
+
+Out of the box this server only counts a DMARC failure towards the spam score. With this plugin it does what the domain owner asked: enforce rejects mail from domains that publish reject and sends mail from domains that publish quarantine to Junk. Choose quarantine to send both to Junk if you would rather review than refuse.
+
+Mailing lists and forwarding services that alter messages can fail DMARC; most modern ones rewrite the sender to avoid it. Domains with no policy, or policy none, are not affected.
+"""
+
+[[settings]]
+key = "mode"
+type = "choice"
+label = "Mode"
+options = ["enforce", "quarantine"]
+default = "enforce"
+help = "enforce: follow the domain's policy (reject or quarantine). quarantine: deliver all failures to Junk."
+
+[[contributes]]
+point = "rspamd.policy"
+values = { dmarc_enforcement = "{mode}" }

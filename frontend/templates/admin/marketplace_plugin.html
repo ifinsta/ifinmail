@@ -44,7 +44,7 @@
             <h2 class="ifinmail-panel-title" id="pl-changes">{% trans 'What it changes' %}</h2>
             <p class="ifinmail-settings-section__lede">{% trans 'A plugin can only set these values. Disabling or uninstalling removes them again.' %}</p>
             <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'What it changes' %}">
-                <table class="ifinmail-admin-table">
+                <table class="ifinmail-admin-table ifinmail-admin-table--wide">
                     <thead><tr><th>{% trans 'Where' %}</th><th>{% trans 'Setting' %}</th><th>{% trans 'Effect' %}</th><th>{% trans 'Value' %}</th></tr></thead>
                     <tbody>
                     {% for change in changes %}

@@ -111,8 +111,15 @@ you. A plugin is one declarative `plugin.toml`: settings an administrator fills 
 they produce at extension points the server offers. Plugins cannot run code, and every value is
 checked twice (by the console and by the container that applies it).
 
-- **Built in:** *Compliance journal* keeps a copy of every message, inbound and outbound, in an
-  archive mailbox you choose (Postfix `always_bcc`). Create the archive mailbox first.
+- **Built in:**
+  - *Compliance journal*: a copy of every message, inbound and outbound, in an archive mailbox you
+    choose. Create the archive mailbox first.
+  - *Attachment guard*: refuse or quarantine executables, scripts, disk images and macro-enabled
+    Office files, detected by name and by content.
+  - *DMARC enforcement*: act on senders' DMARC policies, so forged mail is rejected or sent to Junk.
+  - *Forwarding control*: limit or block mail filter rules that forward messages elsewhere.
+  - *Mailbox cleanup*: empty Trash and Junk (and optionally Sent) after a number of days.
+  - *Partner TLS*: never send to listed partner domains without encryption.
 - **Your own:** Marketplace → Submit a plugin. Someone with `system.manage` approves or rejects it;
   nothing is approved automatically and nothing is fetched from outside the server.
 - Each plugin page shows exactly what it changes and whether Postfix has applied it. Disable or

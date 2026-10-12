@@ -13,6 +13,8 @@ RUN mkdir -p /var/lib/rspamd /var/log/rspamd /etc/dkim
 COPY local.d/ /etc/rspamd/local.d/
 
 COPY entrypoint.sh /entrypoint.sh
+COPY sync-plugins.sh /usr/local/bin/ifinmail-rspamd-sync
+RUN chmod +x /usr/local/bin/ifinmail-rspamd-sync && mkdir -p /var/lib/ifinmail-rspamd
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 11332 11333 11334

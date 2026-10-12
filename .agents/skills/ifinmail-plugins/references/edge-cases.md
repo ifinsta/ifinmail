@@ -1,4 +1,4 @@
-# Edge cases (215)
+# Edge cases (240)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -10,10 +10,12 @@ Every case below is handled. **Proof** says how we know:
 | `P` | `backend/apps/core/plugins/tests/test_postfix_sync.py` (the real watcher script, stubbed binaries) |
 | `B` | `backend/apps/core/plugins/tests/test_scheduling.py` |
 | `V` | `backend/apps/accounts/tests/test_marketplace.py` (HTTP, real views and templates) |
+| `R`, `D`, `P2`, `L2`, contract | `backend/apps/core/plugins/tests/test_policy_plugins.py` |
+| live | Verified against the real Rspamd, Dovecot and Postfix images (see section K) |
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 182 tested, 31 code, 2 decision (215 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 198 tested, 8 verified live only, 31 code, 3 decision (240 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -283,3 +285,37 @@ Counts: 182 tested, 31 code, 2 decision (215 numbered, contiguous). When behavio
 Decisions not in the table: v1 sources are internal only (built-ins and approved submissions);
 no automatic approval; the plugin layer adds no third-party package; DKIM-style secrets are never
 plugin settings; a plugin can only act through registered extension points.
+
+## K. Policy extension points (Rspamd, Dovecot, partner TLS)
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 216 | Admin types `EXE, .Js;iso` | Normalised to `exe,iso,js` before validation and storage | M |
+| 217 | Extension with `..`, `/`, `;` or spaces | Refused by the console and again by the Rspamd watcher | M, R |
+| 218 | More than 200 extensions or domains | Refused | M |
+| 219 | A program renamed to `invoice.pdf` | Blocked: Rspamd detects the type by content | live |
+| 220 | `.ISO` versus `.iso` | Blocked either way (case-insensitive regular expressions) | live |
+| 221 | `archive.exe.txt` | Not blocked (the pattern is anchored at the end) | live |
+| 222 | Legitimate PDF, HTML, image or text attachment | Delivered | live |
+| 223 | Quarantine instead of reject | Rspamd action "add header"; the global Sieve rule files it into Junk | live |
+| 224 | Rspamd configuration fails its test | Previous fragments restored, change not acknowledged | R |
+| 225 | Rspamd reload fails | Not acknowledged; retried on the next tick | R |
+| 226 | Watcher's first pass at container start | Does not signal PID 1 (still the shell) | contract |
+| 227 | Settings changed while Rspamd runs | Applied by reload without a restart | live |
+| 228 | DMARC enforcement disabled | DMARC actions removed; reporting settings untouched | R, live |
+| 229 | Rspamd's built-in bad-extension list | Left alone (the plugin adds its own rule instead of replacing it, which would drop protection) | decision |
+| 230 | Trash/Junk/Sent expiry | Merged into the existing special-use mailboxes; other folders untouched | live |
+| 231 | Expiry or redirect limit removed | Setting removed from Dovecot, defaults return | D, live |
+| 232 | Days above 3650, redirects above 20 | Refused by the console and the Dovecot watcher | M, D |
+| 233 | Dovecot configuration fails `doveconf -n` | Previous file restored, change not acknowledged | D |
+| 234 | Dovecot reload fails | Not acknowledged; retried | D, live |
+| 235 | Partner domain `localhost`, `a..b` or with shell characters | Refused by the console and the Postfix watcher | M, P2 |
+| 236 | Partner TLS without domains | `smtp_tls_policy_maps` removed; the map emptied | P2, live |
+| 237 | Mail to a domain not on the partner list | Unaffected (no map entry) | live |
+| 238 | Two plugins on one point (Attachment guard + DMARC; Cleanup + Forwarding) | Both values rendered; disabling one leaves the other | L2 |
+| 239 | Any two bundled plugins claiming the same key | Test fails | L2 |
+| 240 | Rspamd or Dovecot container recreated | Fragments rebuilt from the runtime file at start, before the daemon starts | contract |
+
+`R` / `D` / `P2` / `L2` / contract: `backend/apps/core/plugins/tests/test_policy_plugins.py`
+(watcher scripts with stubbed binaries, lifecycle, wiring). `live`: verified on 2026-10-12 against
+the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this repository.

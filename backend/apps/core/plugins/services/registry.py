@@ -29,6 +29,8 @@ APPLY_GRACE_SECONDS = 60
 class PointKey:
     validator: ValueValidator
     description: str
+    # Optional canonical form (e.g. "EXE, .js" -> "exe,js") applied before validation.
+    normalize: Callable[[str], str] | None = None
 
 
 class ExtensionPoint:
@@ -45,6 +47,12 @@ class ExtensionPoint:
     keys: dict[str, PointKey] = {}
     runtime_file: str = ''
     ack_file: str = ''
+
+    def normalize(self, key: str, value: str) -> str:
+        spec = self.keys.get(key)
+        if spec is None or spec.normalize is None or any(ch in value for ch in '\r\n\0'):
+            return value
+        return spec.normalize(value)
 
     def validate(self, key: str, value: str) -> str | None:
         spec = self.keys.get(key)

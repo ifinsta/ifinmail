@@ -1,0 +1,30 @@
+manifest_version = 1
+
+[plugin]
+id = "forwarding-control"
+name = "Forwarding control"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "compliance"
+summary = "Limit or block mail filter rules that forward messages to other addresses, a common way for data to leave unnoticed."
+requires_core = "0.0.5"
+description = """
+A forwarding rule quietly copies every incoming message somewhere else, often to a personal mailbox. Auditors look for it because it bypasses retention and data-protection controls, and attackers who take over an account set one up first.
+
+This plugin caps how many addresses a mail filter (Sieve) rule may forward one message to. The default of 0 blocks forwarding rules entirely. Forwarding you set up yourself as an administrator, with aliases under Settings, is not affected.
+
+Today ifinmail offers users no way to create filter rules of their own, so this is a safeguard for when that changes (for example a webmail or ManageSieve service) and against rules placed on the server by other means.
+"""
+
+[[settings]]
+key = "max_redirects"
+type = "integer"
+label = "Forwarding addresses allowed per message"
+min = 0
+max = 20
+default = 0
+help = "0 blocks forwarding rules. A small number allows a few, for example to a deputy."
+
+[[contributes]]
+point = "dovecot.policy"
+values = { max_redirects = "{max_redirects}" }

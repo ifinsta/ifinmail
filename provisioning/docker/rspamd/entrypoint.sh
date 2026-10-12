@@ -21,4 +21,9 @@ if [ -n "${REDIS_PASSWORD:-}" ]; then
     echo "Rspamd Redis password configured."
 fi
 
+# Plugin settings (rspamd.policy): apply once before Rspamd starts, then watch for changes.
+# The first pass must not signal PID 1, which is still this shell.
+RSPAMD_RELOAD=true /usr/local/bin/ifinmail-rspamd-sync --once || true
+/usr/local/bin/ifinmail-rspamd-sync &
+
 exec rspamd -f -u _rspamd -g _rspamd

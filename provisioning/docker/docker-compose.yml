@@ -141,6 +141,8 @@ services:
       - mail_data:/var/mail/vhosts
       - ./certs:/etc/letsencrypt:ro   # whole tree: live/ files are symlinks into archive/
       - rundir:/var/run/dovecot
+      - runtime_data:/var/lib/ifinmail/runtime:ro   # plugin settings from the console
+      - mail_status:/var/lib/ifinmail/status        # acknowledges applied plugin settings
     ports:
       - "110:110"
       - "143:143"
@@ -179,6 +181,8 @@ services:
     volumes:
       - rspamd_data:/var/lib/rspamd
       - ./dkim:/etc/dkim:ro
+      - runtime_data:/var/lib/ifinmail/runtime:ro   # plugin settings from the console
+      - mail_status:/var/lib/ifinmail/status        # acknowledges applied plugin settings
     ports:
       - "127.0.0.1:11332:11332"   # milter (bound to localhost)
       - "127.0.0.1:11334:11334"   # web UI (bound to localhost, security)

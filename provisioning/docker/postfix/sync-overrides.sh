@@ -4,6 +4,8 @@
 # The api writes "key = value" files on the runtime volume:
 #   postfix-overrides.conf   outbound settings (relayhost, default_transport, hopcount_limit)
 #   postfix-plugins.conf     values from enabled plugins (extension point postfix.main)
+#   postfix-tls-policy.conf  partner domains that must get TLS (extension point postfix.tls_policy),
+#                            rendered into a texthash: map used as smtp_tls_policy_maps
 # This script watches both and, when one changes, applies its allowed keys with postconf and
 # reloads Postfix. Each file has its own allow-list and value grammar, so neither can be used to
 # set anything else, and plugins can never touch relaying. After applying the plugins file it
@@ -25,6 +27,10 @@ PLUGINS_FILE="${IFINMAIL_PLUGINS_FILE:-/var/lib/ifinmail/runtime/postfix-plugins
 PLUGINS_STATE="${IFINMAIL_PLUGINS_STATE:-/var/run/ifinmail-plugins.sha256}"
 PLUGIN_KEYS=" always_bcc "
 PLUGIN_VALUE='^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)?$'
+TLS_FILE="${IFINMAIL_TLS_POLICY_FILE:-/var/lib/ifinmail/runtime/postfix-tls-policy.conf}"
+TLS_STATE="${IFINMAIL_TLS_POLICY_STATE:-/var/run/ifinmail-tls-policy.sha256}"
+TLS_MAP="${IFINMAIL_TLS_POLICY_MAP:-/etc/postfix/ifinmail_tls_policy}"
+DOMAIN='[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+'
 
 log() { echo "ifinmail-postfix-sync: $*"; }
 
@@ -68,21 +74,63 @@ apply_file() {
     echo "$current" > "$state"
 }
 
+# Partner TLS: "domains = a.example,b.example" and "level = encrypt|secure" become a texthash:
+# map of "domain level" lines. No domains removes the map from Postfix entirely.
+apply_tls_policy() {
+    [ -r "$TLS_FILE" ] || return 0
+    local current previous=""
+    current="$(sha256sum "$TLS_FILE" | cut -d' ' -f1)"
+    [ -r "$TLS_STATE" ] && previous="$(cat "$TLS_STATE")"
+    [ "$current" = "$previous" ] && return 0
+
+    local line key value domains="" level="encrypt"
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" =~ ^([a-z_]+)[[:space:]]*=[[:space:]]*(.*)$ ]] || { log "ignoring malformed line"; continue; }
+        key="${BASH_REMATCH[1]}"; value="${BASH_REMATCH[2]}"
+        case "$key" in
+            domains)
+                if [[ "$value" =~ ^(${DOMAIN}(,${DOMAIN}){0,199})?$ ]]; then domains="$value"
+                else log "ignoring unsafe value for domains"; fi ;;
+            level)
+                if [[ "$value" =~ ^(encrypt|secure)?$ ]]; then level="${value:-encrypt}"
+                else log "ignoring unsafe value for level"; fi ;;
+            *) log "ignoring key not on the allow-list: $key" ;;
+        esac
+    done < "$TLS_FILE"
+
+    if [ -z "$domains" ]; then
+        "$POSTCONF" -X smtp_tls_policy_maps
+        : > "$TLS_MAP"
+    else
+        local domain
+        : > "$TLS_MAP.tmp"
+        IFS=',' read -r -a list <<< "$domains"
+        for domain in "${list[@]}"; do printf '%s %s\n' "$domain" "$level" >> "$TLS_MAP.tmp"; done
+        mv "$TLS_MAP.tmp" "$TLS_MAP"
+        "$POSTCONF" -e "smtp_tls_policy_maps=texthash:$TLS_MAP"
+    fi
+    "$POSTFIX" reload >/dev/null 2>&1 || log "postfix reload failed (not running yet?)"
+    log "applied $(basename "$TLS_FILE")"
+    echo "$current" > "$TLS_STATE"
+}
+
 apply_once() {
     apply_file "$FILE" "$STATE" "$ALLOWED_KEYS" "$SAFE_VALUE"
     apply_file "$PLUGINS_FILE" "$PLUGINS_STATE" "$PLUGIN_KEYS" "$PLUGIN_VALUE"
-    acknowledge_plugins
+    apply_tls_policy
+    acknowledge "$PLUGINS_STATE" postfix-plugins.applied
+    acknowledge "$TLS_STATE" postfix-tls-policy.applied
 }
 
-# Tell the console which plugins file is in effect (it compares this hash with what it wrote).
-acknowledge_plugins() {
-    [ -r "$PLUGINS_STATE" ] && [ -d "$STATUS_DIR" ] && [ -w "$STATUS_DIR" ] || return 0
+# acknowledge <state file> <ack name>: tell the console which file is in effect.
+acknowledge() {
+    [ -r "$1" ] && [ -d "$STATUS_DIR" ] && [ -w "$STATUS_DIR" ] || return 0
     local applied
-    applied="$(cat "$PLUGINS_STATE")"
-    [ "$(cat "$STATUS_DIR/postfix-plugins.applied" 2>/dev/null)" = "$applied" ] && return 0
-    printf '%s\n' "$applied" > "$STATUS_DIR/postfix-plugins.applied.tmp" \
-        && mv "$STATUS_DIR/postfix-plugins.applied.tmp" "$STATUS_DIR/postfix-plugins.applied"
-    chmod 644 "$STATUS_DIR/postfix-plugins.applied" 2>/dev/null || true
+    applied="$(cat "$1")"
+    [ "$(cat "$STATUS_DIR/$2" 2>/dev/null)" = "$applied" ] && return 0
+    printf '%s\n' "$applied" > "$STATUS_DIR/$2.tmp" && mv "$STATUS_DIR/$2.tmp" "$STATUS_DIR/$2"
+    chmod 644 "$STATUS_DIR/$2" 2>/dev/null || true
 }
 
 # Queue counts for the console's System health page (it cannot see Postfix's spool).

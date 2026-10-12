@@ -25,10 +25,10 @@ plugin.toml ──validate──> PluginManifest ──install──> PluginInst
 | Piece | Location | Owner |
 | --- | --- | --- |
 | Engine: manifest, catalog, registries, lifecycle, submissions | `backend/apps/core/plugins/` | core (no imports from domain apps) |
-| Extension point `postfix.main`, setting type `mailbox` | `backend/apps/mail/services/plugin_points.py`, registered in `MailConfig.ready()` | mail app |
+| Extension points `postfix.main`, `postfix.tls_policy`, `rspamd.policy`, `dovecot.policy`; setting type `mailbox` | `backend/apps/mail/services/plugin_points.py`, registered in `MailConfig.ready()` | mail app |
 | Bundled (first-party) plugins | `backend/apps/core/plugins/bundled/<id>/plugin.toml` | reviewed through code review |
 | Marketplace pages | `backend/apps/accounts/views/marketplace.py`, `frontend/templates/admin/marketplace*.html` | console |
-| Postfix side | `provisioning/docker/postfix/sync-overrides.sh` (second file, own allow-list, writes an ack) | postfix container |
+| Container side (re-validate, check config, reload, acknowledge) | `postfix/sync-overrides.sh`, `rspamd/sync-plugins.sh`, `dovecot/sync-plugins.sh` under `provisioning/docker/` | postfix, rspamd, dovecot containers |
 
 Full references: `references/manifest.md` (format and rules), `references/state-machines.md`
 (transitions, recovery, reconciliation), `references/edge-cases.md` (the 200 cases and where each is

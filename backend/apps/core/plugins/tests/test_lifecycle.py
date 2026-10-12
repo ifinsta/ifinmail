@@ -122,10 +122,13 @@ class HappyPathTests(_Base):
 
     def test_files_are_only_rewritten_when_their_content_changes(self) -> None:
         self.install()
-        self.assertEqual(InstallationService.publish_all(), {'postfix.main': False})
+        written = InstallationService.publish_all()
+        self.assertEqual(set(written), {p.key for p in registry.points()})
+        self.assertFalse(any(written.values()))
         os.remove(Path(self.runtime_dir) / 'postfix-plugins.conf')
         result = InstallationService.reconcile()
-        self.assertEqual(result['written'], {'postfix.main': True})
+        self.assertTrue(result['written']['postfix.main'])
+        self.assertFalse(result['written']['rspamd.policy'])
         self.assertEqual(self.bcc(), ADDR)
 
 
@@ -393,4 +396,4 @@ class AppliedStatusTests(_Base):
         self.assertEqual(self.point.applied_status(), ApplyStatus.NOT_APPLIED)
         self.ack(hashlib.sha256(path.read_bytes()).hexdigest())
         self.assertEqual(self.point.applied_status(), ApplyStatus.APPLIED)
-        self.assertEqual(InstallationService.apply_status(), {'postfix.main': ApplyStatus.APPLIED})
+        self.assertEqual(InstallationService.apply_status()['postfix.main'], ApplyStatus.APPLIED)

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.5
+- Five new built-in plugins: **Attachment guard**, **DMARC enforcement**, **Forwarding control**,
+  **Mailbox cleanup** and **Partner TLS**.
+- Three new extension points: `rspamd.policy`, `dovecot.policy` and `postfix.tls_policy`. The Rspamd
+  and Dovecot containers each run a small watcher that re-validates plugin values, checks the
+  configuration (`rspamadm configtest`, `doveconf -n`) before reloading, rolls back a failing one
+  and acknowledges only what took effect. Partner TLS uses a `texthash:` map, so no `postmap` step.
+- Extension-point values can be normalised (e.g. `EXE, .js` becomes `exe,js`).
+- The Rspamd and Dovecot containers mount the runtime volume (read-only) and the status volume.
+- 240 handled edge cases documented in `.agents/skills/ifinmail-plugins/`.
+
 ## v0.0.4
 - **Marketplace** (sidebar, after Settings): browse, install, configure, enable, disable, update and
   uninstall plugins; submit new ones for review. Approval is always a person (`system.manage`);

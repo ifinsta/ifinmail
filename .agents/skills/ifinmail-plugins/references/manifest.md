@@ -64,3 +64,36 @@ Postfix `main.cf` parameters applied by `sync-overrides.sh` from `postfix-plugin
 | `always_bcc` | one email address | Postfix sends a copy of every message to it | Kept apart from the core's own overrides file and keys, so plugins can never change relaying |
 
 Empty or absent values remove the parameter (`postconf -X`), restoring Postfix's default.
+
+## Extension point `postfix.tls_policy`
+
+Rendered into a `texthash:` map used as `smtp_tls_policy_maps` by `sync-overrides.sh`.
+
+| Key | Value grammar | Effect |
+| --- | --- | --- |
+| `domains` | comma-separated domain names (normalised: lower-case, trailing dot dropped, sorted, de-duplicated; at most 200) | Mail to these domains must use TLS |
+| `level` | `encrypt` or `secure` | `secure` also requires a valid, matching certificate |
+
+## Extension point `rspamd.policy`
+
+Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multimap.conf` and
+`local.d/dmarc.conf`; `rspamadm configtest` must pass before Rspamd reloads (`HUP`).
+
+| Key | Value grammar | Effect |
+| --- | --- | --- |
+| `blocked_attachment_types` | comma-separated extensions `[a-z0-9]{1,10}` (normalised: dots dropped, lower-case, sorted; at most 200) | Multimap rule on attachment names, matched case-insensitively; Rspamd also detects disguised types by content |
+| `blocked_attachment_action` | `reject` or `quarantine` | quarantine = "add header", filed into Junk by the global Sieve rule |
+| `dmarc_enforcement` | `enforce` or `quarantine` | DMARC module actions: enforce follows the sender's policy; quarantine sends both to Junk |
+
+## Extension point `dovecot.policy`
+
+Rendered by `dovecot/sync-plugins.sh` into `/etc/dovecot/ifinmail-plugins.conf`, included last
+from `dovecot.conf`; `doveconf -n` must pass before `doveadm reload`.
+
+| Key | Value grammar | Effect |
+| --- | --- | --- |
+| `max_redirects` | 0-20 | `sieve_max_redirects` |
+| `autoexpunge_trash_days`, `autoexpunge_junk_days`, `autoexpunge_sent_days` | 1-3650 | `autoexpunge` on that special-use mailbox |
+
+Keys a point allows may carry a **normaliser**: values are normalised, then validated, both in the
+console and (by grammar) again in the container.

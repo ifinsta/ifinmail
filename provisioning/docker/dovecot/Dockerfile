@@ -24,10 +24,11 @@ RUN rm -rf /etc/dovecot/conf.d /etc/dovecot/sieve
 COPY conf.d/ /etc/dovecot/conf.d/
 COPY sieve/ /etc/dovecot/sieve/
 COPY entrypoint.sh /usr/local/bin/ifinmail-dovecot-entrypoint
+COPY sync-plugins.sh /usr/local/bin/ifinmail-dovecot-sync
 
 RUN chmod 640 /etc/dovecot/dovecot-sql.conf.ext.template \
     && chown root:dovecot /etc/dovecot/dovecot-sql.conf.ext.template \
-    && chmod +x /usr/local/bin/ifinmail-dovecot-entrypoint \
+    && chmod +x /usr/local/bin/ifinmail-dovecot-entrypoint /usr/local/bin/ifinmail-dovecot-sync \
     && mkdir -p /var/run/dovecot \
     && chown root:root /var/run/dovecot \
     && chmod 755 /var/run/dovecot \

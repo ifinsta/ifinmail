@@ -70,6 +70,28 @@ detect_public_ip() {
     echo "$ip"
 }
 
+# Optional services run only when enabled: the DNS server (DNS_SERVER_ENABLED, default 1) and
+# calendars/contacts (DAV_ENABLED, default 1). Compose reads COMPOSE_PROFILES from the .env file.
+ensure_profiles() {
+    local profiles=() line
+    [[ "${DNS_SERVER_ENABLED:-1}" =~ ^(0|false|no)$ ]] || profiles+=(dns)
+    [[ "${DAV_ENABLED:-1}" =~ ^(0|false|no)$ ]] || profiles+=(dav)
+    line="COMPOSE_PROFILES=$(IFS=,; echo "${profiles[*]}")"
+    if grep -q '^COMPOSE_PROFILES=' "$ENV_FILE"; then
+        sed -i "s/^COMPOSE_PROFILES=.*/$line/" "$ENV_FILE"
+    else
+        printf '# Optional services, from DNS_SERVER_ENABLED and DAV_ENABLED (set by provision.sh)\n%s\n' \
+            "$line" >> "$ENV_FILE"
+    fi
+    export COMPOSE_PROFILES="${line#COMPOSE_PROFILES=}"
+    # A service that was turned off keeps running until removed; profiles alone do not stop it.
+    local service
+    for service in dns dav; do
+        [[ ",$COMPOSE_PROFILES," == *",$service,"* ]] && continue
+        (cd "$DOCKER_DIR" && "${COMPOSE[@]}" --profile "$service" rm -sf "$service" >/dev/null 2>&1 || true)
+    done
+}
+
 ensure_env() {
     if [ -f "$ENV_FILE" ]; then
         # Strip Windows CRLF line endings if present
@@ -601,6 +623,7 @@ main() {
     ensure_backup_schedule
     ensure_unattended_upgrades
 
+    ensure_profiles   # before the build, so enabled optional services are rebuilt too
     echo "Building images..."
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" build --pull)
 
@@ -619,7 +642,8 @@ main() {
     fi
 
     echo "Starting stack..."
-    (cd "$DOCKER_DIR" && "${COMPOSE[@]}" up -d)
+    # --remove-orphans: containers of services a release removed (beat, telemetry) are deleted.
+    (cd "$DOCKER_DIR" && "${COMPOSE[@]}" up -d --remove-orphans)
 
     obtain_certificate
     (cd "$DOCKER_DIR" && "${COMPOSE[@]}" restart postfix dovecot nginx)

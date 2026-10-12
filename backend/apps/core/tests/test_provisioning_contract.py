@@ -133,14 +133,45 @@ class SenderIdentityContractTests(SimpleTestCase):
 class ContainerContractTests(SimpleTestCase):
     def test_compose_runs_the_background_jobs_and_shares_the_runtime_volume(self) -> None:
         compose = _read('docker-compose.yml')
-        for service in ('  worker:', '  beat:'):
-            self.assertIn(service, compose)
-        self.assertIn('celery", "-A", "backend.config.celery", "worker"', compose)
-        self.assertIn('celery", "-A", "backend.config.celery", "beat"', compose)
+        self.assertIn('  worker:', compose)
+        # One server, one scheduler: beat runs inside the worker, not in its own container.
+        self.assertIn('celery", "-A", "backend.config.celery", "worker", "--beat"', compose)
+        self.assertNotIn('  beat:', compose)
         self.assertIn('runtime_data:/var/lib/ifinmail/runtime:ro', compose)  # postfix reads
         self.assertIn('runtime_data:/runtime ', compose)  # certbot reads and reports back (rw)
         self.assertNotIn('runtime_data:/runtime:ro', compose)
         self.assertNotIn('profiles:', compose.split('  certbot:')[1].split('  # ---')[0])
+
+    def test_no_container_can_control_docker(self) -> None:
+        # The Docker socket is root on the host; renewals are picked up by watching the file.
+        compose = _read('docker-compose.yml')
+        self.assertNotIn('docker.sock', compose)
+        self.assertNotIn('  telemetry:', compose)
+        self.assertNotIn('docker', _read('certbot', 'deploy-hook.sh').split('set -e', 1)[1])
+        self.assertNotIn('docker-cli', _read('certbot', 'Dockerfile'))
+
+    def test_services_reload_a_renewed_certificate_themselves(self) -> None:
+        compose = _read('docker-compose.yml')
+        live = '/etc/letsencrypt/live/${MAIL_HOSTNAME}/fullchain.pem'
+        self.assertIn(f'sh /cert-watch.sh {live} nginx -s reload', compose)
+        self.assertIn('./nginx/cert-watch.sh:/cert-watch.sh:ro', compose)
+        for script in (('postfix', 'sync-overrides.sh'), ('dovecot', 'sync-plugins.sh')):
+            text = _read(*script)
+            self.assertIn('watch_certificate()', text, script)
+            self.assertIn('    watch_certificate\n', text, script)
+
+    def test_dns_and_dav_are_optional_profiles_set_by_provisioning(self) -> None:
+        compose = _read('docker-compose.yml')
+        self.assertIn('profiles: [dns]', compose.split('  dns:')[1].split('\n\n')[0])
+        self.assertIn('profiles: [dav]', compose.split('  dav:')[1].split('\n\n')[0])
+        provision = (ROOT / 'provisioning' / 'scripts' / 'provision.sh').read_text()
+        self.assertIn('ensure_profiles   # before the build', provision)
+        self.assertIn('up -d --remove-orphans', provision)
+        self.assertLess(
+            provision.index('ensure_profiles   # before'), provision.index('build --pull')
+        )
+        makefile = (ROOT / 'Makefile').read_text()
+        self.assertIn("$(DOCKER_COMPOSE) --profile '*' down", makefile)
 
     def test_certbot_entrypoint_runs_one_off_commands(self) -> None:
         """obtain-ssl.sh does `compose run certbot certonly ...`; an entrypoint that ignores its

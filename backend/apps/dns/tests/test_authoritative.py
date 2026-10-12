@@ -70,6 +70,14 @@ class ManagedRecordTests(_Base):
         self.assertEqual(txt['_caldavs._tcp'], 'path=/dav/')
         self.assertEqual(txt['_carddavs._tcp'], 'path=/dav/')
 
+    def test_no_dav_records_when_calendars_and_contacts_are_turned_off(self) -> None:
+        zone = self.zone()
+        with patch.dict(os.environ, {'DAV_ENABLED': '0'}):
+            names = {r.name for r in self.managed(zone)}
+        self.assertNotIn('_caldavs._tcp', names)
+        self.assertNotIn('_carddavs._tcp', names)
+        self.assertIn('_submission._tcp', names)
+
     def test_the_server_is_its_own_nameserver_with_glue_inside_the_zone(self) -> None:
         zone = self.zone()
         ns = [r.value for r in self.managed(zone) if r.type == 'NS']

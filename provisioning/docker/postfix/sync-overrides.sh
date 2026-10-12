@@ -43,6 +43,8 @@ TLS_FILE="${IFINMAIL_TLS_POLICY_FILE:-/var/lib/ifinmail/runtime/postfix-tls-poli
 TLS_STATE="${IFINMAIL_TLS_POLICY_STATE:-/var/run/ifinmail-tls-policy.sha256}"
 TLS_MAP="${IFINMAIL_TLS_POLICY_MAP:-/etc/postfix/ifinmail_tls_policy}"
 DOMAIN='[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+'
+CERT_FILE="${IFINMAIL_CERT_FILE:-/etc/letsencrypt/live/${MAIL_HOSTNAME:-}/fullchain.pem}"
+CERT_SEEN=''
 
 log() { echo "ifinmail-postfix-sync: $*"; }
 
@@ -226,9 +228,21 @@ if [ "${1:-}" = "--once" ]; then
     exit 0
 fi
 
+# A renewed certificate (certbot writes a new file behind the live/ symlink) takes effect on reload.
+watch_certificate() {
+    local now
+    now="$(cksum < "$CERT_FILE" 2>/dev/null)" || return 0
+    if [ -n "$CERT_SEEN" ] && [ "$now" != "$CERT_SEEN" ]; then
+        "$POSTFIX" reload >/dev/null 2>&1 || return 0
+        log "certificate changed; reloaded"
+    fi
+    CERT_SEEN="$now"
+}
+
 loops=0
 while :; do
     apply_once
+    watch_certificate
     if [ $((loops % QUEUE_EVERY)) -eq 0 ]; then
         publish_queue
     fi

@@ -9,7 +9,7 @@ Two layers. Do not mix them.
 
 `provisioning/docker/docker-compose.yml` maps provisioning → runtime:
 
-| provisioning/.env | → runtime inside api/worker/beat |
+| provisioning/.env | → runtime inside api/worker |
 |---|---|
 | `SECRET_KEY` | `DJANGO_SECRET_KEY` |
 | `DJANGO_ALLOWED_HOSTS` | `ALLOWED_HOSTS` |

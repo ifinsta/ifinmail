@@ -55,7 +55,7 @@ ifinmail answers DNS for your domains itself (Knot DNS, with DNSSEC), manages it
 * Every domain you add is published by this server: MX, SPF, DKIM, DMARC, MTA-STS, `autoconfig`/`autodiscover`, mail client SRV records, CAA and the nameserver records are generated and kept current. You only add your own extras (a website, a verification token) as custom records.
 * **One step at your registrar:** set the domain's nameservers to `ns1.mail.yourdomain.com` and `ns2.mail.yourdomain.com` and add them as *glue* (child nameservers) pointing at the server IP. The page shows exactly what is missing and re-checks live (answering, delegated, DNSSEC).
 * **DNSSEC** is on by default. Once the zone is delegated, add the DS record shown on the zone page at your registrar.
-* **Keep DNS elsewhere?** Connect a DNS provider (Cloudflare, Porkbun, DigitalOcean) or switch a domain to *External DNS* on its zone page; the same mail records are then pushed or exported instead. Set `DNS_SERVER_ENABLED=0` to turn the DNS server off completely.
+* **Keep DNS elsewhere?** Connect a DNS provider (Cloudflare, Porkbun, DigitalOcean) or switch a domain to *External DNS* on its zone page; the same mail records are then pushed or exported instead. Set `DNS_SERVER_ENABLED=0` in `provisioning/.env` and run `make provision` to turn the DNS server off completely (its container is then not run).
 * Secondary nameservers (zone transfer) can be listed on the DNS server page. Port 53 must be free: if `systemd-resolved` holds it, `make provision` binds the DNS server to the public address (`DNS_BIND_IP`).
 * Back up the `dns_data` volume (included in `make backup`): it holds the DNSSEC keys that the registrar's DS record refers to.
 
@@ -102,7 +102,7 @@ Clients configure themselves: `autoconfig.<domain>` and `autodiscover.<domain>` 
 
 ## Scheduled jobs and backups
 
-A `worker` and a `beat` container run the periodic jobs: DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days) and re-publishing the outbound settings. `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
+A `worker` container runs the periodic jobs (with Celery's scheduler built in): DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days) and re-publishing the outbound settings. `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
 
 ### Marketplace (plugins)
 
@@ -168,7 +168,7 @@ Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. T
 
 ## Limits to know about
 
-- Calendars and contacts (CalDAV/CardDAV) are served at `https://mail.yourdomain.com/dav/` with the mailbox address and password; apps find them from the domain alone. Back them up with `make backup` (the `dav_data` volume).
+- Calendars and contacts (CalDAV/CardDAV) are served at `https://mail.yourdomain.com/dav/` with the mailbox address and password; apps find them from the domain alone. Back them up with `make backup` (the `dav_data` volume). Not needed? Set `DAV_ENABLED=0` in `provisioning/.env` and run `make provision`: the `dav` container is removed and the calendar DNS records are no longer published.
 - There is no webmail. Mailbox owners use an email app (IMAP 993, SMTP 587); signing in to the console with a plain mailbox shows these settings.
 - Quotas default to 1024 MB per mailbox and are enforced by Dovecot from the mailbox table (set 0 for unlimited). The Mailboxes page shows the space budget as you assign quotas: disk free, mail stored, quota allocated, and what is still promiseable. Deleting a mailbox leaves its stored mail on disk (the console mounts the mail volume read-only).
 - Admin sign-in supports TOTP multi-factor authentication (Settings → Security, or `/accounts/mfa/setup/`); recovery codes are issued once at enrollment.

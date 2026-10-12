@@ -18,6 +18,8 @@ OUT="${IFINMAIL_DOVECOT_OUT:-/etc/dovecot/ifinmail-plugins.conf}"
 DOVECONF="${DOVECONF_BIN:-doveconf}"
 RELOAD="${DOVECOT_RELOAD:-doveadm reload}"
 INTERVAL="${IFINMAIL_SYNC_INTERVAL:-10}"
+CERT_FILE="${IFINMAIL_CERT_FILE:-/etc/dovecot/certs/fullchain.pem}"
+CERT_SEEN=''
 
 log() { echo "ifinmail-dovecot-sync: $*"; }
 
@@ -121,7 +123,19 @@ if [ "${1:-}" = "--once" ]; then
     exit 0
 fi
 
+# A renewed certificate (certbot writes a new file behind the live/ symlink) takes effect on reload.
+watch_certificate() {
+    local now
+    now="$(cksum < "$CERT_FILE" 2>/dev/null)" || return 0
+    if [ -n "$CERT_SEEN" ] && [ "$now" != "$CERT_SEEN" ]; then
+        $RELOAD >/dev/null 2>&1 || return 0
+        log "certificate changed; reloaded"
+    fi
+    CERT_SEEN="$now"
+}
+
 while :; do
     apply_once
+    watch_certificate
     sleep "$INTERVAL"
 done

@@ -95,7 +95,7 @@ provision:
 
 reload:
 	$(DOCKER_COMPOSE) build --pull
-	$(DOCKER_COMPOSE) down --remove-orphans
+	$(DOCKER_COMPOSE) --profile '*' down --remove-orphans
 	$(DOCKER_COMPOSE) up -d --remove-orphans
 	@echo ""
 	$(DOCKER_COMPOSE) ps
@@ -107,7 +107,7 @@ up:
 	$(DOCKER_COMPOSE) up -d
 
 down:
-	$(DOCKER_COMPOSE) down
+	$(DOCKER_COMPOSE) --profile '*' down
 
 restart:
 	$(DOCKER_COMPOSE) restart

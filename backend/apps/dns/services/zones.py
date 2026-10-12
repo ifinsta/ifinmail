@@ -186,7 +186,8 @@ class ZoneService:
                 ZoneRecord(name=name, type='SRV', value=f'1 {port} {mail_host}', priority=0)
             )
         # RFC 6764: calendar and contact apps find the DAV server (and its path) from the domain.
-        for service in ('_caldavs._tcp', '_carddavs._tcp'):
+        dav = ('_caldavs._tcp', '_carddavs._tcp') if DNSServerConfig.dav_enabled() else ()
+        for service in dav:
             records.append(
                 ZoneRecord(name=service, type='SRV', value=f'1 443 {mail_host}', priority=0)
             )

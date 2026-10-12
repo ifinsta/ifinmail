@@ -23,6 +23,11 @@ class DNSServerConfig:
         return os.environ.get('DNS_SERVER_ENABLED', '1').strip().lower() not in ('0', 'false', 'no')
 
     @staticmethod
+    def dav_enabled() -> bool:
+        """Calendars and contacts (the optional ``dav`` container, DAV_ENABLED)."""
+        return os.environ.get('DAV_ENABLED', '1').strip().lower() not in ('0', 'false', 'no')
+
+    @staticmethod
     def container_runtime() -> str:
         return os.environ.get('DNS_CONTAINER_RUNTIME', DEFAULT_CONTAINER_RUNTIME).rstrip('/')
 

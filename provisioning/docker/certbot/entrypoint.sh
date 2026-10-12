@@ -111,7 +111,7 @@ install_custom() {
     cp "$keep/fullchain.pem" "$live/cert.pem"
     chmod 644 "$live/fullchain.pem" "$live/cert.pem"; chmod 640 "$live/privkey.pem"
     atomic_write "$MODE_FILE" custom
-    /hooks/deploy-hook.sh >/dev/null 2>&1 || echo "  could not restart services; run 'make reload'"
+    /hooks/deploy-hook.sh >/dev/null 2>&1 || echo "  could not set certificate permissions"
     return 0
 }
 
@@ -145,17 +145,17 @@ handle_request() {
                 write_status "$req_id" "$action" false "The console has not published the hostname list yet."
             else
                 rm -f "$STATE_FILE"
-                if sync_hosts; then write_status "$req_id" "$action" true "Certificate issued and services reloaded."
+                if sync_hosts; then write_status "$req_id" "$action" true "Certificate issued; services pick it up within a minute."
                 else write_status "$req_id" "$action" false "Issuance failed: $(last_lines)"; fi
             fi ;;
         renew)
             if [ "$(tls_mode)" = custom ]; then
                 write_status "$req_id" "$action" false "An uploaded certificate is in use; it is not renewed automatically."
             elif certbot renew --force-renewal --deploy-hook "/hooks/deploy-hook.sh" --non-interactive > "$LAST_MSG" 2>&1; then
-                write_status "$req_id" "$action" true "Certificate renewed and services reloaded."
+                write_status "$req_id" "$action" true "Certificate renewed; services pick it up within a minute."
             else write_status "$req_id" "$action" false "Renewal failed: $(last_lines)"; fi ;;
         custom)
-            if msg="$(install_custom)"; then write_status "$req_id" "$action" true "Uploaded certificate installed and services reloaded."
+            if msg="$(install_custom)"; then write_status "$req_id" "$action" true "Uploaded certificate installed; services pick it up within a minute."
             else write_status "$req_id" "$action" false "Not installed: $msg"; fi ;;
         letsencrypt)
             if use_letsencrypt; then write_status "$req_id" "$action" true "Now using a Let's Encrypt certificate."

@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.9
+- **Leaner stack: 14 containers down to 12, or 10 without the optional services.**
+  - `beat` is gone: the `worker` runs Celery's scheduler in the same process (`--beat`), as one
+    server needs only one scheduler. About 85 MB less memory.
+  - `telemetry` is gone: it copied container logs into a file nothing read, and could see Docker.
+    `make logs` shows the same logs (Docker's own rotated log files). About 40 MB less memory.
+  - The DNS server (`dns`) and calendars/contacts (`dav`) are optional: `DNS_SERVER_ENABLED=0` or
+    `DAV_ENABLED=0` in `provisioning/.env`, then `make provision`, removes the container. Both
+    stay on by default and on existing installs. With DAV off its DNS records are not published.
+- **No container can control Docker any more.** Certbot no longer has the Docker socket (which is
+  root on the host) and no longer restarts services after a renewal: nginx, Postfix and Dovecot
+  notice the new certificate within a minute and reload themselves, without dropping connections.
+- `make update` and `make provision` remove containers of services a release dropped
+  (`--remove-orphans`); `make down` and `make reload` include the optional services.
+- PostgreSQL: removed a start-up script that was meant to enable TLS but wrote to a file PostgreSQL
+  never reads (TLS was never on). Only containers on the internal network reach the database.
+
 ## v0.0.8
 - **Users can send only as themselves.** On the submission ports (587, 465) a logged-in user may
   use as sender only their own address or an alias that forwards to them; anything else is refused

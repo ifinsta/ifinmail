@@ -64,7 +64,7 @@ restore_snapshot() { # snapshot path
     local file="$1"
     [ -s "$file" ] || die "snapshot $file is missing"
     say "Restoring the database snapshot $(basename "$file")"
-    "${COMPOSE[@]}" stop api worker beat >/dev/null 2>&1 || true
+    "${COMPOSE[@]}" stop api worker >/dev/null 2>&1 || true
     "${COMPOSE[@]}" exec -T postgres sh -c \
         'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --single-transaction' \
         < "$file" || die "database restore failed; the snapshot is kept at $file"

@@ -35,12 +35,26 @@ class MailboxCreateForm(forms.Form):
     domain = forms.CharField(max_length=255, strip=True)
     quota_mb = forms.IntegerField(min_value=0, required=False)
     is_admin = forms.BooleanField(required=False)
+    # Where the owner receives the setup link and getting-started instructions
+    # (an address they can already read). Blank = show the link to copy instead.
+    send_to = forms.EmailField(max_length=255, required=False)
 
     def clean_local_part(self) -> str:
         return clean_local_part(self.cleaned_data.get('local_part', ''))
 
     def clean_domain(self) -> str:
         return (self.cleaned_data.get('domain') or '').strip().lower()
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        send_to = (cleaned.get('send_to') or '').strip().lower()
+        cleaned['send_to'] = send_to
+        if send_to and send_to == f'{cleaned.get("local_part")}@{cleaned.get("domain")}':
+            # The owner cannot read the new mailbox before they have a password.
+            self.add_error(
+                'send_to', 'Use an address the owner can already read, not the new mailbox.'
+            )
+        return cleaned
 
     @property
     def quota_bytes(self) -> int:
@@ -59,6 +73,18 @@ class MailboxActionForm(forms.Form):
     quota_mb = forms.IntegerField(min_value=0, required=False)
     # Where the invite link should be shown: '' (flash message, default) or 'profile'.
     return_to = forms.CharField(max_length=16, strip=True, required=False)
+    # Invite only: email the link here instead of showing it (see MailboxCreateForm).
+    send_to = forms.EmailField(max_length=255, required=False)
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        send_to = (cleaned.get('send_to') or '').strip().lower()
+        cleaned['send_to'] = send_to
+        if send_to and send_to == (cleaned.get('address') or '').lower():
+            self.add_error(
+                'send_to', 'Use an address the owner can already read, not the mailbox itself.'
+            )
+        return cleaned
 
     @property
     def quota_bytes(self) -> int:

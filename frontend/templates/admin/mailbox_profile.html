@@ -124,12 +124,17 @@
                             <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="copy-invite" data-value="{{ invite_link|escapejs }}">{% trans 'Copy' %}</button>
                         </div>
                         {% endif %}
-                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                        <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="invite">
                             <input type="hidden" name="address" value="{{ address }}">
                             <input type="hidden" name="return_to" value="profile">
-                            <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% if invite_link %}{% trans 'New link' %}{% else %}{% trans 'Get setup link' %}{% endif %}</button></div>
+                            <div class="ifinmail-field">
+                                <label for="mp-send-to">{% trans 'Email it to (optional)' %}</label>
+                                <input class="ifinmail-input" id="mp-send-to" name="send_to" type="email" maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="{% trans 'owner@example.com' %}">
+                                <small class="ifinmail-help-text">{% trans 'An address the owner already reads. They get the link and getting-started instructions. Leave blank to copy the link yourself.' %}</small>
+                            </div>
+                            <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% if invite_link %}{% trans 'New link' %}{% else %}{% trans 'Send or get setup link' %}{% endif %}</button></div>
                         </form>
                     </dd>
                 </div>

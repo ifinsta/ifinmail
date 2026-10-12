@@ -117,6 +117,11 @@
             if (inviteAddress) {
                 inviteAddress.value = address;
             }
+            var sendTo = document.getElementById('mailbox-manage-send-to');
+            if (sendTo) {
+                // Never carry one owner's contact address over to the next mailbox.
+                sendTo.value = '';
+            }
             if (quotaAddress) {
                 quotaAddress.value = address;
             }

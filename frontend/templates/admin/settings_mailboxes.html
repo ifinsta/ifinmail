@@ -9,7 +9,7 @@
         <div class="ifinmail-page-header">
             <div>
                 <h1 class="ifinmail-page-title">{% trans 'Mailboxes' %}</h1>
-                <p class="ifinmail-page-subtitle">{% trans 'Create the mailbox and share a one-time setup link. The owner sets their own password — admins never see it.' %}</p>
+                <p class="ifinmail-page-subtitle">{% trans 'Create the mailbox and send the owner a one-time setup link. The owner sets their own password — admins never see it.' %}</p>
             </div>
         </div>
 
@@ -78,9 +78,14 @@
                                data-text-unlimited="{% trans 'Unlimited — not counted against the budget' %}">{% blocktrans with left=quota_budget.headroom %}{{ left }} left to allocate{% endblocktrans %}</small>
                         {% endif %}
                     </div>
+                    <div class="ifinmail-field">
+                        <label for="mb-send-to">{% trans 'Send setup link to (optional)' %}</label>
+                        <input class="ifinmail-input" id="mb-send-to" name="send_to" type="email" maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="{% trans 'owner@example.com' %}">
+                        <small class="ifinmail-help-text">{% trans 'An address the owner already reads. They get the one-time link and getting-started instructions. Leave blank to copy the link yourself.' %}</small>
+                    </div>
                 </div>
                 <label class="ifinmail-check"><input type="checkbox" name="is_admin"> <span>{% trans 'Can sign in to this admin console' %}</span></label>
-                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Create mailbox & get setup link' %}</button></div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Create mailbox & send setup link' %}</button></div>
             </form>
             {% endif %}
         </section>
@@ -123,11 +128,16 @@
         <div class="ifinmail-modal-body">
             <p><code class="ifinmail-text--mono" id="mailbox-manage-address"></code> · <a class="ifinmail-link-strong" href="#" id="mailbox-manage-profile">{% trans 'View full profile' %} <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></p>
             <p class="ifinmail-settings-row__help ifinmail-hidden" id="mailbox-manage-pending">{% trans 'Invite pending — the owner has not set a password yet. Each setup link is single-use.' %}</p>
-            <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+            <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="invite">
                 <input type="hidden" name="address" value="" id="mailbox-manage-invite-address">
-                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Copy setup link' %}</button></div>
+                <div class="ifinmail-field">
+                    <label for="mailbox-manage-send-to">{% trans 'Email a setup link to (optional)' %}</label>
+                    <input class="ifinmail-input" id="mailbox-manage-send-to" name="send_to" type="email" maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="{% trans 'owner@example.com' %}">
+                    <small class="ifinmail-help-text">{% trans 'An address the owner already reads. Leave blank to copy the link yourself.' %}</small>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Send or copy setup link' %}</button></div>
             </form>
             <form method="post" action="{% url 'accounts:mailboxes_action' %}" class="ifinmail-inline-form">
                 {% csrf_token %}

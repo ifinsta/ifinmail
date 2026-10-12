@@ -6,7 +6,7 @@
 # Exempt from the colour/inline-style checks:
 #   - frontend/static/css/ifinmail-variables.css (the token source)
 #   - frontend/static/error-pages/*  (self-contained nginx fallbacks)
-#   - password_reset_email.html, email_verify.html (mail clients need inline literals)
+#   - password_reset_email.html, email_verify.html, email_mailbox_setup.html (mail clients need inline literals)
 
 set -u
 export LC_ALL=C.UTF-8
@@ -32,7 +32,7 @@ report() { # rule, file:line:text
 
 is_exempt_colour() {
   case "$1" in
-    *ifinmail-variables.css|*static/error-pages/*|*password_reset_email.html|*email_verify.html) return 0 ;;
+    *ifinmail-variables.css|*static/error-pages/*|*password_reset_email.html|*email_verify.html|*email_mailbox_setup.html) return 0 ;;
   esac
   return 1
 }

@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+import os
+from smtplib import SMTPException
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
@@ -19,6 +26,7 @@ from backend.apps.mail.services import (
 )
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.quota import DEFAULT_QUOTA_MB, MB, QuotaBudget, human_bytes
+from backend.config.branding import email_brand_context
 
 from ..forms.mailboxes import (
     AliasCreateForm,
@@ -31,6 +39,8 @@ from ..forms.mailboxes import (
 from ..services.registration_policy import registration_open, set_registration_open
 from ..types.permissions import PermissionCode
 from .auth import require_perm
+
+logger = logging.getLogger('backend')
 
 _MAIL = require_perm(PermissionCode.MAIL_MANAGE)
 
@@ -144,6 +154,31 @@ def _setup_url(request: HttpRequest, address: str) -> str:
         return path
 
 
+def _send_setup_email(request: HttpRequest, address: str, link: str, send_to: str) -> bool:
+    """Email the setup link and getting-started instructions; False if it could not be sent."""
+    days = max(1, settings.PASSWORD_RESET_TIMEOUT // 86400)
+    context = {
+        'address': address,
+        'setup_url': link,
+        'valid_days': days,
+        'mail_host': os.environ.get('MAIL_HOSTNAME', ''),
+        **email_brand_context(request.build_absolute_uri),
+    }
+    html_body = render_to_string('admin/email_mailbox_setup.html', context)
+    try:
+        send_mail(
+            f'Set up your mailbox {address}',
+            render_to_string('admin/email_mailbox_setup.txt', context),
+            None,
+            [send_to],
+            html_message=html_body,
+        )
+    except (SMTPException, ConnectionError, OSError) as exc:
+        logger.warning('Failed to send the setup link for %s to %s: %s', address, send_to, exc)
+        return False
+    return True
+
+
 @login_required
 @_MAIL
 @require_POST
@@ -173,11 +208,28 @@ def mailboxes_create(request: HttpRequest) -> HttpResponse:
         messages.error(request, str(exc))
         return redirect('accounts:mailboxes')
     AuditService.record(action='mailbox_invite_issued', user=_actor(request), detail=address)
-    messages.success(
-        request,
-        f'Created {address}. Share this one-time setup link so the owner '
-        f'can set their password: {link}',
-    )
+    send_to = form.cleaned_data['send_to']
+    if send_to and _send_setup_email(request, address, link, send_to):
+        AuditService.record(
+            action='mailbox_invite_sent', user=_actor(request), detail=f'{address} -> {send_to}'
+        )
+        messages.success(
+            request,
+            f'Created {address}. The setup link and getting-started instructions '
+            f'were sent to {send_to}.',
+        )
+    elif send_to:
+        messages.warning(
+            request,
+            f'Created {address}, but the email to {send_to} could not be sent. Share this '
+            f'one-time setup link so the owner can set their password: {link}',
+        )
+    else:
+        messages.success(
+            request,
+            f'Created {address}. Share this one-time setup link so the owner '
+            f'can set their password: {link}',
+        )
     return redirect('accounts:mailboxes')
 
 
@@ -195,6 +247,28 @@ def mailboxes_action(request: HttpRequest) -> HttpResponse:
         if action == 'invite':
             link = _setup_url(request, address)
             audit_action = 'mailbox_invite_issued'
+            send_to = form.cleaned_data['send_to']
+            if send_to and _send_setup_email(request, address, link, send_to):
+                AuditService.record(action=audit_action, user=_actor(request), detail=address)
+                AuditService.record(
+                    action='mailbox_invite_sent',
+                    user=_actor(request),
+                    detail=f'{address} -> {send_to}',
+                )
+                messages.success(
+                    request,
+                    f'A new setup link for {address} and getting-started instructions '
+                    f'were sent to {send_to}.',
+                )
+                mailbox_id = MailboxService.mailbox_id_for(address)
+                if form.cleaned_data.get('return_to') == 'profile' and mailbox_id is not None:
+                    return redirect('accounts:mailbox_profile', mailbox_id=mailbox_id)
+                return redirect('accounts:mailboxes')
+            if send_to:
+                messages.warning(
+                    request,
+                    f'The email to {send_to} could not be sent. Share the link yourself.',
+                )
             if form.cleaned_data.get('return_to') == 'profile':
                 # One-time handoff: the profile page shows the link in a
                 # copyable panel instead of a wall of text in a flash message.

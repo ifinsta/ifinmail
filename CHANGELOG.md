@@ -12,3 +12,6 @@ First working release.
   can be switched off).
 - `make uninstall` undoes the installation (including anonymous volumes of the stack's
   containers); `--check` lists anything left.
+- New mailboxes: the setup link and getting-started instructions (mail app settings) can be
+  emailed to an address the owner already reads, when the mailbox is created or later from the
+  mailbox list or profile.

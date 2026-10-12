@@ -1,0 +1,19 @@
+{% load i18n %}{% autoescape off %}{% blocktrans %}A mailbox was created for you: {{ address }}{% endblocktrans %}
+
+{% trans 'Choose your password here:' %}
+{{ setup_url }}
+
+{% blocktrans count days=valid_days %}The link works once and expires in {{ days }} day.{% plural %}The link works once and expires in {{ days }} days.{% endblocktrans %} {% trans 'If it has expired, ask your administrator for a new one.' %}
+
+{% trans 'Getting started' %}
+1. {% trans 'Open the link above and choose a password.' %}
+2. {% trans 'Add the account to your mail app (Outlook, Apple Mail, Thunderbird, your phone…).' %} {% trans 'Sign in with your full address and the password you chose.' %}
+{% if mail_host %}
+   {% trans 'Username' %}: {{ address }}
+   {% trans 'Incoming (IMAP)' %}: {{ mail_host }}, {% trans 'port' %} 993, SSL/TLS
+   {% trans 'Outgoing (SMTP)' %}: {{ mail_host }}, {% trans 'port' %} 587, STARTTLS
+{% endif %}
+{% trans "If you weren't expecting this mailbox, you can ignore this email." %}
+
+{{ brand.name }}
+{% endautoescape %}

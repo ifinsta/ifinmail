@@ -183,6 +183,90 @@ class MailboxPagesTests(_Base):
         self.assertContains(response, 'Removed alice@ifinmail.test')
         self.assertFalse(Mailbox.objects.exists())
 
+    @patch.dict('os.environ', {'MAIL_HOSTNAME': 'mail.ifinmail.test'})
+    def test_the_setup_link_is_emailed_to_the_given_address(self) -> None:
+        from django.core import mail
+
+        response = self.client.post(
+            reverse('accounts:mailboxes_create'),
+            {'local_part': 'dana', 'domain': 'ifinmail.test', 'send_to': 'Dana@Example.com'},
+            follow=True,
+        )
+        self.assertContains(response, 'were sent to dana@example.com')
+        self.assertNotContains(response, '/accounts/mailbox-setup/')
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ['dana@example.com'])
+        self.assertEqual(sent.subject, 'Set up your mailbox dana@ifinmail.test')
+        html = sent.alternatives[0][0]
+        for body in (sent.body, html):
+            self.assertIn('/accounts/mailbox-setup/', body)
+            self.assertIn('mail.ifinmail.test, port 993', body)
+            self.assertIn('expires in 3 days', body)
+        # The emailed link works.
+        link = sent.body.split('http://testserver', 1)[1].split()[0]
+        self.assertContains(
+            self.client.get(link), 'Choose a password for <strong>dana@ifinmail.test'
+        )
+
+    def test_the_setup_link_cannot_be_sent_to_the_new_mailbox_itself(self) -> None:
+        from django.core import mail
+
+        response = self.client.post(
+            reverse('accounts:mailboxes_create'),
+            {'local_part': 'dana', 'domain': 'ifinmail.test', 'send_to': 'dana@ifinmail.test'},
+            follow=True,
+        )
+        self.assertContains(response, 'already read')
+        self.assertFalse(Mailbox.objects.exists())
+        self.assertEqual(mail.outbox, [])
+
+    def test_a_failed_email_still_shows_the_link(self) -> None:
+        with patch(
+            'backend.apps.accounts.views.mailboxes.send_mail', side_effect=ConnectionError('down')
+        ):
+            response = self.client.post(
+                reverse('accounts:mailboxes_create'),
+                {'local_part': 'dana', 'domain': 'ifinmail.test', 'send_to': 'dana@example.com'},
+                follow=True,
+            )
+        self.assertContains(response, 'could not be sent')
+        self.assertContains(response, '/accounts/mailbox-setup/')
+        self.assertTrue(Mailbox.objects.exists())
+
+    def test_a_new_setup_link_can_be_emailed_to_another_address(self) -> None:
+        from django.core import mail
+
+        self.client.post(
+            reverse('accounts:mailboxes_create'),
+            {'local_part': 'dana', 'domain': 'ifinmail.test'},
+            follow=True,  # consume the create message, which shows a link
+        )
+        act = reverse('accounts:mailboxes_action')
+        payload = {'action': 'invite', 'address': 'dana@ifinmail.test'}
+        response = self.client.post(act, {**payload, 'send_to': 'dana@example.com'}, follow=True)
+        self.assertContains(response, 'were sent to dana@example.com')
+        self.assertNotContains(response, '/accounts/mailbox-setup/')
+        self.assertEqual(mail.outbox[-1].to, ['dana@example.com'])
+        self.assertIn('/accounts/mailbox-setup/', mail.outbox[-1].body)
+
+        # From the profile page: back to the profile, no copy panel.
+        mailbox_id = MailboxService.mailbox_id_for('dana@ifinmail.test')
+        response = self.client.post(
+            act, {**payload, 'send_to': 'other@example.com', 'return_to': 'profile'}
+        )
+        self.assertRedirects(
+            response, reverse('accounts:mailbox_profile', kwargs={'mailbox_id': mailbox_id})
+        )
+        self.assertNotIn('invite_link', self.client.session)
+        self.assertEqual(mail.outbox[-1].to, ['other@example.com'])
+
+        # Not to the mailbox itself.
+        sent = len(mail.outbox)
+        response = self.client.post(act, {**payload, 'send_to': 'dana@ifinmail.test'}, follow=True)
+        self.assertContains(response, 'already read')
+        self.assertEqual(len(mail.outbox), sent)
+
     def test_errors_are_shown_and_nothing_is_created(self) -> None:
         response = self.client.post(
             reverse('accounts:mailboxes_create'),

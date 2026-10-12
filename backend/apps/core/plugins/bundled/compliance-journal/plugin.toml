@@ -1,0 +1,28 @@
+manifest_version = 1
+
+[plugin]
+id = "compliance-journal"
+name = "Compliance journal"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "compliance"
+summary = "Keep a copy of every message sent and received in one archive mailbox, for retention, legal discovery and audits."
+requires_core = "0.0.4"
+description = """
+Many organisations must be able to produce any message that passed through their mail system: for financial and healthcare retention rules, for legal holds and discovery, or simply to investigate an incident. Mailbox owners can delete their own mail, so their mailboxes are not a record.
+
+When enabled, the mail server sends an exact copy of every message it handles, inbound and outbound, to the archive mailbox you choose. Copies are made by Postfix itself before delivery, so they include messages later deleted by their recipients. Disabling or uninstalling stops new copies; mail already in the archive stays there.
+
+Before you enable it: create a dedicated mailbox for the archive (for example journal@your-domain), give it an unlimited quota or watch its size, and restrict who can sign in to it. Everyone with access to that mailbox can read all mail. Tell your users that mail is retained if your rules require it.
+"""
+
+[[settings]]
+key = "archive_address"
+type = "mailbox"
+label = "Archive mailbox"
+help = "An existing mailbox on this server that receives a copy of every message. Use one that nobody uses for ordinary mail."
+required = true
+
+[[contributes]]
+point = "postfix.main"
+values = { always_bcc = "{archive_address}" }

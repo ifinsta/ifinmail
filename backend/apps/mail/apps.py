@@ -5,3 +5,9 @@ class MailConfig(AppConfig):
     default_auto_field: str = 'django.db.models.BigAutoField'
     name: str = 'backend.apps.mail'
     label: str = 'mail'
+
+    def ready(self) -> None:
+        # Extension points and setting types this app offers to plugins.
+        from backend.apps.mail.services.plugin_points import register
+
+        register()

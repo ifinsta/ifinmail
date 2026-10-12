@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'backend.apps.core.telemetry.apps.TelemetryConfig',
     # ifinmail platform services (audit trail, TLS, monitoring, runtime files)
     'backend.apps.core.platform.apps.PlatformConfig',
+    'backend.apps.core.plugins.apps.PluginsConfig',
     # ifinmail apps
     'backend.apps.accounts.apps.AccountsConfig',
     'backend.apps.devices.apps.DevicesConfig',
@@ -234,6 +235,11 @@ CELERY_BEAT_SCHEDULE = {
     'apply-postfix-overrides': {
         'task': 'mail.apply_postfix_overrides',
         'schedule': crontab(minute='2,12,22,32,42,52'),
+    },
+    'plugins-reconcile': {
+        # Finishes interrupted plugin operations and rewrites plugin files only if they drifted.
+        'task': 'plugins.reconcile',
+        'schedule': crontab(minute='4,14,24,34,44,54'),
     },
     'audit-maintenance': {
         'task': 'core.audit_maintenance',

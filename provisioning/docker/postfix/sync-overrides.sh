@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Applies the outbound-mail settings published by the console to Postfix.
+# Applies settings published by the console to Postfix.
 #
-# The api writes <runtime>/postfix-overrides.conf ("key = value" lines). This
-# script watches it and, when it changes, applies the allowed keys with postconf
-# and reloads Postfix. Only the keys below are ever applied, and values must look
-# like hostnames/numbers, so the file cannot be used to inject other settings.
+# The api writes "key = value" files on the runtime volume:
+#   postfix-overrides.conf   outbound settings (relayhost, default_transport, hopcount_limit)
+#   postfix-plugins.conf     values from enabled plugins (extension point postfix.main)
+# This script watches both and, when one changes, applies its allowed keys with postconf and
+# reloads Postfix. Each file has its own allow-list and value grammar, so neither can be used to
+# set anything else, and plugins can never touch relaying. After applying the plugins file it
+# writes the file's SHA-256 to <status>/postfix-plugins.applied so the console can show
+# "Applied".
 #
 #   ifinmail-postfix-sync          run forever (default interval 10s)
 #   ifinmail-postfix-sync --once   apply once and exit (used by tests)
@@ -16,14 +20,21 @@ INTERVAL="${IFINMAIL_SYNC_INTERVAL:-10}"
 POSTCONF="${POSTCONF_BIN:-postconf}"
 POSTFIX="${POSTFIX_BIN:-postfix}"
 ALLOWED_KEYS=" relayhost default_transport hopcount_limit "
+SAFE_VALUE='^[][A-Za-z0-9.:_-]*$'
+PLUGINS_FILE="${IFINMAIL_PLUGINS_FILE:-/var/lib/ifinmail/runtime/postfix-plugins.conf}"
+PLUGINS_STATE="${IFINMAIL_PLUGINS_STATE:-/var/run/ifinmail-plugins.sha256}"
+PLUGIN_KEYS=" always_bcc "
+PLUGIN_VALUE='^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)?$'
 
 log() { echo "ifinmail-postfix-sync: $*"; }
 
-apply_once() {
-    [ -r "$FILE" ] || return 0
+# apply_file <file> <state file> <allowed keys> <value regex>; returns 0 when nothing was pending
+apply_file() {
+    local file="$1" state="$2" allowed="$3" safe="$4"
+    [ -r "$file" ] || return 0
     local current previous=""
-    current="$(sha256sum "$FILE" | cut -d' ' -f1)"
-    [ -r "$STATE" ] && previous="$(cat "$STATE")"
+    current="$(sha256sum "$file" | cut -d' ' -f1)"
+    [ -r "$state" ] && previous="$(cat "$state")"
     [ "$current" = "$previous" ] && return 0
 
     local line key value changed=0
@@ -35,11 +46,11 @@ apply_once() {
         fi
         key="${BASH_REMATCH[1]}"
         value="${BASH_REMATCH[2]}"
-        if [[ "$ALLOWED_KEYS" != *" $key "* ]]; then
+        if [[ "$allowed" != *" $key "* ]]; then
             log "ignoring key not on the allow-list: $key"
             continue
         fi
-        if [[ ! "$value" =~ ^[][A-Za-z0-9.:_-]*$ ]]; then
+        if [[ ! "$value" =~ $safe ]]; then
             log "ignoring unsafe value for $key"
             continue
         fi
@@ -48,13 +59,30 @@ apply_once() {
         else
             "$POSTCONF" -e "$key=$value" && changed=1
         fi
-    done < "$FILE"
+    done < "$file"
 
     if [ "$changed" = 1 ]; then
         "$POSTFIX" reload >/dev/null 2>&1 || log "postfix reload failed (not running yet?)"
-        log "applied $(basename "$FILE")"
+        log "applied $(basename "$file")"
     fi
-    echo "$current" > "$STATE"
+    echo "$current" > "$state"
+}
+
+apply_once() {
+    apply_file "$FILE" "$STATE" "$ALLOWED_KEYS" "$SAFE_VALUE"
+    apply_file "$PLUGINS_FILE" "$PLUGINS_STATE" "$PLUGIN_KEYS" "$PLUGIN_VALUE"
+    acknowledge_plugins
+}
+
+# Tell the console which plugins file is in effect (it compares this hash with what it wrote).
+acknowledge_plugins() {
+    [ -r "$PLUGINS_STATE" ] && [ -d "$STATUS_DIR" ] && [ -w "$STATUS_DIR" ] || return 0
+    local applied
+    applied="$(cat "$PLUGINS_STATE")"
+    [ "$(cat "$STATUS_DIR/postfix-plugins.applied" 2>/dev/null)" = "$applied" ] && return 0
+    printf '%s\n' "$applied" > "$STATUS_DIR/postfix-plugins.applied.tmp" \
+        && mv "$STATUS_DIR/postfix-plugins.applied.tmp" "$STATUS_DIR/postfix-plugins.applied"
+    chmod 644 "$STATUS_DIR/postfix-plugins.applied" 2>/dev/null || true
 }
 
 # Queue counts for the console's System health page (it cannot see Postfix's spool).

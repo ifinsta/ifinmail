@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Submit a plugin — Marketplace — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <p class="ifinmail-help-text"><a class="ifinmail-link-strong" href="{% url 'accounts:marketplace' %}">{% trans 'Marketplace' %}</a></p>
+                <h1 class="ifinmail-page-title">{% trans 'Submit a plugin' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'A plugin is one plugin.toml file. A reviewer reads it and approves or rejects it; it appears in the Marketplace only after approval.' %}</p>
+            </div>
+        </div>
+
+        {% include "includes/flash_messages.html" %}
+
+        {% if problems %}
+        <div class="ifinmail-error-banner" role="alert">
+            <p>{% blocktrans count n=problems|length %}The manifest has {{ n }} problem:{% plural %}The manifest has {{ n }} problems:{% endblocktrans %}</p>
+            <ul>
+                {% for location, message in problems %}<li><code class="ifinmail-text--mono">{{ location }}</code> {{ message }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sub-form">
+            <h2 class="ifinmail-panel-title" id="sub-form">{% trans 'Manifest' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Plugins only set values at extension points the server offers, so they cannot run code. Built-in plugins are a good starting point to copy.' %}</p>
+            <form method="post" enctype="multipart/form-data" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="sub-manifest">{% trans 'plugin.toml' %}</label>
+                    <textarea class="ifinmail-input ifinmail-text--mono" id="sub-manifest" name="manifest" rows="18" spellcheck="false" autocomplete="off" placeholder="manifest_version = 1&#10;&#10;[plugin]&#10;id = &quot;my-plugin&quot;" aria-describedby="sub-manifest-help">{{ manifest_text }}</textarea>
+                    <small class="ifinmail-help-text" id="sub-manifest-help">{% trans 'Paste the file, or choose it below (at most 32 KiB).' %}</small>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="sub-file">{% trans 'Or choose the file' %}</label>
+                    <input class="ifinmail-input" id="sub-file" name="manifest_file" type="file" accept=".toml,text/plain">
+                </div>
+                <div class="ifinmail-field">
+                    <label for="sub-note">{% trans 'Note for the reviewer (optional)' %}</label>
+                    <textarea class="ifinmail-input" id="sub-note" name="note" rows="3" maxlength="2000"></textarea>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Submit for review' %}</button></div>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

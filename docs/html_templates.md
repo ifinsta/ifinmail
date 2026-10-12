@@ -38,6 +38,12 @@ verify — every row must exist on disk.
 | `admin/partials/provider_row.html` | TablesRows | provider rows |
 | `admin/partials/queue_row.html` | TablesRows | queue rows |
 | `admin/partials/mailbox_row.html` | (Mailbox extension) | mailbox rows |
+| `includes/flash_messages.html` | ShellParts | flash messages on admin pages outside the Settings layout |
+| `admin/marketplace.html` | (Marketplace extension) | `accounts/views/marketplace.py` — Discover / Installed / Submissions tabs |
+| `admin/marketplace_plugin.html` | (Marketplace extension) | one plugin: about, what it changes, settings, update, manage |
+| `admin/marketplace_submit.html` | (Marketplace extension) | submit a `plugin.toml` for review |
+| `admin/marketplace_submission.html` | (Marketplace extension) | review a submission (approve, reject, withdraw, retire) |
+| `admin/partials/plugin_fields.html` | (Marketplace extension) | setting fields rendered from a plugin manifest |
 
 ## Settings hub (`SettingsCatalogue` in `accounts/services/settings_catalogue.py`)
 

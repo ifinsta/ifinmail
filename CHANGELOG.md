@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.0.4
+- **Marketplace** (sidebar, after Settings): browse, install, configure, enable, disable, update and
+  uninstall plugins; submit new ones for review. Approval is always a person (`system.manage`);
+  sources are internal only (built-in plugins and approved submissions).
+- **Plugin layer** (`backend/apps/core/plugins`): declarative `plugin.toml` manifests, strict
+  validation that reports every problem at once, extension points and setting types registered by
+  the apps that own them, an installation state machine with crash recovery and reconciliation,
+  and an acknowledgement so the console shows whether Postfix has applied a change. No new
+  packages or services.
+- **Compliance journal**, the first built-in plugin: a copy of every message to an archive mailbox.
+- The postfix watcher applies a second file (`postfix-plugins.conf`) with its own allow-list.
+- System health reports failed or unapplied plugins. A `plugins.reconcile` job runs every 10 minutes
+  and writes only when something drifted.
+- Guide, state machines and 215 handled edge cases: `.agents/skills/ifinmail-plugins/`.
+
 ## v0.0.3
 - `make audit-verify` and `make reset-mfa EMAIL=...` replace the `docker compose exec` commands
   documented in v0.0.2, which failed without the environment file.

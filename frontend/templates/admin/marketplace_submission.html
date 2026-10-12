@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with plugin=submission.name name=brand.name %}{{ plugin }} submission — Marketplace — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <p class="ifinmail-help-text"><a class="ifinmail-link-strong" href="{% url 'accounts:marketplace' %}?tab=submissions">{% trans 'Submissions' %}</a></p>
+                <h1 class="ifinmail-page-title">{{ submission.name }} <span class="ifinmail-text--mono">{{ submission.version }}</span></h1>
+                <p class="ifinmail-page-subtitle"><span class="ifinmail-badge ifinmail-badge--{{ tone }}">{{ submission.state|capfirst }}</span></p>
+            </div>
+        </div>
+
+        {% include "includes/flash_messages.html" %}
+        {% if not manifest %}<p class="ifinmail-error-banner" role="alert">{% trans 'This manifest no longer validates against this server (an extension point or setting type it uses is gone). It cannot be approved.' %}</p>{% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sm-about">
+            <h2 class="ifinmail-panel-title" id="sm-about">{% trans 'Submission' %}</h2>
+            {% if manifest %}<p>{{ manifest.summary }}</p>{% for paragraph in manifest.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}{% endif %}
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Plugin id' %}</dt><dd class="ifinmail-text--mono">{{ submission.plugin_id }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Submitted by' %}</dt><dd>{{ submission.submitted_by }} · <span class="ifinmail-text--mono">{{ submission.created_at|date:"Y-m-d H:i" }}</span></dd></div>
+                {% if submission.submitter_note %}<div class="ifinmail-settings-row"><dt>{% trans 'Note' %}</dt><dd>{{ submission.submitter_note|linebreaksbr }}</dd></div>{% endif %}
+                {% if submission.reviewed_by %}<div class="ifinmail-settings-row"><dt>{% trans 'Reviewed by' %}</dt><dd>{{ submission.reviewed_by }} · <span class="ifinmail-text--mono">{{ submission.reviewed_at|date:"Y-m-d H:i" }}</span></dd></div>{% endif %}
+                {% if submission.review_note %}<div class="ifinmail-settings-row"><dt>{% trans 'Review note' %}</dt><dd>{{ submission.review_note|linebreaksbr }}</dd></div>{% endif %}
+                <div class="ifinmail-settings-row"><dt>SHA-256</dt><dd class="ifinmail-text--mono">{{ submission.manifest_sha256 }}</dd></div>
+            </dl>
+        </section>
+
+        {% if changes %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sm-changes">
+            <h2 class="ifinmail-panel-title" id="sm-changes">{% trans 'What it would change' %}</h2>
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'What it would change' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th>{% trans 'Where' %}</th><th>{% trans 'Setting' %}</th><th>{% trans 'Effect' %}</th><th>{% trans 'Value' %}</th></tr></thead>
+                    <tbody>
+                    {% for change in changes %}<tr><td>{{ change.point }}</td><td class="ifinmail-text--mono">{{ change.key }}</td><td>{{ change.description }}</td><td class="ifinmail-text--mono">{{ change.template }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </article>
+        </section>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sm-manifest">
+            <h2 class="ifinmail-panel-title" id="sm-manifest">{% trans 'Manifest as submitted' %}</h2>
+            <pre class="ifinmail-codebox">{{ submission.manifest }}</pre>
+        </section>
+
+        {% if actions %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sm-review">
+            <h2 class="ifinmail-panel-title" id="sm-review">{% if 'approve' in actions %}{% trans 'Review' %}{% else %}{% trans 'Actions' %}{% endif %}</h2>
+            <form method="post" action="{% url 'accounts:marketplace_submission_action' submission_id=submission.id %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                {% if 'approve' in actions or 'reject' in actions or 'retire' in actions %}
+                <div class="ifinmail-field">
+                    <label for="sm-note">{% trans 'Note (required to reject)' %}</label>
+                    <textarea class="ifinmail-input" id="sm-note" name="note" rows="3" maxlength="2000"></textarea>
+                </div>
+                {% endif %}
+                <div class="ifinmail-inline-form--row">
+                    {% if 'approve' in actions %}<button class="ifinmail-btn ifinmail-btn--primary" type="submit" name="action" value="approve">{% trans 'Approve and publish' %}</button>{% endif %}
+                    {% if 'reject' in actions %}<button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="reject">{% trans 'Reject' %}</button>{% endif %}
+                    {% if 'withdraw' in actions %}<button class="ifinmail-btn" type="submit" name="action" value="withdraw">{% trans 'Withdraw' %}</button>{% endif %}
+                    {% if 'retire' in actions %}<button class="ifinmail-btn" type="submit" name="action" value="retire" data-confirm="{% trans 'Retire this version? It disappears from the Marketplace; installed copies keep working.' %}">{% trans 'Retire' %}</button>{% endif %}
+                </div>
+            </form>
+        </section>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

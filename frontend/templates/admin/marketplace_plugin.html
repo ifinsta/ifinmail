@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with plugin=manifest.name name=brand.name %}{{ plugin }} — Marketplace — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <p class="ifinmail-help-text"><a class="ifinmail-link-strong" href="{% url 'accounts:marketplace' %}">{% trans 'Marketplace' %}</a></p>
+                <h1 class="ifinmail-page-title">{{ manifest.name }}</h1>
+                <p class="ifinmail-page-subtitle">{{ manifest.summary }}</p>
+                <p>
+                    <span class="ifinmail-badge ifinmail-badge--{{ state_tone }}">{% if state == 'absent' %}{% trans 'Not installed' %}{% else %}{{ state|capfirst }}{% endif %}</span>
+                    {% if row %}<span class="ifinmail-badge ifinmail-badge--{{ apply_tone }}">{% if apply_status == 'applied' %}{% trans 'Applied' %}{% elif apply_status == 'applying' %}{% trans 'Applying' %}{% elif apply_status == 'not_applied' %}{% trans 'Not applied yet' %}{% else %}{% trans 'Apply status unknown' %}{% endif %}</span>{% endif %}
+                    <span class="ifinmail-text--mono">{{ manifest.version }}</span>
+                </p>
+            </div>
+        </div>
+
+        {% include "includes/flash_messages.html" %}
+        {% if form_error %}<p class="ifinmail-error-banner" role="alert">{{ form_error }}</p>{% endif %}
+        {% if row.state == 'failed' %}<p class="ifinmail-error-banner" role="alert">{% blocktrans trimmed with error=row.last_error %}The last change failed: {{ error }} Retry it, or uninstall the plugin.{% endblocktrans %}</p>{% endif %}
+        {% if row and apply_status == 'not_applied' %}<p class="ifinmail-error-banner" role="status">{% trans 'The postfix container has not applied the latest plugin settings. Check that it is running ("make ps").' %}</p>{% endif %}
+        {% if not compatible %}<p class="ifinmail-error-banner" role="status">{% blocktrans trimmed with need=manifest.requires_core %}This plugin needs ifinmail {{ need }} or newer. Update the server first.{% endblocktrans %}</p>{% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-about">
+            <h2 class="ifinmail-panel-title" id="pl-about">{% trans 'About' %}</h2>
+            {% for paragraph in manifest.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Publisher' %}</dt><dd>{{ manifest.publisher }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Category' %}</dt><dd>{{ manifest.category|capfirst }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Version' %}</dt><dd class="ifinmail-text--mono">{{ manifest.version }}{% if update %} → {{ new_manifest.version }}{% endif %}</dd></div>
+                {% if manifest.requires_core %}<div class="ifinmail-settings-row"><dt>{% trans 'Requires' %}</dt><dd class="ifinmail-text--mono">ifinmail {{ manifest.requires_core }}+</dd></div>{% endif %}
+                <div class="ifinmail-settings-row"><dt>{% trans 'Source' %}</dt><dd>{% if entry.source == 'bundled' or row.source == 'bundled' %}{% trans 'Built in' %}{% else %}{% trans 'Approved submission' %}{% endif %}</dd></div>
+            </dl>
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-changes">
+            <h2 class="ifinmail-panel-title" id="pl-changes">{% trans 'What it changes' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'A plugin can only set these values. Disabling or uninstalling removes them again.' %}</p>
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'What it changes' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th>{% trans 'Where' %}</th><th>{% trans 'Setting' %}</th><th>{% trans 'Effect' %}</th><th>{% trans 'Value' %}</th></tr></thead>
+                    <tbody>
+                    {% for change in changes %}
+                        <tr>
+                            <td>{{ change.point }}</td>
+                            <td class="ifinmail-text--mono">{{ change.key }}</td>
+                            <td>{{ change.description }}</td>
+                            <td class="ifinmail-text--mono">{% if row %}{{ change.value|default:'—' }}{% else %}{{ change.template }}{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+        </section>
+
+        {% if can_manage %}
+        {% if state == 'absent' or state == 'enabled' or state == 'disabled' %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-settings">
+            <h2 class="ifinmail-panel-title" id="pl-settings">{% if state == 'absent' %}{% trans 'Install' %}{% else %}{% trans 'Settings' %}{% endif %}</h2>
+            <form method="post" action="{% url 'accounts:marketplace_plugin_action' plugin_id=manifest.id %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="{% if state == 'absent' %}install{% else %}configure{% endif %}">
+                {% if row %}<input type="hidden" name="revision" value="{{ row.revision }}">{% endif %}
+                {% include "admin/partials/plugin_fields.html" with fields=fields %}
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit"{% if state == 'absent' and not compatible %} disabled{% endif %}>{% if state == 'absent' %}{% trans 'Install and enable' %}{% else %}{% trans 'Save settings' %}{% endif %}</button></div>
+            </form>
+        </section>
+        {% endif %}
+
+        {% if update and compatible %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-update">
+            <h2 class="ifinmail-panel-title" id="pl-update">{% blocktrans with version=new_manifest.version %}Update to {{ version }}{% endblocktrans %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Current settings are carried over; check any new ones below.' %}</p>
+            <form method="post" action="{% url 'accounts:marketplace_plugin_action' plugin_id=manifest.id %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="revision" value="{{ row.revision }}">
+                {% include "admin/partials/plugin_fields.html" with fields=update_fields %}
+                <div><button class="ifinmail-btn" type="submit">{% trans 'Update' %}</button></div>
+            </form>
+        </section>
+        {% endif %}
+
+        {% if row %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-lifecycle">
+            <h2 class="ifinmail-panel-title" id="pl-lifecycle">{% trans 'Manage' %}</h2>
+            <form method="post" action="{% url 'accounts:marketplace_plugin_action' plugin_id=manifest.id %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <input type="hidden" name="revision" value="{{ row.revision }}">
+                {% if 'enable' in operations %}<button class="ifinmail-btn" type="submit" name="action" value="enable">{% trans 'Enable' %}</button>{% endif %}
+                {% if 'disable' in operations %}<button class="ifinmail-btn" type="submit" name="action" value="disable">{% trans 'Disable' %}</button>{% endif %}
+                {% if 'retry' in operations %}<button class="ifinmail-btn" type="submit" name="action" value="retry">{% trans 'Retry' %}</button>{% endif %}
+                {% if 'uninstall' in operations %}<button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="uninstall" data-confirm="{% trans 'Uninstall this plugin? Its settings are removed from the server.' %}">{% trans 'Uninstall' %}</button>{% endif %}
+            </form>
+            {% if not operations %}<p class="ifinmail-help-text" role="status">{% trans 'A change is in progress. Reload in a moment.' %}</p>{% endif %}
+        </section>
+        {% endif %}
+        {% else %}
+        <p class="ifinmail-help-text">{% trans 'Installing and changing plugins needs the system.manage permission.' %}</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

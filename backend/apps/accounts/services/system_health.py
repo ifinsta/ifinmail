@@ -644,6 +644,39 @@ def _backup_key() -> HealthCheck:
     )
 
 
+def _plugins() -> list[HealthCheck]:
+    """Installed plugins: any failed, or settings the postfix container has not applied."""
+    from backend.apps.core.plugins.services import InstallationService
+    from backend.apps.core.plugins.types import ApplyStatus, InstallationState
+
+    rows = InstallationService.all()
+    if not rows:
+        return []  # nothing installed: say nothing
+    title = 'Plugins'
+    link = _url('accounts:marketplace') + '?tab=installed'
+    failed = [r.plugin_id for r in rows if r.state == InstallationState.FAILED]
+    if failed:
+        return [HealthCheck(
+            'plugins', GROUP_SERVER, title, ERROR,
+            f'A change to {", ".join(failed)} failed and is not in effect.',
+            'Open the plugin and choose Retry, or uninstall it.',
+            link=link, link_label='Marketplace',
+        )]
+    statuses = InstallationService.apply_status()
+    if ApplyStatus.NOT_APPLIED in statuses.values():
+        return [HealthCheck(
+            'plugins', GROUP_SERVER, title, WARNING,
+            'Plugin settings are waiting for the postfix container to apply them.',
+            'Check that the postfix container is running ("make ps").',
+            link=link, link_label='Marketplace',
+        )]
+    enabled = sum(1 for r in rows if r.state == InstallationState.ENABLED)
+    return [HealthCheck(
+        'plugins', GROUP_SERVER, title, OK,
+        f'{enabled} of {len(rows)} installed plugin(s) enabled.',
+    )]
+
+
 def _background_jobs() -> HealthCheck:
     from backend.apps.core.services import SystemSettings
     from backend.apps.core.types import SettingKey
@@ -800,6 +833,7 @@ def _collect() -> HealthReport:
     checks += _check(_backups)
     checks += _check(_offsite_backup)
     checks += _check(_backup_key)
+    checks += _check(_plugins)
     checks += _check(_background_jobs)
     checks += _check(_software_version)
     checks += _check(_security)

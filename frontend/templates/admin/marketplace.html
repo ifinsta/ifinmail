@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Marketplace — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Marketplace' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Plugins add capabilities by configuring this server for you. Every plugin here was built or reviewed by your organisation; nothing is downloaded from outside.' %}</p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <a class="ifinmail-btn" href="{% url 'accounts:marketplace_submit' %}">{% trans 'Submit a plugin' %}</a>
+            </div>
+        </div>
+
+        {% include "includes/flash_messages.html" %}
+
+        {% for name, problem in bundled_errors %}
+        <p class="ifinmail-error-banner" role="alert">{% blocktrans trimmed %}Built-in plugin {{ name }} could not be loaded: {{ problem }}{% endblocktrans %}</p>
+        {% endfor %}
+
+        <nav class="ifinmail-tabs" aria-label="{% trans 'Marketplace sections' %}">
+            <a class="ifinmail-tab{% if tab == 'discover' %} ifinmail-tab--active{% endif %}" href="?tab=discover"{% if tab == 'discover' %} aria-current="page"{% endif %}>{% trans 'Discover' %}</a>
+            <a class="ifinmail-tab{% if tab == 'installed' %} ifinmail-tab--active{% endif %}" href="?tab=installed"{% if tab == 'installed' %} aria-current="page"{% endif %}>{% blocktrans count n=installed_rows|length %}Installed ({{ n }}){% plural %}Installed ({{ n }}){% endblocktrans %}</a>
+            <a class="ifinmail-tab{% if tab == 'submissions' %} ifinmail-tab--active{% endif %}" href="?tab=submissions"{% if tab == 'submissions' %} aria-current="page"{% endif %}>{% trans 'Submissions' %}{% if pending_count %} <b class="ifinmail-nav-count" aria-label="{% blocktrans count n=pending_count %}{{ n }} waiting for review{% plural %}{{ n }} waiting for review{% endblocktrans %}">{{ pending_count }}</b>{% endif %}</a>
+        </nav>
+
+        {% if tab == 'discover' %}
+        <div class="ifinmail-settings-overview">
+            <h2 class="ifinmail-overline">{% trans 'Available plugins' %}</h2>
+            {% if catalog %}
+            <ul class="ifinmail-settings-overview__list">
+                {% for item in catalog %}
+                <li>
+                    <a class="ifinmail-settings-overview__item" href="{% url 'accounts:marketplace_plugin' plugin_id=item.entry.plugin_id %}">
+                        <span class="ifinmail-settings-overview__icon"><svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 8-9-5-9 5v8l9 5 9-5z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg></span>
+                        <span class="ifinmail-settings-overview__text">
+                            <strong>{{ item.entry.manifest.name }}
+                                {% if item.installed %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Installed' %}</span>{% endif %}
+                                {% if item.update %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'Update available' %}</span>{% endif %}
+                                {% if not item.compatible %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Needs a newer ifinmail' %}</span>{% endif %}
+                            </strong>
+                            <small>{{ item.entry.manifest.summary }}</small>
+                            <small class="ifinmail-text--mono">{{ item.entry.manifest.version }} · {{ item.entry.manifest.publisher }} · {{ item.entry.manifest.category }}</small>
+                        </span>
+                        <svg class="ifinmail-icon ifinmail-icon--sm ifinmail-settings-overview__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="ifinmail-empty-state"><p>{% trans 'No plugins are available yet. Submit one to get started.' %}</p></div>
+            {% endif %}
+        </div>
+
+        {% elif tab == 'installed' %}
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Installed plugins' %}">
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Plugin' %}</th><th>{% trans 'Version' %}</th><th>{% trans 'State' %}</th><th>{% trans 'Notes' %}</th></tr></thead>
+                <tbody>
+                {% for item in installed_rows %}
+                    <tr>
+                        <td><a class="ifinmail-link-strong" href="{% url 'accounts:marketplace_plugin' plugin_id=item.row.plugin_id %}">{{ item.name }}</a></td>
+                        <td class="ifinmail-text--mono">{{ item.row.version }}</td>
+                        <td><span class="ifinmail-badge ifinmail-badge--{{ item.tone }}">{{ item.row.state|capfirst }}</span></td>
+                        <td>{% if item.update %}{% trans 'Update available' %}{% elif not item.listed %}{% trans 'No longer listed; keeps working' %}{% elif item.row.last_error %}{{ item.row.last_error|truncatechars:80 }}{% else %}—{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'Nothing installed yet. Pick a plugin under Discover.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        {% else %}
+        <p class="ifinmail-help-text">{% trans 'Submitted plugins wait here until a reviewer approves or rejects them. Nothing is approved automatically.' %}</p>
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Submissions' %}">
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Plugin' %}</th><th>{% trans 'Version' %}</th><th>{% trans 'Submitted by' %}</th><th>{% trans 'State' %}</th><th>{% trans 'Submitted' %}</th></tr></thead>
+                <tbody>
+                {% for item in submissions %}
+                    <tr>
+                        <td><a class="ifinmail-link-strong" href="{% url 'accounts:marketplace_submission' submission_id=item.row.id %}">{{ item.row.name }}</a></td>
+                        <td class="ifinmail-text--mono">{{ item.row.version }}</td>
+                        <td>{{ item.row.submitted_by }}</td>
+                        <td><span class="ifinmail-badge ifinmail-badge--{{ item.tone }}">{{ item.row.state|capfirst }}</span></td>
+                        <td class="ifinmail-text--mono">{{ item.row.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No submissions yet.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

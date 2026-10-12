@@ -1,0 +1,27 @@
+{% load i18n %}
+{% if fields %}
+<div class="ifinmail-field-grid">
+    {% for f in fields %}
+    <div class="ifinmail-field">
+        {% if f.kind == 'boolean' %}
+        <label class="ifinmail-check"><input type="checkbox" id="{{ f.id }}" name="{{ f.name }}"{% if f.value %} checked{% endif %}{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}> <span>{{ f.spec.label }}</span></label>
+        {% else %}
+        <label for="{{ f.id }}">{{ f.spec.label }}{% if f.spec.required %} <span class="ifinmail-required" aria-hidden="true">*</span>{% endif %}</label>
+        {% if f.kind == 'choice' %}
+        <select class="ifinmail-input" id="{{ f.id }}" name="{{ f.name }}"{% if f.spec.required %} required{% endif %}{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}>
+            {% if not f.spec.required %}<option value="">—</option>{% endif %}
+            {% for option in f.spec.options %}<option value="{{ option }}"{% if option == f.value %} selected{% endif %}>{{ option }}</option>{% endfor %}
+        </select>
+        {% elif f.kind == 'integer' %}
+        <input class="ifinmail-input ifinmail-text--mono" id="{{ f.id }}" name="{{ f.name }}" type="number" inputmode="numeric" value="{{ f.value }}"{% if f.spec.min is not None %} min="{{ f.spec.min }}"{% endif %}{% if f.spec.max is not None %} max="{{ f.spec.max }}"{% endif %}{% if f.spec.required %} required{% endif %}{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}>
+        {% else %}
+        <input class="ifinmail-input{% if f.kind == 'email' %} ifinmail-text--mono{% endif %}" id="{{ f.id }}" name="{{ f.name }}" type="{% if f.kind == 'email' %}email{% else %}text{% endif %}" value="{{ f.value }}"{% if f.kind == 'text' %} maxlength="{{ f.spec.max_length }}"{% endif %} autocomplete="off" autocapitalize="off" spellcheck="false"{% if f.spec.required %} required{% endif %}{% if f.error %} aria-invalid="true" aria-describedby="{{ f.id }}-err"{% elif f.spec.help %} aria-describedby="{{ f.id }}-help"{% endif %}>
+        {% endif %}
+        {% endif %}
+        {% if f.error %}<small class="ifinmail-error-text" id="{{ f.id }}-err" role="alert">{{ f.error }}</small>{% elif f.spec.help %}<small class="ifinmail-help-text" id="{{ f.id }}-help">{{ f.spec.help }}</small>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="ifinmail-help-text">{% trans 'This plugin has no settings.' %}</p>
+{% endif %}

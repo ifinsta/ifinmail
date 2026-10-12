@@ -1,6 +1,14 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
+from .views.marketplace import (
+    marketplace,
+    marketplace_plugin,
+    marketplace_plugin_action,
+    marketplace_submission,
+    marketplace_submission_action,
+    marketplace_submit,
+)
 from .views.server import (
     certificates_action,
     certificates_page,
@@ -172,4 +180,25 @@ urlpatterns = [
     path('spam-filtering/add-provider/', spam_add_provider, name='spam_add_provider'),
     path('users/export/', users_export, name='users_export'),
     path('users/kill-sessions/', users_kill_sessions, name='users_kill_sessions'),
+    # Marketplace (plugins)
+    path('marketplace/', marketplace, name='marketplace'),
+    path('marketplace/submit/', marketplace_submit, name='marketplace_submit'),
+    path(
+        'marketplace/plugins/<slug:plugin_id>/', marketplace_plugin, name='marketplace_plugin'
+    ),
+    path(
+        'marketplace/plugins/<slug:plugin_id>/action/',
+        marketplace_plugin_action,
+        name='marketplace_plugin_action',
+    ),
+    path(
+        'marketplace/submissions/<uuid:submission_id>/',
+        marketplace_submission,
+        name='marketplace_submission',
+    ),
+    path(
+        'marketplace/submissions/<uuid:submission_id>/action/',
+        marketplace_submission_action,
+        name='marketplace_submission_action',
+    ),
 ]

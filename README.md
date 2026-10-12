@@ -104,6 +104,23 @@ Clients configure themselves: `autoconfig.<domain>` and `autodiscover.<domain>` 
 
 A `worker` and a `beat` container run the periodic jobs: DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days) and re-publishing the outbound settings. `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
 
+### Marketplace (plugins)
+
+**Marketplace** (in the sidebar, after Settings) adds capabilities by configuring the server for
+you. A plugin is one declarative `plugin.toml`: settings an administrator fills in, and the values
+they produce at extension points the server offers. Plugins cannot run code, and every value is
+checked twice (by the console and by the container that applies it).
+
+- **Built in:** *Compliance journal* keeps a copy of every message, inbound and outbound, in an
+  archive mailbox you choose (Postfix `always_bcc`). Create the archive mailbox first.
+- **Your own:** Marketplace → Submit a plugin. Someone with `system.manage` approves or rejects it;
+  nothing is approved automatically and nothing is fetched from outside the server.
+- Each plugin page shows exactly what it changes and whether Postfix has applied it. Disable or
+  uninstall removes the values again. Failures and unapplied changes show in System health.
+- Authoring guide, state machines and the 215 handled edge cases:
+  `.agents/skills/ifinmail-plugins/`. In a development checkout, check a manifest with
+  `python manage.py validate_plugin path/to/plugin.toml`.
+
 ### Off-site copy and the backup key
 
 Backups are encrypted with GPG and, by default, stay on the same disk as the server. Two small

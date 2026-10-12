@@ -1,13 +1,13 @@
-manifest_version = 1
+manifest_version = 2
 
 [plugin]
 id = "dmarc-enforcement"
 name = "DMARC enforcement"
-version = "1.0.0"
+version = "2.0.0"
 publisher = "ifinmail"
 category = "security"
 summary = "Act on senders' DMARC policies, so mail forged in the name of a protected domain is rejected or sent to Junk."
-requires_core = "0.0.5"
+requires_core = "0.0.10"
 description = """
 Domains publish a DMARC policy to say what should happen to mail that claims to come from them but fails authentication: nothing, quarantine, or reject. Banks, payment providers and most large companies publish quarantine or reject, precisely so their names cannot be used for phishing.
 
@@ -25,5 +25,5 @@ default = "enforce"
 help = "enforce: follow the domain's policy (reject or quarantine). quarantine: deliver all failures to Junk."
 
 [[contributes]]
-point = "rspamd.policy"
-values = { dmarc_enforcement = "{mode}" }
+capability = "inbound.authentication"
+values = { dmarc = "{mode}" }

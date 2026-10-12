@@ -18,7 +18,13 @@ def setting(**changes: object) -> dict:
 
 # (case name, manifest data, expected location of the first relevant problem)
 INVALID = [
-    ('wrong manifest_version', manifest(manifest_version=2), 'manifest_version'),
+    ('wrong manifest_version', manifest(manifest_version=3), 'manifest_version'),
+    ('version 1 named software', manifest(manifest_version=1), 'manifest_version'),
+    (
+        'point instead of capability',
+        manifest(contributes=[{'point': 'postfix.main', 'values': {'always_bcc': 'a@b.test'}}]),
+        'contributes[0].point',
+    ),
     ('bool manifest_version', manifest(manifest_version=True), 'manifest_version'),
     ('missing manifest_version', manifest(manifest_version=None), 'manifest_version'),
     ('unknown top key', {**manifest(), 'extra': 1}, 'extra'),
@@ -142,22 +148,23 @@ INVALID = [
     (
         'too many contributions',
         manifest(
-            contributes=[{'point': 'postfix.main', 'values': {'always_bcc': 'a@b.test'}}] * 11
+            contributes=[{'capability': 'mail.journal', 'values': {'archive_address': 'a@b.test'}}]
+            * 11
         ),
         'contributes',
     ),
     (
         'unknown point',
-        manifest(contributes=[{'point': 'nginx.main', 'values': {'x': '1'}}]),
-        'contributes[0].point',
+        manifest(contributes=[{'capability': 'nginx.main', 'values': {'x': '1'}}]),
+        'contributes[0].capability',
     ),
     (
         'unknown contribution key',
         manifest(
             contributes=[
                 {
-                    'point': 'postfix.main',
-                    'values': {'always_bcc': '{archive_address}'},
+                    'capability': 'mail.journal',
+                    'values': {'archive_address': '{archive_address}'},
                     'when': 'x',
                 }
             ]
@@ -166,57 +173,69 @@ INVALID = [
     ),
     (
         'values empty',
-        manifest(contributes=[{'point': 'postfix.main', 'values': {}}]),
+        manifest(contributes=[{'capability': 'mail.journal', 'values': {}}]),
         'contributes[0].values',
     ),
     (
         'key not allowed',
         manifest(
-            contributes=[{'point': 'postfix.main', 'values': {'relayhost': 'smtp.evil.test'}}]
+            contributes=[{'capability': 'mail.journal', 'values': {'relayhost': 'smtp.evil.test'}}]
         ),
         'contributes[0].values.relayhost',
     ),
     (
         'value not text',
-        manifest(contributes=[{'point': 'postfix.main', 'values': {'always_bcc': 5}}]),
-        'contributes[0].values.always_bcc',
+        manifest(contributes=[{'capability': 'mail.journal', 'values': {'archive_address': 5}}]),
+        'contributes[0].values.archive_address',
     ),
     (
         'undeclared placeholder',
-        manifest(contributes=[{'point': 'postfix.main', 'values': {'always_bcc': '{nope}'}}]),
-        'contributes[0].values.always_bcc',
+        manifest(
+            contributes=[{'capability': 'mail.journal', 'values': {'archive_address': '{nope}'}}]
+        ),
+        'contributes[0].values.archive_address',
     ),
     (
         'unmatched brace',
         manifest(
-            contributes=[{'point': 'postfix.main', 'values': {'always_bcc': '{archive_address'}}]
+            contributes=[
+                {'capability': 'mail.journal', 'values': {'archive_address': '{archive_address'}}
+            ]
         ),
-        'contributes[0].values.always_bcc',
+        'contributes[0].values.archive_address',
     ),
     (
         'bad placeholder',
-        manifest(contributes=[{'point': 'postfix.main', 'values': {'always_bcc': '{Archive}'}}]),
-        'contributes[0].values.always_bcc',
+        manifest(
+            contributes=[{'capability': 'mail.journal', 'values': {'archive_address': '{Archive}'}}]
+        ),
+        'contributes[0].values.archive_address',
     ),
     (
         'literal value invalid',
-        manifest(contributes=[{'point': 'postfix.main', 'values': {'always_bcc': 'two words'}}]),
-        'contributes[0].values.always_bcc',
+        manifest(
+            contributes=[{'capability': 'mail.journal', 'values': {'archive_address': 'two words'}}]
+        ),
+        'contributes[0].values.archive_address',
     ),
     (
         'literal list injection',
         manifest(
-            contributes=[{'point': 'postfix.main', 'values': {'always_bcc': 'a@b.test,c@d.test'}}]
+            contributes=[
+                {'capability': 'mail.journal', 'values': {'archive_address': 'a@b.test,c@d.test'}}
+            ]
         ),
-        'contributes[0].values.always_bcc',
+        'contributes[0].values.archive_address',
     ),
     (
         'same key twice',
         manifest(
-            contributes=[{'point': 'postfix.main', 'values': {'always_bcc': '{archive_address}'}}]
+            contributes=[
+                {'capability': 'mail.journal', 'values': {'archive_address': '{archive_address}'}}
+            ]
             * 2
         ),
-        'contributes[1].values.always_bcc',
+        'contributes[1].values.archive_address',
     ),
 ]
 
@@ -226,7 +245,7 @@ class ManifestValidationTests(SimpleTestCase):
         m = manifests.load(text())
         self.assertEqual((m.id, m.version, m.category), ('test-journal', '1.0.0', 'compliance'))
         self.assertEqual(m.paragraphs, ['First paragraph.', 'Second paragraph.'])
-        self.assertEqual(m.claimed_keys(), {('postfix.main', 'always_bcc')})
+        self.assertEqual(m.claimed_keys(), {('mail.journal', 'archive_address')})
         self.assertEqual(len(m.sha256), 64)
 
     def test_each_invalid_manifest_is_rejected_at_the_right_place(self) -> None:
@@ -298,7 +317,9 @@ class SettingsValidationTests(SimpleTestCase):
                         setting(key='on', type='boolean', required=False),
                         setting(key='e', type='email', required=False),
                     ],
-                    contributes=[{'point': 'postfix.main', 'values': {'always_bcc': '{e}'}}],
+                    contributes=[
+                        {'capability': 'mail.journal', 'values': {'archive_address': '{e}'}}
+                    ],
                 )
             )
         )
@@ -358,11 +379,11 @@ class SettingsValidationTests(SimpleTestCase):
     def test_rendered_values_are_checked_by_the_point(self) -> None:
         self.assertEqual(
             manifests.rendered_values(self.m, {'e': 'x@y.test'}),
-            {'postfix.main': {'always_bcc': 'x@y.test'}},
+            {'mail.journal': {'archive_address': 'x@y.test'}},
         )
         # Empty clears the key; a value that would smuggle a newline is refused.
         self.assertEqual(
-            manifests.rendered_values(self.m, {'e': None})['postfix.main']['always_bcc'], ''
+            manifests.rendered_values(self.m, {'e': None})['mail.journal']['archive_address'], ''
         )
         with self.assertRaises(SettingsError):
             manifests.rendered_values(self.m, {'e': 'x@y.test\nrelayhost = evil'})
@@ -374,5 +395,5 @@ class BundledCatalogTests(SimpleTestCase):
         ids = [e.plugin_id for e in CatalogService.bundled()]
         self.assertIn('compliance-journal', ids)
         journal = next(e for e in CatalogService.bundled() if e.plugin_id == 'compliance-journal')
-        self.assertEqual(journal.manifest.claimed_keys(), {('postfix.main', 'always_bcc')})
+        self.assertEqual(journal.manifest.claimed_keys(), {('mail.journal', 'archive_address')})
         self.assertEqual(journal.manifest.setting('archive_address').type, 'mailbox')

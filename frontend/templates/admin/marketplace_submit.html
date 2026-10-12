@@ -30,7 +30,7 @@
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sub-form">
             <h2 class="ifinmail-panel-title" id="sub-form">{% trans 'Manifest' %}</h2>
-            <p class="ifinmail-settings-section__lede">{% trans 'Plugins only set values at extension points the server offers, so they cannot run code. Built-in plugins are a good starting point to copy.' %}</p>
+            <p class="ifinmail-settings-section__lede">{% trans 'Plugins only set values of capabilities the server offers (such as mail.journal or sending.rate_limit), so they cannot run code or depend on which mail software runs underneath. Built-in plugins are a good starting point to copy.' %}</p>
             <form method="post" enctype="multipart/form-data" class="ifinmail-inline-form">
                 {% csrf_token %}
                 <div class="ifinmail-field">

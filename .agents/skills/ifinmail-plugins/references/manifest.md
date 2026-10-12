@@ -1,21 +1,21 @@
-# Plugin manifest (`plugin.toml`, manifest_version 1)
+# Plugin manifest (`plugin.toml`, manifest_version 2)
 
 TOML, UTF-8, at most 32 KiB. Parsed with Python's standard `tomllib`. **Unknown keys are errors** at
 every level, so a typo fails validation instead of being ignored. Validation reports every problem at
 once, each with its location (`plugin.version`, `settings[1].type`, ...).
 
 ```toml
-manifest_version = 1
+manifest_version = 2               # 1 named mail software directly and is refused with a hint
 
 [plugin]
 id = "compliance-journal"          # ^[a-z][a-z0-9-]{2,39}$, no "--", no trailing "-"
 name = "Compliance journal"        # 1-60 characters
-version = "1.0.0"                  # MAJOR.MINOR.PATCH, each 0-9999, no leading zeros
+version = "2.0.0"                  # MAJOR.MINOR.PATCH, each 0-9999, no leading zeros
 publisher = "ifinmail"             # 1-60 characters
 category = "compliance"            # compliance | security | delivery | operations | integration
 summary = "One line, 1-160 characters."
 description = """Plain text, at most 4000 characters. Rendered escaped; blank lines are paragraphs."""
-requires_core = "0.0.4"            # optional: lowest core release this works with
+requires_core = "0.0.10"           # optional: lowest core release this works with
 
 [[settings]]                       # 0-20 entries
 key = "archive_address"            # ^[a-z][a-z0-9_]{0,39}$, unique
@@ -27,8 +27,8 @@ default = "..."                    # optional; must itself be valid for the type
 # type-specific: min/max (integer), options (choice), max_length (text, 1-500, default 200)
 
 [[contributes]]                    # 1-10 entries
-point = "postfix.main"             # a registered extension point
-values = { always_bcc = "{archive_address}" }
+capability = "mail.journal"        # a capability this server offers (contract below)
+values = { archive_address = "{archive_address}" }
 ```
 
 ## Setting types
@@ -52,15 +52,57 @@ current values of the others.
 
 ## Contributions
 
-* `point` must be registered when the manifest is validated **and** when it is installed.
-* Every key in `values` must be on that point's allow-list. Values are strings; the only expansion is
+* `capability` must be offered when the manifest is validated **and** when it is installed.
+* Every key in `values` must be a field of that capability. Values are strings; the only expansion is
   `{setting_key}`, which must name a declared setting. `{{` and `}}` are literal braces.
-* A setting used in a value should be `required` or have a default; an empty expansion clears the key.
-* Two contributions in one manifest may not set the same key.
-* After expansion the value is validated by the point's own grammar (for `always_bcc`: one address,
-  no whitespace). The Postfix watcher validates it again before calling `postconf`.
+* A setting used in a value should be `required` or have a default; an empty expansion clears the field.
+* Two contributions in one manifest may not set the same field. Two enabled plugins may not either
+  (the second is refused with a conflict).
+* After expansion the value is validated by the capability's grammar, translated for the engine by
+  the adapter, validated again by the adapter target, and once more by the container's watcher.
+* Booleans expand to `yes`/`no`, which is what every yes/no field of the contract takes.
 
-## Extension point `postfix.main`
+## Capability contract (what plugins write)
+
+Plugins never name mail software or its settings: a test fails if a bundled manifest mentions
+Postfix, Dovecot, Rspamd, Sieve or an engine key. Units are plain (MB, days, yes/no), lists are
+comma-separated and normalised (lower-case, sorted, de-duplicated, at most 200 entries). Defined in
+`backend/apps/mail/services/plugin_points.py` (`_capabilities()`).
+
+| Capability | Field | Value | Meaning |
+| --- | --- | --- | --- |
+| `mail.journal` | `archive_address` | one address | A copy of every message, inbound and outbound |
+| `mail.limits` | `max_message_mb` | 1-50 | Largest message accepted or sent |
+| `delivery.require_tls` | `domains` | domain list | Never send to these domains without TLS |
+| | `verify_certificate` | yes/no | Also require a valid certificate |
+| `sending.internal_only` | `mailboxes` | address list | May send only to domains hosted here |
+| `sending.rate_limit` | `per_minute`, `per_day` | 1-1000, 1-100000 | Messages one mailbox may send (set both) |
+| `inbound.senders` | `block`, `allow` | address/domain lists | Refused; never spam (only when SPF or DKIM proves the sender) |
+| `inbound.attachments` | `block_types` | extension list | Attachment types blocked (name and content) |
+| | `action` | `reject` / `quarantine` | Refuse, or deliver to Junk |
+| `inbound.authentication` | `dmarc` | `enforce` / `quarantine` | Act on senders' DMARC policies |
+| `inbound.greylisting` | `enabled` | yes/no | Delay suspicious first-time senders |
+| `forwarding.arc` | `trusted_forwarders` | domain list | A valid ARC chain from these lifts a DMARC rejection |
+| | `seal` | yes/no | Seal mail this server forwards |
+| `mailbox.retention` | `trash_days`, `junk_days`, `sent_days` | 1-3650 | Delete messages in that folder after N days |
+| `mailbox.forwarding` | `max_redirects` | 0-20 | Addresses one filter rule may forward to (0 = none) |
+| `mailbox.quota_warnings` | `enabled` | yes/no | Notice in the Inbox at 80% and 95% of the quota |
+
+**Adding a capability:** only when a real plugin needs it. Name the outcome, not the mechanism; give
+every field one documented meaning and plain units; bind each field to exactly one adapter target key
+(registration refuses an unknown or shared binding).
+
+**Replacing an engine:** register new adapter targets and change the `target=` bindings (and
+translations) in `_capabilities()`. Manifests, installations and their settings do not change.
+
+# Adapter (engine side: plugins never see this)
+
+Each adapter target is a `key = value` file on the runtime volume, applied by a watcher in the
+container that owns the software. `registry.to_targets()` turns capability values into target values
+(e.g. `inbound.greylisting.enabled = yes` → `rspamd.policy: greylisting = on`). The Marketplace and
+System health name the target's container (`service`) when something waits to be applied.
+
+## Adapter target `postfix.main`
 
 Postfix `main.cf` parameters applied by `sync-overrides.sh` from `postfix-plugins.conf`.
 
@@ -73,7 +115,7 @@ An empty or absent value restores this server's own value from `main.cf.template
 `message_size_limit = 52428800`), or removes the parameter (`postconf -X`) when the template has
 none. Postfix's built-in default (10 MB for the size) is never what an uninstall leaves behind.
 
-## Extension point `postfix.sender_policy`
+## Adapter target `postfix.sender_policy`
 
 Applied by `sync-overrides.sh` from `postfix-sender-policy.conf`; acknowledged as
 `postfix-sender-policy.applied`.
@@ -89,16 +131,16 @@ restriction class (`permit_auth_destination`, then a static reject) and the para
 `check_sasl_access texthash:<map>, permit_sasl_authenticated, reject`, or the default
 `permit_sasl_authenticated, reject` when the list is empty. Port 25 is unaffected.
 
-## Extension point `postfix.tls_policy`
+## Adapter target `postfix.tls_policy`
 
 Rendered into a `texthash:` map used as `smtp_tls_policy_maps` by `sync-overrides.sh`.
 
 | Key | Value grammar | Effect |
 | --- | --- | --- |
 | `domains` | comma-separated domain names (normalised: lower-case, trailing dot dropped, sorted, de-duplicated; at most 200) | Mail to these domains must use TLS |
-| `level` | `encrypt` or `secure` | `secure` also requires a valid, matching certificate |
+| `level` | `encrypt` or `secure` | `secure` also requires a valid, matching certificate (from `verify_certificate` yes/no) |
 
-## Extension point `rspamd.policy`
+## Adapter target `rspamd.policy`
 
 Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multimap.conf`,
 `dmarc.conf`, `arc.conf`, `composites.conf`, `greylist.conf` and `ratelimit.conf`;
@@ -113,13 +155,13 @@ Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multi
 | `arc_sealing` | `yes` or `no` | yes: seal mail passing through with the domain's DKIM key (`/etc/dkim/$domain.$selector.key`, selector `default`, `use_domain = recipient`) |
 | `sender_block_list` | comma-separated addresses and/or domains (normalised like domain lists; at most 200) | Multimap rules on the envelope sender and the From header, by address and by domain, with `action = "reject"` |
 | `sender_allow_list` | same grammar | Multimap rules scoring 0; the composite `IFINMAIL_SENDER_ALLOWED` (score -20) needs one of them **and** `R_DKIM_ALLOW` or `R_SPF_ALLOW`, so a forged sender gains nothing. Forced actions (attachments, malware) still apply. Allowed senders are in greylisting's `whitelist_symbols` |
-| `greylisting` | `on` or `off` | off: `enabled = false` for the greylist module |
+| `greylisting` | `on` or `off` | off: `enabled = false` for the greylist module (from `inbound.greylisting.enabled` yes/no) |
 | `send_limit_per_minute`, `send_limit_per_day` | 1-1000 and 1-100000 (both required) | Replace the built-in per-login rate with two buckets. Selectors `user.lower` and `user.lower.append("/day")`: Rspamd keys a bucket by the hash of the selector value, so the same selector twice would share one counter. The per-recipient-domain rate (40/h) is kept |
 
 The watch loop also reloads Rspamd once it is serving and again whenever Redis's `run_id` changes:
 Rspamd 3.8.1 counts but does not enforce rate limits if Redis was unreachable when it started.
 
-## Extension point `dovecot.policy`
+## Adapter target `dovecot.policy`
 
 Rendered by `dovecot/sync-plugins.sh` into `/etc/dovecot/ifinmail-plugins.conf`, included last
 from `dovecot.conf`; `doveconf -n` must pass before `doveadm reload`.
@@ -130,5 +172,5 @@ from `dovecot.conf`; `doveconf -n` must pass before `doveadm reload`.
 | `autoexpunge_trash_days`, `autoexpunge_junk_days`, `autoexpunge_sent_days` | 1-3650 | `autoexpunge` on that special-use mailbox |
 | `quota_warnings` | `yes` or `no` | yes: `quota_warning` at 95% and `quota_warning2` at 80% run `service quota-warning` (as `vmail`), which puts a notice in the user's Inbox with `dovecot-lda` and quota enforcement off for that message |
 
-Keys a point allows may carry a **normaliser**: values are normalised, then validated, both in the
+Capability fields and target keys may carry a **normaliser**: values are normalised, then validated, both in the
 console and (by grammar) again in the container.

@@ -97,8 +97,12 @@ class BrowseTests(_Base):
         response = self.client.get(
             reverse('accounts:marketplace_plugin', kwargs={'plugin_id': JOURNAL})
         )
-        self.assertContains(response, 'always_bcc')
-        self.assertContains(response, 'Send a copy of every message')
+        # Plugins speak capabilities; engine settings never reach the page.
+        self.assertContains(response, 'Mail journal')
+        self.assertContains(response, 'archive_address')
+        self.assertContains(response, 'Address that receives a copy of every message')
+        self.assertNotContains(response, 'always_bcc')
+        self.assertNotContains(response, 'Postfix')
         self.assertContains(response, 'Install and enable')
         self.assertContains(response, 'Not installed')
 
@@ -231,7 +235,7 @@ class SubmissionFlowTests(_Base):
             reverse('accounts:marketplace_submission', kwargs={'submission_id': row.id})
         )
         self.assertContains(page, 'Approve and publish')
-        self.assertContains(page, 'always_bcc')
+        self.assertContains(page, 'archive_address')
         self.assertContains(page, '[plugin]')  # raw manifest shown, escaped
         response = self.client.post(url, {'action': 'approve', 'note': 'ok'}, follow=True)
         self.assertContains(response, 'is now in the Marketplace')

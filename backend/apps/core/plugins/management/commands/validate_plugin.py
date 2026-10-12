@@ -11,7 +11,9 @@ from backend.apps.core.plugins.types import ManifestError
 
 
 class Command(BaseCommand):
-    help = 'Validate a plugin.toml against manifest_version 1 and the registered extension points.'
+    help = (
+        'Validate a plugin.toml against manifest_version 2 and the capabilities this server offers.'
+    )
 
     def add_arguments(self, parser: object) -> None:
         parser.add_argument('path', help='Path to plugin.toml')

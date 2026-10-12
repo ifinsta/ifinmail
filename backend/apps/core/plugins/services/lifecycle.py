@@ -4,7 +4,8 @@ Every operation runs in three phases (see references/state-machines.md):
 
 1. Validate, then in one transaction (all plugin operations serialised by a lock) move the row to
    its transient state, store the desired values and bump the revision.
-2. Publish every extension point from the database. Transient rows count as their target.
+2. Publish every adapter target from the database (capabilities translated for the engines).
+   Transient rows count as their target.
 3. In a second transaction, settle the row on its target (or delete it after an uninstall).
 
 A failure in phase 2 leaves the row ``failed`` with the target it was heading for; ``retry`` or
@@ -106,7 +107,8 @@ class InstallationService:
 
     @staticmethod
     def apply_status() -> dict[str, ApplyStatus]:
-        return {point.key: point.applied_status() for point in registry.points()}
+        """Per adapter target (engine-side file): has its container applied the latest values?"""
+        return {target.key: target.applied_status() for target in registry.targets()}
 
     @staticmethod
     def update_available(row: PluginInstallation, entry: CatalogEntry | None) -> bool:
@@ -228,30 +230,32 @@ class InstallationService:
 
     @classmethod
     def publish_all(cls) -> dict[str, bool]:
-        """Render every extension point from the database; write only what changed."""
-        values: dict[str, dict[str, str]] = {p.key: {} for p in registry.points()}
+        """Render every adapter target from the database; write only what changed.
+
+        Plugins speak capabilities; ``registry.to_targets`` turns them into engine values."""
+        values: dict[str, dict[str, str]] = {t.key: {} for t in registry.targets()}
         for row in PluginInstallation.objects.all():
             if _effective_state(row) != InstallationState.ENABLED:
                 continue
             try:
                 manifest = manifests.load(row.manifest)
-                rendered = manifests.rendered_values(manifest, row.settings)
-            except PluginError as exc:
+                engine = registry.to_targets(manifests.rendered_values(manifest, row.settings))
+            except (PluginError, ValueError) as exc:
                 # Never let one broken row block the others; it is reported on its page.
                 logger.warning('Plugin %s cannot be rendered: %s', row.plugin_id, exc)
                 continue
-            for point_key, pairs in rendered.items():
-                bucket = values.setdefault(point_key, {})
+            for target_key, pairs in engine.items():
+                bucket = values.setdefault(target_key, {})
                 for key, value in pairs.items():
                     bucket.setdefault(key, value)  # conflicts are refused earlier; first wins
         changed: dict[str, bool] = {}
-        for point in registry.points():
-            changed[point.key] = point.publish(point.render(values.get(point.key, {})))
+        for target in registry.targets():
+            changed[target.key] = target.publish(target.render(values.get(target.key, {})))
         return changed
 
     @classmethod
     def reconcile(cls) -> dict[str, object]:
-        """Finish stale operations and republish every point (idempotent, cheap)."""
+        """Finish stale operations and republish every target (idempotent, cheap)."""
         finished = 0
         for row in PluginInstallation.objects.filter(state__in=list(TRANSIENT_STATES)):
             if _stale(row):
@@ -288,9 +292,9 @@ class InstallationService:
                 continue
             clash = sorted(wanted & theirs)
             if clash:
-                point, key = clash[0]
+                capability, key = clash[0]
                 raise ConflictError(
-                    f'{other.plugin_id} already sets {key} at {point}. Disable it first.'
+                    f'{other.plugin_id} already sets {key} of {capability}. Disable it first.'
                 )
 
     @classmethod

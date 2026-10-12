@@ -645,8 +645,8 @@ def _backup_key() -> HealthCheck:
 
 
 def _plugins() -> list[HealthCheck]:
-    """Installed plugins: any failed, or settings the postfix container has not applied."""
-    from backend.apps.core.plugins.services import InstallationService
+    """Installed plugins: any failed, or settings the mail containers have not applied."""
+    from backend.apps.core.plugins.services import InstallationService, registry
     from backend.apps.core.plugins.types import ApplyStatus, InstallationState
 
     rows = InstallationService.all()
@@ -663,11 +663,14 @@ def _plugins() -> list[HealthCheck]:
             link=link, link_label='Marketplace',
         )]
     statuses = InstallationService.apply_status()
-    if ApplyStatus.NOT_APPLIED in statuses.values():
+    waiting = sorted(
+        {t.service for t in registry.targets() if statuses.get(t.key) == ApplyStatus.NOT_APPLIED}
+    )
+    if waiting:
         return [HealthCheck(
             'plugins', GROUP_SERVER, title, WARNING,
-            'Plugin settings are waiting for the postfix container to apply them.',
-            'Check that the postfix container is running ("make ps").',
+            f'Plugin settings are waiting for the {", ".join(waiting)} container(s) to apply them.',
+            'Check that those containers are running ("make ps").',
             link=link, link_label='Marketplace',
         )]
     enabled = sum(1 for r in rows if r.state == InstallationState.ENABLED)

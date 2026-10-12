@@ -101,7 +101,7 @@ class SubmissionTests(MailTablesTestCase):
     def test_approval_validates_again_against_todays_core(self) -> None:
         row = self.submit()
         manifests._load_cached.cache_clear()
-        with patch.object(registry, '_points', {}), self.assertRaises(ManifestError):
+        with patch.object(registry, '_capabilities', {}), self.assertRaises(ManifestError):
             SubmissionService.approve(str(row.id), REVIEWER)
         manifests._load_cached.cache_clear()
         self.assertEqual(SubmissionService.get(str(row.id)).state, SubmissionState.SUBMITTED)

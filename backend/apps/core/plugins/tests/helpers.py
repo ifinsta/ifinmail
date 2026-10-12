@@ -42,7 +42,7 @@ def to_toml(data: dict) -> str:
 
 
 BASE = {
-    'manifest_version': 1,
+    'manifest_version': 2,
     'plugin': {
         'id': 'test-journal',
         'name': 'Test journal',
@@ -56,7 +56,7 @@ BASE = {
         {'key': 'archive_address', 'type': 'mailbox', 'label': 'Archive', 'required': True},
     ],
     'contributes': [
-        {'point': 'postfix.main', 'values': {'always_bcc': '{archive_address}'}},
+        {'capability': 'mail.journal', 'values': {'archive_address': '{archive_address}'}},
     ],
 }
 

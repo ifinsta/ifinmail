@@ -1,14 +1,21 @@
-"""The mail app's contributions to the plugin layer.
+"""The mail app's contributions to the plugin layer: the capability contract and its adapter.
 
-Extension points (each a ``key = value`` file on the runtime volume, applied by a watcher in the
-container that owns the software, which re-validates every key and value, checks the resulting
-configuration before reloading, and acknowledges what it applied):
+**Capabilities** (``CAPABILITIES`` below) are the contract plugins write to. They say what the
+administrator wants in plain units (MB, days, yes/no, address lists) and never name Postfix,
+Dovecot or Rspamd, so plugins keep working if an engine is replaced.
 
-* ``postfix.main``        Postfix main.cf parameters            -> postfix   (sync-overrides.sh)
-* ``postfix.tls_policy``  per-domain outbound TLS requirements  -> postfix   (sync-overrides.sh)
-* ``postfix.sender_policy`` internal-only logins                 -> postfix   (sync-overrides.sh)
-* ``rspamd.policy``       attachment and DMARC enforcement      -> rspamd    (sync-plugins.sh)
-* ``dovecot.policy``      forwarding limits, mailbox cleanup    -> dovecot   (sync-plugins.sh)
+**Adapter targets** are the engine side, the only code here that knows the software. Each is a
+``key = value`` file on the runtime volume, applied by a watcher in the container that owns the
+software, which re-validates every key and value, checks the resulting configuration before
+reloading, and acknowledges what it applied:
+
+* ``postfix.main``          main.cf parameters                  -> postfix (sync-overrides.sh)
+* ``postfix.tls_policy``    per-domain outbound TLS             -> postfix (sync-overrides.sh)
+* ``postfix.sender_policy`` internal-only logins                -> postfix (sync-overrides.sh)
+* ``rspamd.policy``         filtering, limits, ARC              -> rspamd  (sync-plugins.sh)
+* ``dovecot.policy``        mailbox retention, Sieve, quota     -> dovecot (sync-plugins.sh)
+
+Replacing an engine means new targets and new ``target=`` bindings; the capabilities stay.
 
 Setting type ``mailbox``: an email address that must be an existing mailbox on this server.
 
@@ -20,7 +27,12 @@ from __future__ import annotations
 import re
 
 from backend.apps.core.plugins.services import registry
-from backend.apps.core.plugins.services.registry import ExtensionPoint, PointKey
+from backend.apps.core.plugins.services.registry import (
+    AdapterTarget,
+    Capability,
+    CapabilityField,
+    TargetKey,
+)
 
 # One address, no whitespace, nothing Postfix would read as a list or lookup table.
 _ADDRESS_RE = re.compile(
@@ -106,15 +118,14 @@ def _int_between(low: int, high: int):
     return check
 
 
-class PostfixMainPoint(ExtensionPoint):
+class PostfixMainTarget(AdapterTarget):
     key = 'postfix.main'
-    title = 'Postfix (main.cf)'
-    description = 'Postfix parameters, applied by the postfix container within about 10 seconds.'
+    service = 'postfix'
     keys = {
-        'always_bcc': PointKey(
+        'always_bcc': TargetKey(
             _single_address, 'Send a copy of every message, inbound and outbound, to this address.'
         ),
-        'message_size_limit_mb': PointKey(
+        'message_size_limit_mb': TargetKey(
             # Rspamd refuses to scan (and so to DKIM-sign) messages over its 50 MiB max_message,
             # and Postfix would then pass them on unscanned: the two limits must agree.
             _int_between(1, 50),
@@ -125,17 +136,16 @@ class PostfixMainPoint(ExtensionPoint):
     ack_file = 'postfix-plugins.applied'
 
 
-class PostfixTlsPolicyPoint(ExtensionPoint):
+class PostfixTlsPolicyTarget(AdapterTarget):
     key = 'postfix.tls_policy'
-    title = 'Postfix (outbound TLS policy)'
-    description = 'Which destination domains must be reached over TLS, applied by Postfix.'
+    service = 'postfix'
     keys = {
-        'domains': PointKey(
+        'domains': TargetKey(
             _domain_list,
             'Destination domains that must be reached over TLS.',
             _normalize_domains,
         ),
-        'level': PointKey(
+        'level': TargetKey(
             _one_of('encrypt', 'secure'),
             'encrypt: TLS required; secure: TLS required and the certificate must be valid.',
         ),
@@ -144,12 +154,11 @@ class PostfixTlsPolicyPoint(ExtensionPoint):
     ack_file = 'postfix-tls-policy.applied'
 
 
-class PostfixSenderPolicyPoint(ExtensionPoint):
+class PostfixSenderPolicyTarget(AdapterTarget):
     key = 'postfix.sender_policy'
-    title = 'Postfix (who may send where)'
-    description = 'Restrictions on authenticated senders, applied by Postfix on submission.'
+    service = 'postfix'
     keys = {
-        'internal_only_logins': PointKey(
+        'internal_only_logins': TargetKey(
             _address_list,
             'These logins may only send to domains hosted on this server.',
             _normalize_domains,
@@ -159,52 +168,51 @@ class PostfixSenderPolicyPoint(ExtensionPoint):
     ack_file = 'postfix-sender-policy.applied'
 
 
-class RspamdPolicyPoint(ExtensionPoint):
+class RspamdPolicyTarget(AdapterTarget):
     key = 'rspamd.policy'
-    title = 'Rspamd (message policy)'
-    description = 'Filtering rules checked by Rspamd, which validates its configuration first.'
+    service = 'rspamd'
     keys = {
-        'blocked_attachment_types': PointKey(
+        'blocked_attachment_types': TargetKey(
             _extension_list,
             'Messages with an attachment of these types (by name or by detected content).',
             _normalize_extensions,
         ),
-        'blocked_attachment_action': PointKey(
+        'blocked_attachment_action': TargetKey(
             _one_of('reject', 'quarantine'),
             'reject: refuse the message; quarantine: deliver it to Junk.',
         ),
-        'dmarc_enforcement': PointKey(
+        'dmarc_enforcement': TargetKey(
             _one_of('enforce', 'quarantine'),
             "Act on senders' DMARC policies (enforce: reject and quarantine as published).",
         ),
-        'arc_trusted_sealers': PointKey(
+        'arc_trusted_sealers': TargetKey(
             _domain_list,
             'Forwarders whose valid ARC chain lifts a DMARC rejection '
             '(they vouch for the original).',
             _normalize_domains,
         ),
-        'sender_block_list': PointKey(
+        'sender_block_list': TargetKey(
             _sender_list,
             'Mail from these addresses or domains (envelope or From header) is refused.',
             _normalize_domains,
         ),
-        'sender_allow_list': PointKey(
+        'sender_allow_list': TargetKey(
             _sender_list,
             'Never marked as spam or greylisted, but only when SPF or DKIM proves the sender; '
             'attachment and malware checks still apply.',
             _normalize_domains,
         ),
-        'greylisting': PointKey(
+        'greylisting': TargetKey(
             _one_of('on', 'off'),
             'Ask suspicious first-time senders to retry later (Rspamd greylisting).',
         ),
-        'send_limit_per_minute': PointKey(
+        'send_limit_per_minute': TargetKey(
             _int_between(1, 1000), 'Messages one login may send per minute (burst).'
         ),
-        'send_limit_per_day': PointKey(
+        'send_limit_per_day': TargetKey(
             _int_between(1, 100000), 'Messages one login may send per day.'
         ),
-        'arc_sealing': PointKey(
+        'arc_sealing': TargetKey(
             _one_of('yes', 'no'),
             "Add an ARC seal, signed with the domain's DKIM key, to mail passing through.",
         ),
@@ -213,31 +221,249 @@ class RspamdPolicyPoint(ExtensionPoint):
     ack_file = 'rspamd-plugins.applied'
 
 
-class DovecotPolicyPoint(ExtensionPoint):
+class DovecotPolicyTarget(AdapterTarget):
     key = 'dovecot.policy'
-    title = 'Dovecot (mailbox policy)'
-    description = 'Mailbox rules applied by Dovecot, which checks its configuration first.'
+    service = 'dovecot'
     keys = {
-        'max_redirects': PointKey(
+        'max_redirects': TargetKey(
             _int_between(0, 20),
             'How many addresses a mail filter rule may forward a message to (0 = none).',
         ),
-        'autoexpunge_trash_days': PointKey(
+        'autoexpunge_trash_days': TargetKey(
             _int_between(1, 3650), 'Delete messages in Trash after this many days.'
         ),
-        'autoexpunge_junk_days': PointKey(
+        'autoexpunge_junk_days': TargetKey(
             _int_between(1, 3650), 'Delete messages in Junk after this many days.'
         ),
-        'autoexpunge_sent_days': PointKey(
+        'autoexpunge_sent_days': TargetKey(
             _int_between(1, 3650), 'Delete messages in Sent after this many days.'
         ),
-        'quota_warnings': PointKey(
+        'quota_warnings': TargetKey(
             _one_of('yes', 'no'),
             'Put a notice in the Inbox when a mailbox reaches 80% and 95% of its quota.',
         ),
     }
     runtime_file = 'dovecot-plugins.conf'
     ack_file = 'dovecot-plugins.applied'
+
+
+# ------------------------------------------------------------------------------ capabilities
+
+_YES_NO = _one_of('yes', 'no')
+
+
+def _field(
+    target: tuple[str, str],
+    description: str,
+    validator=None,
+    normalize=None,
+    translate=None,
+) -> CapabilityField:
+    """A contract field. Without its own validator it uses the grammar of the key it is bound to."""
+    targets = {t.key: t for t in TARGETS}
+    spec = targets[target[0]].keys[target[1]]
+    return CapabilityField(
+        validator=validator or spec.validator,
+        description=description,
+        target=target,
+        normalize=normalize if normalize is not None else spec.normalize,
+        translate=translate,
+    )
+
+
+class _Capability(Capability):
+    def __init__(
+        self, key: str, title: str, description: str, fields: dict[str, CapabilityField]
+    ) -> None:
+        self.key, self.title, self.description, self.fields = key, title, description, fields
+
+
+TARGETS: tuple[AdapterTarget, ...] = (
+    PostfixMainTarget(),
+    PostfixTlsPolicyTarget(),
+    PostfixSenderPolicyTarget(),
+    RspamdPolicyTarget(),
+    DovecotPolicyTarget(),
+)
+
+MAIN, TLS, SENDER = 'postfix.main', 'postfix.tls_policy', 'postfix.sender_policy'
+FILTER, MAILBOX = 'rspamd.policy', 'dovecot.policy'
+
+
+def _capabilities() -> tuple[Capability, ...]:
+    return (
+        _Capability(
+            'mail.journal',
+            'Mail journal',
+            'A copy of every message, inbound and outbound.',
+            {
+                'archive_address': _field(
+                    (MAIN, 'always_bcc'), 'Address that receives a copy of every message.'
+                )
+            },
+        ),
+        _Capability(
+            'mail.limits',
+            'Message limits',
+            'Limits on single messages.',
+            {
+                'max_message_mb': _field(
+                    (MAIN, 'message_size_limit_mb'),
+                    'Largest message accepted or sent, in MB (attachments included, 1-50).',
+                )
+            },
+        ),
+        _Capability(
+            'delivery.require_tls',
+            'Encrypted delivery to partners',
+            'Mail to these domains is never sent without encryption.',
+            {
+                'domains': _field((TLS, 'domains'), 'Destination domains that must get TLS.'),
+                'verify_certificate': _field(
+                    (TLS, 'level'),
+                    'yes: the receiving server must also present a valid certificate.',
+                    validator=_YES_NO,
+                    normalize=None,
+                    translate=lambda v: 'secure' if v == 'yes' else 'encrypt',
+                ),
+            },
+        ),
+        _Capability(
+            'sending.internal_only',
+            'Internal-only mailboxes',
+            'Mailboxes that may send only inside the organisation.',
+            {
+                'mailboxes': _field(
+                    (SENDER, 'internal_only_logins'),
+                    'These mailboxes may only send to domains hosted on this server.',
+                )
+            },
+        ),
+        _Capability(
+            'sending.rate_limit',
+            'Sending limits',
+            'How much one mailbox may send, so a stolen password cannot send a flood.',
+            {
+                'per_minute': _field(
+                    (FILTER, 'send_limit_per_minute'), 'Messages one mailbox may send per minute.'
+                ),
+                'per_day': _field(
+                    (FILTER, 'send_limit_per_day'), 'Messages one mailbox may send per day.'
+                ),
+            },
+        ),
+        _Capability(
+            'inbound.senders',
+            'Blocked and allowed senders',
+            'Senders refused, and senders never treated as spam.',
+            {
+                'block': _field(
+                    (FILTER, 'sender_block_list'),
+                    'Mail from these addresses or domains (envelope or From header) is refused.',
+                ),
+                'allow': _field(
+                    (FILTER, 'sender_allow_list'),
+                    'Never treated as spam or delayed, but only when SPF or DKIM proves the '
+                    'sender; attachment and malware checks still apply.',
+                ),
+            },
+        ),
+        _Capability(
+            'inbound.attachments',
+            'Attachment blocking',
+            'Attachments of dangerous types, detected by name and by content.',
+            {
+                'block_types': _field(
+                    (FILTER, 'blocked_attachment_types'), 'File types (extensions) to block.'
+                ),
+                'action': _field(
+                    (FILTER, 'blocked_attachment_action'),
+                    'reject: refuse the message; quarantine: deliver it to Junk.',
+                ),
+            },
+        ),
+        _Capability(
+            'inbound.authentication',
+            'Sender authentication',
+            "Acting on senders' published anti-forgery policies.",
+            {
+                'dmarc': _field(
+                    (FILTER, 'dmarc_enforcement'),
+                    "enforce: reject or quarantine as the sender's DMARC policy says; "
+                    'quarantine: send failures to Junk.',
+                )
+            },
+        ),
+        _Capability(
+            'inbound.greylisting',
+            'Greylisting',
+            'Asking suspicious first-time senders to try again a few minutes later.',
+            {
+                'enabled': _field(
+                    (FILTER, 'greylisting'),
+                    'yes: suspicious first-time senders are delayed; no: never delay mail.',
+                    validator=_YES_NO,
+                    translate=lambda v: 'on' if v == 'yes' else 'off',
+                )
+            },
+        ),
+        _Capability(
+            'forwarding.arc',
+            'Trusted forwarding (ARC)',
+            'Keeping forwarded and list mail deliverable when senders enforce DMARC.',
+            {
+                'trusted_forwarders': _field(
+                    (FILTER, 'arc_trusted_sealers'),
+                    'Forwarders whose valid ARC chain lifts a DMARC rejection.',
+                ),
+                'seal': _field(
+                    (FILTER, 'arc_sealing'),
+                    "yes: seal mail this server forwards, with the domain's DKIM key.",
+                ),
+            },
+        ),
+        _Capability(
+            'mailbox.retention',
+            'Mailbox retention',
+            'Deleting old messages from special folders.',
+            {
+                'trash_days': _field(
+                    (MAILBOX, 'autoexpunge_trash_days'),
+                    'Delete messages in Trash after this many days.',
+                ),
+                'junk_days': _field(
+                    (MAILBOX, 'autoexpunge_junk_days'),
+                    'Delete messages in Junk after this many days.',
+                ),
+                'sent_days': _field(
+                    (MAILBOX, 'autoexpunge_sent_days'),
+                    'Delete messages in Sent after this many days.',
+                ),
+            },
+        ),
+        _Capability(
+            'mailbox.forwarding',
+            'Forwarding by mail filters',
+            "Users' own filter rules that forward messages elsewhere.",
+            {
+                'max_redirects': _field(
+                    (MAILBOX, 'max_redirects'),
+                    'How many addresses one filter rule may forward a message to (0 = none).',
+                )
+            },
+        ),
+        _Capability(
+            'mailbox.quota_warnings',
+            'Quota warnings',
+            'Telling users before their mailbox is full.',
+            {
+                'enabled': _field(
+                    (MAILBOX, 'quota_warnings'),
+                    'yes: a notice in the Inbox at 80% and 95% of the quota.',
+                )
+            },
+        ),
+    )
 
 
 def _existing_mailbox(address: str) -> str | None:
@@ -253,9 +479,8 @@ def _existing_mailbox(address: str) -> str | None:
 
 
 def register() -> None:
-    registry.register_point(PostfixMainPoint())
-    registry.register_point(PostfixTlsPolicyPoint())
-    registry.register_point(PostfixSenderPolicyPoint())
-    registry.register_point(RspamdPolicyPoint())
-    registry.register_point(DovecotPolicyPoint())
+    for target in TARGETS:
+        registry.register_target(target)
+    for capability in _capabilities():
+        registry.register_capability(capability)
     registry.register_setting_type('mailbox', 'email', _existing_mailbox)

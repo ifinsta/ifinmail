@@ -113,15 +113,15 @@ def _changes(manifest: PluginManifest, settings: dict | None) -> list[dict]:
     """What the plugin writes, in words, with the values it would produce right now."""
     rows = []
     for contribution in manifest.contributes:
-        point = registry.get_point(contribution.point)
+        capability = registry.get_capability(contribution.capability)
         for key, template in contribution.values:
             value = manifests.expand(template, settings or {}) if settings else ''
             rows.append(
                 {
-                    'point': point.title if point else contribution.point,
+                    'capability': capability.title if capability else contribution.capability,
                     'key': key,
-                    'description': point.keys[key].description
-                    if point and key in point.keys
+                    'description': capability.fields[key].description
+                    if capability and key in capability.fields
                     else '',
                     'template': template,
                     'value': value,
@@ -217,8 +217,8 @@ def _plugin_context(
     update = InstallationService.update_available(row, entry) if row is not None else False
     values = posted if posted is not None else (row.settings if row is not None else None)
     apply = InstallationService.apply_status()
-    points = {c.point for c in manifest.contributes}
-    statuses = [apply.get(p, ApplyStatus.UNKNOWN) for p in points]
+    targets = registry.targets_of(manifest.capability_keys())
+    statuses = [apply.get(t.key, ApplyStatus.UNKNOWN) for t in targets]
     overall = (
         ApplyStatus.NOT_APPLIED
         if ApplyStatus.NOT_APPLIED in statuses
@@ -243,6 +243,7 @@ def _plugin_context(
         'update_fields': _fields(entry.manifest, values, errors) if update else [],
         'compatible': is_compatible(entry.manifest) if entry else True,
         'apply_status': overall.value,
+        'apply_services': sorted({t.service for t in targets if t.service}),
         'apply_tone': _APPLY_TONE[overall],
         'can_manage': _can_manage(request),
     }

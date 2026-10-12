@@ -1,13 +1,13 @@
-manifest_version = 1
+manifest_version = 2
 
 [plugin]
 id = "mail-policy"
 name = "Mail policy essentials"
-version = "1.0.0"
+version = "2.0.0"
 publisher = "ifinmail"
 category = "operations"
 summary = "Block and allow lists, sending limits, message size, internal-only mailboxes, greylisting and quota warnings, with provider-grade defaults."
-requires_core = "0.0.7"
+requires_core = "0.0.10"
 description = """
 One place for the controls administrators reach for in their first weeks, with defaults taken from what Google Workspace and Microsoft 365 do, so installing it with no changes is safe. Every list starts empty and changes nothing until you add to it.
 
@@ -15,7 +15,7 @@ Sending limits default to 30 messages a minute and 2,000 a day per login, the sa
 
 The allow list follows Microsoft's guidance that allow entries are a risk: a listed sender counts only when SPF or DKIM proves the message really comes from them, and attachment and malware rules still apply. Review it from time to time and remove what is no longer needed. Blocked senders are refused whether they appear in the envelope or the From header. Internal-only mailboxes (interns, shared desks, service accounts) can send only to domains hosted on this server.
 
-Greylisting asks suspicious first-time senders to try again a few minutes later; with Rspamd it applies only to mail that already looks doubtful, and allow-listed senders are never greylisted.
+Greylisting asks suspicious first-time senders to try again a few minutes later; it applies only to mail that already looks doubtful, and allow-listed senders are never greylisted.
 """
 
 [[settings]]
@@ -66,11 +66,10 @@ help = "Attachments included. Attachments grow by about a third when sent, so 50
 
 [[settings]]
 key = "greylisting"
-type = "choice"
+type = "boolean"
 label = "Greylisting"
-options = ["on", "off"]
-default = "on"
-help = "on: suspicious first-time senders retry after a few minutes. off: never delay mail."
+default = true
+help = "On: suspicious first-time senders retry after a few minutes. Off: never delay mail."
 
 [[settings]]
 key = "quota_warnings"
@@ -79,17 +78,25 @@ label = "Warn users at 80% and 95% of their quota"
 default = true
 
 [[contributes]]
-point = "rspamd.policy"
-values = { sender_block_list = "{block_senders}", sender_allow_list = "{allow_senders}", greylisting = "{greylisting}", send_limit_per_minute = "{send_per_minute}", send_limit_per_day = "{send_per_day}" }
+capability = "inbound.senders"
+values = { block = "{block_senders}", allow = "{allow_senders}" }
 
 [[contributes]]
-point = "postfix.main"
-values = { message_size_limit_mb = "{message_size_mb}" }
+capability = "inbound.greylisting"
+values = { enabled = "{greylisting}" }
 
 [[contributes]]
-point = "postfix.sender_policy"
-values = { internal_only_logins = "{internal_only}" }
+capability = "sending.rate_limit"
+values = { per_minute = "{send_per_minute}", per_day = "{send_per_day}" }
 
 [[contributes]]
-point = "dovecot.policy"
-values = { quota_warnings = "{quota_warnings}" }
+capability = "mail.limits"
+values = { max_message_mb = "{message_size_mb}" }
+
+[[contributes]]
+capability = "sending.internal_only"
+values = { mailboxes = "{internal_only}" }
+
+[[contributes]]
+capability = "mailbox.quota_warnings"
+values = { enabled = "{quota_warnings}" }

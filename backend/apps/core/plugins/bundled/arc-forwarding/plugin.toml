@@ -1,19 +1,19 @@
-manifest_version = 1
+manifest_version = 2
 
 [plugin]
 id = "arc-forwarding"
 name = "ARC trusted forwarding"
-version = "1.0.0"
+version = "2.0.0"
 publisher = "ifinmail"
 category = "delivery"
 summary = "Keep forwarded and mailing-list mail deliverable under DMARC: seal what this server forwards, and trust chains from forwarders you name."
-requires_core = "0.0.6"
+requires_core = "0.0.10"
 description = """
 DMARC has one well-known weakness: when a message is forwarded or passes through a mailing list that changes it, the original signature breaks and the message fails DMARC, even though it is genuine. ARC (Authenticated Received Chain) fixes this. Each server that handles the message records what it verified and seals that record, so the next server can trust it.
 
 This plugin does both halves. Sealing: mail this server passes on, such as messages to an alias that forwards to an outside address, gets an ARC seal signed with your domain's existing DKIM key, so Gmail, Outlook and others can trust it. No new DNS record is needed. Trust: when a forwarder you list has sealed a valid chain, a DMARC rejection is lifted, so DMARC enforcement does not bounce legitimate forwarded or list mail.
 
-List only forwarders you trust to check mail properly; the defaults are the large providers that seal everything they forward. Rspamd verifies ARC chains whether or not this plugin is enabled.
+List only forwarders you trust to check mail properly; the defaults are the large providers that seal everything they forward. The spam filter verifies ARC chains whether or not this plugin is enabled.
 """
 
 [[settings]]
@@ -31,5 +31,5 @@ label = "Seal mail this server passes on"
 default = true
 
 [[contributes]]
-point = "rspamd.policy"
-values = { arc_trusted_sealers = "{trusted_sealers}", arc_sealing = "{seal_forwarded}" }
+capability = "forwarding.arc"
+values = { trusted_forwarders = "{trusted_sealers}", seal = "{seal_forwarded}" }

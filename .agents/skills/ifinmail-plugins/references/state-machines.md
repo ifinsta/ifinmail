@@ -29,10 +29,10 @@ absence of a row.
 Rules:
 
 1. **Validate first, then change state.** Bad settings, conflicts, incompatible core version or an
-   unknown extension point are refused before any state is written: the row (if any) is untouched.
+   unknown capability are refused before any state is written: the row (if any) is untouched.
 2. **Two phases.** Phase 1 (transaction, row locked): check the transition and the revision, write the
    transient state, the target and the new desired values, bump `revision`. Phase 2: publish every
-   affected extension point from the database. Phase 3 (transaction): write the target (or delete the row).
+   affected adapter target from the database. Phase 3 (transaction): write the target (or delete the row).
 3. **Rendering counts the target.** While a row is transient, the renderer treats it as its target, so
    phase 2 produces exactly the end state.
 4. **Effect failure ⇒ `failed`.** If publishing raises, the row becomes `failed` with `last_error` and
@@ -65,7 +65,7 @@ Nothing polls: the comparison happens when a page is rendered.
 ## Reconcile
 
 `InstallationService.reconcile()` finishes stale transient rows and republishes every extension
-point from the database, writing a file only when its content changed. It runs from the
+adapter target from the database, writing a file only when its content changed. It runs from the
 `plugins.reconcile` beat job every 10 minutes and after any failed operation.
 
 ## Submission (`PluginSubmission.state`)

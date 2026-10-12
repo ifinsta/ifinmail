@@ -2,7 +2,7 @@
 
 Nothing is ever approved automatically. Approval is one explicit action by a reviewer and is
 recorded in the audit trail. The manifest is validated again at approval time, because the core
-(and its extension points) may have changed since it was submitted.
+(and the capabilities it offers) may have changed since it was submitted.
 """
 
 from __future__ import annotations

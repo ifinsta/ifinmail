@@ -55,7 +55,7 @@ class _Base(MailTablesTestCase):
         self.domain = self.make_domain()
         for local in ('journal', 'other'):
             Mailbox.objects.create(domain=self.domain, local_part=local)
-        self.point = registry.get_point('postfix.main')
+        self.point = registry.get_target('postfix.main')
 
     def file(self) -> str:
         path = Path(self.runtime_dir) / 'postfix-plugins.conf'
@@ -123,7 +123,7 @@ class HappyPathTests(_Base):
     def test_files_are_only_rewritten_when_their_content_changes(self) -> None:
         self.install()
         written = InstallationService.publish_all()
-        self.assertEqual(set(written), {p.key for p in registry.points()})
+        self.assertEqual(set(written), {p.key for p in registry.targets()})
         self.assertFalse(any(written.values()))
         os.remove(Path(self.runtime_dir) / 'postfix-plugins.conf')
         result = InstallationService.reconcile()
@@ -177,12 +177,12 @@ class RefusalTests(_Base):
 
     def test_incompatible_core_is_refused_and_development_builds_are_not(self) -> None:
         with (
-            patch.dict(os.environ, {'APP_VERSION': 'v0.0.3'}),
-            self.assertRaisesMessage(PluginError, 'needs ifinmail 0.0.4'),
+            patch.dict(os.environ, {'APP_VERSION': 'v0.0.9'}),
+            self.assertRaisesMessage(PluginError, 'needs ifinmail 0.0.10'),
         ):
             self.install()
         self.assertIsNone(self.row())
-        with patch.dict(os.environ, {'APP_VERSION': 'v0.0.4-2-gabc1234'}):
+        with patch.dict(os.environ, {'APP_VERSION': 'v0.0.10-2-gabc1234'}):
             self.install()
         InstallationService.uninstall(JOURNAL, 'a')
         with patch.dict(os.environ, {'APP_VERSION': 'dev'}):
@@ -313,9 +313,11 @@ class FailureAndRecoveryTests(_Base):
 
 class ConflictTests(_Base):
     def test_two_plugins_cannot_set_the_same_value(self) -> None:
-        self.publish_submission()  # test-journal also sets always_bcc
+        self.publish_submission()  # test-journal also sets the journal address
         self.install()
-        with self.assertRaisesMessage(ConflictError, 'compliance-journal already sets always_bcc'):
+        with self.assertRaisesMessage(
+            ConflictError, 'compliance-journal already sets archive_address of mail.journal'
+        ):
             InstallationService.install('test-journal', {'archive_address': ADDR}, 'a')
         self.assertFalse(PluginInstallation.objects.filter(plugin_id='test-journal').exists())
         InstallationService.disable(JOURNAL, 'a')

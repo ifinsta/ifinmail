@@ -1,4 +1,4 @@
-# Edge cases (277)
+# Edge cases (289)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -15,7 +15,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 221 tested, 19 verified live only, 34 code, 3 decision (277 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 232 tested, 19 verified live only, 35 code, 3 decision (289 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -137,30 +137,30 @@ Counts: 221 tested, 19 verified live only, 34 code, 3 decision (277 numbered, co
 | 99 | Bad settings in the form | Shown on the field, input kept, `aria-invalid` set, nothing installed | V |
 | 100 | A setting named `action` or `revision` | Cannot collide: form fields are prefixed `setting__` | code |
 
-## E. Contributions and extension points
+## E. Contributions and capabilities
 
 | # | Case | Handling | Proof |
 | --- | --- | --- | --- |
 | 101 | No contributions | Refused (a plugin must do something) | M |
 | 102 | More than 10 contributions | Refused | M |
-| 103 | Unknown extension point | Refused | M |
+| 103 | Unknown capability | Refused ("is not a capability this server offers") | M |
 | 104 | Unknown key in a contribution | Refused | M |
 | 105 | Empty `values` | Refused | M |
-| 106 | Key not on the point's allow-list (e.g. `relayhost`) | Refused | M |
+| 106 | Field the capability does not have (e.g. `relayhost`) | Refused | M |
 | 107 | Value that is not text | Refused | M |
 | 108 | Placeholder for an undeclared setting | Refused | M |
 | 109 | Unmatched brace | Refused with the fix (`{{`, `}}`) | M |
 | 110 | Placeholder that is not a setting key | Refused | M |
-| 111 | Literal value invalid for the point | Refused at validation, not later at install | M |
+| 111 | Literal value invalid for the capability | Refused at validation, not later at install | M |
 | 112 | Literal value that is a list | Refused | M |
 | 113 | Same key set twice in one manifest | Refused | M |
 | 114 | `{{` and `}}` | Literal braces | M |
 | 115 | Placeholder whose setting is empty | Expands to empty: the key is cleared | M |
-| 116 | Line break smuggled through a setting value | Refused by the point | M |
-| 117 | Value checked again at render time | Every render re-validates with the point grammar | M |
-| 118 | Point missing at install although present at submission | Install refused ("extension point is not available") | code |
+| 116 | Line break smuggled through a setting value | Refused by the capability | M |
+| 117 | Value checked again at render time | Every render re-validates with the capability grammar, then the adapter target's | M |
+| 118 | Capability missing at install although present at submission | Install refused ("this server does not offer the capability") | code |
 | 119 | `ready()` running twice (tests, autoreload) | Re-registration replaces, no duplicates | code |
-| 120 | Point registered without key, keys or file | `ValueError` at start-up | code |
+| 120 | Adapter target registered without key, keys or file | `ValueError` at start-up | code |
 | 121 | Key no longer set by any plugin | Rendered as empty, so it is removed | L |
 | 122 | Stable output | Keys sorted; unchanged state renders byte-identical text | L |
 | 123 | Reader sees a half-written file | Impossible: temp file + atomic rename | code |
@@ -284,9 +284,9 @@ Counts: 221 tested, 19 verified live only, 34 code, 3 decision (277 numbered, co
 
 Decisions not in the table: v1 sources are internal only (built-ins and approved submissions);
 no automatic approval; the plugin layer adds no third-party package; DKIM-style secrets are never
-plugin settings; a plugin can only act through registered extension points.
+plugin settings; a plugin can only act through registered capabilities.
 
-## K. Policy extension points (Rspamd, Dovecot, partner TLS)
+## K. Policy adapter targets (Rspamd, Dovecot, partner TLS)
 
 | # | Case | Handling | Proof |
 | --- | --- | --- | --- |
@@ -312,7 +312,7 @@ plugin settings; a plugin can only act through registered extension points.
 | 235 | Partner domain `localhost`, `a..b` or with shell characters | Refused by the console and the Postfix watcher | M, P2 |
 | 236 | Partner TLS without domains | `smtp_tls_policy_maps` removed; the map emptied | P2, live |
 | 237 | Mail to a domain not on the partner list | Unaffected (no map entry) | live |
-| 238 | Two plugins on one point (Attachment guard + DMARC; Cleanup + Forwarding) | Both values rendered; disabling one leaves the other | L2 |
+| 238 | Two plugins on one adapter target (Attachment guard + DMARC; Cleanup + Forwarding) | Both values rendered; disabling one leaves the other | L2 |
 | 239 | Any two bundled plugins claiming the same key | Test fails | L2 |
 | 240 | Rspamd or Dovecot container recreated | Fragments rebuilt from the runtime file at start, before the daemon starts | contract |
 
@@ -366,3 +366,21 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 275 | Notice for a mailbox already over quota | Delivered anyway (`noenforcing` for that message), never bounces | live |
 | 276 | Quota warnings off | `quota_warning` and its service removed from Dovecot | D |
 | 277 | Quota-warning script called with an odd percentage or address | Refuses; nothing delivered | contract |
+
+## N. Capability contract (manifest_version 2)
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 278 | Manifest with `manifest_version = 1` (`point = "postfix.main"`) | Refused with a hint to use capabilities | M |
+| 279 | Contribution with `point` instead of `capability` | "is not a recognised key" | M |
+| 280 | Bundled manifest naming Postfix, Dovecot, Rspamd, Sieve or an engine key | Test fails | R |
+| 281 | Capability title or description naming the software | Test fails | R |
+| 282 | Capability field bound to a target key that does not exist | `ValueError` at registration; capability not registered | R |
+| 283 | Two capability fields bound to the same target key | `ValueError` at registration | R |
+| 284 | Engine word as a contract value (`greylisting = off`, `verify_certificate = secure`) | Refused by the capability grammar | R |
+| 285 | yes/no translated for the engine (`enabled = no` → `greylisting = off`; `verify_certificate = yes` → `level = secure`) | Translated by the adapter | R |
+| 286 | Empty contract value | Stays empty for the engine (setting removed), never translated | R |
+| 287 | Adapter cannot carry a value the capability accepted (binding bug) | Install refused with the reason; reconcile skips that plugin and logs it | code |
+| 288 | Plugin page apply status | Only the targets that plugin's capabilities write to; the waiting containers are named | R |
+| 289 | Marketplace "What it changes" | Capability title and field; no engine names or keys on the page | V |
+

@@ -23,7 +23,7 @@ DOCKER = ROOT / 'provisioning' / 'docker'
 
 
 def point(key: str):
-    return registry.get_point(key)
+    return registry.get_target(key)
 
 
 class PointGrammarTests(SimpleTestCase):
@@ -134,6 +134,103 @@ class PointGrammarTests(SimpleTestCase):
         p = point('rspamd.policy')
         value = p.normalize('blocked_attachment_types', 'exe\nrelayhost = evil')
         self.assertIsNotNone(p.validate('blocked_attachment_types', value))
+
+
+class CapabilityContractTests(SimpleTestCase):
+    """Plugins speak capabilities; only the adapter knows the mail software."""
+
+    ENGINE_WORDS = ('postfix', 'dovecot', 'rspamd', 'sieve', 'milter', 'main.cf', 'postconf')
+
+    def test_bundled_manifests_never_name_the_mail_software(self) -> None:
+        engine_keys = {key for t in registry.targets() for key in t.keys}
+        for entry in CatalogService.bundled():
+            text = entry.manifest.text.lower()
+            with self.subTest(plugin=entry.plugin_id):
+                for word in self.ENGINE_WORDS:
+                    self.assertNotIn(word, text)
+                for contribution in entry.manifest.contributes:
+                    self.assertIsNotNone(registry.get_capability(contribution.capability))
+                    for key, _ in contribution.values:
+                        self.assertNotIn(key, engine_keys - {'domains', 'max_redirects'})
+
+    def test_capabilities_describe_outcomes_not_software(self) -> None:
+        for capability in registry.capabilities():
+            words = ' '.join(
+                [capability.key, capability.title, capability.description]
+                + [f'{name} {f.description}' for name, f in capability.fields.items()]
+            ).lower()
+            with self.subTest(capability=capability.key):
+                for word in self.ENGINE_WORDS:
+                    self.assertNotIn(word, words)
+
+    def test_every_field_is_bound_to_its_own_existing_target_key(self) -> None:
+        seen = set()
+        for capability in registry.capabilities():
+            for name, spec in capability.fields.items():
+                target = registry.get_target(spec.target[0])
+                self.assertIsNotNone(target, f'{capability.key}.{name}')
+                self.assertIn(spec.target[1], target.keys, f'{capability.key}.{name}')
+                self.assertNotIn(spec.target, seen, f'{capability.key}.{name} shares a target')
+                seen.add(spec.target)
+
+    def test_registration_refuses_unknown_or_shared_bindings(self) -> None:
+        from backend.apps.core.plugins.services.registry import Capability, CapabilityField
+
+        def capability(target: tuple[str, str]) -> Capability:
+            cap = Capability()
+            cap.key, cap.title, cap.description = 'test.x', 'X', 'X'
+            cap.fields = {'v': CapabilityField(lambda v: None, 'x', target)}
+            return cap
+
+        with self.assertRaisesMessage(ValueError, 'unknown target'):
+            registry.register_capability(capability(('postfix.main', 'relayhost')))
+        with self.assertRaisesMessage(ValueError, 'share a target'):
+            registry.register_capability(capability(('postfix.main', 'always_bcc')))
+        self.assertIsNone(registry.get_capability('test.x'))
+
+    def test_values_are_translated_for_the_engine(self) -> None:
+        self.assertEqual(
+            registry.to_targets(
+                {
+                    'delivery.require_tls': {
+                        'domains': 'bank.example',
+                        'verify_certificate': 'yes',
+                    },
+                    'inbound.greylisting': {'enabled': 'no'},
+                    'mail.journal': {'archive_address': 'j@x.example'},
+                }
+            ),
+            {
+                'postfix.tls_policy': {'domains': 'bank.example', 'level': 'secure'},
+                'rspamd.policy': {'greylisting': 'off'},
+                'postfix.main': {'always_bcc': 'j@x.example'},
+            },
+        )
+        # Empty means "remove the setting" on both sides.
+        self.assertEqual(
+            registry.to_targets({'inbound.greylisting': {'enabled': ''}}),
+            {'rspamd.policy': {'greylisting': ''}},
+        )
+
+    def test_contract_grammar_is_checked_before_the_engine_sees_anything(self) -> None:
+        cap = registry.get_capability('inbound.greylisting')
+        self.assertIsNotNone(cap.validate('enabled', 'off'))  # engine word, not the contract's
+        self.assertIsNone(cap.validate('enabled', 'no'))
+        self.assertIsNotNone(cap.validate('nope', 'yes'))
+        tls = registry.get_capability('delivery.require_tls')
+        self.assertIsNotNone(tls.validate('verify_certificate', 'secure'))
+
+    def test_each_plugin_reports_the_targets_it_uses(self) -> None:
+        bundled = {e.plugin_id: e.manifest for e in CatalogService.bundled()}
+        journal = bundled['compliance-journal']
+        self.assertEqual(
+            [t.key for t in registry.targets_of(journal.capability_keys())], ['postfix.main']
+        )
+        policy = bundled['mail-policy']
+        self.assertEqual(
+            {t.service for t in registry.targets_of(policy.capability_keys())},
+            {'postfix', 'rspamd', 'dovecot'},
+        )
 
 
 class BundledPluginsTests(SimpleTestCase):

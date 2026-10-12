@@ -9,5 +9,5 @@ from backend.apps.core.plugins.services import InstallationService
 
 @shared_task(name='plugins.reconcile')
 def reconcile() -> dict[str, object]:
-    """Finish interrupted operations and republish extension points (writes only on drift)."""
+    """Finish interrupted operations and republish every adapter target (writes only on drift)."""
     return InstallationService.reconcile()

@@ -1,4 +1,4 @@
-"""Parse and validate plugin manifests (TOML, manifest_version 1), and validate settings.
+"""Parse and validate plugin manifests (TOML, manifest_version 2), and validate settings.
 
 Strict by design: unknown keys are errors, every problem is reported at once with its location,
 and nothing in a manifest is ever executed. Parsing is cached by content hash, so the same text is
@@ -62,7 +62,7 @@ _SETTING_KEYS = {
     'options',
     'max_length',
 }
-_CONTRIB_KEYS = {'point', 'values'}
+_CONTRIB_KEYS = {'capability', 'values'}
 
 
 def parse_version(text: str) -> tuple[int, int, int] | None:
@@ -93,7 +93,7 @@ class SettingSpec:
 
 @dataclass(frozen=True)
 class Contribution:
-    point: str
+    capability: str
     values: tuple[tuple[str, str], ...]
 
 
@@ -124,8 +124,11 @@ class PluginManifest:
         return next((s for s in self.settings if s.key == key), None)
 
     def claimed_keys(self) -> set[tuple[str, str]]:
-        """(point, key) pairs this plugin writes; used for conflict detection."""
-        return {(c.point, k) for c in self.contributes for k, _ in c.values}
+        """(capability, field) pairs this plugin writes; used for conflict detection."""
+        return {(c.capability, k) for c in self.contributes for k, _ in c.values}
+
+    def capability_keys(self) -> set[str]:
+        return {c.capability for c in self.contributes}
 
 
 # --------------------------------------------------------------------------------- parsing
@@ -188,7 +191,15 @@ def _unknown(table: Mapping, allowed: set[str], where: str, problems: list) -> N
 
 def _validate(data: Mapping, problems: list, text: str) -> PluginManifest | None:
     _unknown(data, _TOP_KEYS, '', problems)
-    if data.get('manifest_version') != MANIFEST_VERSION or isinstance(
+    if data.get('manifest_version') == 1 and not isinstance(data.get('manifest_version'), bool):
+        problems.append(
+            (
+                'manifest_version',
+                f'1 named mail software directly; use {MANIFEST_VERSION}, where each '
+                '[[contributes]] names a capability (e.g. capability = "mail.journal")',
+            )
+        )
+    elif data.get('manifest_version') != MANIFEST_VERSION or isinstance(
         data.get('manifest_version'), bool
     ):
         problems.append(('manifest_version', f'must be {MANIFEST_VERSION}'))
@@ -337,10 +348,12 @@ def _validate_contributions(
             problems.append((where, 'must be a table'))
             continue
         _unknown(item, _CONTRIB_KEYS, where, problems)
-        point_key = item.get('point')
-        point = registry.get_point(point_key) if isinstance(point_key, str) else None
-        if point is None:
-            problems.append((f'{where}.point', f'unknown extension point "{point_key}"'))
+        cap_key = item.get('capability')
+        capability = registry.get_capability(cap_key) if isinstance(cap_key, str) else None
+        if capability is None:
+            problems.append(
+                (f'{where}.capability', f'"{cap_key}" is not a capability this server offers')
+            )
         values = item.get('values')
         if not isinstance(values, dict) or not values:
             problems.append((f'{where}.values', 'must be a non-empty table of text values'))
@@ -351,11 +364,11 @@ def _validate_contributions(
             if not isinstance(template, str):
                 problems.append((loc, 'must be text'))
                 continue
-            if point is not None and key not in point.keys:
-                problems.append((loc, f'is not a value plugins may set at {point.key}'))
-            if (point_key, key) in claimed:
+            if capability is not None and key not in capability.fields:
+                problems.append((loc, f'is not a field of {capability.key}'))
+            if (cap_key, key) in claimed:
                 problems.append((loc, 'is set twice in this manifest'))
-            claimed.add((point_key, key))
+            claimed.add((cap_key, key))
             try:
                 names = placeholders(template)
             except ValueError as exc:
@@ -364,13 +377,13 @@ def _validate_contributions(
             for name in names:
                 if name not in declared:
                     problems.append((loc, f'refers to undeclared setting "{name}"'))
-            if point is not None and key in point.keys and not names:
+            if capability is not None and key in capability.fields and not names:
                 # A literal value: check it now rather than at install time.
-                error = point.validate(key, point.normalize(key, template))
+                error = capability.validate(key, capability.normalize(key, template))
                 if error:
                     problems.append((loc, error))
             pairs.append((key, template))
-        result.append(Contribution(point=str(point_key), values=tuple(pairs)))
+        result.append(Contribution(capability=str(cap_key), values=tuple(pairs)))
     return result
 
 
@@ -493,21 +506,28 @@ def clean_settings(
 def rendered_values(
     manifest: PluginManifest, settings: Mapping[str, object]
 ) -> dict[str, dict[str, str]]:
-    """``{point: {key: value}}`` after expansion; validated by each point's grammar."""
+    """``{capability: {field: value}}`` after expansion, validated by each capability's grammar
+    and checked to be expressible by the engine adapters (``registry.to_targets``)."""
     out: dict[str, dict[str, str]] = {}
     problems: dict[str, str] = {}
     for contribution in manifest.contributes:
-        point = registry.get_point(contribution.point)
+        capability = registry.get_capability(contribution.capability)
         for key, template in contribution.values:
             value = expand(template, settings).strip()
-            if point is None:
-                problems[f'{contribution.point}.{key}'] = 'extension point is not available'
+            where = f'{contribution.capability}.{key}'
+            if capability is None:
+                problems[where] = 'this server does not offer the capability'
                 continue
-            value = point.normalize(key, value)
-            error = point.validate(key, value)
+            value = capability.normalize(key, value)
+            error = capability.validate(key, value)
             if error:
-                problems[f'{contribution.point}.{key}'] = error
-            out.setdefault(contribution.point, {})[key] = value
+                problems[where] = error
+            out.setdefault(contribution.capability, {})[key] = value
+    if not problems:
+        try:
+            registry.to_targets(out)
+        except ValueError as exc:
+            problems['manifest'] = str(exc)
     if problems:
         raise SettingsError(problems)
     return out

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-MANIFEST_VERSION = 1
+# 2: contributions name engine-neutral capabilities. Version 1 named mail software directly
+# (point = "postfix.main") and is no longer accepted.
+MANIFEST_VERSION = 2
 MAX_MANIFEST_BYTES = 32 * 1024
 STALE_SECONDS = 120
 

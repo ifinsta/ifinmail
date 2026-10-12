@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.0.10
+- **Plugins no longer know which mail software runs underneath.** Manifests (now
+  `manifest_version = 2`) name engine-neutral **capabilities** such as `mail.journal`,
+  `sending.rate_limit`, `inbound.senders` or `mailbox.retention`, with plain values (MB, days,
+  yes/no, address lists). An adapter in the mail app is the only code that knows Postfix, Dovecot
+  and Rspamd: it binds each capability field to an engine setting and translates the value
+  (`inbound.greylisting.enabled = yes` becomes Rspamd's `greylisting = on`). Replacing an engine
+  now means re-binding the adapter; plugins, installations and their settings stay as they are.
+- 13 capabilities cover everything the 8 built-in plugins do; all 8 are rewritten as version 2.0.0
+  (no installed plugins existed on any server, so nothing is migrated). Version 1 manifests are
+  refused with a hint. Partner TLS asks "Also require a valid certificate" (yes/no) instead of
+  "encrypt / secure"; Mail policy's greylisting is a checkbox.
+- The Marketplace shows each plugin's effect as capability and field ("Sending limits ·
+  per_day"), never engine settings. When changes wait to be applied, the plugin page and System
+  health name the containers they wait for.
+- Guard rails: a test fails if a bundled manifest or a capability mentions the mail software or an
+  engine setting; registration refuses a capability field bound to an unknown or already bound
+  engine setting. 289 handled edge cases are documented.
+
 ## v0.0.9
 - **Leaner stack: 14 containers down to 12, or 10 without the optional services.**
   - `beat` is gone: the `worker` runs Celery's scheduler in the same process (`--beat`), as one

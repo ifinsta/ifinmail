@@ -25,7 +25,7 @@
         {% include "includes/flash_messages.html" %}
         {% if form_error %}<p class="ifinmail-error-banner" role="alert">{{ form_error }}</p>{% endif %}
         {% if row.state == 'failed' %}<p class="ifinmail-error-banner" role="alert">{% blocktrans trimmed with error=row.last_error %}The last change failed: {{ error }} Retry it, or uninstall the plugin.{% endblocktrans %}</p>{% endif %}
-        {% if row and apply_status == 'not_applied' %}<p class="ifinmail-error-banner" role="status">{% trans 'The postfix container has not applied the latest plugin settings. Check that it is running ("make ps").' %}</p>{% endif %}
+        {% if row and apply_status == 'not_applied' %}<p class="ifinmail-error-banner" role="status">{% blocktrans with services=apply_services|join:', ' %}The mail server has not applied the latest plugin settings yet ({{ services }}). Check that those containers are running ("make ps").{% endblocktrans %}</p>{% endif %}
         {% if not compatible %}<p class="ifinmail-error-banner" role="status">{% blocktrans trimmed with need=manifest.requires_core %}This plugin needs ifinmail {{ need }} or newer. Update the server first.{% endblocktrans %}</p>{% endif %}
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pl-about">
@@ -45,11 +45,11 @@
             <p class="ifinmail-settings-section__lede">{% trans 'A plugin can only set these values. Disabling or uninstalling removes them again.' %}</p>
             <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'What it changes' %}">
                 <table class="ifinmail-admin-table ifinmail-admin-table--wide">
-                    <thead><tr><th>{% trans 'Where' %}</th><th>{% trans 'Setting' %}</th><th>{% trans 'Effect' %}</th><th>{% trans 'Value' %}</th></tr></thead>
+                    <thead><tr><th>{% trans 'Capability' %}</th><th>{% trans 'Field' %}</th><th>{% trans 'Effect' %}</th><th>{% trans 'Value' %}</th></tr></thead>
                     <tbody>
                     {% for change in changes %}
                         <tr>
-                            <td>{{ change.point }}</td>
+                            <td>{{ change.capability }}</td>
                             <td class="ifinmail-text--mono">{{ change.key }}</td>
                             <td>{{ change.description }}</td>
                             <td class="ifinmail-text--mono">{% if row %}{{ change.value|default:'—' }}{% else %}{{ change.template }}{% endif %}</td>

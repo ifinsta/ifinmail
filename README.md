@@ -108,7 +108,9 @@ A `worker` container runs the periodic jobs (with Celery's scheduler built in): 
 
 **Marketplace** (in the sidebar, after Settings) adds capabilities by configuring the server for
 you. A plugin is one declarative `plugin.toml`: settings an administrator fills in, and the values
-they produce at extension points the server offers. Plugins cannot run code, and every value is
+they produce for capabilities the server offers (such as `mail.journal` or `sending.rate_limit`).
+Manifests never name the mail software, so plugins keep working if Postfix, Dovecot or Rspamd is
+ever replaced. Plugins cannot run code, and every value is
 checked twice (by the console and by the container that applies it).
 
 - **Built in:**

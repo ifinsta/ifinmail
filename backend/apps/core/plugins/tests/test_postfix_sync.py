@@ -199,7 +199,7 @@ class EndToEndTests(MailTablesTestCase):
         return self.h.run()
 
     def test_install_apply_disable_apply(self) -> None:
-        point = registry.get_point('postfix.main')
+        point = registry.get_target('postfix.main')
         InstallationService.install(
             'compliance-journal', {'archive_address': 'journal@ifinmail.test'}, 'a'
         )

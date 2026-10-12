@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.2
+Enterprise hardening. Existing installs keep their current policy until switched on in
+`provisioning/.env` (see `docs/enterprise-next-steps.md`).
+
+- **Audit trail:** hash-chained, kept 365 days (`AUDIT_RETENTION_DAYS`, minimum 30) instead of a
+  10,000-row cap; the dashboard log purge can only remove expired entries; export reads the whole
+  trail from the database (`?format=jsonl` adds hashes); `manage.py verify_audit_chain`.
+- **Two-factor:** `MFA_ENFORCEMENT=required` removes postponing and switching off (new installs
+  default to it); `manage.py reset_mfa <email>` for a lost authenticator.
+- **Backups:** verified off-site copy over SSH (`BACKUP_OFFSITE_TARGET`, `make offsite-check`) and
+  `make backup-key` to export the key and prove it opens the newest backup. System health reports both.
+- **Sensitive actions** (admin rights, roles, API tokens, mailbox deletion) ask for the password again.
+- **API tokens** last at most 90 days.
+- **CSP is enforced**; `CSP_REPORT_ONLY=true` is the emergency switch.
+- **Dependencies** are hash-pinned and verified at image build; audited weekly.
+- **Outbound limits:** per-login send limits through Rspamd (100/hour per login, 40/hour per
+  recipient domain).
+- `GET /api/metrics` (Prometheus text, token scope `audit.view`).
+- `SECURITY.md`, `docs/dr-runbook.md`, `docs/risk-register.md`, `docs/secrets-map.md`.
+- Fixed: mailbox profile showed the "Admin rights" row twice.
+
 ## v0.0.1
 First working release.
 

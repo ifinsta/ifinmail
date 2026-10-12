@@ -1,4 +1,5 @@
-"""The rspamd.policy, dovecot.policy and postfix.tls_policy points and their five plugins."""
+"""The rspamd.policy, dovecot.policy, postfix.tls_policy and postfix.sender_policy points and the
+plugins built on them."""
 
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from django.test import SimpleTestCase
 from backend.apps.core.plugins.services import CatalogService, InstallationService, registry
 from backend.apps.core.plugins.types import ConflictError, SettingsError
 from backend.apps.core.tests.mail_base import MailTablesTestCase
+from backend.apps.mail.models import Mailbox
 
 ROOT = Path(__file__).resolve().parents[5]
 DOCKER = ROOT / 'provisioning' / 'docker'
@@ -86,6 +88,48 @@ class PointGrammarTests(SimpleTestCase):
         self.assertIsNone(p.validate('arc_sealing', 'no'))
         self.assertIsNotNone(p.validate('arc_sealing', 'true'))
 
+    def test_sender_lists_take_addresses_and_domains(self) -> None:
+        p = point('rspamd.policy')
+        self.assertEqual(
+            p.normalize('sender_block_list', 'Spam.Example., Bob@Bad.Example'),
+            'bob@bad.example,spam.example',
+        )
+        for key in ('sender_block_list', 'sender_allow_list'):
+            self.assertIsNone(p.validate(key, 'bob@bad.example,spam.example'))
+            for bad in ('localhost', '@bad.example', 'a b@x.example', 'x.example;rm', '*.example'):
+                with self.subTest(key=key, bad=bad):
+                    self.assertIsNotNone(p.validate(key, bad))
+        self.assertIsNotNone(
+            p.validate('sender_block_list', ','.join(f'd{i}.example' for i in range(201)))
+        )
+
+    def test_mail_policy_switches_and_limits(self) -> None:
+        p = point('rspamd.policy')
+        self.assertIsNone(p.validate('greylisting', 'off'))
+        self.assertIsNotNone(p.validate('greylisting', 'no'))
+        self.assertIsNone(p.validate('send_limit_per_minute', '1000'))
+        self.assertIsNotNone(p.validate('send_limit_per_minute', '1001'))
+        self.assertIsNone(p.validate('send_limit_per_day', '100000'))
+        self.assertIsNotNone(p.validate('send_limit_per_day', '0'))
+        size = point('postfix.main')
+        self.assertIsNone(size.validate('message_size_limit_mb', '50'))
+        for bad in ('0', '51', '25MB'):
+            with self.subTest(bad=bad):
+                self.assertIsNotNone(size.validate('message_size_limit_mb', bad))
+        self.assertIsNone(point('dovecot.policy').validate('quota_warnings', 'yes'))
+        self.assertIsNotNone(point('dovecot.policy').validate('quota_warnings', 'true'))
+
+    def test_internal_only_logins_must_be_addresses(self) -> None:
+        p = point('postfix.sender_policy')
+        self.assertEqual(
+            p.normalize('internal_only_logins', 'Intern@X.Example, desk@x.example'),
+            'desk@x.example,intern@x.example',
+        )
+        self.assertIsNone(p.validate('internal_only_logins', 'desk@x.example'))
+        for bad in ('x.example', 'desk@x.example permit', 'desk@localhost'):
+            with self.subTest(bad=bad):
+                self.assertIsNotNone(p.validate('internal_only_logins', bad))
+
     def test_line_breaks_never_survive_normalisation(self) -> None:
         p = point('rspamd.policy')
         value = p.normalize('blocked_attachment_types', 'exe\nrelayhost = evil')
@@ -93,7 +137,7 @@ class PointGrammarTests(SimpleTestCase):
 
 
 class BundledPluginsTests(SimpleTestCase):
-    def test_all_six_plugins_load(self) -> None:
+    def test_all_bundled_plugins_load(self) -> None:
         self.assertEqual(CatalogService.bundled_errors(), ())
         self.assertEqual(
             sorted(e.plugin_id for e in CatalogService.bundled()),
@@ -103,6 +147,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'compliance-journal',
                 'dmarc-enforcement',
                 'forwarding-control',
+                'mail-policy',
                 'mailbox-cleanup',
                 'partner-tls',
             ],
@@ -136,6 +181,11 @@ class LifecycleTests(MailTablesTestCase):
                 'blocked_attachment_action': 'quarantine',
                 'blocked_attachment_types': 'exe,js',
                 'dmarc_enforcement': 'enforce',
+                'greylisting': '',
+                'send_limit_per_day': '',
+                'send_limit_per_minute': '',
+                'sender_allow_list': '',
+                'sender_block_list': '',
             },
         )
         InstallationService.disable('dmarc-enforcement', 'a')
@@ -183,6 +233,7 @@ class LifecycleTests(MailTablesTestCase):
                 'autoexpunge_sent_days': '',
                 'autoexpunge_trash_days': '7',
                 'max_redirects': '0',
+                'quota_warnings': '',
             },
         )
         InstallationService.uninstall('mailbox-cleanup', 'a')
@@ -200,7 +251,47 @@ class LifecycleTests(MailTablesTestCase):
             {'domains': 'bank.example,law.example', 'level': 'encrypt'},
         )
 
+    def test_mail_policy_defaults_follow_the_large_providers(self) -> None:
+        InstallationService.install('mail-policy', {}, 'a')
+        self.assertEqual(
+            {k: v for k, v in self.file('rspamd-plugins.conf').items() if v},
+            {'greylisting': 'on', 'send_limit_per_day': '2000', 'send_limit_per_minute': '30'},
+        )
+        self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '50')
+        self.assertEqual(self.file('postfix-sender-policy.conf'), {'internal_only_logins': ''})
+        self.assertEqual(self.file('dovecot-plugins.conf')['quota_warnings'], 'yes')
+
+    def test_mail_policy_lists_and_switches(self) -> None:
+        InstallationService.install(
+            'mail-policy',
+            {
+                'block_senders': 'Spam.Example, bob@bad.example',
+                'allow_senders': 'partner.example',
+                'internal_only': 'Intern@ifinmail.test',
+                'greylisting': 'off',
+                'quota_warnings': '',
+            },
+            'a',
+        )
+        values = self.file('rspamd-plugins.conf')
+        self.assertEqual(values['sender_block_list'], 'bob@bad.example,spam.example')
+        self.assertEqual(values['sender_allow_list'], 'partner.example')
+        self.assertEqual(values['greylisting'], 'off')
+        self.assertEqual(
+            self.file('postfix-sender-policy.conf')['internal_only_logins'], 'intern@ifinmail.test'
+        )
+        self.assertEqual(self.file('dovecot-plugins.conf')['quota_warnings'], 'no')
+        with self.assertRaises(SettingsError):
+            InstallationService.configure('mail-policy', {'message_size_mb': '150'}, 'a')
+        with self.assertRaises(SettingsError):
+            InstallationService.configure('mail-policy', {'block_senders': 'evil;rm'}, 'a')
+        InstallationService.uninstall('mail-policy', 'a')
+        self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '')
+        self.assertEqual(self.file('postfix-sender-policy.conf'), {'internal_only_logins': ''})
+        self.assertEqual(set(self.file('rspamd-plugins.conf').values()), {''})
+
     def test_the_new_plugins_never_conflict_with_each_other(self) -> None:
+        Mailbox.objects.create(domain=self.make_domain(), local_part='journal')
         for plugin_id, settings in (
             ('attachment-guard', {}),
             ('dmarc-enforcement', {}),
@@ -208,12 +299,14 @@ class LifecycleTests(MailTablesTestCase):
             ('mailbox-cleanup', {}),
             ('partner-tls', {'domains': 'bank.example'}),
             ('arc-forwarding', {}),
+            ('mail-policy', {}),
+            ('compliance-journal', {'archive_address': 'journal@ifinmail.test'}),
         ):
             try:
                 InstallationService.install(plugin_id, settings, 'a')
             except ConflictError as exc:  # pragma: no cover - the assertion below explains
                 self.fail(f'{plugin_id}: {exc}')
-        self.assertEqual(len(InstallationService.all()), 6)
+        self.assertEqual(len(InstallationService.all()), 8)
 
 
 def _bash_works() -> bool:
@@ -326,6 +419,68 @@ class RspamdWatcherTests(_ScriptHarness):
         self.assertEqual(log.count('ignoring unsafe value'), 2)
         self.assertEqual((self.out / 'arc.conf').read_text(), '')
 
+    def test_sender_lists_split_addresses_from_domains(self) -> None:
+        self.file.write_text(
+            'sender_block_list = bob@bad.example,spam.example\n'
+            'sender_allow_list = partner.example\n'
+        )
+        self.run_script()
+        self.assertEqual((self.out / 'sender_block_addr.map').read_text(), 'bob@bad.example\n')
+        self.assertEqual((self.out / 'sender_block_domain.map').read_text(), 'spam.example\n')
+        self.assertEqual((self.out / 'sender_allow_addr.map').read_text(), '')
+        rules = (self.out / 'multimap.conf').read_text()
+        # Blocked in the envelope and in the From header; allow entries only score.
+        for symbol in (
+            'IFINMAIL_BLOCK_ENV',
+            'IFINMAIL_BLOCK_HDR',
+            'IFINMAIL_BLOCK_ENV_DOMAIN',
+            'IFINMAIL_BLOCK_HDR_DOMAIN',
+            'IFINMAIL_ALLOW_ENV_DOMAIN',
+            'IFINMAIL_ALLOW_HDR_DOMAIN',
+        ):
+            self.assertIn(f'{symbol} {{', rules)
+        self.assertNotIn('IFINMAIL_ALLOW_ENV {', rules)  # no addresses, no rule
+        self.assertEqual(rules.count('action = "reject";'), 4)
+        self.assertEqual(rules.count('score = 0.0;'), 2)
+        # An allow entry counts only with SPF or DKIM, and exempts the sender from greylisting.
+        composite = (self.out / 'composites.conf').read_text()
+        self.assertIn('& (R_DKIM_ALLOW | R_SPF_ALLOW)', composite)
+        self.assertIn(
+            'whitelist_symbols = ["IFINMAIL_SENDER_ALLOWED"];',
+            (self.out / 'greylist.conf').read_text(),
+        )
+
+    def test_unsafe_sender_entries_are_refused(self) -> None:
+        self.file.write_text(
+            'sender_block_list = bad.example";}evil{\nsender_allow_list = *.example\n'
+        )
+        self.assertEqual(self.run_script().count('ignoring unsafe value'), 2)
+        self.assertEqual((self.out / 'multimap.conf').read_text(), '')
+        self.assertEqual((self.out / 'composites.conf').read_text(), '')
+
+    def test_greylisting_off(self) -> None:
+        self.file.write_text('greylisting = off\n')
+        self.run_script()
+        self.assertEqual((self.out / 'greylist.conf').read_text(), 'enabled = false;\n')
+        self.file.write_text('greylisting = on\n')
+        self.run_script()
+        self.assertEqual((self.out / 'greylist.conf').read_text(), '')
+
+    def test_sending_limits_use_separate_buckets(self) -> None:
+        self.file.write_text('send_limit_per_minute = 30\nsend_limit_per_day = 2000\n')
+        self.run_script()
+        rates = (self.out / 'ratelimit.conf').read_text()
+        # Rspamd keys a bucket by the selector value: the same selector twice shares a counter.
+        self.assertIn(
+            'selector = "user.lower";\n    bucket = { burst = 30; rate = "30 / 1m"; };', rates
+        )
+        self.assertIn('selector = "user.lower.append(\\"/day\\")";', rates)
+        self.assertIn('rate = "2000 / 1d"', rates)
+        self.assertIn('user_to_domain {', rates)  # the built-in per-domain limit is kept
+        self.file.write_text('send_limit_per_minute = 0\nsend_limit_per_day = 2000\n')
+        self.assertIn('ignoring unsafe value', self.run_script())
+        self.assertEqual((self.out / 'ratelimit.conf').read_text(), '')  # built-in rates apply
+
     def test_empty_values_remove_the_rules(self) -> None:
         self.file.write_text('blocked_attachment_types = \ndmarc_enforcement = \n')
         self.run_script()
@@ -366,6 +521,21 @@ class DovecotWatcherTests(_ScriptHarness):
         self.assertIn('not on the allow-list: sieve_before', log)
         self.assertNotIn('autoexpunge', self.out.read_text())
         self.assertNotIn('sieve_max_redirects', self.out.read_text())
+
+    def test_quota_warnings(self) -> None:
+        self.file.write_text('quota_warnings = yes\n')
+        self.run_script()
+        text = self.out.read_text()
+        self.assertIn('quota_warning = storage=95%% quota-warning 95 %u', text)
+        self.assertIn('quota_warning2 = storage=80%% quota-warning 80 %u', text)
+        self.assertIn('executable = script /usr/local/bin/ifinmail-quota-warning', text)
+        self.assertIn('user = vmail\n    mode = 0600', text)
+        for off in ('no', ''):
+            self.file.write_text(f'quota_warnings = {off}\n')
+            self.run_script()
+            self.assertNotIn('quota', self.out.read_text())
+        self.file.write_text('quota_warnings = true\n')
+        self.assertIn('ignoring unsafe value', self.run_script())
 
     def test_failed_check_rolls_back(self) -> None:
         self.file.write_text('max_redirects = 1\n')
@@ -459,6 +629,9 @@ class WiringContractTests(SimpleTestCase):
             'rspamd/local.d/multimap.conf',
             'rspamd/local.d/dmarc.conf',
             'rspamd/local.d/arc.conf',
+            'rspamd/local.d/composites.conf',
+            'rspamd/local.d/greylist.conf',
+            'rspamd/local.d/ratelimit.conf',
         ):
             self.assertIn('.include(try=true;', (DOCKER / rel).read_text(), rel)
         dovecot = (DOCKER / 'dovecot' / 'dovecot.conf').read_text()
@@ -466,6 +639,58 @@ class WiringContractTests(SimpleTestCase):
             dovecot.rstrip().endswith('!include_try /etc/dovecot/ifinmail-plugins.conf'),
             'dovecot.conf must include the plugin file last so it overrides',
         )
+
+    def test_submission_restrictions_are_one_postfix_parameter(self) -> None:
+        # The sender-policy watcher rewrites this parameter; both submission services use it.
+        master = (DOCKER / 'postfix' / 'master.cf').read_text()
+        self.assertEqual(
+            master.count('-o smtpd_recipient_restrictions=$ifinmail_submission_restrictions'), 2
+        )
+        main = (DOCKER / 'postfix' / 'main.cf').read_text()
+        self.assertIn('ifinmail_submission_restrictions = permit_sasl_authenticated, reject', main)
+        self.assertIn('smtpd_restriction_classes = ifinmail_internal_only', main)
+        self.assertIn('ifinmail_internal_only = permit_auth_destination, ', main)
+        self.assertIn('message_size_limit = 52428800', main)  # what an uninstall restores
+
+    def test_quota_warning_script_ships_in_the_image(self) -> None:
+        dockerfile = (DOCKER / 'dovecot' / 'Dockerfile').read_text()
+        self.assertIn('/usr/local/bin/ifinmail-quota-warning', dockerfile)
+        script = (DOCKER / 'dovecot' / 'quota-warning.sh').read_text()
+        self.assertIn('plugin/quota=maildir:User quota:noenforcing', script)
+
+
+class QuotaWarningScriptTests(SimpleTestCase):
+    script = DOCKER / 'dovecot' / 'quota-warning.sh'
+
+    def deliver(self, *args: str) -> tuple[int, str]:
+        if shutil.which('sh') is None:
+            self.skipTest('needs sh')
+        work = Path(tempfile.mkdtemp(prefix='ifinmail-qw-'))
+        self.addCleanup(shutil.rmtree, work, True)
+        lda = work / 'lda'
+        lda.write_text(f'#!/bin/sh\necho "$@" > "{work}/args"\ncat > "{work}/message"\n')
+        lda.chmod(0o755)
+        env = {**os.environ, 'DOVECOT_LDA': str(lda)}
+        result = subprocess.run(['sh', str(self.script), *args], env=env, capture_output=True)
+        out = ''
+        if (work / 'message').exists():
+            out = (work / 'args').read_text() + (work / 'message').read_text()
+        return result.returncode, out
+
+    def test_delivers_a_notice_past_the_quota(self) -> None:
+        code, out = self.deliver('80', 'u@x.example')
+        self.assertEqual(code, 0)
+        self.assertIn('-d u@x.example -o plugin/quota=maildir:User quota:noenforcing', out)
+        self.assertIn('Subject: Your mailbox is 80% full', out)
+        self.assertIn('From: Mail server <postmaster@x.example>', out)
+        self.assertIn('Auto-Submitted: auto-generated', out)
+
+    def test_refuses_odd_arguments(self) -> None:
+        for args in (('8O', 'u@x.example'), ('80', 'u@x.example -o x'), ('80', '$(id)@x')):
+            with self.subTest(args=args):
+                code, out = self.deliver(*args)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(out, '')
 
 
 class ApplyStatusTests(MailTablesTestCase):
@@ -477,5 +702,11 @@ class ApplyStatusTests(MailTablesTestCase):
             statuses = InstallationService.apply_status()
         self.assertEqual(
             sorted(statuses),
-            ['dovecot.policy', 'postfix.main', 'postfix.tls_policy', 'rspamd.policy'],
+            [
+                'dovecot.policy',
+                'postfix.main',
+                'postfix.sender_policy',
+                'postfix.tls_policy',
+                'rspamd.policy',
+            ],
         )

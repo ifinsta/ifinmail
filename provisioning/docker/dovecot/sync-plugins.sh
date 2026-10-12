@@ -27,6 +27,7 @@ declare -A RULES=(
     [autoexpunge_trash_days]="$DAYS"
     [autoexpunge_junk_days]="$DAYS"
     [autoexpunge_sent_days]="$DAYS"
+    [quota_warnings]='^(yes|no)?$'
 )
 declare -A FOLDERS=(
     [autoexpunge_trash_days]=Trash
@@ -45,6 +46,22 @@ render() {
     [ -n "$body" ] && printf 'namespace inbox {\n%s}\n' "$body"
     if [ -n "${VALUES[max_redirects]:-}" ]; then
         printf 'plugin {\n  sieve_max_redirects = %s\n}\n' "${VALUES[max_redirects]}"
+    fi
+    if [ "${VALUES[quota_warnings]:-}" = "yes" ]; then
+        cat <<'EOF'
+plugin {
+  quota_warning = storage=95%% quota-warning 95 %u
+  quota_warning2 = storage=80%% quota-warning 80 %u
+}
+service quota-warning {
+  executable = script /usr/local/bin/ifinmail-quota-warning
+  user = vmail
+  unix_listener quota-warning {
+    user = vmail
+    mode = 0600
+  }
+}
+EOF
     fi
 }
 

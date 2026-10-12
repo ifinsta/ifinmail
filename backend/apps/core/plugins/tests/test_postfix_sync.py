@@ -25,6 +25,8 @@ SCRIPT = (
     / 'sync-overrides.sh'
 )
 
+RESTORE_SIZE = 'postconf -e message_size_limit=52428800'
+
 
 def _bash_works() -> bool:
     return shutil.which('bash') is not None and shutil.which('sha256sum') is not None
@@ -41,6 +43,10 @@ class _Harness:
         self.status.mkdir()
         self.plugins = Path(self.work, 'postfix-plugins.conf')
         self.core = Path(self.work, 'postfix-overrides.conf')
+        self.template = Path(self.work, 'main.cf.template')
+        self.template.write_text('message_size_limit = 52428800\r\n')
+        self.sender = Path(self.work, 'postfix-sender-policy.conf')
+        self.sender_map = Path(self.work, 'internal_only')
 
     def run(self) -> list[str]:
         log = Path(self.work, 'calls.log')
@@ -52,14 +58,19 @@ class _Harness:
             'IFINMAIL_PLUGINS_FILE': str(self.plugins),
             'IFINMAIL_PLUGINS_STATE': str(Path(self.work, 'plugins.state')),
             'IFINMAIL_STATUS_DIR': str(self.status),
+            'IFINMAIL_MAIN_CF_TEMPLATE': str(self.template),
+            'IFINMAIL_TLS_POLICY_FILE': str(Path(self.work, 'none')),
+            'IFINMAIL_SENDER_POLICY_FILE': str(self.sender),
+            'IFINMAIL_SENDER_POLICY_STATE': str(Path(self.work, 'sender.state')),
+            'IFINMAIL_SENDER_POLICY_MAP': str(self.sender_map),
             'POSTCONF_BIN': str(Path(self.work, 'postconf')),
             'POSTFIX_BIN': str(Path(self.work, 'postfix')),
         }
         subprocess.run(['bash', str(SCRIPT), '--once'], env=env, check=True, capture_output=True)
         return log.read_text().splitlines() if log.exists() else []
 
-    def ack(self) -> str:
-        path = self.status / 'postfix-plugins.applied'
+    def ack(self, name: str = 'postfix-plugins.applied') -> str:
+        path = self.status / name
         return path.read_text().strip() if path.exists() else ''
 
     def cleanup(self) -> None:
@@ -113,6 +124,61 @@ class WatcherTests(SimpleTestCase):
         self.h.plugins.write_text('always_bcc = journal@example.test\n')
         self.assertEqual(self.h.run()[0], 'postconf -e always_bcc=journal@example.test')
 
+    def test_message_size_is_set_in_bytes_and_restored_from_the_template(self) -> None:
+        self.h.plugins.write_text('message_size_limit_mb = 25\n')
+        self.assertEqual(
+            self.h.run(), ['postconf -e message_size_limit=26214400', 'postfix reload']
+        )
+        self.h.plugins.write_text('message_size_limit_mb = \n')
+        # This server's own 50 MB, never Postfix's built-in 10 MB.
+        self.assertEqual(self.h.run(), [RESTORE_SIZE, 'postfix reload'])
+
+    def test_message_size_out_of_range_is_ignored(self) -> None:
+        for bad in ('0', '51', '150', '25MB', '-1', '1e3'):
+            with self.subTest(bad=bad):
+                self.h.plugins.write_text(f'message_size_limit_mb = {bad}\n')
+                self.assertEqual(self.h.run(), [])
+
+    def test_internal_only_logins_become_a_sasl_map(self) -> None:
+        self.h.sender.write_text('internal_only_logins = intern@x.test,temp@x.test\n')
+        self.assertEqual(
+            self.h.run(),
+            [
+                'postconf -e ifinmail_submission_restrictions=check_sasl_access '
+                f'texthash:{self.h.sender_map}, permit_sasl_authenticated, reject',
+                'postfix reload',
+            ],
+        )
+        self.assertEqual(
+            self.h.sender_map.read_text(),
+            'intern@x.test ifinmail_internal_only\ntemp@x.test ifinmail_internal_only\n',
+        )
+        digest = hashlib.sha256(self.h.sender.read_bytes()).hexdigest()
+        self.assertEqual(self.h.ack('postfix-sender-policy.applied'), digest)
+        self.h.sender.write_text('internal_only_logins = \n')
+        self.assertEqual(
+            self.h.run(),
+            [
+                'postconf -e ifinmail_submission_restrictions=permit_sasl_authenticated, reject',
+                'postfix reload',
+            ],
+        )
+        self.assertEqual(self.h.sender_map.read_text(), '')
+
+    def test_unsafe_logins_and_foreign_keys_never_reach_postfix(self) -> None:
+        self.h.sender.write_text(
+            'internal_only_logins = a@x.test, permit\n'
+            'internal_only_logins = a@x.test;reject\n'
+            'smtpd_recipient_restrictions = permit\n'
+        )
+        self.assertEqual(
+            self.h.run(),
+            [
+                'postconf -e ifinmail_submission_restrictions=permit_sasl_authenticated, reject',
+                'postfix reload',
+            ],
+        )
+
 
 class EndToEndTests(MailTablesTestCase):
     """Console renders -> watcher applies -> console reports Applied."""
@@ -139,10 +205,15 @@ class EndToEndTests(MailTablesTestCase):
         )
         self.assertNotEqual(point.applied_status(), ApplyStatus.APPLIED)
         self.assertEqual(
-            self.sync(), ['postconf -e always_bcc=journal@ifinmail.test', 'postfix reload']
+            self.sync(),
+            [
+                'postconf -e always_bcc=journal@ifinmail.test',
+                RESTORE_SIZE,
+                'postfix reload',
+            ],
         )
         self.assertEqual(point.applied_status(), ApplyStatus.APPLIED)
         InstallationService.disable('compliance-journal', 'a')
         self.assertNotEqual(point.applied_status(), ApplyStatus.APPLIED)
-        self.assertEqual(self.sync(), ['postconf -X always_bcc', 'postfix reload'])
+        self.assertEqual(self.sync(), ['postconf -X always_bcc', RESTORE_SIZE, 'postfix reload'])
         self.assertEqual(point.applied_status(), ApplyStatus.APPLIED)

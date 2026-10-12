@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.0.7
+- New built-in plugin **Mail policy essentials**, one plugin for the controls administrators need
+  first, with defaults taken from Google Workspace and Microsoft 365 so it is safe to install
+  unchanged:
+  - blocked senders (address or domain, envelope or From header) are refused;
+  - allowed senders are never treated as spam, but only when SPF or DKIM proves them, and
+    attachment and malware rules still apply (Microsoft's guidance on allow entries);
+  - sending limits per login: 30 a minute and 2,000 a day, in separate counters;
+  - largest message 50 MB (this server's existing limit; 50 MB is also the most Rspamd scans and
+    signs, so the setting cannot go higher);
+  - internal-only mailboxes may send only to domains hosted here (clear 554 message otherwise);
+  - greylisting on or off;
+  - a notice in the Inbox at 80% and 95% of the quota, delivered even when the mailbox is full.
+- New extension point `postfix.sender_policy`; new keys on `rspamd.policy`, `postfix.main` and
+  `dovecot.policy`. Both submission ports now read their recipient restrictions from one parameter
+  (`ifinmail_submission_restrictions`), unchanged by default.
+- A plugin value that is removed from `postfix.main` restores this server's value from
+  `main.cf.template`, not Postfix's built-in default.
+- Fix: Rspamd counted but did not enforce sending limits (including the built-in 100 an hour) if
+  Redis was not reachable when Rspamd started, for example after a reboot. The Rspamd watcher now
+  reloads it once it is serving and again whenever Redis restarts.
+- The Rspamd configuration test runs as `_rspamd`, so it leaves no root-owned cache files.
+
 ## v0.0.6
 - New built-in plugin **ARC trusted forwarding**: seals mail this server passes on (aliases that
   forward outside) with the domain's DKIM key, and lets a valid ARC chain from a forwarder you

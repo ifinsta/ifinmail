@@ -67,8 +67,27 @@ Postfix `main.cf` parameters applied by `sync-overrides.sh` from `postfix-plugin
 | Key | Value grammar | Effect | Notes |
 | --- | --- | --- | --- |
 | `always_bcc` | one email address | Postfix sends a copy of every message to it | Kept apart from the core's own overrides file and keys, so plugins can never change relaying |
+| `message_size_limit_mb` | 1-50 | `message_size_limit` in bytes (MB × 1048576), advertised as `SIZE` in EHLO | Capped at 50: Rspamd does not scan (or DKIM-sign) messages over its 50 MiB `max_message`, and `milter_default_action = accept` would pass them on unscanned |
 
-Empty or absent values remove the parameter (`postconf -X`), restoring Postfix's default.
+An empty or absent value restores this server's own value from `main.cf.template` (e.g.
+`message_size_limit = 52428800`), or removes the parameter (`postconf -X`) when the template has
+none. Postfix's built-in default (10 MB for the size) is never what an uninstall leaves behind.
+
+## Extension point `postfix.sender_policy`
+
+Applied by `sync-overrides.sh` from `postfix-sender-policy.conf`; acknowledged as
+`postfix-sender-policy.applied`.
+
+| Key | Value grammar | Effect |
+| --- | --- | --- |
+| `internal_only_logins` | comma-separated email addresses (normalised: lower-case, sorted, de-duplicated; at most 200) | These SASL logins may send only to domains hosted here; anything else is refused with 554 "This mailbox may only send to addresses within the organisation" |
+
+The logins become a `texthash:` map of `login ifinmail_internal_only`. `main.cf` defines the
+restriction class (`permit_auth_destination`, then a static reject) and the parameter
+`ifinmail_submission_restrictions`, which both submission services in `master.cf` use as their
+`smtpd_recipient_restrictions`. The watcher always writes the complete parameter:
+`check_sasl_access texthash:<map>, permit_sasl_authenticated, reject`, or the default
+`permit_sasl_authenticated, reject` when the list is empty. Port 25 is unaffected.
 
 ## Extension point `postfix.tls_policy`
 
@@ -81,8 +100,9 @@ Rendered into a `texthash:` map used as `smtp_tls_policy_maps` by `sync-override
 
 ## Extension point `rspamd.policy`
 
-Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multimap.conf` and
-`local.d/dmarc.conf`; `rspamadm configtest` must pass before Rspamd reloads (`HUP`).
+Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multimap.conf`,
+`dmarc.conf`, `arc.conf`, `composites.conf`, `greylist.conf` and `ratelimit.conf`;
+`rspamadm configtest` (run as `_rspamd`) must pass before Rspamd reloads (`HUP`).
 
 | Key | Value grammar | Effect |
 | --- | --- | --- |
@@ -91,6 +111,13 @@ Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multi
 | `dmarc_enforcement` | `enforce` or `quarantine` | DMARC module actions: enforce follows the sender's policy; quarantine sends both to Junk |
 | `arc_trusted_sealers` | domain list (normalised like partner TLS domains) | `whitelisted_signers_map` with `adjust_dmarc`: a valid ARC chain from these lifts a DMARC rejection |
 | `arc_sealing` | `yes` or `no` | yes: seal mail passing through with the domain's DKIM key (`/etc/dkim/$domain.$selector.key`, selector `default`, `use_domain = recipient`) |
+| `sender_block_list` | comma-separated addresses and/or domains (normalised like domain lists; at most 200) | Multimap rules on the envelope sender and the From header, by address and by domain, with `action = "reject"` |
+| `sender_allow_list` | same grammar | Multimap rules scoring 0; the composite `IFINMAIL_SENDER_ALLOWED` (score -20) needs one of them **and** `R_DKIM_ALLOW` or `R_SPF_ALLOW`, so a forged sender gains nothing. Forced actions (attachments, malware) still apply. Allowed senders are in greylisting's `whitelist_symbols` |
+| `greylisting` | `on` or `off` | off: `enabled = false` for the greylist module |
+| `send_limit_per_minute`, `send_limit_per_day` | 1-1000 and 1-100000 (both required) | Replace the built-in per-login rate with two buckets. Selectors `user.lower` and `user.lower.append("/day")`: Rspamd keys a bucket by the hash of the selector value, so the same selector twice would share one counter. The per-recipient-domain rate (40/h) is kept |
+
+The watch loop also reloads Rspamd once it is serving and again whenever Redis's `run_id` changes:
+Rspamd 3.8.1 counts but does not enforce rate limits if Redis was unreachable when it started.
 
 ## Extension point `dovecot.policy`
 
@@ -101,6 +128,7 @@ from `dovecot.conf`; `doveconf -n` must pass before `doveadm reload`.
 | --- | --- | --- |
 | `max_redirects` | 0-20 | `sieve_max_redirects` |
 | `autoexpunge_trash_days`, `autoexpunge_junk_days`, `autoexpunge_sent_days` | 1-3650 | `autoexpunge` on that special-use mailbox |
+| `quota_warnings` | `yes` or `no` | yes: `quota_warning` at 95% and `quota_warning2` at 80% run `service quota-warning` (as `vmail`), which puts a notice in the user's Inbox with `dovecot-lda` and quota enforcement off for that message |
 
 Keys a point allows may carry a **normaliser**: values are normalised, then validated, both in the
 console and (by grammar) again in the container.

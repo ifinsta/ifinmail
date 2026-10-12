@@ -6,6 +6,10 @@
 #   postfix-plugins.conf     values from enabled plugins (extension point postfix.main)
 #   postfix-tls-policy.conf  partner domains that must get TLS (extension point postfix.tls_policy),
 #                            rendered into a texthash: map used as smtp_tls_policy_maps
+#   postfix-sender-policy.conf  internal-only logins (extension point postfix.sender_policy), put
+#                            in front of ifinmail_submission_restrictions with check_sasl_access
+# A plugin value that is removed restores the value in main.cf.template, never Postfix's own
+# default (e.g. message_size_limit would otherwise drop from this server's 50 MB to 10 MB).
 # This script watches both and, when one changes, applies its allowed keys with postconf and
 # reloads Postfix. Each file has its own allow-list and value grammar, so neither can be used to
 # set anything else, and plugins can never touch relaying. After applying the plugins file it
@@ -25,8 +29,16 @@ ALLOWED_KEYS=" relayhost default_transport hopcount_limit "
 SAFE_VALUE='^[][A-Za-z0-9.:_-]*$'
 PLUGINS_FILE="${IFINMAIL_PLUGINS_FILE:-/var/lib/ifinmail/runtime/postfix-plugins.conf}"
 PLUGINS_STATE="${IFINMAIL_PLUGINS_STATE:-/var/run/ifinmail-plugins.sha256}"
-PLUGIN_KEYS=" always_bcc "
-PLUGIN_VALUE='^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)?$'
+PLUGIN_KEYS=" always_bcc message_size_limit_mb "
+declare -A PLUGIN_RULES=(
+    [always_bcc]='^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)?$'
+    [message_size_limit_mb]='^([1-9]|[1-4][0-9]|50)?$'
+)
+TEMPLATE="${IFINMAIL_MAIN_CF_TEMPLATE:-/etc/postfix/main.cf.template}"
+SENDER_FILE="${IFINMAIL_SENDER_POLICY_FILE:-/var/lib/ifinmail/runtime/postfix-sender-policy.conf}"
+SENDER_STATE="${IFINMAIL_SENDER_POLICY_STATE:-/var/run/ifinmail-sender-policy.sha256}"
+SENDER_MAP="${IFINMAIL_SENDER_POLICY_MAP:-/etc/postfix/ifinmail_internal_only}"
+SUBMISSION_DEFAULT='permit_sasl_authenticated, reject'
 TLS_FILE="${IFINMAIL_TLS_POLICY_FILE:-/var/lib/ifinmail/runtime/postfix-tls-policy.conf}"
 TLS_STATE="${IFINMAIL_TLS_POLICY_STATE:-/var/run/ifinmail-tls-policy.sha256}"
 TLS_MAP="${IFINMAIL_TLS_POLICY_MAP:-/etc/postfix/ifinmail_tls_policy}"
@@ -56,12 +68,18 @@ apply_file() {
             log "ignoring key not on the allow-list: $key"
             continue
         fi
-        if [[ ! "$value" =~ $safe ]]; then
+        local re="$safe"
+        [ "$safe" = per-key ] && re="${PLUGIN_RULES[$key]}"
+        if [[ ! "$value" =~ $re ]]; then
             log "ignoring unsafe value for $key"
             continue
         fi
+        if [ "$key" = message_size_limit_mb ]; then
+            key=message_size_limit
+            [ -n "$value" ] && value=$((value * 1048576))
+        fi
         if [ -z "$value" ]; then
-            "$POSTCONF" -X "$key" && changed=1
+            restore_default "$key" && changed=1
         else
             "$POSTCONF" -e "$key=$value" && changed=1
         fi
@@ -115,12 +133,58 @@ apply_tls_policy() {
     echo "$current" > "$TLS_STATE"
 }
 
+# restore_default <key>: back to this server's main.cf value, or Postfix's default if it has none.
+restore_default() {
+    local value
+    value="$(sed -n "s/^$1[[:space:]]*=[[:space:]]*//p" "$TEMPLATE" 2>/dev/null | tr -d '\r' | tail -1)"
+    if [ -n "$value" ]; then "$POSTCONF" -e "$1=$value"; else "$POSTCONF" -X "$1"; fi
+}
+
+# Internal-only logins: "internal_only_logins = a@x,b@x" puts check_sasl_access in front of the
+# submission restrictions; the matched login gets class ifinmail_internal_only (main.cf), which
+# permits only domains hosted here. The complete value is always written, never removed.
+apply_sender_policy() {
+    [ -r "$SENDER_FILE" ] || return 0
+    local current previous=""
+    current="$(sha256sum "$SENDER_FILE" | cut -d' ' -f1)"
+    [ -r "$SENDER_STATE" ] && previous="$(cat "$SENDER_STATE")"
+    [ "$current" = "$previous" ] && return 0
+
+    local line key value logins=""
+    local address="[a-z0-9._%+-]{1,64}@${DOMAIN}"
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" =~ ^([a-z_]+)[[:space:]]*=[[:space:]]*(.*)$ ]] || { log "ignoring malformed line"; continue; }
+        key="${BASH_REMATCH[1]}"; value="${BASH_REMATCH[2]}"
+        if [ "$key" != internal_only_logins ]; then log "ignoring key not on the allow-list: $key"; continue; fi
+        if [[ "$value" =~ ^(${address}(,${address}){0,199})?$ ]]; then logins="$value"
+        else log "ignoring unsafe value for $key"; fi
+    done < "$SENDER_FILE"
+
+    if [ -z "$logins" ]; then
+        : > "$SENDER_MAP"
+        "$POSTCONF" -e "ifinmail_submission_restrictions=$SUBMISSION_DEFAULT"
+    else
+        local login
+        : > "$SENDER_MAP.tmp"
+        IFS=',' read -r -a list <<< "$logins"
+        for login in "${list[@]}"; do printf '%s ifinmail_internal_only\n' "$login" >> "$SENDER_MAP.tmp"; done
+        mv "$SENDER_MAP.tmp" "$SENDER_MAP"
+        "$POSTCONF" -e "ifinmail_submission_restrictions=check_sasl_access texthash:$SENDER_MAP, $SUBMISSION_DEFAULT"
+    fi
+    "$POSTFIX" reload >/dev/null 2>&1 || log "postfix reload failed (not running yet?)"
+    log "applied $(basename "$SENDER_FILE")"
+    echo "$current" > "$SENDER_STATE"
+}
+
 apply_once() {
     apply_file "$FILE" "$STATE" "$ALLOWED_KEYS" "$SAFE_VALUE"
-    apply_file "$PLUGINS_FILE" "$PLUGINS_STATE" "$PLUGIN_KEYS" "$PLUGIN_VALUE"
+    apply_file "$PLUGINS_FILE" "$PLUGINS_STATE" "$PLUGIN_KEYS" per-key
     apply_tls_policy
+    apply_sender_policy
     acknowledge "$PLUGINS_STATE" postfix-plugins.applied
     acknowledge "$TLS_STATE" postfix-tls-policy.applied
+    acknowledge "$SENDER_STATE" postfix-sender-policy.applied
 }
 
 # acknowledge <state file> <ack name>: tell the console which file is in effect.

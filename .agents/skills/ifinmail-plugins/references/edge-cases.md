@@ -1,4 +1,4 @@
-# Edge cases (252)
+# Edge cases (277)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -15,7 +15,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 205 tested, 11 verified live only, 33 code, 3 decision (252 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 221 tested, 19 verified live only, 34 code, 3 decision (277 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -336,3 +336,33 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 250 | Checkbox left unchecked in the form | False, not the default | M, L2 |
 | 251 | Field with a default cleared on purpose | Stays empty (or fails `required`), never silently refilled | M |
 | 252 | `configure` with only some keys | The others keep their current values | L2 |
+
+## M. Mail policy essentials
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 253 | Installed with nothing changed | 30/min and 2,000/day per login, 50 MB, greylisting on, quota warnings on, lists empty | L2 |
+| 254 | Sender list with upper case, trailing dots, addresses and domains mixed | Normalised; addresses and domains go to separate maps | R, L2 |
+| 255 | Blocked sender in the envelope or only in the From header | Rejected either way | R, live |
+| 256 | Allowed sender without an SPF or DKIM pass (forged) | No allow credit | R, live |
+| 257 | Allowed sender with a blocked attachment or malware | Still rejected: allow entries only score, never force an action | code |
+| 258 | Allowed sender looks suspicious | Never greylisted (`whitelist_symbols`) | R |
+| 259 | Sender entry with quotes, braces, `*` or shell characters | Refused by the console and the Rspamd watcher | R |
+| 260 | Greylisting off | Greylist module disabled; back on when switched on or uninstalled | R, live |
+| 261 | A login exceeds its per-minute limit | Temporary 4xx; the client retries once the bucket refills | live |
+| 262 | Per-minute and per-day limits over the same login | Different selector values, so separate counters | R, live |
+| 263 | One sending limit missing or invalid | No plugin rates rendered; the built-in limits apply | R |
+| 264 | Rspamd started before Redis was reachable | Limits counted but unenforced until a reload: the watcher reloads once Rspamd serves | live |
+| 265 | Redis restarted, even briefly | New `run_id` seen; Rspamd reloaded | live |
+| 266 | Mail policy disabled | Built-in 100/h and 40/h per-domain limits back | live |
+| 267 | Message size 25 MB | `message_size_limit = 26214400`, advertised as `SIZE` | P, live |
+| 268 | Message size above 50 MB | Refused (console and Postfix watcher): Rspamd would neither scan nor DKIM-sign it | R, L2, P |
+| 269 | Message size removed | This server's 50 MB from `main.cf.template`, not Postfix's 10 MB | P, live |
+| 270 | Internal-only login sends to a hosted domain | Accepted | live |
+| 271 | Internal-only login sends outside | 554 "This mailbox may only send to addresses within the organisation" | live |
+| 272 | Internal-only list cleared | Submission restrictions back to `permit_sasl_authenticated, reject` | P, live |
+| 273 | Internal-only entry not an address, or with restriction words | Refused by the console and the Postfix watcher | R, P |
+| 274 | Mailbox crosses 80% and then 95% | One notice each in the Inbox | live |
+| 275 | Notice for a mailbox already over quota | Delivered anyway (`noenforcing` for that message), never bounces | live |
+| 276 | Quota warnings off | `quota_warning` and its service removed from Dovecot | D |
+| 277 | Quota-warning script called with an odd percentage or address | Refuses; nothing delivered | contract |

@@ -6,6 +6,7 @@ configuration before reloading, and acknowledges what it applied):
 
 * ``postfix.main``        Postfix main.cf parameters            -> postfix   (sync-overrides.sh)
 * ``postfix.tls_policy``  per-domain outbound TLS requirements  -> postfix   (sync-overrides.sh)
+* ``postfix.sender_policy`` internal-only logins                 -> postfix   (sync-overrides.sh)
 * ``rspamd.policy``       attachment and DMARC enforcement      -> rspamd    (sync-plugins.sh)
 * ``dovecot.policy``      forwarding limits, mailbox cleanup    -> dovecot   (sync-plugins.sh)
 
@@ -59,6 +60,28 @@ def _extension_list(value: str) -> str | None:
     return f'not a file extension: {bad[0]}' if bad else None
 
 
+_SENDER_RE = re.compile(
+    r'^(?:[a-z0-9._%+-]{1,64}@)?[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
+)
+
+
+def _sender_list(value: str) -> str | None:
+    """Addresses and/or domains (a domain covers every address in it)."""
+    items = value.split(',')
+    if len(items) > MAX_LIST_ITEMS:
+        return f'at most {MAX_LIST_ITEMS} entries'
+    bad = [i for i in items if not _SENDER_RE.match(i)]
+    return f'not an address or domain: {bad[0]}' if bad else None
+
+
+def _address_list(value: str) -> str | None:
+    items = value.split(',')
+    if len(items) > MAX_LIST_ITEMS:
+        return f'at most {MAX_LIST_ITEMS} addresses'
+    bad = [i for i in items if '@' not in i or not _SENDER_RE.match(i)]
+    return f'not an email address: {bad[0]}' if bad else None
+
+
 def _domain_list(value: str) -> str | None:
     items = value.split(',')
     if len(items) > MAX_LIST_ITEMS:
@@ -91,6 +114,12 @@ class PostfixMainPoint(ExtensionPoint):
         'always_bcc': PointKey(
             _single_address, 'Send a copy of every message, inbound and outbound, to this address.'
         ),
+        'message_size_limit_mb': PointKey(
+            # Rspamd refuses to scan (and so to DKIM-sign) messages over its 50 MiB max_message,
+            # and Postfix would then pass them on unscanned: the two limits must agree.
+            _int_between(1, 50),
+            'Largest message accepted or sent, in MB (attachments included).',
+        ),
     }
     runtime_file = 'postfix-plugins.conf'
     ack_file = 'postfix-plugins.applied'
@@ -113,6 +142,21 @@ class PostfixTlsPolicyPoint(ExtensionPoint):
     }
     runtime_file = 'postfix-tls-policy.conf'
     ack_file = 'postfix-tls-policy.applied'
+
+
+class PostfixSenderPolicyPoint(ExtensionPoint):
+    key = 'postfix.sender_policy'
+    title = 'Postfix (who may send where)'
+    description = 'Restrictions on authenticated senders, applied by Postfix on submission.'
+    keys = {
+        'internal_only_logins': PointKey(
+            _address_list,
+            'These logins may only send to domains hosted on this server.',
+            _normalize_domains,
+        ),
+    }
+    runtime_file = 'postfix-sender-policy.conf'
+    ack_file = 'postfix-sender-policy.applied'
 
 
 class RspamdPolicyPoint(ExtensionPoint):
@@ -138,6 +182,27 @@ class RspamdPolicyPoint(ExtensionPoint):
             'Forwarders whose valid ARC chain lifts a DMARC rejection '
             '(they vouch for the original).',
             _normalize_domains,
+        ),
+        'sender_block_list': PointKey(
+            _sender_list,
+            'Mail from these addresses or domains (envelope or From header) is refused.',
+            _normalize_domains,
+        ),
+        'sender_allow_list': PointKey(
+            _sender_list,
+            'Never marked as spam or greylisted, but only when SPF or DKIM proves the sender; '
+            'attachment and malware checks still apply.',
+            _normalize_domains,
+        ),
+        'greylisting': PointKey(
+            _one_of('on', 'off'),
+            'Ask suspicious first-time senders to retry later (Rspamd greylisting).',
+        ),
+        'send_limit_per_minute': PointKey(
+            _int_between(1, 1000), 'Messages one login may send per minute (burst).'
+        ),
+        'send_limit_per_day': PointKey(
+            _int_between(1, 100000), 'Messages one login may send per day.'
         ),
         'arc_sealing': PointKey(
             _one_of('yes', 'no'),
@@ -166,6 +231,10 @@ class DovecotPolicyPoint(ExtensionPoint):
         'autoexpunge_sent_days': PointKey(
             _int_between(1, 3650), 'Delete messages in Sent after this many days.'
         ),
+        'quota_warnings': PointKey(
+            _one_of('yes', 'no'),
+            'Put a notice in the Inbox when a mailbox reaches 80% and 95% of its quota.',
+        ),
     }
     runtime_file = 'dovecot-plugins.conf'
     ack_file = 'dovecot-plugins.applied'
@@ -186,6 +255,7 @@ def _existing_mailbox(address: str) -> str | None:
 def register() -> None:
     registry.register_point(PostfixMainPoint())
     registry.register_point(PostfixTlsPolicyPoint())
+    registry.register_point(PostfixSenderPolicyPoint())
     registry.register_point(RspamdPolicyPoint())
     registry.register_point(DovecotPolicyPoint())
     registry.register_setting_type('mailbox', 'email', _existing_mailbox)

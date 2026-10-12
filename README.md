@@ -122,11 +122,15 @@ checked twice (by the console and by the container that applies it).
   - *Partner TLS*: never send to listed partner domains without encryption.
   - *ARC trusted forwarding*: seal mail this server forwards (signed with your DKIM key, no new
     DNS) and let valid chains from trusted forwarders lift DMARC rejections.
+  - *Mail policy essentials*: blocked and allowed senders, sending limits per login (30 a minute,
+    2,000 a day), the largest message (50 MB), internal-only mailboxes, greylisting, and quota
+    warnings at 80% and 95%. Safe to install unchanged: the defaults follow Google Workspace and
+    Microsoft 365, and the lists start empty.
 - **Your own:** Marketplace → Submit a plugin. Someone with `system.manage` approves or rejects it;
   nothing is approved automatically and nothing is fetched from outside the server.
 - Each plugin page shows exactly what it changes and whether Postfix has applied it. Disable or
   uninstall removes the values again. Failures and unapplied changes show in System health.
-- Authoring guide, state machines and the 215 handled edge cases:
+- Authoring guide, state machines and the 277 handled edge cases:
   `.agents/skills/ifinmail-plugins/`. In a development checkout, check a manifest with
   `python manage.py validate_plugin path/to/plugin.toml`.
 

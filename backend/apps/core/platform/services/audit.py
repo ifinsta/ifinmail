@@ -23,6 +23,9 @@ from typing import Any
 logger = logging.getLogger('backend')
 
 DEFAULT_RETENTION_DAYS = 365
+# Stored severities are free text; these are the ones the console and its services write.
+_ERROR_SEVERITIES = frozenset({'err', 'error', 'critical', 'crit', 'fatal'})
+_WARNING_SEVERITIES = frozenset({'warn', 'warning'})
 MIN_RETENTION_DAYS = 30
 # Two writers can race for the same sequence number; the unique constraint
 # makes the loser retry instead of forking the chain.
@@ -163,6 +166,111 @@ class AuditService:
         except Exception:
             return [str(e.get('detail', '')) for e in reversed(cls._events[-limit:])]
 
+    @staticmethod
+    def level_of(severity: str) -> str:
+        """Display level of a stored severity: ``error``, ``warning`` or ``info``."""
+        lowered = (severity or '').lower()
+        if lowered in _ERROR_SEVERITIES:
+            return 'error'
+        if lowered in _WARNING_SEVERITIES:
+            return 'warning'
+        return 'info'
+
+    @classmethod
+    def _filtered(cls, rows: Any, level: str, q: str, since: datetime | None, after: Any) -> Any:
+        from django.db.models import Q
+
+        level = (level or '').lower()
+        if level == 'error':
+            rows = rows.filter(severity__in=sorted(_ERROR_SEVERITIES))
+        elif level == 'warning':
+            rows = rows.filter(severity__in=sorted(_WARNING_SEVERITIES))
+        elif level == 'info':
+            rows = rows.exclude(severity__in=sorted(_ERROR_SEVERITIES | _WARNING_SEVERITIES))
+        if q:
+            term = q[:100]
+            rows = rows.filter(
+                Q(action__icontains=term) | Q(detail__icontains=term) | Q(user__icontains=term)
+            )
+        if since is not None:
+            rows = rows.filter(time__gte=since)
+        if after is not None:
+            rows = rows.filter(time__gt=after)
+        return rows
+
+    @staticmethod
+    def _row(event: Any) -> dict[str, Any]:
+        return {
+            'id': str(event.pk),
+            'seq': event.seq,
+            'time': event.time.astimezone(UTC).isoformat(timespec='microseconds'),
+            'user': event.user,
+            'action': event.action,
+            'detail': event.detail,
+            'severity': event.severity,
+            'level': AuditService.level_of(event.severity),
+        }
+
+    @classmethod
+    def search(
+        cls,
+        *,
+        level: str = '',
+        q: str = '',
+        since: datetime | None = None,
+        after: datetime | None = None,
+        page: int = 1,
+        page_size: int = 25,
+    ) -> dict[str, Any]:
+        """One page of events, newest first, straight from the database.
+
+        ``level`` is ``error``/``warning``/``info`` (any case), ``q`` matches the action, the
+        detail and the user, ``since`` bounds the period, and ``after`` returns only events
+        newer than that instant (live view). Returns ``rows``, ``total``, ``page``, ``pages``.
+        """
+        page_size = max(1, min(page_size, 200))
+        try:
+            rows = cls._filtered(_get_audit_model().objects.all(), level, q, since, after)
+            total = rows.count()
+            pages = max(1, -(-total // page_size))
+            page = min(max(int(page), 1), pages)
+            chunk = rows.order_by('-time', '-seq')[(page - 1) * page_size : page * page_size]
+            return {
+                'rows': [cls._row(e) for e in chunk],
+                'total': total,
+                'page': page,
+                'pages': pages,
+            }
+        except Exception as exc:
+            logger.warning('AUDIT: search fell back to the memory buffer — %s', exc)
+            wanted = (level or '').lower()
+            term = (q or '').lower()
+            matched = []
+            for event in reversed(cls._events):
+                fields = (event.get('action', ''), event.get('detail', ''), event.get('user', ''))
+                text = ' '.join(str(part) for part in fields)
+                shown = cls.level_of(event.get('severity', ''))
+                if (wanted and shown != wanted) or (term and term not in text.lower()):
+                    continue
+                matched.append({**event, 'id': '', 'seq': None, 'level': shown})
+            return {'rows': matched[:page_size], 'total': len(matched), 'page': 1, 'pages': 1}
+
+    @classmethod
+    def level_counts(cls, since: datetime | None = None) -> dict[str, int]:
+        """Events per display level (``error``/``warning``/``info``) since an instant."""
+        counts = {'error': 0, 'warning': 0, 'info': 0}
+        try:
+            from django.db.models import Count
+
+            rows = _get_audit_model().objects.all()
+            if since is not None:
+                rows = rows.filter(time__gte=since)
+            for item in rows.values('severity').annotate(n=Count('pk')):
+                counts[cls.level_of(item['severity'])] += item['n']
+        except Exception as exc:
+            logger.warning('AUDIT: level counts unavailable — %s', exc)
+        return counts
+
     @classmethod
     def get_for_subject(cls, subject: str, limit: int = 50) -> list[dict]:
         """Events involving ``subject`` as actor or target, newest first."""
@@ -271,12 +379,11 @@ class AuditService:
         }
 
     @classmethod
-    def export_rows(cls, severity: str = '') -> Iterator[dict[str, Any]]:
-        """Every retained event, oldest first, straight from the database."""
-        audit_event = _get_audit_model()
-        rows = audit_event.objects.all()
-        if severity:
-            rows = rows.filter(severity__iexact=severity)
+    def export_rows(
+        cls, severity: str = '', q: str = '', since: datetime | None = None
+    ) -> Iterator[dict[str, Any]]:
+        """Retained events (all, or those matching the filters), oldest first, from the database."""
+        rows = cls._filtered(_get_audit_model().objects.all(), severity, q, since, None)
         for row in rows.order_by('time', 'seq').iterator():
             yield {
                 'seq': row.seq,

@@ -1,7 +1,8 @@
 {% load i18n %}
-<tr>
-    <td>{{ row.timestamp|default:'—' }}</td>
-    <td><span class="ifinmail-badge {% if row.level == 'ERROR' %}ifinmail-badge--danger{% elif row.level == 'WARNING' or row.level == 'WARN' %}ifinmail-badge--warning{% elif row.level == 'INFO' %}ifinmail-badge--info{% else %}ifinmail-badge--success{% endif %}">{{ row.level|default:'—' }}</span></td>
-    <td>{{ row.service|default:'—' }}</td>
-    <td>{{ row.message|default:'' }}</td>
+<tr data-log-id="{{ row.id }}">
+    <td class="ifinmail-logs-time"><time class="ifinmail-text--mono" datetime="{{ row.time_iso }}">{{ row.time|default:'—' }}</time></td>
+    <td><span class="ifinmail-badge {% if row.level == 'error' %}ifinmail-badge--danger{% elif row.level == 'warning' %}ifinmail-badge--warning{% else %}ifinmail-badge--info{% endif %}">{{ row.level_word }}</span></td>
+    <td class="ifinmail-logs-event"><code class="ifinmail-text--mono">{{ row.action|default:'—' }}</code></td>
+    <td class="ifinmail-logs-by" title="{% if row.where is not None %}{{ row.where }}{% else %}{{ row.user }}{% endif %}">{% if row.where is not None %}<span class="ifinmail-text--mono">{{ row.where|default:'—' }}</span>{% else %}{{ row.user }}{% endif %}</td>
+    <td class="ifinmail-logs-detail">{{ row.detail|default:'' }}{% if row.correlation %} <span class="ifinmail-help-text ifinmail-text--mono">#{{ row.correlation|slice:':8' }}</span>{% endif %}</td>
 </tr>

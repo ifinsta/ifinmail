@@ -1,4 +1,4 @@
-# Edge cases (312)
+# Edge cases (318)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -8,6 +8,7 @@ Every case below is handled. **Proof** says how we know:
 | `L` | `backend/apps/core/plugins/tests/test_lifecycle.py` |
 | `A` | `backend/apps/core/assistant/tests/test_assistant.py` (a real local OpenAI-compatible server) |
 | `AV` | `backend/apps/accounts/tests/test_assistant_views.py` |
+| `MD` | `backend/apps/core/assistant/tests/test_markdown.py` (renderer, with an HTML whitelist audit of every output) |
 | `S` | `backend/apps/core/plugins/tests/test_submissions.py` |
 | `P` | `backend/apps/core/plugins/tests/test_postfix_sync.py` (the real watcher script, stubbed binaries) |
 | `B` | `backend/apps/core/plugins/tests/test_scheduling.py` |
@@ -17,7 +18,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 254 tested, 19 verified live only, 35 code, 4 decision (312 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 260 tested, 19 verified live only, 35 code, 4 decision (318 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -418,4 +419,10 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 310 | Administrator without `system.manage` | No header button; pages and actions answer 403 | AV |
 | 311 | Draft clears a setting that has a default (e.g. Trash expiry) | Applied as cleared, never as the default (found in the live check of v0.0.12) | A |
 | 312 | Applying a draft would give other values than the table showed | Refused, nothing changed; ask for a fresh draft | A |
+| 313 | Answer contains raw HTML or a `<script>` | Shown as text; only tags the renderer writes are emitted | MD |
+| 314 | Answer contains an image (`![x](url)`, including reference style) | Never an image element (it could carry data out); a plain link instead | MD |
+| 315 | Link to `javascript:`, `data:`, `vbscript:`, `file:` in any spelling, entity or control-character disguise | Text only, no link; allowed: http, https, mailto, same-site paths | MD |
+| 316 | Huge, deeply nested or pathological Markdown | Capped in length and depth; finishes in milliseconds | MD |
+| 317 | Delete a conversation: someone else's, or one still being answered | Refused; the owner's finished conversation is removed and audited | AV |
+| 318 | Browser refuses clipboard access | Falls back to the older copy route; never an unhandled error | live |
 

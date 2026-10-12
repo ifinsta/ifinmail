@@ -138,3 +138,107 @@ class RoleAddressTests(MailTablesTestCase):
         Alias.objects.filter(source='postmaster@ifinmail.test').update(destination='douglas@ifinmail.test')
         Alias.objects.filter(source='abuse@ifinmail.test').update(destination='douglas@ifinmail.test')
         self.assertEqual(sh._role_addresses('ifinmail.test', 'ifinmail.test').state, sh.OK)
+
+
+@override_settings(CACHES=LOCMEM)
+class HealthPageTests(MailTablesTestCase):
+    """The page's own behaviour: verdict, groups, check cards."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        from backend.apps.accounts.services.setup_state import SetupState
+
+        SetupState.mark_complete()
+
+        self.admin = MailUser.objects.create_superuser('admin@ifinmail.test', GOOD)
+        self.client.force_login(self.admin)
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
+        self.url = reverse('accounts:system_health')
+
+    def report(self, *checks) -> sh.HealthReport:
+        return sh.HealthReport(checked_at=datetime.now(UTC), checks=list(checks))
+
+    def check(self, key, group, title, state, summary='x', **extra) -> sh.HealthCheck:
+        return sh.HealthCheck(key, group, title, state, summary, **extra)
+
+    def get(self, report: sh.HealthReport, **params):
+        with patch(
+            'backend.apps.accounts.views.system_health.SystemHealth.report', return_value=report
+        ):
+            return self.client.get(self.url, params)
+
+    def test_verdict_names_the_first_thing_to_fix(self) -> None:
+        page = self.get(
+            self.report(
+                self.check('ptr', 'Server identity', 'Reverse DNS (PTR)', 'error', fix='Ask VPS'),
+                self.check('bk', 'Server', 'Backup key', 'warning'),
+                self.check('ok', 'Server', 'Disk space', 'ok'),
+            )
+        )
+        self.assertContains(page, '1 thing needs fixing before mail is reliable.')
+        self.assertContains(page, 'Start with: <strong>Reverse DNS (PTR)</strong>')
+        self.assertContains(page, 'ifinmail-hbanner--danger')
+        self.assertContains(page, '#check-server-identity-ptr')
+        self.assertContains(page, 'How to fix')
+        self.assertContains(page, 'Ask VPS')
+
+    def test_each_verdict_tone(self) -> None:
+        cases = (
+            (('warning',), 'Mail should work. 1 improvement is recommended.', 'warning'),
+            (('waiting',), 'Nothing is wrong. The server is still finishing 1 item.', 'info'),
+            (('ok',), 'Everything checks out.', 'ok'),
+        )
+        for states, words, tone in cases:
+            with self.subTest(tone=tone):
+                page = self.get(self.report(*[self.check('k', 'Server', 'T', s) for s in states]))
+                self.assertContains(page, words)
+                self.assertContains(page, f'ifinmail-hbanner--{tone}')
+
+    def test_groups_filter_the_checks_and_count_what_needs_attention(self) -> None:
+        report = self.report(
+            self.check('a', 'Mail delivery', 'Inbound SMTP', 'error'),
+            self.check('b', 'Mail delivery', 'Queue', 'warning'),
+            self.check('c', 'example.test', 'SPF', 'ok'),
+        )
+        page = self.get(report)
+        self.assertContains(page, '?group=mail-delivery')
+        self.assertContains(page, '2 need attention')
+        self.assertContains(page, 'Inbound SMTP')
+        self.assertContains(page, 'SPF')
+        only = self.get(report, group='exampletest')
+        self.assertContains(only, 'id="check-exampletest-c"')
+        self.assertNotContains(only, 'id="check-mail-delivery-a"')
+        # The verdict and counts always describe the whole server.
+        self.assertContains(only, '1 thing needs fixing')
+        # Unknown groups show everything.
+        self.assertContains(self.get(report, group='nope'), 'Inbound SMTP')
+
+    def test_values_can_be_copied_and_links_and_assistant_are_offered(self) -> None:
+        report = self.report(
+            self.check(
+                'ptr', 'Server identity', 'PTR', 'error',
+                values=[('IP address', '203.0.113.5')],
+                link='/accounts/settings/',
+                link_label='Network',
+            )
+        )
+        page = self.get(report)
+        self.assertContains(page, 'data-copy="203.0.113.5"')
+        self.assertContains(page, 'href="/accounts/settings/"')
+        self.assertNotContains(page, 'Ask the assistant')  # no model connected
+        from backend.apps.core.assistant.services import config as assistant_config
+
+        connected = assistant_config.ModelSettings(base_url='http://x/v1', model='m')
+        with patch.object(assistant_config, 'current', return_value=connected):
+            page = self.get(report)
+        self.assertContains(page, 'Ask the assistant')
+        self.assertContains(page, 'accounts/assistant/?q=')
+
+    def test_passing_checks_are_compact_and_collapsed(self) -> None:
+        page = self.get(self.report(self.check('d', 'Server', 'Disk space', 'ok', '62% free')))
+        self.assertContains(page, '1 check passes')
+        self.assertContains(page, 'ifinmail-hc--compact')
+        self.assertContains(page, '62% free')
+        self.assertContains(page, 'Nothing to do here.')

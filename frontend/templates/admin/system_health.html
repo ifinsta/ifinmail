@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name %}System health — {{ name }}{% endblocktrans %}{% endblock %}
 
@@ -8,71 +8,110 @@
 
 {% block content %}
 <section class="ifinmail-admin-content">
-    <div class="ifinmail-admin-page">
+    <div class="ifinmail-admin-page ifinmail-health">
         <div class="ifinmail-page-header">
             <div>
                 <h1 class="ifinmail-page-title">{% trans 'System health' %}</h1>
                 <p class="ifinmail-page-subtitle">
-                    {% blocktrans trimmed with when=report.checked_at|date:"H:i" %}Everything this server needs from you, and everything it is still finishing. Checked at {{ when }} UTC.{% endblocktrans %}
+                    {% if just_checked %}{% blocktrans trimmed with when=full_report.checked_at|date:"H:i" %}Checked just now, at {{ when }} UTC. Checks refresh by themselves every few minutes.{% endblocktrans %}
+                    {% else %}{% blocktrans trimmed with ago=full_report.checked_at|timesince when=full_report.checked_at|date:"H:i" %}Checked {{ ago }} ago, at {{ when }} UTC. Checks refresh by themselves every few minutes.{% endblocktrans %}{% endif %}
                 </p>
             </div>
             <div class="ifinmail-page-actions">
-                <form method="post" action="{% url 'accounts:system_health_recheck' %}">
+                {% if assistant_ready %}
+                <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:assistant' %}?q={{ ask_review|urlencode }}">{% trans 'Ask the assistant' %}</a>
+                {% endif %}
+                <form method="post" action="{% url 'accounts:system_health_recheck' %}" data-health-recheck>
                     {% csrf_token %}
-                    <button type="submit" class="ifinmail-btn">{% trans 'Re-check now' %}</button>
+                    <button type="submit" class="ifinmail-btn ifinmail-btn--outline" data-label-busy="{% trans 'Checking…' %}">{% trans 'Re-check now' %}</button>
                 </form>
             </div>
         </div>
 
-        <div class="ifinmail-health-summary" role="status">
-            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--{% if report.errors %}error{% else %}ok{% endif %}">
-                <span class="ifinmail-health-summary__value">{{ report.errors }}</span>
-                <span class="ifinmail-health-summary__label">{% trans 'Need fixing' %}</span>
-            </div>
-            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--{% if report.warnings %}warning{% else %}ok{% endif %}">
-                <span class="ifinmail-health-summary__value">{{ report.warnings }}</span>
-                <span class="ifinmail-health-summary__label">{% trans 'Recommended' %}</span>
-            </div>
-            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--waiting">
-                <span class="ifinmail-health-summary__value">{{ report.waiting|length }}</span>
-                <span class="ifinmail-health-summary__label">{% trans 'In progress' %}</span>
-            </div>
-            <div class="ifinmail-health-summary__cell ifinmail-health-summary__cell--ok">
-                <span class="ifinmail-health-summary__value">{{ report.good|length }}</span>
-                <span class="ifinmail-health-summary__label">{% trans 'All good' %}</span>
+        <div class="ifinmail-hbanner ifinmail-hbanner--{{ verdict.tone }}" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                {% if verdict.tone == 'ok' %}<path d="M20 6 9 17l-5-5"/>
+                {% elif verdict.tone == 'info' %}<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                {% else %}<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/>{% endif %}
+            </svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">
+                    {% if verdict.errors %}{% blocktrans trimmed count n=verdict.errors %}{{ n }} thing needs fixing before mail is reliable.{% plural %}{{ n }} things need fixing before mail is reliable.{% endblocktrans %}
+                    {% elif verdict.warnings %}{% blocktrans trimmed count n=verdict.warnings %}Mail should work. {{ n }} improvement is recommended.{% plural %}Mail should work. {{ n }} improvements are recommended.{% endblocktrans %}
+                    {% elif verdict.waiting %}{% blocktrans trimmed count n=verdict.waiting %}Nothing is wrong. The server is still finishing {{ n }} item.{% plural %}Nothing is wrong. The server is still finishing {{ n }} items.{% endblocktrans %}
+                    {% else %}{% trans 'Everything checks out.' %}{% endif %}
+                </p>
+                {% if verdict.first %}
+                <p class="ifinmail-hbanner__next">{% blocktrans trimmed with title=verdict.first.title %}Start with: <strong>{{ title }}</strong>.{% endblocktrans %}
+                    <a href="{% url 'accounts:system_health' %}{% if group %}?group={{ verdict.first_group_slug }}{% endif %}#check-{{ verdict.first.group|slugify }}-{{ verdict.first.key|slugify }}">{% trans 'Show me' %}</a>
+                </p>
+                {% endif %}
             </div>
         </div>
 
+        <div class="ifinmail-summary">
+            <a class="ifinmail-summary__cell{% if full_report.errors %} ifinmail-summary__cell--error{% endif %}" href="#health-todo">
+                <span class="ifinmail-summary__label">{% trans 'Need fixing' %}</span>
+                <span class="ifinmail-summary__value">{{ full_report.errors }}</span>
+            </a>
+            <a class="ifinmail-summary__cell{% if full_report.warnings %} ifinmail-summary__cell--warning{% endif %}" href="#health-todo">
+                <span class="ifinmail-summary__label">{% trans 'Recommended' %}</span>
+                <span class="ifinmail-summary__value">{{ full_report.warnings }}</span>
+            </a>
+            <a class="ifinmail-summary__cell" href="#health-waiting">
+                <span class="ifinmail-summary__label">{% trans 'In progress' %}</span>
+                <span class="ifinmail-summary__value">{{ full_report.waiting|length }}</span>
+            </a>
+            <a class="ifinmail-summary__cell ifinmail-summary__cell--ok" href="#health-good">
+                <span class="ifinmail-summary__label">{% trans 'All good' %}</span>
+                <span class="ifinmail-summary__value">{{ full_report.good|length }}</span>
+            </a>
+        </div>
+
+        <nav class="ifinmail-hgroups" aria-label="{% trans 'Show checks for' %}">
+            <a class="ifinmail-hgroup{% if not group %} ifinmail-hgroup--active{% endif %}" href="{% url 'accounts:system_health' %}"{% if not group %} aria-current="page"{% endif %}>{% trans 'Everything' %}</a>
+            {% for item in groups %}
+            <a class="ifinmail-hgroup{% if group and group.slug == item.slug %} ifinmail-hgroup--active{% endif %}" href="?group={{ item.slug }}"{% if group and group.slug == item.slug %} aria-current="page"{% endif %}>
+                {{ item.name }}
+                {% if item.attention %}<span class="ifinmail-badge ifinmail-badge--{{ item.worst }}" aria-label="{% blocktrans count n=item.attention %}{{ n }} needs attention{% plural %}{{ n }} need attention{% endblocktrans %}">{{ item.attention }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </nav>
+
         {% if report.attention %}
-        <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="health-todo">
-            <h2 class="ifinmail-panel-title" id="health-todo">{% trans 'To do' %}</h2>
-            <ol class="ifinmail-guide-steps">
+        <section class="ifinmail-panel ifinmail-health-section" id="health-todo" aria-labelledby="health-todo-title">
+            <h2 class="ifinmail-panel-title" id="health-todo-title">{% trans 'To do' %}</h2>
+            <ol class="ifinmail-hc-list">
                 {% for check in report.attention %}{% include "includes/health_check.html" %}{% endfor %}
             </ol>
         </section>
         {% else %}
-        <section class="ifinmail-panel ifinmail-health-section">
-            <h2 class="ifinmail-panel-title">{% trans 'Nothing to do' %}</h2>
-            <p class="ifinmail-page-subtitle">{% trans 'Every check that needs your attention passes.' %}</p>
+        <section class="ifinmail-panel ifinmail-health-section" id="health-todo">
+            <div class="ifinmail-empty-state ifinmail-empty-state--compact">
+                <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <p><strong>{% trans 'Nothing to do here.' %}</strong> {% trans 'Every check that needs your attention passes.' %}</p>
+            </div>
         </section>
         {% endif %}
 
         {% if report.waiting %}
-        <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="health-waiting">
-            <h2 class="ifinmail-panel-title" id="health-waiting">{% trans 'In progress' %}</h2>
-            <p class="ifinmail-page-subtitle">{% trans 'The server finishes these by itself; nothing for you to do unless they stay here.' %}</p>
-            <ol class="ifinmail-guide-steps">
+        <section class="ifinmail-panel ifinmail-health-section" id="health-waiting" aria-labelledby="health-waiting-title">
+            <h2 class="ifinmail-panel-title" id="health-waiting-title">{% trans 'In progress' %}</h2>
+            <p class="ifinmail-help-text">{% trans 'The server finishes these by itself; nothing for you to do unless they stay here.' %}</p>
+            <ol class="ifinmail-hc-list">
                 {% for check in report.waiting %}{% include "includes/health_check.html" %}{% endfor %}
             </ol>
         </section>
         {% endif %}
 
-        <details class="ifinmail-panel ifinmail-health-section ifinmail-health-good">
-            <summary class="ifinmail-panel-title">{% blocktrans count n=report.good|length %}{{ n }} check passes{% plural %}{{ n }} checks pass{% endblocktrans %}</summary>
-            <ol class="ifinmail-guide-steps">
-                {% for check in report.good %}{% include "includes/health_check.html" %}{% endfor %}
+        {% if report.good %}
+        <details class="ifinmail-panel ifinmail-health-section ifinmail-health-good" id="health-good">
+            <summary class="ifinmail-panel-title">{% blocktrans trimmed count n=report.good|length %}{{ n }} check passes{% plural %}{{ n }} checks pass{% endblocktrans %}</summary>
+            <ol class="ifinmail-hc-list ifinmail-hc-list--compact">
+                {% for check in report.good %}{% include "includes/health_check.html" with compact=True %}{% endfor %}
             </ol>
         </details>
+        {% endif %}
 
         <form method="post" action="{% url 'accounts:system_health_updates' %}" class="ifinmail-health-updates">
             {% csrf_token %}
@@ -85,4 +124,8 @@
         </form>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ifinmail-health.js' %}"></script>
 {% endblock %}

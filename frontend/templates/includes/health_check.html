@@ -1,8 +1,9 @@
 {% load i18n %}
-{% comment %}One System health row. Context: ``check`` (HealthCheck).{% endcomment %}
-<li class="ifinmail-guide-step ifinmail-guide-step--{{ check.state }}">
-    <div class="ifinmail-guide-step__head">
-        <span class="ifinmail-guide-step__title">{{ check.title }} <span class="ifinmail-health-group">{{ check.group }}</span></span>
+{% comment %}One System health check. Context: ``check`` (HealthCheck), optional ``compact``.{% endcomment %}
+<li class="ifinmail-hc ifinmail-hc--{{ check.state }}{% if compact %} ifinmail-hc--compact{% endif %}" id="check-{{ check.group|slugify }}-{{ check.key|slugify }}">
+    <div class="ifinmail-hc__head">
+        <h3 class="ifinmail-hc__title">{{ check.title }}</h3>
+        <span class="ifinmail-hc__group">{{ check.group }}</span>
         {% if check.state == 'error' %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Needs fixing' %}</span>
         {% elif check.state == 'warning' %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Recommended' %}</span>
         {% elif check.state == 'unknown' %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Could not check' %}</span>
@@ -10,14 +11,24 @@
         {% elif check.state == 'info' %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Optional' %}</span>
         {% else %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'OK' %}</span>{% endif %}
     </div>
-    <p class="ifinmail-guide-step__summary">{{ check.summary }}</p>
-    {% if check.state != 'ok' %}
-        {% if check.fix %}<p class="ifinmail-health-fix">{{ check.fix }}</p>{% endif %}
+    <p class="ifinmail-hc__summary">{{ check.summary }}</p>
+    {% if check.state != 'ok' and not compact %}
+        {% if check.fix %}<p class="ifinmail-hc__fix"><span class="ifinmail-overline">{% trans 'How to fix' %}</span>{{ check.fix }}</p>{% endif %}
         {% if check.values %}
-        <dl class="ifinmail-guide-values">
-            {% for label, value in check.values %}<dt>{{ label }}</dt><dd><code>{{ value }}</code></dd>{% endfor %}
+        <dl class="ifinmail-hc__values">
+            {% for label, value in check.values %}
+            <div>
+                <dt>{{ label }}</dt>
+                <dd><code class="ifinmail-text--mono">{{ value }}</code><button type="button" class="ifinmail-hc__copy" data-copy="{{ value }}" data-copied="{% trans 'Copied' %}" aria-label="{% blocktrans with label=label %}Copy {{ label }}{% endblocktrans %}">{% trans 'Copy' %}</button></dd>
+            </div>
+            {% endfor %}
         </dl>
         {% endif %}
-        {% if check.link or assistant_ready and check.state == 'error' or assistant_ready and check.state == 'warning' %}<p class="ifinmail-guide-step__link">{% if check.link %}<a href="{{ check.link }}">{{ check.link_label }} &rarr;</a>{% endif %}{% if assistant_ready and check.state == 'error' or assistant_ready and check.state == 'warning' %}{% if check.link %} · {% endif %}<a href="{% url 'accounts:assistant' %}?q={% filter urlencode %}{% blocktrans trimmed with title=check.title group=check.group summary=check.summary %}System health says "{{ title }}" ({{ group }}): {{ summary }} Why, and how do I fix it?{% endblocktrans %}{% endfilter %}">{% trans 'Ask the assistant' %}</a>{% endif %}</p>{% endif %}
+        {% if check.link or assistant_ready and check.state == 'error' or assistant_ready and check.state == 'warning' %}
+        <p class="ifinmail-hc__actions">
+            {% if check.link %}<a class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm" href="{{ check.link }}">{{ check.link_label }}</a>{% endif %}
+            {% if assistant_ready and check.state == 'error' or assistant_ready and check.state == 'warning' %}<a class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--sm" href="{% url 'accounts:assistant' %}?q={% filter urlencode %}{% blocktrans trimmed with title=check.title group=check.group summary=check.summary %}System health says "{{ title }}" ({{ group }}): {{ summary }} Why, and how do I fix it?{% endblocktrans %}{% endfilter %}">{% trans 'Ask the assistant' %}</a>{% endif %}
+        </p>
+        {% endif %}
     {% endif %}
 </li>

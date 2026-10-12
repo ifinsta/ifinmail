@@ -131,7 +131,7 @@ checked twice (by the console and by the container that applies it).
   nothing is approved automatically and nothing is fetched from outside the server.
 - Each plugin page shows exactly what it changes and whether the mail server has applied it. Disable or
   uninstall removes the values again. Failures and unapplied changes show in System health.
-- Authoring guide, state machines and the 295 handled edge cases:
+- Authoring guide, state machines and the 318 handled edge cases:
   `.agents/skills/ifinmail-plugins/`. In a development checkout, check a manifest with
   `python manage.py validate_plugin path/to/plugin.toml`.
 
@@ -140,7 +140,9 @@ checked twice (by the console and by the container that applies it).
 The **Assistant** (speech-bubble button in the header, for administrators with `system.manage`)
 answers questions about this server ("why is mail to gmail.com bouncing?") from the same checks as
 System health, the plugins and the audit trail, and can draft plugin settings that you apply with
-one click. Failing System health checks offer "Ask the assistant".
+one click. Failing System health checks offer "Ask the assistant". Answers are rendered as
+Markdown (headings, lists, tables, code blocks with a Copy button, links); raw HTML and images in an
+answer are shown as text or plain links, never executed or loaded.
 
 - It is a built-in plugin, installed on every server and **inert until you connect a model**:
   Marketplace → Assistant, then the API base URL and model of any OpenAI-compatible service

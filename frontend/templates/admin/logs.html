@@ -1,55 +1,141 @@
 {% extends "admin/settings_base.html" %}
 {% load i18n %}{% load static %}
 
-{% block title %}{% blocktrans trimmed with name=brand.name %}System Logs — {{ name }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans trimmed with name=brand.name %}System logs — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block settings_content %}
 <section class="ifinmail-admin-content">
-    <div class="ifinmail-admin-page">
-        <div class="ifinmail-admin-grid">
-            <div class="ifinmail-span-9">
-                <div class="ifinmail-page-header">
-                    <div>
-                        <h1 class="ifinmail-page-title">{% trans 'System Logs' %}</h1>
-                        <p class="ifinmail-page-subtitle">{% trans 'Real-time infrastructure and application telemetry' %}</p>
-                    </div>
-                    <div class="ifinmail-page-actions ifinmail-logs-actions">
-                        <select id="log-level-filter" aria-label="{% trans 'Filter Level' %}" class="ifinmail-input ifinmail-input--compact" data-action="filter-level">
-                            <option value="">{% trans 'Filter Level' %}</option>
-                            <option value="ERROR"{% if current_level == 'ERROR' %} selected{% endif %}>ERROR</option>
-                            <option value="WARNING"{% if current_level == 'WARNING' %} selected{% endif %}>WARNING</option>
-                            <option value="INFO"{% if current_level == 'INFO' %} selected{% endif %}>INFO</option>
-                        </select>
-                        <a class="ifinmail-btn ifinmail-btn--sm ifinmail-btn--outline" href="{% url 'accounts:logs_export' %}{% if current_level %}?level={{ current_level }}{% endif %}">{% trans 'Export' %}</a>
-                        <button class="ifinmail-btn ifinmail-btn--sm" type="button" id="live-toggle" data-action="live-logs" data-url="{% url 'accounts:logs_live' %}">{% trans 'Live View' %}</button>
-                    </div>
-                </div>
-                {% include "includes/admin_table.html" with span=None title=None aria_label=_("System Logs") headers=log_headers|default:'' rows=log_rows|default:'' row_template="admin/partials/log_row.html" empty_message=log_empty_message extra_class="ifinmail-logs-table" %}
+    <div class="ifinmail-admin-page ifinmail-logs">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'System logs' %}</h1>
+                <p class="ifinmail-page-subtitle">{% blocktrans trimmed with days=retention_days %}Everything that happened on this server, newest first. Events are kept for {{ days }} days and chained so tampering shows.{% endblocktrans %}</p>
             </div>
-            <section class="ifinmail-panel ifinmail-audit-panel ifinmail-span-3">
-                <h2 class="ifinmail-panel-title">{% trans 'Audit Trail' %}</h2>
-                <div class="ifinmail-timeline{% if not audit_items %} ifinmail-timeline--empty{% endif %}">
-                    {% for item in audit_items %}
-                    <article class="ifinmail-timeline-item">
-                        <span class="ifinmail-overline ifinmail-timeline-type">{{ item.type|default:'' }}</span>
-                        <strong>{{ item.title|default:'' }}</strong>
-                        <p>{{ item.body|default:'' }}</p>
-                        <small><span>{{ item.actor|default:'' }}</span><span>{{ item.age|default:'' }}</span></small>
-                    </article>
-                    {% empty %}
-                    <div class="ifinmail-empty-state ifinmail-empty-state--compact">
-                        <p>{% trans 'No audit entries yet.' %}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% if has_more %}
-                <a class="ifinmail-link-strong ifinmail-audit-more" href="{% url 'accounts:logs_full' %}?page={{ current_page|add:'1' }}{% if current_level %}&level={{ current_level }}{% endif %}">{% trans 'View Full History' %}</a>
+            <div class="ifinmail-page-actions">
+                {% if tab == 'activity' %}
+                <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:logs_export' %}{% if export_query %}?{{ export_query }}{% endif %}" download>{% trans 'Export CSV' %}</a>
+                {% if can_live %}
+                <button class="ifinmail-btn ifinmail-btn--outline" type="button" id="live-toggle" aria-pressed="false" data-url="{% url 'accounts:logs_live' %}" data-query="{{ export_query }}" data-after="{{ newest_iso }}" data-label-live="{% trans 'Live view' %}" data-label-pause="{% trans 'Pause live view' %}">{% trans 'Live view' %}</button>
                 {% endif %}
-            </section>
+                {% endif %}
+            </div>
         </div>
+
+        <div class="ifinmail-summary" role="status">
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Events' %}</span>
+                <span class="ifinmail-summary__value">{{ count_total }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if counts.error %} ifinmail-summary__cell--error{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Errors' %}</span>
+                <span class="ifinmail-summary__value">{{ counts.error }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if counts.warning %} ifinmail-summary__cell--warning{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Warnings' %}</span>
+                <span class="ifinmail-summary__value">{{ counts.warning }}</span>
+            </div>
+            <div class="ifinmail-summary__cell ifinmail-summary__cell--{% if chain.ok %}ok{% elif chain.ok is None %}neutral{% else %}error{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Audit trail integrity' %}</span>
+                <span class="ifinmail-summary__value ifinmail-summary__value--word">
+                    {% if chain.ok %}{% trans 'Intact' %}{% elif chain.ok is None %}{% trans 'Not checked' %}{% else %}{% trans 'Broken' %}{% endif %}
+                </span>
+                <span class="ifinmail-summary__note">
+                    {% if chain.ok %}{% blocktrans trimmed with n=chain.checked %}{{ n }} entries verified{% endblocktrans %}
+                    {% elif chain.ok is None %}{% trans 'Try again in a few minutes.' %}
+                    {% else %}{% blocktrans trimmed with seq=chain.bad_seq %}Entry {{ seq }} was changed or removed{% endblocktrans %}{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <nav class="ifinmail-tabs" aria-label="{% trans 'Log sections' %}">
+            <a class="ifinmail-tab{% if tab == 'activity' %} ifinmail-tab--active{% endif %}" href="?tab=activity{% if tab_query %}&amp;{{ tab_query }}{% endif %}"{% if tab == 'activity' %} aria-current="page"{% endif %}>{% trans 'Activity' %}</a>
+            <a class="ifinmail-tab{% if tab == 'errors' %} ifinmail-tab--active{% endif %}" href="?tab=errors{% if tab_query %}&amp;{{ tab_query }}{% endif %}"{% if tab == 'errors' %} aria-current="page"{% endif %}>{% trans 'Application errors' %}{% if error_total_24h %} <span class="ifinmail-badge ifinmail-badge--danger" aria-label="{% blocktrans count n=error_total_24h %}{{ n }} in the last 24 hours{% plural %}{{ n }} in the last 24 hours{% endblocktrans %}">{{ error_total_24h }}</span>{% endif %}</a>
+        </nav>
+
+        <form class="ifinmail-logs-filters" method="get" role="search" aria-label="{% trans 'Filter logs' %}">
+            <input type="hidden" name="tab" value="{{ tab }}">
+            <label class="ifinmail-sr-only" for="logs-q">{% trans 'Search' %}</label>
+            <input class="ifinmail-input" id="logs-q" type="search" name="q" value="{{ filters.q }}" maxlength="100" placeholder="{% trans 'Search events, people and details' %}" autocomplete="off">
+            <label class="ifinmail-sr-only" for="logs-level">{% trans 'Level' %}</label>
+            <select class="ifinmail-input" id="logs-level" name="level" data-autosubmit>
+                {% for value, label in levels %}<option value="{{ value }}"{% if filters.level == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {% if tab == 'activity' %}
+            <label class="ifinmail-sr-only" for="logs-period">{% trans 'Period' %}</label>
+            <select class="ifinmail-input" id="logs-period" name="period" data-autosubmit>
+                {% for value, label in periods %}<option value="{{ value }}"{% if filters.period == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {% endif %}
+            <button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Apply' %}</button>
+            {% if filters_active %}<a class="ifinmail-btn ifinmail-btn--ghost" href="?tab={{ tab }}">{% trans 'Reset' %}</a>{% endif %}
+        </form>
+
+        {% if tab == 'errors' and errors.top %}
+        <section class="ifinmail-panel ifinmail-logs-top" aria-labelledby="logs-top">
+            <h2 class="ifinmail-panel-title" id="logs-top">{% trans 'Most frequent' %}</h2>
+            <ul>
+                {% for issue in errors.top %}
+                <li><span class="ifinmail-text--mono">{{ issue.exc_type|default:issue.view_name }}</span> <span class="ifinmail-help-text">{{ issue.view_name }}</span> <span class="ifinmail-badge ifinmail-badge--neutral">{% blocktrans trimmed with n=issue.count %}{{ n }} times{% endblocktrans %}</span> <span class="ifinmail-badge ifinmail-badge--info">{{ issue.status }}</span></li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <article class="ifinmail-table-panel ifinmail-logs-table" tabindex="0" role="region" aria-label="{% if tab == 'errors' %}{% trans 'Application errors' %}{% else %}{% trans 'Activity' %}{% endif %}">
+            <table class="ifinmail-admin-table">
+                <thead>
+                    <tr>
+                        <th scope="col">{% trans 'Time (UTC)' %}</th>
+                        <th scope="col">{% trans 'Level' %}</th>
+                        <th scope="col">{% if tab == 'errors' %}{% trans 'Error' %}{% else %}{% trans 'Event' %}{% endif %}</th>
+                        <th scope="col">{% if tab == 'errors' %}{% trans 'Where' %}{% else %}{% trans 'By' %}{% endif %}</th>
+                        <th scope="col">{% trans 'Details' %}</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-body" aria-live="off">
+                {% for row in rows %}
+                    {% include "admin/partials/log_row.html" %}
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="ifinmail-admin-table-empty">
+                            <div class="ifinmail-empty-state">
+                                <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+                                {% if filters_active %}
+                                <p>{% trans 'Nothing matches these filters.' %}</p>
+                                <a class="ifinmail-link-strong" href="?tab={{ tab }}">{% trans 'Show everything' %}</a>
+                                {% elif tab == 'errors' %}
+                                <p>{% trans 'No application errors have been recorded. That is good news.' %}</p>
+                                {% else %}
+                                <p>{% trans 'Nothing has been recorded yet.' %}</p>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        {% if total %}
+        <nav class="ifinmail-pagination" aria-label="{% trans 'Pages' %}">
+            <span class="ifinmail-pagination__info">{% blocktrans trimmed with first=first last=last total=total %}Showing {{ first }}–{{ last }} of {{ total }}{% endblocktrans %}</span>
+            {% if pages > 1 %}
+            <span class="ifinmail-pagination__controls">
+                {% if page > 1 %}<a class="ifinmail-pagination__btn" rel="prev" href="?tab={{ tab }}&amp;page={{ page|add:'-1' }}{% if base_query %}&amp;{{ base_query }}{% endif %}">{% trans 'Previous' %}</a>{% endif %}
+                {% for number in page_links %}
+                    {% if number is None %}<span class="ifinmail-pagination__info" aria-hidden="true">…</span>
+                    {% elif number == page %}<span class="ifinmail-pagination__btn ifinmail-pagination__btn--active" aria-current="page">{{ number }}</span>
+                    {% else %}<a class="ifinmail-pagination__btn" href="?tab={{ tab }}&amp;page={{ number }}{% if base_query %}&amp;{{ base_query }}{% endif %}">{{ number }}</a>{% endif %}
+                {% endfor %}
+                {% if page < pages %}<a class="ifinmail-pagination__btn" rel="next" href="?tab={{ tab }}&amp;page={{ page|add:'1' }}{% if base_query %}&amp;{{ base_query }}{% endif %}">{% trans 'Next' %}</a>{% endif %}
+            </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+
+        <p class="ifinmail-help-text ifinmail-logs-live-status" id="live-status" role="status" hidden></p>
     </div>
 </section>
-
 {% endblock %}
 
 {% block scripts %}

@@ -6,6 +6,7 @@ from .views.assistant import (
     assistant_apply,
     assistant_ask,
     assistant_conversation,
+    assistant_delete,
     assistant_status,
     assistant_test,
 )
@@ -198,6 +199,7 @@ urlpatterns = [
         name='assistant_conversation',
     ),
     path('assistant/<uuid:conversation_id>/status/', assistant_status, name='assistant_status'),
+    path('assistant/<uuid:conversation_id>/delete/', assistant_delete, name='assistant_delete'),
     path('assistant/proposals/<uuid:message_id>/apply/', assistant_apply, name='assistant_apply'),
     path('marketplace/', marketplace, name='marketplace'),
     path('marketplace/submit/', marketplace_submit, name='marketplace_submit'),

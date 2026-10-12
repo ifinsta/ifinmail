@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.0.15
+- **System logs** reworked. Activity (the audit trail) and Application errors are tabs with a
+  summary (events, errors, warnings, and whether the tamper-evident chain is intact), a search box
+  over event, person and details, level and period filters that apply immediately, real
+  pagination (25 per page, filters kept in links) and an export that follows the filters. **Live
+  view now works**: it adds new events at the top every five seconds and pauses when the tab is
+  hidden (before, it only wrote to the browser console). The search box in the header works
+  too, and the duplicate "audit trail" side panel is gone.
+- **System health** reworked: a one-sentence verdict with the first thing to fix and a link to it;
+  checks grouped by area (Mail delivery, Server identity, each domain, Server, Security) with a
+  count of what needs attention per group; cards with a "How to fix" block, values you can copy,
+  the console page that fixes it and "Ask the assistant"; passing checks are compact. The legacy
+  left-border card styles were removed.
+- **Assistant** reworked and **full Markdown** for answers: CommonMark plus tables, task lists,
+  strikethrough and bare-URL links, rendered by a small renderer in this repository (no new
+  package). Raw HTML is shown as text and images as plain links (an image URL could send data
+  out); links are limited to http, https, mailto and same-site paths. Conversation list beside the
+  thread, suggested questions, "working on it" progress that shows which check ran, Copy on
+  answers and code blocks, Enter to send, a token meter, and **Delete conversation**.
+- A property test parses every rendering of adversarial and random input and fails if anything
+  outside the whitelisted tags, attributes and link targets appears.
+- Fixed while checking in a real browser: the Copy buttons raised an unhandled error when the
+  browser refused clipboard access; they now fall back to the older route.
+- The documented plugin and assistant edge cases are now 318.
+
 ## v0.0.14
 - Fix: an assistant draft that **cleared** a setting with a default (for example "keep Trash
   forever" on Mailbox care) was applied with the default instead (30 days), so Apply could do

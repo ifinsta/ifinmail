@@ -87,7 +87,7 @@ class DashboardViewTests(TransactionTestCase):
         session['mfa_verified_at'] = timezone.now().isoformat()
         session.save()
         cases = [
-            ('accounts:logs', 'System Logs'),
+            ('accounts:logs', 'System logs'),
             ('accounts:spam_filtering', 'Spam Filtering'),
             ('accounts:user_management', 'User Management'),
             ('accounts:branding_identity', 'Branding & Identity'),

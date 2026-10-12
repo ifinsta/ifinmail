@@ -21,6 +21,17 @@ from .auth import require_perm
 
 _MANAGE = require_perm(PermissionCode.SYSTEM_MANAGE)
 
+# What an administrator most often wants to know; each one is a real, answerable question.
+SUGGESTIONS = (
+    (
+        'Is anything wrong with this server?',
+        'Go through every check and tell me what to fix first.',
+    ),
+    ('Why might my mail land in spam?', 'Check PTR, SPF, DKIM, DMARC and blocklists.'),
+    ('Is my DNS and certificate set up correctly?', 'Domains, delegation, DNSSEC and TLS.'),
+    ('Which plugins should I turn on?', 'Review what is installed and draft sensible settings.'),
+)
+
 
 def _actor(request: HttpRequest) -> str:
     return request.user.email
@@ -48,16 +59,23 @@ def _turns(conversation) -> list[dict]:  # noqa: ANN001
 
 def _page(request: HttpRequest, conversation=None) -> HttpResponse:  # noqa: ANN001
     settings = assistant_config.current()
+    usage = ConversationService.usage()
+    turns = _turns(conversation) if conversation else []
+    running = bool(conversation and conversation.status == ConversationStatus.RUNNING)
     context = {
         'active_section': 'assistant',
         'configured': settings is not None,
         'model': settings.model if settings else '',
         'host': settings.host if settings else '',
-        'usage': ConversationService.usage(),
+        'usage': usage,
+        'usage_percent': min(100, round(100 * usage['today'] / max(usage['budget'], 1))),
         'conversations': ConversationService.list_for(_actor(request)),
         'conversation': conversation,
-        'turns': _turns(conversation) if conversation else [],
-        'running': bool(conversation and conversation.status == ConversationStatus.RUNNING),
+        'turns': turns,
+        'running': running,
+        'working_steps': [m.tool_name for m in turns[-1]['steps']] if running and turns else [],
+        'message_count': conversation.messages.count() if conversation else 0,
+        'suggestions': SUGGESTIONS,
         'prefill': request.GET.get('q', '')[:2000],
     }
     return render(request, 'admin/assistant.html', context)
@@ -87,7 +105,7 @@ def assistant_status(request: HttpRequest, conversation_id: str) -> JsonResponse
     conversation = ConversationService.get(_actor(request), conversation_id)
     if conversation is None:
         raise Http404('No such conversation')
-    return JsonResponse({'status': conversation.status})
+    return JsonResponse({'status': conversation.status, 'messages': conversation.messages.count()})
 
 
 @login_required
@@ -129,4 +147,16 @@ def assistant_test(request: HttpRequest) -> HttpResponse:
         messages.success(request, ConversationService.test_connection())
     except AssistantError as exc:
         messages.error(request, f'Connection test failed: {exc}')
+    return redirect('accounts:assistant')
+
+
+@login_required
+@_MANAGE
+@require_POST
+def assistant_delete(request: HttpRequest, conversation_id: str) -> HttpResponse:
+    try:
+        ConversationService.delete(_actor(request), str(conversation_id))
+        messages.success(request, 'Conversation deleted.')
+    except AssistantError as exc:
+        messages.error(request, str(exc))
     return redirect('accounts:assistant')

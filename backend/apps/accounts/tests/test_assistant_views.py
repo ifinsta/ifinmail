@@ -15,6 +15,7 @@ from backend.apps.core.assistant.services import provider as provider_module
 from backend.apps.core.assistant.tests.fake_provider import FakeProvider, answer, tool_call
 from backend.apps.core.assistant.tests.test_assistant import KEY, LEAKY_HEALTH
 from backend.apps.core.assistant.types import ConversationStatus
+from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.plugins.models import PluginInstallation
 from backend.apps.core.plugins.services import InstallationService
 from backend.apps.core.tests.mail_base import MailTablesTestCase
@@ -89,8 +90,8 @@ class AssistantPageTests(MailTablesTestCase):
             reverse('accounts:assistant_ask'), {'question': 'Why do mails bounce?'}, follow=True
         )
         self.assertContains(response, 'Why do mails bounce?')
-        self.assertContains(response, 'No PTR record.<br>Ask your VPS provider.')
-        self.assertContains(response, 'What was sent to 127.0.0.1: 1 check')
+        self.assertContains(response, '<p>No PTR record.\nAsk your VPS provider.</p>')
+        self.assertContains(response, 'Checked 1 thing · sent to 127.0.0.1')
         self.assertContains(response, 'system_health')
         self.assertNotContains(response, 'hunter2')
         self.assertNotContains(response, KEY)
@@ -98,7 +99,7 @@ class AssistantPageTests(MailTablesTestCase):
         status = self.client.get(
             reverse('accounts:assistant_status', kwargs={'conversation_id': conversation.pk})
         )
-        self.assertEqual(status.json(), {'status': 'idle'})
+        self.assertEqual(status.json(), {'status': 'idle', 'messages': 4})
 
     def test_running_page_polls_and_failures_are_shown(self) -> None:
         self.connect()
@@ -190,3 +191,68 @@ class AssistantPageTests(MailTablesTestCase):
         self.assertContains(page, '?q=System%20health%20says')
         prefilled = self.client.get(reverse('accounts:assistant') + '?q=Why+is+PTR+missing')
         self.assertContains(prefilled, 'Why is PTR missing')
+
+    def test_answers_are_rendered_as_markdown_and_never_as_html(self) -> None:
+        self.connect()
+        reply = (
+            '## Findings\n\n1. **No PTR** for `203.0.113.5`\n2. DMARC is [missing](https://dmarc.org)\n\n'
+            '| Check | State |\n|---|---|\n| PTR | fail |\n\n```bash\nmake update\n```\n\n'
+            '<script>alert(1)</script> ![x](https://attacker.test/p.png)'
+        )
+        self.fake.push(answer(reply))
+        page = self.client.post(
+            reverse('accounts:assistant_ask'), {'question': 'Summarise'}, follow=True
+        )
+        for expected in (
+            '<h4 class="ifinmail-md-h">Findings</h4>',
+            '<strong>No PTR</strong>',
+            '<code>203.0.113.5</code>',
+            '<a href="https://dmarc.org"',
+            '<table>',
+            'data-lang="bash"',
+            '&lt;script&gt;alert(1)&lt;/script&gt;',
+        ):
+            self.assertContains(page, expected)
+        self.assertNotContains(page, '<script>alert(1)')
+        self.assertNotContains(page, '<img')
+        self.assertContains(page, 'data-assistant-copy=')  # the raw answer, for the Copy button
+
+    def test_delete_a_conversation(self) -> None:
+        self.connect()
+        self.fake.push(answer('ok'))
+        self.client.post(reverse('accounts:assistant_ask'), {'question': 'hello'})
+        conversation = AssistantConversation.objects.get()
+        url = reverse('accounts:assistant_delete', kwargs={'conversation_id': conversation.pk})
+        # Someone else cannot delete it; a running one cannot be deleted.
+        other = self.login('other@ifinmail.test', superuser=True)
+        self.client.post(url)
+        self.assertEqual(AssistantConversation.objects.count(), 1)
+        self.client.force_login(self.admin, backend='django.contrib.auth.backends.ModelBackend')
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
+        AssistantConversation.objects.filter(pk=conversation.pk).update(
+            status=ConversationStatus.RUNNING
+        )
+        self.client.post(url)
+        self.assertEqual(AssistantConversation.objects.count(), 1)
+        AssistantConversation.objects.filter(pk=conversation.pk).update(
+            status=ConversationStatus.IDLE
+        )
+        response = self.client.post(url, follow=True)
+        self.assertContains(response, 'Conversation deleted.')
+        self.assertEqual(AssistantConversation.objects.count(), 0)
+        self.assertTrue(AuditService.has('assistant_conversation_deleted', user=self.admin.email))
+        self.assertTrue(other.is_superuser)
+
+    def test_start_page_offers_questions_and_lists_conversations(self) -> None:
+        self.connect()
+        page = self.client.get(reverse('accounts:assistant'))
+        self.assertContains(page, 'What would you like to know?')
+        self.assertContains(page, 'Is anything wrong with this server?')
+        self.assertContains(page, 'Tokens today: 0 of 200,000')
+        self.fake.push(answer('ok'))
+        self.client.post(reverse('accounts:assistant_ask'), {'question': 'Why is it slow?'})
+        page = self.client.get(reverse('accounts:assistant'))
+        self.assertContains(page, 'Why is it slow?')
+        self.assertContains(page, 'data-assistant-rail')

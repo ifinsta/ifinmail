@@ -1405,48 +1405,6 @@ select.ifinmail-input {
     gap: var(--ifinmail-space-3);
 }
 
-/* Step lists with live status (System health, setup wizard) */
-.ifinmail-guide-steps {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--ifinmail-space-3);
-}
-
-.ifinmail-guide-step {
-    padding: var(--ifinmail-space-4);
-    border: 1px solid var(--ifinmail-outline-variant);
-    border-left-width: 3px;
-    border-radius: var(--ifinmail-radius-lg);
-    background: var(--ifinmail-surface-container-lowest);
-}
-
-.ifinmail-guide-step--done    { border-left-color: var(--ifinmail-success); }
-.ifinmail-guide-step--action  { border-left-color: var(--ifinmail-warning); }
-.ifinmail-guide-step--waiting { border-left-color: var(--ifinmail-secondary); }
-.ifinmail-guide-step--unknown { border-left-color: var(--ifinmail-outline); }
-
-.ifinmail-guide-step__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--ifinmail-space-2);
-}
-
-.ifinmail-guide-step__title {
-    font-weight: var(--ifinmail-font-weight-semibold);
-    color: var(--ifinmail-on-surface);
-}
-
-.ifinmail-guide-step__summary {
-    margin: var(--ifinmail-space-2) 0 0;
-    color: var(--ifinmail-on-surface-variant);
-    line-height: var(--ifinmail-line-height);
-}
-
 .ifinmail-guide-values {
     display: grid;
     grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
@@ -1458,8 +1416,6 @@ select.ifinmail-input {
 .ifinmail-guide-values dt { color: var(--ifinmail-on-surface-variant); }
 .ifinmail-guide-values dd { margin: 0; min-width: 0; }
 .ifinmail-guide-values code { overflow-wrap: anywhere; user-select: all; }
-
-.ifinmail-guide-step__link { margin: var(--ifinmail-space-2) 0 0; }
 
 
 
@@ -3793,64 +3749,12 @@ html.ifinmail-shell .ifinmail-mfa-more[open] > summary::before { transform: rota
 
 html.ifinmail-shell .ifinmail-mfa-more[open] > summary { margin-bottom: var(--ifinmail-space-1); }
 
-/* System health page */
-.ifinmail-guide-step--error   { border-left-color: var(--ifinmail-error); }
-.ifinmail-guide-step--warning { border-left-color: var(--ifinmail-warning); }
-.ifinmail-guide-step--info,
-.ifinmail-guide-step--ok      { border-left-color: var(--ifinmail-success); }
-
-.ifinmail-health-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: var(--ifinmail-space-3);
-    margin-bottom: var(--ifinmail-space-6);
-}
-
-.ifinmail-health-summary__cell {
-    display: flex;
-    flex-direction: column;
-    gap: var(--ifinmail-space-1);
-    padding: var(--ifinmail-space-4);
-    border: 1px solid var(--ifinmail-outline-variant);
-    border-top-width: 3px;
-    border-radius: var(--ifinmail-radius-lg);
-    background: var(--ifinmail-surface-container-lowest);
-}
-
-.ifinmail-health-summary__cell--error   { border-top-color: var(--ifinmail-error); }
-.ifinmail-health-summary__cell--warning { border-top-color: var(--ifinmail-warning); }
-.ifinmail-health-summary__cell--waiting { border-top-color: var(--ifinmail-secondary); }
-.ifinmail-health-summary__cell--ok      { border-top-color: var(--ifinmail-success); }
-
-.ifinmail-health-summary__value {
-    font-size: var(--ifinmail-font-size-xl);
-    font-weight: var(--ifinmail-font-weight-bold);
-    color: var(--ifinmail-on-surface);
-}
-
-.ifinmail-health-summary__label {
-    font-size: var(--ifinmail-font-size-body);
-    color: var(--ifinmail-on-surface-variant);
-}
-
+/* System health page (cards and summary live in ifinmail-redesign.css) */
 .ifinmail-health-section { margin-bottom: var(--ifinmail-space-6); }
 .ifinmail-health-section .ifinmail-page-subtitle { margin-bottom: var(--ifinmail-space-4); }
 
 .ifinmail-health-good > summary { cursor: pointer; }
 .ifinmail-health-good[open] > summary { margin-bottom: var(--ifinmail-space-4); }
-
-.ifinmail-health-group {
-    margin-left: var(--ifinmail-space-2);
-    font-weight: var(--ifinmail-font-weight-normal);
-    font-size: var(--ifinmail-font-size-caption);
-    color: var(--ifinmail-on-surface-variant);
-}
-
-.ifinmail-health-fix {
-    margin: var(--ifinmail-space-2) 0 0;
-    color: var(--ifinmail-on-surface);
-    line-height: var(--ifinmail-line-height);
-}
 
 /* Issue count next to "System health" in the sidebar */
 .ifinmail-nav-count {

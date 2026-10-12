@@ -28,13 +28,13 @@ verify — every row must exist on disk.
 | `admin/spam_filtering.html` | Spam | rspamd settings view |
 | `admin/dns_config.html` | DomainConfig | `dns/views/web.py` |
 | `admin/branding_identity.html` | Branding | branding view |
-| `admin/logs.html` | Logs | telemetry/audit view |
+| `admin/logs.html` | Logs | `accounts/views/logs.py` — Activity (audit trail) and Application errors tabs, summary strip with audit-chain integrity, level/period/text filters, pagination, live view |
 | `admin/login.html` | Login | `accounts/views/` login |
 | `admin/mfa_setup.html`, `admin/mfa_verify.html` | (MFA extension) | `accounts/views/mfa.py` |
 | `admin/mailbox_setup.html`, `admin/mailbox_profile.html` | (Mailbox extension) | `accounts/views/mailboxes.py` |
 | `admin/partials/admin_row.html` | TablesRows | user rows |
 | `admin/partials/dns_row.html` | TablesRows | DNS rows |
-| `admin/partials/log_row.html` | TablesRows | log rows |
+| `admin/partials/log_row.html` | TablesRows | one log row (activity or application error) |
 | `admin/partials/provider_row.html` | TablesRows | provider rows |
 | `admin/partials/queue_row.html` | TablesRows | queue rows |
 | `admin/partials/mailbox_row.html` | (Mailbox extension) | mailbox rows |
@@ -43,7 +43,8 @@ verify — every row must exist on disk.
 | `admin/marketplace_plugin.html` | (Marketplace extension) | one plugin: about, what it changes, settings, update, manage |
 | `admin/marketplace_submit.html` | (Marketplace extension) | submit a `plugin.toml` for review |
 | `admin/marketplace_submission.html` | (Marketplace extension) | review a submission (approve, reject, withdraw, retire) |
-| `admin/assistant.html` | (Assistant extension) | `accounts/views/assistant.py` — ask, answers with "What was sent", drafted plugin changes with Apply, recent conversations; empty state until a model is connected |
+| `admin/assistant.html` | (Assistant extension) | `accounts/views/assistant.py` — conversation rail, suggested questions, thread with Markdown answers, "What was sent", drafted plugin changes with Apply, sticky composer; empty state until a model is connected |
+| `admin/system_health.html`, `includes/health_check.html` | (System health) | `accounts/views/system_health.py` — verdict banner with the first thing to fix, summary strip, group chips, check cards with how-to-fix and copyable values |
 | `admin/partials/plugin_fields.html` | (Marketplace extension) | setting fields rendered from a plugin manifest |
 
 ## Settings hub (`SettingsCatalogue` in `accounts/services/settings_catalogue.py`)

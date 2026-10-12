@@ -189,6 +189,20 @@ class ConversationService:
         return f'Connected: {settings.model} at {provider.host} answers and can use tools.'
 
     @staticmethod
+    def delete(user: str, conversation_id: str) -> None:
+        """Remove one of the user's conversations and everything in it (privacy: on request)."""
+        conversation = ConversationService.get(user, conversation_id)
+        if conversation is None:
+            raise AssistantError('That conversation does not exist.')
+        if conversation.status == ConversationStatus.RUNNING:
+            raise BusyError('It is still being answered. Delete it once the answer is in.')
+        title = conversation.title
+        conversation.delete()
+        AuditService.record(
+            'assistant_conversation_deleted', user=user, detail=f'{conversation_id}: {title[:60]}'
+        )
+
+    @staticmethod
     def purge(now=None) -> int:  # noqa: ANN001
         cutoff = (now or timezone.now()) - timedelta(days=RETENTION_DAYS)
         _, per_model = AssistantConversation.objects.filter(updated_at__lt=cutoff).delete()

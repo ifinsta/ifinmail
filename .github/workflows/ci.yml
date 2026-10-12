@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Weekly dependency audit: the hashed lockfile is only as good as the last time someone
+  # looked. A failing run is the reminder; fix with `make lock` (see docs/enterprise-slo.md).
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
 
 env:
   DJANGO_SETTINGS_MODULE: backend.config.settings.testing
@@ -37,7 +42,7 @@ jobs:
 
       - name: Dependency vulnerability audit
         # Fails the build on any known CVE in the locked production set.
-        run: python -m pip_audit -r requirements/prod.lock
+        run: python -m pip_audit -r requirements/prod.lock --disable-pip
 
       - name: Lint (blocking — see docs/enterprise-slo.md)
         run: |

@@ -57,8 +57,8 @@ collectstatic:
 # Regenerate the pinned production lockfile after editing requirements/*.txt,
 # then run the test suite and dependency audit before committing.
 lock:
-	python -m piptools compile --resolver=backtracking --output-file=requirements/prod.lock requirements/production.txt
-	python -m pip_audit -r requirements/prod.lock
+	python -m piptools compile --generate-hashes --no-annotate --no-header --resolver=backtracking --output-file=requirements/prod.lock requirements/production.txt
+	python -m pip_audit -r requirements/prod.lock --disable-pip
 
 createsuperuser:
 	python manage.py createsuperuser

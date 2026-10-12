@@ -31,7 +31,9 @@ class QuotaServiceTests(MailTablesTestCase):
         path = os.path.join(self.mail_root, domain, local_part, 'Maildir', 'cur')
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, 'msg'), 'wb') as handle:
-            handle.write(b'x' * size)
+            # Sparse: QuotaService measures apparent size (getsize), and writing 'x' * 3 GB
+            # made the suite fail, or get OOM-killed, on any host with less than a few GB free.
+            handle.truncate(size)
 
     def test_counts_finite_quotas_and_unlimited_separately(self) -> None:
         MailboxService.create('ifinmail.test', 'one', GOOD, quota_bytes=GB)

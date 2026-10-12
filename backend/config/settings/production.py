@@ -63,9 +63,11 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = os.environ.get(
     'SECURE_CROSS_ORIGIN_OPENER_POLICY', 'same-origin-allow-popups'
 )
 
-# Content Security Policy
-# Scripts are fully extracted (no inline scripts or on* handlers). Styles still need
-# unsafe-inline for brand overrides and a few JS-set style attributes.
+# Content Security Policy — enforced by default.
+# Scripts are fully extracted (no inline scripts or on* handlers; contract tests in
+# core/tests/test_frontend_contract.py keep it that way). Styles still need unsafe-inline for
+# brand overrides and a few JS-set style attributes. Violations are still reported to
+# /csp-report/. CSP_REPORT_ONLY=true switches back to report-only if a page ever breaks.
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = (
     "'self'",  # All templates ship scripts as static files; no inline scripts or handlers
@@ -82,7 +84,7 @@ CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_FORM_ACTION = ("'self'",)
 CSP_BASE_URI = ("'self'",)
 CSP_MANIFEST_SRC = ("'self'",)
-CSP_REPORT_ONLY = os.environ.get('CSP_REPORT_ONLY', 'True').lower() == 'true'
+CSP_REPORT_ONLY = os.environ.get('CSP_REPORT_ONLY', 'False').lower() == 'true'
 CSP_REPORT_URI = os.environ.get('CSP_REPORT_URI', '/csp-report/')
 CSP_REPORT_PERCENTAGE = float(os.environ.get('CSP_REPORT_PERCENTAGE', '0.1'))
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.6
+- New built-in plugin **ARC trusted forwarding**: seals mail this server passes on (aliases that
+  forward outside) with the domain's DKIM key, and lets a valid ARC chain from a forwarder you
+  trust lift a DMARC rejection, so DMARC enforcement does not bounce genuine forwarded or list
+  mail. Seals verified with an independent implementation; tampering is detected.
+- Plugin settings: a default now applies only when a value is not supplied, so a field cleared on
+  purpose stays empty and a boolean `default = true` is honoured (it was ignored when absent).
+  `configure` with some keys keeps the current values of the others.
+
 ## v0.0.5
 - Five new built-in plugins: **Attachment guard**, **DMARC enforcement**, **Forwarding control**,
   **Mailbox cleanup** and **Partner TLS**.

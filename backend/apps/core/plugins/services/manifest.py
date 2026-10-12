@@ -467,7 +467,7 @@ def _clean_value(spec: SettingSpec, raw: object, *, live: bool) -> object:
 def clean_settings(
     manifest: PluginManifest, raw: Mapping[str, object], *, live: bool = True
 ) -> dict[str, object]:
-    """Validate submitted values against the manifest. Missing values fall back to defaults.
+    """Validate submitted values against the manifest. Values not supplied take their default.
 
     Keys the manifest does not declare are dropped (forms carry other fields such as the CSRF
     token). Raises ``SettingsError`` mapping each bad key to its message.
@@ -476,11 +476,10 @@ def clean_settings(
     errors: dict[str, str] = {}
     for spec in manifest.settings:
         value = raw.get(spec.key)
-        if (
-            spec.base_type != 'boolean'
-            and (value is None or value == '')
-            and spec.default is not None
-        ):
+        # A default applies only when the value is not supplied at all. Forms show the default
+        # and always post every field, so what the administrator sees is what is saved: a field
+        # cleared on purpose stays empty, and an unchecked checkbox (posted empty) means false.
+        if value is None and spec.default is not None:
             value = spec.default
         try:
             cleaned[spec.key] = _clean_value(spec, value, live=live)

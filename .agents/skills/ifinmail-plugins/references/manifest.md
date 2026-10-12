@@ -45,6 +45,11 @@ values = { always_bcc = "{archive_address}" }
 Defaults are validated with the type rules except the live check of `mailbox` (it cannot have a
 meaningful default and is rejected if one is given).
 
+**Defaults apply only when a value is not supplied.** Forms show the default and always post every
+field, so what the administrator sees is what is saved: a field cleared on purpose stays empty (or
+fails `required`), and an unchecked checkbox means false. `configure` with only some keys keeps the
+current values of the others.
+
 ## Contributions
 
 * `point` must be registered when the manifest is validated **and** when it is installed.
@@ -84,6 +89,8 @@ Rendered by `rspamd/sync-plugins.sh` into fragments included from `local.d/multi
 | `blocked_attachment_types` | comma-separated extensions `[a-z0-9]{1,10}` (normalised: dots dropped, lower-case, sorted; at most 200) | Multimap rule on attachment names, matched case-insensitively; Rspamd also detects disguised types by content |
 | `blocked_attachment_action` | `reject` or `quarantine` | quarantine = "add header", filed into Junk by the global Sieve rule |
 | `dmarc_enforcement` | `enforce` or `quarantine` | DMARC module actions: enforce follows the sender's policy; quarantine sends both to Junk |
+| `arc_trusted_sealers` | domain list (normalised like partner TLS domains) | `whitelisted_signers_map` with `adjust_dmarc`: a valid ARC chain from these lifts a DMARC rejection |
+| `arc_sealing` | `yes` or `no` | yes: seal mail passing through with the domain's DKIM key (`/etc/dkim/$domain.$selector.key`, selector `default`, `use_domain = recipient`) |
 
 ## Extension point `dovecot.policy`
 

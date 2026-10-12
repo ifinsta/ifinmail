@@ -120,6 +120,8 @@ checked twice (by the console and by the container that applies it).
   - *Forwarding control*: limit or block mail filter rules that forward messages elsewhere.
   - *Mailbox cleanup*: empty Trash and Junk (and optionally Sent) after a number of days.
   - *Partner TLS*: never send to listed partner domains without encryption.
+  - *ARC trusted forwarding*: seal mail this server forwards (signed with your DKIM key, no new
+    DNS) and let valid chains from trusted forwarders lift DMARC rejections.
 - **Your own:** Marketplace → Submit a plugin. Someone with `system.manage` approves or rejects it;
   nothing is approved automatically and nothing is fetched from outside the server.
 - Each plugin page shows exactly what it changes and whether Postfix has applied it. Disable or

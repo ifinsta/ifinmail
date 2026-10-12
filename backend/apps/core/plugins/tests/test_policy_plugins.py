@@ -74,6 +74,18 @@ class PointGrammarTests(SimpleTestCase):
                 self.assertIsNotNone(p.validate('domains', bad))
         self.assertIsNotNone(p.validate('level', 'may'))
 
+    def test_arc_keys(self) -> None:
+        p = point('rspamd.policy')
+        self.assertEqual(
+            p.normalize('arc_trusted_sealers', 'Google.com, microsoft.com.'),
+            'google.com,microsoft.com',
+        )
+        self.assertIsNone(p.validate('arc_trusted_sealers', 'google.com,microsoft.com'))
+        self.assertIsNotNone(p.validate('arc_trusted_sealers', 'google.com;evil'))
+        self.assertIsNone(p.validate('arc_sealing', 'yes'))
+        self.assertIsNone(p.validate('arc_sealing', 'no'))
+        self.assertIsNotNone(p.validate('arc_sealing', 'true'))
+
     def test_line_breaks_never_survive_normalisation(self) -> None:
         p = point('rspamd.policy')
         value = p.normalize('blocked_attachment_types', 'exe\nrelayhost = evil')
@@ -86,6 +98,7 @@ class BundledPluginsTests(SimpleTestCase):
         self.assertEqual(
             sorted(e.plugin_id for e in CatalogService.bundled()),
             [
+                'arc-forwarding',
                 'attachment-guard',
                 'compliance-journal',
                 'dmarc-enforcement',
@@ -118,6 +131,8 @@ class LifecycleTests(MailTablesTestCase):
         self.assertEqual(
             self.file('rspamd-plugins.conf'),
             {
+                'arc_sealing': '',
+                'arc_trusted_sealers': '',
                 'blocked_attachment_action': 'quarantine',
                 'blocked_attachment_types': 'exe,js',
                 'dmarc_enforcement': 'enforce',
@@ -126,6 +141,25 @@ class LifecycleTests(MailTablesTestCase):
         InstallationService.disable('dmarc-enforcement', 'a')
         self.assertEqual(self.file('rspamd-plugins.conf')['dmarc_enforcement'], '')
         self.assertEqual(self.file('rspamd-plugins.conf')['blocked_attachment_types'], 'exe,js')
+
+    def test_arc_forwarding_defaults_and_switches(self) -> None:
+        InstallationService.install('arc-forwarding', {}, 'a')
+        values = self.file('rspamd-plugins.conf')
+        self.assertEqual(values['arc_trusted_sealers'], 'google.com,microsoft.com,yahoo.com')
+        self.assertEqual(values['arc_sealing'], 'yes')
+        # A partial change keeps the other values; an empty checkbox value means off.
+        InstallationService.configure('arc-forwarding', {'trusted_sealers': ''}, 'a')
+        values = self.file('rspamd-plugins.conf')
+        self.assertEqual((values['arc_trusted_sealers'], values['arc_sealing']), ('', 'yes'))
+        InstallationService.configure('arc-forwarding', {'seal_forwarded': ''}, 'a')
+        self.assertEqual(self.file('rspamd-plugins.conf')['arc_sealing'], 'no')
+
+    def test_arc_and_dmarc_enforcement_work_together(self) -> None:
+        InstallationService.install('dmarc-enforcement', {}, 'a')
+        InstallationService.install('arc-forwarding', {'seal_forwarded': 'on'}, 'a')
+        values = self.file('rspamd-plugins.conf')
+        self.assertEqual(values['dmarc_enforcement'], 'enforce')
+        self.assertEqual(values['arc_sealing'], 'yes')
 
     def test_attachment_guard_defaults(self) -> None:
         InstallationService.install('attachment-guard', {}, 'a')
@@ -173,12 +207,13 @@ class LifecycleTests(MailTablesTestCase):
             ('forwarding-control', {}),
             ('mailbox-cleanup', {}),
             ('partner-tls', {'domains': 'bank.example'}),
+            ('arc-forwarding', {}),
         ):
             try:
                 InstallationService.install(plugin_id, settings, 'a')
             except ConflictError as exc:  # pragma: no cover - the assertion below explains
                 self.fail(f'{plugin_id}: {exc}')
-        self.assertEqual(len(InstallationService.all()), 5)
+        self.assertEqual(len(InstallationService.all()), 6)
 
 
 def _bash_works() -> bool:
@@ -269,9 +304,32 @@ class RspamdWatcherTests(_ScriptHarness):
         self.run_script()
         self.assertEqual(self.ack(), self.file_hash())
 
+    def test_arc_trust_and_sealing(self) -> None:
+        self.file.write_text('arc_trusted_sealers = google.com,microsoft.com\narc_sealing = yes\n')
+        self.run_script()
+        self.assertEqual((self.out / 'arc_trusted.map').read_text(), 'google.com\nmicrosoft.com\n')
+        arc = (self.out / 'arc.conf').read_text()
+        self.assertIn(f'whitelisted_signers_map = "file://{self.out}/arc_trusted.map";', arc)
+        self.assertIn('adjust_dmarc = true;', arc)
+        self.assertIn('path = "/etc/dkim/$domain.$selector.key";', arc)  # the DKIM keys
+        self.assertIn('selector = "default";', arc)
+        self.assertIn('sign_inbound = true;', arc)
+        self.file.write_text('arc_trusted_sealers = google.com\narc_sealing = no\n')
+        self.run_script()
+        arc = (self.out / 'arc.conf').read_text()
+        self.assertIn('whitelisted_signers_map', arc)
+        self.assertNotIn('sign_inbound', arc)
+
+    def test_unsafe_sealers_are_refused(self) -> None:
+        self.file.write_text('arc_trusted_sealers = google.com";evil\narc_sealing = maybe\n')
+        log = self.run_script()
+        self.assertEqual(log.count('ignoring unsafe value'), 2)
+        self.assertEqual((self.out / 'arc.conf').read_text(), '')
+
     def test_empty_values_remove_the_rules(self) -> None:
         self.file.write_text('blocked_attachment_types = \ndmarc_enforcement = \n')
         self.run_script()
+        self.assertEqual((self.out / 'arc.conf').read_text(), '')
         self.assertEqual((self.out / 'multimap.conf').read_text(), '')
         self.assertEqual((self.out / 'dmarc.conf').read_text(), '')
 
@@ -397,7 +455,11 @@ class WiringContractTests(SimpleTestCase):
         self.assertIn('ifinmail-dovecot-sync', (DOCKER / 'dovecot' / 'Dockerfile').read_text())
 
     def test_configs_include_the_generated_fragments_optionally(self) -> None:
-        for rel in ('rspamd/local.d/multimap.conf', 'rspamd/local.d/dmarc.conf'):
+        for rel in (
+            'rspamd/local.d/multimap.conf',
+            'rspamd/local.d/dmarc.conf',
+            'rspamd/local.d/arc.conf',
+        ):
             self.assertIn('.include(try=true;', (DOCKER / rel).read_text(), rel)
         dovecot = (DOCKER / 'dovecot' / 'dovecot.conf').read_text()
         self.assertTrue(

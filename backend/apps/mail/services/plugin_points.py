@@ -133,6 +133,16 @@ class RspamdPolicyPoint(ExtensionPoint):
             _one_of('enforce', 'quarantine'),
             "Act on senders' DMARC policies (enforce: reject and quarantine as published).",
         ),
+        'arc_trusted_sealers': PointKey(
+            _domain_list,
+            'Forwarders whose valid ARC chain lifts a DMARC rejection '
+            '(they vouch for the original).',
+            _normalize_domains,
+        ),
+        'arc_sealing': PointKey(
+            _one_of('yes', 'no'),
+            "Add an ARC seal, signed with the domain's DKIM key, to mail passing through.",
+        ),
     }
     runtime_file = 'rspamd-plugins.conf'
     ack_file = 'rspamd-plugins.applied'

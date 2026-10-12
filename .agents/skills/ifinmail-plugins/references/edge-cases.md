@@ -1,4 +1,4 @@
-# Edge cases (240)
+# Edge cases (252)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -15,7 +15,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 198 tested, 8 verified live only, 31 code, 3 decision (240 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 205 tested, 11 verified live only, 33 code, 3 decision (252 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -319,3 +319,20 @@ plugin settings; a plugin can only act through registered extension points.
 `R` / `D` / `P2` / `L2` / contract: `backend/apps/core/plugins/tests/test_policy_plugins.py`
 (watcher scripts with stubbed binaries, lifecycle, wiring). `live`: verified on 2026-10-12 against
 the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this repository.
+
+## L. ARC trusted forwarding and setting defaults
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 241 | Mail this server forwards (alias to an outside address) | Sealed with ARC using the domain's existing DKIM key; no new DNS | live |
+| 242 | Is the seal valid? | Independent verifier (dkimpy) reports `pass` | live |
+| 243 | Message altered after sealing | Independent verifier reports `fail` | live |
+| 244 | Valid chain from a trusted forwarder, DMARC says reject | Rejection lifted (`adjust_dmarc`) | code |
+| 245 | Chain from a forwarder not on the list | Verified and scored only; no DMARC exception | code |
+| 246 | Trusted forwarder with shell or quote characters | Refused by the console and the Rspamd watcher | M, R |
+| 247 | Sealing turned off, trust kept | Only the trust list is rendered | R, live |
+| 248 | Plugin disabled | ARC fragment empty: Rspamd's default verification only | R, live |
+| 249 | Boolean with `default = true`, value not supplied | Default applied (was ignored: sealing installed off) | M, L2 |
+| 250 | Checkbox left unchecked in the form | False, not the default | M, L2 |
+| 251 | Field with a default cleared on purpose | Stays empty (or fails `required`), never silently refilled | M |
+| 252 | `configure` with only some keys | The others keep their current values | L2 |

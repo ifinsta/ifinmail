@@ -144,7 +144,8 @@ class InstallationService:
     ) -> OperationResult:
         row = cls._require(plugin_id)
         manifest = cls.manifest_of(row)
-        cleaned = manifests.clean_settings(manifest, settings)
+        # Keys not supplied keep their current values (forms always supply every key).
+        cleaned = manifests.clean_settings(manifest, {**row.settings, **settings})
         manifests.rendered_values(manifest, cleaned)
         if cleaned == row.settings and row.state in (
             InstallationState.ENABLED,

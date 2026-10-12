@@ -327,6 +327,28 @@ class SettingsValidationTests(SimpleTestCase):
                         manifests.clean_settings(self.m, values)
                     self.assertIn(key, caught.exception.errors)
 
+    def test_boolean_defaults_apply_only_when_not_supplied(self) -> None:
+        m = manifests.load(
+            to_toml(
+                manifest(
+                    settings=[S, setting(key='on', type='boolean', default=True, required=False)]
+                )
+            )
+        )
+        supplied = {'archive_address': 'a@b.test'}
+        self.assertTrue(manifests.clean_settings(m, supplied, live=False)['on'])
+        self.assertFalse(manifests.clean_settings(m, {**supplied, 'on': ''}, live=False)['on'])
+
+    def test_a_cleared_field_stays_empty_instead_of_returning_to_the_default(self) -> None:
+        m = manifests.load(
+            to_toml(
+                manifest(settings=[S, setting(key='t', type='text', default='d', required=False)])
+            )
+        )
+        supplied = {'archive_address': 'a@b.test'}
+        self.assertEqual(manifests.clean_settings(m, supplied, live=False)['t'], 'd')
+        self.assertIsNone(manifests.clean_settings(m, {**supplied, 't': ''}, live=False)['t'])
+
     def test_missing_optional_values_and_unchecked_boxes(self) -> None:
         cleaned = self.clean(n=1)
         self.assertEqual(cleaned['on'], False)

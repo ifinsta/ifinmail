@@ -3,7 +3,7 @@
 #
 # The console writes <runtime>/rspamd-plugins.conf ("key = value" lines). When it changes this
 # script re-validates every key and value, renders Rspamd fragments into $OUT (included with
-# .include(try=true) from local.d/multimap.conf and local.d/dmarc.conf), checks the whole
+# .include(try=true) from local.d/multimap.conf, dmarc.conf and arc.conf), checks the whole
 # configuration with `rspamadm configtest`, and only then reloads Rspamd. A configuration that
 # fails the test is rolled back and not acknowledged. The SHA-256 of an applied file is written to
 # <status>/rspamd-plugins.applied so the console can show "Applied".
@@ -23,10 +23,17 @@ INTERVAL="${IFINMAIL_SYNC_INTERVAL:-10}"
 
 log() { echo "ifinmail-rspamd-sync: $*"; }
 
+DOMAIN='[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+'
+# ARC seals reuse the DKIM keys the console writes (local.d/dkim_signing.conf uses the same).
+DKIM_PATH='/etc/dkim/$domain.$selector.key'
+DKIM_SELECTOR='default'
+
 declare -A RULES=(
     [blocked_attachment_types]='^([a-z0-9]{1,10}(,[a-z0-9]{1,10}){0,199})?$'
     [blocked_attachment_action]='^(reject|quarantine)?$'
     [dmarc_enforcement]='^(enforce|quarantine)?$'
+    [arc_trusted_sealers]="^(${DOMAIN}(,${DOMAIN}){0,199})?\$"
+    [arc_sealing]='^(yes|no)?$'
 )
 
 render() { # $1 = directory to write the fragments into
@@ -34,6 +41,8 @@ render() { # $1 = directory to write the fragments into
     : > "$dir/multimap.conf"
     : > "$dir/blocked_attachments.map"
     : > "$dir/dmarc.conf"
+    : > "$dir/arc.conf"
+    : > "$dir/arc_trusted.map"
     if [ -n "$types" ]; then
         action="reject"
         [ "${VALUES[blocked_attachment_action]:-reject}" = "quarantine" ] && action="add header"
@@ -56,6 +65,22 @@ EOF
         printf 'actions {\n  quarantine = "add header";\n  reject = "reject";\n}\n' > "$dir/dmarc.conf"
     elif [ "$dmarc" = "quarantine" ]; then
         printf 'actions {\n  quarantine = "add header";\n  reject = "add header";\n}\n' > "$dir/dmarc.conf"
+    fi
+    local sealers="${VALUES[arc_trusted_sealers]:-}"
+    if [ -n "$sealers" ]; then
+        tr ',' '\n' <<< "$sealers" > "$dir/arc_trusted.map"
+        printf 'whitelisted_signers_map = "file://%s/arc_trusted.map";\nadjust_dmarc = true;\n' \
+            "$OUT" >> "$dir/arc.conf"
+    fi
+    if [ "${VALUES[arc_sealing]:-}" = "yes" ]; then
+        cat >> "$dir/arc.conf" <<EOF
+path = "$DKIM_PATH";
+selector = "$DKIM_SELECTOR";
+try_fallback = true;
+sign_inbound = true;
+use_domain = "recipient";
+allow_hdrfrom_mismatch = true;
+EOF
     fi
 }
 

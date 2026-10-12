@@ -15,3 +15,5 @@ First working release.
 - New mailboxes: the setup link and getting-started instructions (mail app settings) can be
   emailed to an address the owner already reads, when the mailbox is created or later from the
   mailbox list or profile.
+- System email (setup links, registration verification) is delivered through an internal-only
+  Postfix port (10025, never published) instead of failing on a missing local mail server.

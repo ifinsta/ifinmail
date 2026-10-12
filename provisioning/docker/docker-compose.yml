@@ -381,6 +381,9 @@ services:
       MAIL_HOSTNAME: ${MAIL_HOSTNAME}
       DOMAIN: ${DOMAIN:-${MAIL_DOMAIN}}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # System email (setup links, verification) goes through the internal Postfix relay.
+      EMAIL_HOST: ${EMAIL_HOST:-postfix}
+      EMAIL_PORT: ${EMAIL_PORT:-10025}
       DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
       DKIM_KEY_DIR: /etc/dkim
       IFINMAIL_RUNTIME_DIR: /var/lib/ifinmail/runtime
@@ -449,6 +452,9 @@ services:
       MAIL_HOSTNAME: ${MAIL_HOSTNAME}
       DOMAIN: ${DOMAIN:-${MAIL_DOMAIN}}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # System email (setup links, verification) goes through the internal Postfix relay.
+      EMAIL_HOST: ${EMAIL_HOST:-postfix}
+      EMAIL_PORT: ${EMAIL_PORT:-10025}
       DKIM_SELECTOR: ${DKIM_SELECTOR:-default}
       DKIM_KEY_DIR: /etc/dkim
       IFINMAIL_RUNTIME_DIR: /var/lib/ifinmail/runtime

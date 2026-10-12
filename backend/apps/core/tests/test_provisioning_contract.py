@@ -394,6 +394,24 @@ class PostfixDovecotHandoffContractTests(SimpleTestCase):
         )
         self.assertIn('smtpd_tls_wrappermode=yes', master.split('smtps     inet')[1])
 
+    def test_the_console_sends_system_email_through_an_internal_only_relay(self) -> None:
+        """Without EMAIL_HOST the app tried localhost:25 inside its own container, so every
+        setup-link and verification email failed. The relay it uses instead must stay off the
+        published ports and accept only the Docker network, or the server is an open relay."""
+        import yaml
+
+        compose = yaml.safe_load(_read('docker-compose.yml'))['services']
+        for service in ('api', 'worker'):
+            env = compose[service]['environment']
+            self.assertEqual(env['EMAIL_HOST'], '${EMAIL_HOST:-postfix}')
+            self.assertEqual(env['EMAIL_PORT'], '${EMAIL_PORT:-10025}')
+        self.assertFalse(any('10025' in str(p) for p in compose['postfix']['ports']))
+        block = _read('postfix', 'master.cf').split('10025     inet')[1].split('\n\n')[0]
+        for restriction in ('client', 'relay', 'recipient'):
+            self.assertIn(f'smtpd_{restriction}_restrictions=permit_mynetworks,reject', block)
+        self.assertIn('postconf -P "10025/inet/mynetworks=', _read('postfix', 'entrypoint.sh'))
+        self.assertIn('iproute2', _read('postfix', 'Dockerfile'))
+
 
 class SelfSignedFirstBootContractTests(SimpleTestCase):
     """Mail apps connect before Let's Encrypt has issued anything. They only accept the temporary

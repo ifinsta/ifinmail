@@ -30,6 +30,18 @@ smtps     inet  n       -       n       -       50       smtpd
   -o smtpd_client_restrictions=permit_sasl_authenticated,reject
   -o milter_macro_daemon_name=ORIGINATING
 
+# --- Internal relay (port 10025) — the console's own email (setup links, verification) ---
+# Not published in docker-compose.yml, so only containers on the ifinmail network reach it.
+# The entrypoint sets this service's mynetworks to that network; until then it falls back to
+# main.cf (localhost only) and refuses everyone else.
+10025     inet  n       -       n       -       10       smtpd
+  -o syslog_name=postfix/internal
+  -o smtpd_sasl_auth_enable=no
+  -o smtpd_client_restrictions=permit_mynetworks,reject
+  -o smtpd_relay_restrictions=permit_mynetworks,reject
+  -o smtpd_recipient_restrictions=permit_mynetworks,reject
+  -o milter_macro_daemon_name=ORIGINATING
+
 # --- Local pickup ---
 pickup    unix  n       -       y       60      1       pickup
 cleanup   unix  n       -       y       -       0       cleanup

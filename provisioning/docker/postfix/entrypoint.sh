@@ -36,6 +36,13 @@ if [ -L /etc/postfix/certs ]; then rm -f /etc/postfix/certs; fi
 # lookup failure". The container already isolates Postfix.
 postconf -F '*/*/chroot = n'
 
+# The internal relay (master.cf, port 10025) accepts mail only from the ifinmail Docker
+# network, whose subnet Docker picks. No route found = the main.cf default (localhost only).
+internal_net="$(ip -4 route show scope link 2>/dev/null | awk '$1 ~ /\// {print $1; exit}')"
+if [ -n "$internal_net" ]; then
+    postconf -P "10025/inet/mynetworks=127.0.0.0/8,$internal_net"
+fi
+
 # Log to the container output (docker logs): without a syslog daemon Postfix
 # logged nowhere. postlogd needs its own service entry.
 postconf -Me 'postlog/unix-dgram=postlog unix-dgram n - n - 1 postlogd'

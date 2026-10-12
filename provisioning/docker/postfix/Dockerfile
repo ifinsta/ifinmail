@@ -5,6 +5,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     postfix \
     postfix-pgsql \
     sasl2-bin \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create vmail user (UID 5000, GID 5000 — must match dovecot)

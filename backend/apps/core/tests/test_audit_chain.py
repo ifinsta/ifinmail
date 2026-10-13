@@ -31,6 +31,14 @@ def _record(count: int, action: str = 'test_event') -> None:
         AuditService.record(action=action, user='admin@ifinmail.test', detail=f'n={i}')
 
 
+class SeverityVocabularyTests(TestCase):
+    def test_warn_and_warning_are_one_word(self) -> None:
+        for given in ('warn', 'warning', 'info'):
+            AuditService.record(action='severity_probe', detail=given, severity=given)
+        seen = dict(AuditEvent.objects.values_list('detail', 'severity'))
+        self.assertEqual(seen, {'warn': 'warning', 'warning': 'warning', 'info': 'info'})
+
+
 class ChainTests(TestCase):
     def test_every_event_links_to_the_one_before_it(self) -> None:
         _record(3)

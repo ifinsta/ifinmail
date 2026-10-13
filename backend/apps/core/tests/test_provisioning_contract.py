@@ -706,3 +706,42 @@ class MailLogContractTests(SimpleTestCase):
         self.assertIn('ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-}', nginx)
         self.assertIn('sh /allowed-hosts.sh > /etc/nginx/conf.d/00-allowed-hosts.conf', nginx)
         self.assertLess(nginx.index('allowed-hosts.sh >'), nginx.index('exec nginx'))
+
+
+class LogFoundationContractTests(SimpleTestCase):
+    """Logs that survive an update, and healthchecks that do not write lines every 30 seconds."""
+
+    def test_rspamd_logs_to_the_shared_volume_and_is_rotated(self) -> None:
+        self.assertIn('/var/log/ifinmail/rspamd.log', _read('rspamd', 'local.d', 'logging.inc'))
+        entry = _read('rspamd', 'entrypoint.sh')
+        self.assertIn('tail -n 0 -F "$MAIL_LOG"', entry)
+        self.assertIn('ifinmail-log-rotate', entry)
+        self.assertIn('kill -USR1 1', _read('rspamd', 'log-rotate.sh'))
+        self.assertIn('chmod 0644', _read('rspamd', 'log-rotate.sh'))
+        compose = _read('docker-compose.yml')
+        block = compose[compose.index('\n  rspamd:') : compose.index('\n  resolver:')]
+        self.assertIn('mail_logs:/var/log/ifinmail', block)
+
+    def test_the_spam_filter_resolves_through_the_stacks_own_resolver(self) -> None:
+        options = _read('rspamd', 'local.d', 'options.inc')
+        # the embedded Docker resolver is a fallback only
+        self.assertIn('master-slave:resolver:53', options)
+        compose = _read('docker-compose.yml')
+        resolver = compose[compose.index('\n  resolver:') : compose.index('\n  dav:')]
+        self.assertIn('healthcheck:', resolver)
+        self.assertNotIn('ports:', resolver)  # internal only
+        self.assertIn('access-control: 0.0.0.0/0 refuse', _read('resolver', 'unbound.conf'))
+        # DNS blocklists answer 127.0.0.x to say "listed"; those answers must pass
+        self.assertNotIn('private-address: 127.', _read('resolver', 'unbound.conf'))
+
+    def test_healthchecks_no_longer_write_a_log_line_every_30_seconds(self) -> None:
+        compose = _read('docker-compose.yml')
+        dav = compose[compose.index('\n  dav:') : compose.index('\n  dns:')]
+        self.assertIn('socket.create_connection', dav)  # a bare connection, not a GET
+        rspamd = compose[compose.index('\n  rspamd:') : compose.index('\n  resolver:')]
+        self.assertNotIn('rspamc stat', rspamd)  # the controller logs every call it answers
+        self.assertIn('--loglevel warning', compose)  # Redis: background saves
+        knot = _read('dns', 'knot.conf')
+        self.assertIn('control: warning', knot)
+        self.assertNotRegex(knot, r'(?m)^\s+any:')  # "any" would override control: warning
+

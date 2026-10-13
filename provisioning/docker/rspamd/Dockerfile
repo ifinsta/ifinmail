@@ -15,7 +15,8 @@ COPY rspamd.local.lua /etc/rspamd/rspamd.local.lua
 
 COPY entrypoint.sh /entrypoint.sh
 COPY sync-plugins.sh /usr/local/bin/ifinmail-rspamd-sync
-RUN chmod +x /usr/local/bin/ifinmail-rspamd-sync && mkdir -p /var/lib/ifinmail-rspamd
+COPY log-rotate.sh /usr/local/bin/ifinmail-log-rotate
+RUN chmod +x /usr/local/bin/ifinmail-rspamd-sync /usr/local/bin/ifinmail-log-rotate && mkdir -p /var/lib/ifinmail-rspamd
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 11332 11333 11334

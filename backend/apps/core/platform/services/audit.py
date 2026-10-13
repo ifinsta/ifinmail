@@ -45,6 +45,10 @@ def _get_audit_model() -> Any:
     return _AuditEvent
 
 
+# One vocabulary for severity: the same word means the same thing in every report.
+_SEVERITY_WORDS = {'warn': 'warning'}  # readers already fold err/crit into error/critical
+
+
 class AuditService:
     """Central audit-trail service.
 
@@ -77,7 +81,7 @@ class AuditService:
             'user': user or 'system',
             'action': action,
             'detail': detail,
-            'severity': severity,
+            'severity': _SEVERITY_WORDS.get(severity, severity),
         }
 
         db_saved = cls._persist_to_db(event_data)

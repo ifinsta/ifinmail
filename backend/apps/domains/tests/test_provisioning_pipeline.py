@@ -205,6 +205,17 @@ class ProvisioningTests(MailTablesTestCase):
         ):
             return ProvisioningService.add_domain(name, **kwargs)
 
+    def test_a_recheck_that_changes_nothing_is_not_audited_again(self) -> None:
+        from backend.apps.core.platform.models import AuditEvent
+
+        self._add()  # new domain: recorded
+        self.assertEqual(AuditEvent.objects.filter(action='domain_provisioned').count(), 1)
+        self._add()  # the scheduled re-check, same outcome: silent
+        self._add()
+        self.assertEqual(AuditEvent.objects.filter(action='domain_provisioned').count(), 1)
+        self._add(actor='admin@ifinmail.test')  # a person asked: always recorded
+        self.assertEqual(AuditEvent.objects.filter(action='domain_provisioned').count(), 2)
+
     def test_domain_name_is_validated_and_normalised(self) -> None:
         self.assertEqual(normalise_domain(' HTTPS://Mail.Example.COM. '), 'mail.example.com')
         for bad in ('', 'localhost', 'a b.com', '-x.com', 'x.c', 'a..com'):

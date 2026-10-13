@@ -231,12 +231,19 @@ class ProvisioningService:
         result.steps.append(ProvisioningService._step_certificates())
         if verify:
             result.steps.append(ProvisioningService._step_verify(domain, result))
-        AuditService.record(
-            action='domain_provisioned',
-            user=actor,
-            detail=f'{domain_name} created={created} '
-            + ', '.join(f'{s.name}={s.status}' for s in result.steps),
-        )
+        steps = ', '.join(f'{s.name}={s.status}' for s in result.steps)
+        # A person's request, a new domain, or a different outcome than last time is worth a
+        # line; the scheduled re-check that finds nothing changed is not (it was 27% of the log).
+        known = SystemSettings.get(SettingKey.PROVISION_SIGNATURES, {})
+        known = known if isinstance(known, dict) else {}
+        if created or actor or known.get(domain_name) != steps:
+            AuditService.record(
+                action='domain_provisioned',
+                user=actor,
+                detail=f'{domain_name} created={created} {steps}',
+            )
+        if known.get(domain_name) != steps:
+            SystemSettings.set(SettingKey.PROVISION_SIGNATURES, {**known, domain_name: steps})
         return result
 
     @staticmethod

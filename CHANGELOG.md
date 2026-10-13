@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.35
+- **The spam filter's blocklists work again.** Rspamd logged "DNS query blocked on
+  `multi.uribl.com` ... possibly due to high volume" 84 times in a day: URIBL (and other
+  blocklists) refuse the shared and public resolvers Docker forwards to, so URL blocklist checks
+  were silently off. A small recursive resolver of its own (`resolver`, Unbound, about 11 MB,
+  internal only, healthchecked) now answers Rspamd's lookups; the embedded Docker resolver is only
+  a fallback if it is down. Checked against the real lists: the URIBL, DNSWL and Spamhaus test
+  points all answer through it.
+- **Spam decisions are kept.** Rspamd's log was a file inside the container, lost on every update
+  and never rotated. It is now on the `mail_logs` volume (`rspamd.log`, 16 MiB plus one rotated
+  copy, readable by the console), still forwarded to `docker logs`; its healthcheck no longer
+  asks the controller, which logged a line every 30 seconds (a third of the whole log).
+- **Health checks stopped talking.** Radicale (DAV) logged two lines every 30 s for its own
+  check, Knot logged `control, received command 'status'` every 30 s, Redis logged every
+  background save. The checks and log levels changed so those services log only what happens.
+- **Audit trail hygiene.** `domain_provisioned` is recorded when a domain is new, when a person
+  asked, or when the outcome changed; the scheduled re-check that finds nothing changed was 27% of
+  the trail. `warn` and `warning` are one word (`warning`) for new events; existing entries are
+  untouched because the trail is hash-chained.
+- First step of the unified-logs work (sources on volumes, one vocabulary); the report follows.
+
 ## v0.0.34
 - **The Errors tab shows errors again.** An analysis of the 4,914 `DisallowedHost` events since 11
   October found all of them to be scanners (92% on this server's own setup names, the rest on

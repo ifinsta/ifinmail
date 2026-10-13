@@ -23,6 +23,13 @@
                         {% else %}<span class="ifinmail-badge ifinmail-badge--danger">{% trans 'Agent not reporting' %}</span>{% endif %}
                         {% if agent.message and not agent.in_sync %}<span class="ifinmail-settings-row__value">{{ agent.message }}</span>{% endif %}</dd>
                 </div>
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Emergency stop' %}</dt>
+                    <dd>
+                        <p class="ifinmail-settings-row__help">{% trans 'If a rule ever cuts off something it should not, sign in to the server over SSH and run the command below. It removes every rule at once and the server then accepts everything again. SSH itself is never filtered.' %}</p>
+                        <code class="ifinmail-text--mono">docker stop docker-firewall-1</code>
+                    </dd>
+                </div>
             </dl>
         </section>
 

@@ -248,6 +248,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'mail.check_outbound_containment',
         'schedule': crontab(minute='*'),
     },
+    'reconcile-entrypoints': {
+        # Publishes the entry-point rules (open ports, blocked networks, connection cap) when the
+        # file is missing or differs, so the firewall agent is never left waiting.
+        'task': 'core.reconcile_entrypoints',
+        'schedule': crontab(minute='*/5'),
+    },
     'audit-maintenance': {
         'task': 'core.audit_maintenance',
         'schedule': crontab(hour=3, minute=50),

@@ -401,6 +401,34 @@ class EntryPointService:
         return text
 
     @staticmethod
+    def reconcile() -> bool:
+        """Publish the rules the console intends when the file is missing or has drifted.
+
+        Rules used to be written only when someone changed a setting, so a server nobody had
+        touched ran with none in force while the page showed defaults as if they were. This is
+        called on a schedule: it writes only when the content differs, so it is cheap and quiet.
+        Returns whether it wrote.
+        """
+        wanted = EntryPointService.render()
+        if read_runtime_file(RULES_FILE) == wanted:
+            return False
+        write_runtime_file(RULES_FILE, wanted)
+        return True
+
+    @staticmethod
+    def summary() -> dict[str, int]:
+        """What the rule set restricts, in plain counts (for status messages)."""
+        enabled = EntryPointService.enabled_map()
+        closed = sum(1 for e in CATALOGUE if not enabled.get(e.key, True))
+        limited = sum(1 for e in CATALOGUE if e.rate_limited and enabled.get(e.key, True))
+        return {
+            'closed': closed,
+            'blocked': len(EntryPointService.blocklist()),
+            'rate_per_minute': EntryPointService.rate_per_minute(),
+            'rate_limited_ports': limited,
+        }
+
+    @staticmethod
     def agent_status() -> AgentStatus:
         try:
             data = json.loads(read_runtime_file(STATUS_FILE) or 'null')

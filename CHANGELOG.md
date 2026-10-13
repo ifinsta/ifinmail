@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.26
+- **Phase 1 of the entry-point firewall: make it true.** The Network page showed a connection cap
+  and open ports as if they were enforced, but the rules were written only when someone changed a
+  setting there. On a server nobody had configured, the firewall agent had been "waiting for rules
+  from the console" since it started and *nothing* was enforced, including the per-address cap on
+  mail-port connections that limits floods. The console now publishes the rules itself, five
+  minutes after start-up and whenever the file is missing or has drifted (cheap and quiet: it
+  writes only on a difference, and records `firewall_published` in the audit trail).
+- **System health: Entry-point firewall.** In force (and what that means: ports closed, networks
+  blocked, the cap), being applied, rejected (the previous rules stay in force), or the agent not
+  reporting.
+- **Emergency stop documented** on the Network page and in the README: `docker stop
+  docker-firewall-1` removes every rule at once; SSH is never filtered.
+- **What turning it on does, measured against a real kernel:** with the default rules one address
+  was held to 120 new connections a minute on mail port 25 (131 of 240 rapid attempts dropped) while
+  HTTPS was untouched (240 of 240 accepted); the agent's own healthcheck stayed healthy. Only mail
+  ports are capped; HTTP, HTTPS and DNS never are, and locked ports cannot be closed.
+- Next phases (each its own release): one-click "Block this network" from Threats findings with an
+  expiry; opt-in automatic blocking and a tighter cap during a flood; mail-port login guessing
+  (Postfix and Dovecot) in the digest.
+
 ## v0.0.25
 - **Every container now has a healthcheck.** The firewall agent was the only one without: Docker
   could say it was "Up" while the agent was frozen or the rules it was meant to enforce had been

@@ -51,6 +51,21 @@ def check_certificate_expiry() -> dict[str, object]:
     return result
 
 
+@shared_task(name='core.reconcile_entrypoints')
+def reconcile_entrypoints() -> dict[str, object]:
+    """Keep the firewall's rule file equal to what the console intends (every few minutes)."""
+    from backend.apps.core.platform.services.entrypoints import EntryPointService
+
+    wrote = EntryPointService.reconcile()
+    if wrote:
+        AuditService.record(
+            action='firewall_published',
+            user='system',
+            detail=', '.join(f'{k}={v}' for k, v in EntryPointService.summary().items()),
+        )
+    return {'wrote': wrote, **EntryPointService.summary()}
+
+
 @shared_task(name='core.check_for_updates')
 def check_for_updates() -> dict[str, object]:
     """Every six hours: is a newer ifinmail release published? (off when disabled)."""

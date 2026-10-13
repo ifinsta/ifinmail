@@ -770,6 +770,52 @@ def _software_version() -> HealthCheck:
 # ── Security ───────────────────────────────────────────────────────────────────────────────
 
 
+def _firewall() -> HealthCheck:
+    """Are the entry-point rules (closed ports, blocked networks, connection cap) really in force?"""
+    from backend.apps.core.platform.services.entrypoints import RULES_FILE, EntryPointService
+    from backend.apps.core.platform.services.runtime import read_runtime_file
+
+    title = 'Entry-point firewall'
+    link = {'link': _url('accounts:network'), 'link_label': 'Network & entry points'}
+    status = EntryPointService.agent_status()
+    if not status.reporting:
+        return HealthCheck(
+            'firewall', GROUP_SECURITY, title, WARNING,
+            'The firewall agent is not reporting, so no entry-point rule can be in force.',
+            'It should be a container named docker-firewall-1; `make ps` shows whether it runs '
+            'and is healthy.',
+            **link,
+        )
+    if status.in_sync:
+        counts = EntryPointService.summary()
+        return HealthCheck(
+            'firewall', GROUP_SECURITY, title, OK,
+            f'In force: {counts["closed"]} port(s) closed, {counts["blocked"]} network(s) '
+            f'blocked, and at most {counts["rate_per_minute"]} new connections a minute from one '
+            f'address to {counts["rate_limited_ports"]} mail ports.'
+            if counts['rate_per_minute']
+            else f'In force: {counts["closed"]} port(s) closed, {counts["blocked"]} network(s) '
+            'blocked. The connection cap is off.',
+            **link,
+        )
+    if status.message.startswith('Rules rejected'):
+        return HealthCheck(
+            'firewall', GROUP_SECURITY, title, ERROR,
+            'The firewall refused the last rule set, so the previous one is still in force.',
+            status.message[:240], **link,
+        )
+    if read_runtime_file(RULES_FILE) is None:
+        return HealthCheck(
+            'firewall', GROUP_SECURITY, title, WAITING,
+            'The console has not published the rules yet; it does so within five minutes.',
+            **link,
+        )
+    return HealthCheck(
+        'firewall', GROUP_SECURITY, title, WAITING,
+        'New rules were published and the firewall is applying them.', **link,
+    )
+
+
 def _security() -> list[HealthCheck]:
     from backend.apps.accounts.models import MailUser, TOTPDevice
     from backend.apps.core.services import SystemSettings
@@ -865,6 +911,7 @@ def _collect() -> HealthReport:
     checks += _check(_sending)
     checks += _check(_background_jobs)
     checks += _check(_software_version)
+    checks += _check(_firewall)
     checks += _check(_security)
     return HealthReport(checked_at=datetime.now(UTC), checks=checks)
 

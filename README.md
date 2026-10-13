@@ -65,6 +65,15 @@ One certificate covers the mail hostname and every domain's `mta-sts`, `autoconf
 
 ### Network & entry points (Settings → Network & entry points)
 
+**Enforced from the first minute.** The rules the page shows are published to the firewall agent by
+the console itself, within five minutes of start-up and again whenever they drift, so a server
+nobody has configured still has them in force. With the defaults, one address may open at most
+120 new connections a minute to the mail ports (25, 465, 587, 993, 995, 110, 143); HTTP, HTTPS and
+DNS are not capped here (nginx has its own limits). System health reports *Entry-point firewall*:
+in force, being applied, rejected, or the agent not reporting. **Emergency stop:** over SSH,
+`docker stop docker-firewall-1` removes every rule at once and the server accepts everything
+again (SSH is never filtered); `docker start docker-firewall-1` brings them back.
+
 Lists every published port (SMTP, submission, SMTPS, IMAP, IMAPS, HTTP, HTTPS, DNS) with a live check that the service answers. You can close ports you do not use (IMAP on 143, SMTPS, DNS), block networks, and cap new mail connections per address per minute. Rules are applied by the `firewall` container with nftables, for Docker-published ports and host traffic alike, and the page shows whether they are in force. Ports the server cannot work without (25, 80, 443) stay open, and you cannot block the address you are using. SSH and the host firewall are not touched.
 
 ## First sign-in and setup

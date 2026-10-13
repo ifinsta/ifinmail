@@ -320,7 +320,7 @@ class VersioningTests(ApiBase):
         for path in ('/api/v1/mailboxes', '/api/v1/aliases', '/api/v1/domains', '/api/v1/status'):
             self.assertIn(path, spec['paths'])
 
-    def test_no_operation_is_reachable_anonymously(self) -> None:
+    def test_no_operation_is_reachable_anonymously_except_liveness(self) -> None:
         spec = self.client.get('/api/v1/openapi.json').json()
         checked = 0
         for path, operations in spec['paths'].items():
@@ -328,11 +328,14 @@ class VersioningTests(ApiBase):
                 url = path.replace('{address}', 'x@ifinmail.test').replace(
                     '{name}', 'ifinmail.test'
                 )
-                url = url.replace('{alias_id}', 'x')
+                url = url.replace('{alias_id}', 'x').replace('{fingerprint}', 'abc')
                 response = getattr(self.client, method)(url)
+                if path == '/api/v1/health':
+                    self.assertIn(response.status_code, (200, 503))
+                    continue
                 self.assertEqual(response.status_code, 401, f'{method.upper()} {url}')
                 checked += 1
-        self.assertGreaterEqual(checked, 12)
+        self.assertGreaterEqual(checked, 18)
 
 
 class ScopeTests(ApiBase):
@@ -616,3 +619,351 @@ class ConsolePageTests(MailTablesTestCase):
     def test_the_page_is_in_the_settings_hub(self) -> None:
         hub = self.client.get(reverse('accounts:settings')).content.decode()
         self.assertIn(reverse('accounts:api_keys'), hub)
+
+
+class HealthApiTests(ApiBase):
+    def test_liveness_is_anonymous_and_matches_the_probe(self) -> None:
+        versioned = self.client.get('/api/v1/health')
+        probe = self.client.get('/health/')
+        self.assertEqual(versioned.status_code, 200)
+        self.assertEqual(versioned.json(), {'status': 'ok', 'database': 'ok'})
+        self.assertEqual(probe.json(), versioned.json())
+        self.assertEqual(versioned['X-API-Version'], '1')
+
+    def test_the_detailed_reports_need_a_key_with_audit_view(self) -> None:
+        for path in ('/api/v1/health/full', '/api/v1/health/dns', '/api/v1/health/deliverability'):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 401)
+        narrow_row, narrow = TokenService.create(
+            self.owner, 'narrow', ['console.access'], expires_in_days=30
+        )
+        kw = {'key': key_id(narrow_row.prefix), 'secret': narrow.split('.', 2)[2]}
+        self.assertEqual(self.get('/api/v1/health/full', **kw).status_code, 403)
+
+    def test_full_report_is_typed(self) -> None:
+        body = self.get('/api/v1/health/full').json()
+        self.assertEqual(set(body), {'status', 'timestamp', 'checks', 'telemetry'})
+        self.assertIn('database', body['checks'])
+        self.assertEqual(set(body['telemetry']), {'open_critical_24h', 'total_24h', 'top'})
+
+    def test_dns_and_deliverability_reports_are_typed(self) -> None:
+        passing = {k: {'status': 'pass', 'detail': 'ok'} for k in ('mx', 'spf', 'dkim', 'dmarc')}
+        with patch(
+            'backend.apps.core.platform.services.monitoring.MonitoringService.check_dns',
+            return_value=passing,
+        ):
+            dns = self.get('/api/v1/health/dns').json()
+            status = self.get('/api/v1/dns/status?domain=ifinmail.test').json()
+        self.assertEqual(dns['status'], 'ok')
+        self.assertEqual(set(dns['domains']['ifinmail.test']), {'mx', 'spf', 'dkim', 'dmarc'})
+        self.assertEqual(status['domain'], 'ifinmail.test')
+        self.assertEqual(status['records']['mx'], {'status': 'pass', 'detail': 'ok'})
+        result = {
+            'timestamp': '2026-10-13T00:00:00+00:00',
+            'domain': 'ifinmail.test',
+            'server_ip': '203.0.113.5',
+            'mail_hostname': 'mail.ifinmail.test',
+            'status': 'warn',
+            'dns_propagation': {
+                'status': 'pass',
+                'detail': 'ok',
+                'fix': None,
+                'records': {
+                    'a': {'type': 'A', 'name': 'x', 'status': 'pass', 'detail': 'Resolves'}
+                },
+            },
+            'blacklists': {
+                'status': 'warn',
+                'detail': 'could not check',
+                'fix': 'later',
+                'listings': {'zen.example': {'listed': None, 'detail': 'refused'}},
+            },
+            'reverse_dns': {'status': 'fail', 'detail': 'No PTR', 'fix': 'ask your provider'},
+            'port25': {'status': 'pass', 'detail': 'open'},
+            'tls': {'status': 'pass', 'detail': 'valid'},
+        }
+        with patch(
+            'backend.apps.core.platform.services.deliverability.DeliverabilityService.run_all_checks',
+            return_value=result,
+        ):
+            body = self.get('/api/v1/health/deliverability?domain=ifinmail.test').json()
+        self.assertEqual(body['blacklists']['listings']['zen.example']['listed'], None)
+        self.assertEqual(body['reverse_dns']['fix'], 'ask your provider')
+        self.assertEqual(body['port25']['fix'], None)
+
+    def test_old_unversioned_health_paths_redirect_to_the_versioned_ones(self) -> None:
+        for old, new in (
+            ('/health/full/', '/api/v1/health/full'),
+            ('/health/dns/', '/api/v1/health/dns'),
+            (
+                '/health/deliverability/?domain=a.test',
+                '/api/v1/health/deliverability?domain=a.test',
+            ),
+        ):
+            with self.subTest(old=old):
+                response = self.client.get(old)
+                self.assertEqual(response.status_code, 308)
+                self.assertEqual(response['Location'], new)
+                self.assertEqual(response['Deprecation'], 'true')
+
+
+class TelemetryApiTests(ApiBase):
+    def test_reads_need_audit_view_and_are_typed(self) -> None:
+        from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+
+        TelemetryService.capture(ValueError('boom for the api test'))
+        errors = self.get('/api/v1/telemetry/errors?q=boom').json()
+        self.assertEqual(set(errors), {'results', 'page', 'num_pages', 'total'})
+        self.assertGreaterEqual(errors['total'], 1)
+        self.assertEqual(
+            set(errors['results'][0]),
+            {
+                'id',
+                'time',
+                'severity',
+                'action',
+                'detail',
+                'service',
+                'user',
+                'correlation_id',
+                'fingerprint',
+                'source',
+            },
+        )
+        self.assertEqual(
+            set(self.get('/api/v1/telemetry/stats').json()),
+            {'open_critical_24h', 'total_24h', 'top'},
+        )
+        self.assertIn('results', self.get('/api/v1/telemetry/fingerprints').json())
+        row, token = TokenService.create(self.owner, 'n', ['console.access'], expires_in_days=30)
+        kw = {'key': key_id(row.prefix), 'secret': token.split('.', 2)[2]}
+        self.assertEqual(self.get('/api/v1/telemetry/errors', **kw).status_code, 403)
+
+    def test_acknowledging_needs_a_write_scope_and_is_audited(self) -> None:
+        from backend.apps.core.telemetry.models import ErrorFingerprint
+        from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
+
+        TelemetryService.capture(ValueError('ack me'))
+        fingerprint = ErrorFingerprint.objects.order_by('-count').first()
+        assert fingerprint is not None
+        url = f'/api/v1/telemetry/fingerprints/{fingerprint.hash}/ack'
+        readonly_row, readonly = TokenService.create(
+            self.owner, 'ro', ['audit.view'], expires_in_days=30
+        )
+        kw = {'key': key_id(readonly_row.prefix), 'secret': readonly.split('.', 2)[2]}
+        self.assertEqual(self.post(url, {'status': 'ACKED'}, **kw).status_code, 403)
+        writer_row, writer = TokenService.create(
+            self.owner, 'rw', ['system.manage'], expires_in_days=30
+        )
+        w = {'key': key_id(writer_row.prefix), 'secret': writer.split('.', 2)[2]}
+        self.assertEqual(self.post(url, {'status': 'nonsense'}, **w).status_code, 422)
+        missing = self.post('/api/v1/telemetry/fingerprints/nope/ack', {'status': 'ACKED'}, **w)
+        self.assertEqual(missing.status_code, 404)
+        done = self.post(url, {'status': 'acked'}, **w)
+        self.assertEqual(done.status_code, 200, done.content)
+        self.assertEqual(done.json(), {'success': True})
+        self.assertTrue(AuditService.has('api_error_acknowledged'))
+
+    def test_old_unversioned_telemetry_paths_redirect(self) -> None:
+        for name in ('errors', 'stats', 'fingerprints'):
+            with self.subTest(name=name):
+                response = self.client.get(f'/telemetry/{name}/')
+                self.assertEqual(response.status_code, 308)
+                self.assertEqual(response['Location'], f'/api/v1/telemetry/{name}')
+
+
+class ContractTests(ApiBase):
+    """The contract is complete, typed, and says what the server enforces."""
+
+    def operations(self):
+        from backend.apps.accounts.api import api
+        from backend.apps.accounts.viewsets.contract import operations
+
+        return api, operations(api)
+
+    def test_every_operation_is_described_and_scoped(self) -> None:
+        _, ops = self.operations()
+        self.assertGreaterEqual(len(ops), 22)
+        for op in ops:
+            with self.subTest(op=f'{op.method} {op.path}'):
+                self.assertTrue(op.summary, 'every operation needs a summary')
+                if op.anonymous:
+                    self.assertEqual((op.method, op.path), ('GET', '/health'))
+                    continue
+                self.assertIsNotNone(op.scope, 'every keyed operation declares its scope')
+                for status in (401, 403, 429):
+                    self.assertIn(status, op.statuses)
+                self.assertTrue(any(s < 300 for s in op.statuses))
+
+    def test_the_document_states_the_scope_the_server_enforces(self) -> None:
+        spec = self.client.get('/api/v1/openapi.json').json()
+        _, ops = self.operations()
+        for op in ops:
+            if op.scope is None:
+                continue
+            with self.subTest(op=f'{op.method} {op.path}'):
+                document = spec['paths'][f'/api/v1{op.path}'][op.method.lower()]
+                self.assertEqual(document['x-required-scope'], op.scope)
+
+    def test_a_key_without_the_documented_scope_is_refused_everywhere(self) -> None:
+        row, token = TokenService.create(
+            self.owner, 'status-only', ['console.access'], expires_in_days=30
+        )
+        kw = {'key': key_id(row.prefix), 'secret': token.split('.', 2)[2]}
+        _, ops = self.operations()
+        # Valid bodies, so the answer is about the scope and not about the payload.
+        bodies = {
+            ('POST', '/mailboxes'): {'address': 'a@ifinmail.test'},
+            ('POST', '/aliases'): {'source': 'a@ifinmail.test', 'destination': 'b@ifinmail.test'},
+            ('POST', '/domains'): {'name': 'example.com'},
+            ('PATCH', '/mailboxes/{address}'): {'quota_bytes': 1},
+            ('POST', '/telemetry/fingerprints/{fingerprint}/ack'): {'status': 'ACKED'},
+        }
+        refused = 0
+        for op in ops:
+            if op.anonymous or op.scope == 'console.access':
+                continue
+            url = '/api/v1' + (
+                op.path.replace('{address}', 'a@ifinmail.test')
+                .replace('{name}', 'ifinmail.test')
+                .replace('{alias_id}', 'x')
+                .replace('{fingerprint}', 'abc')
+            )
+            body = bodies.get((op.method, op.path), {} if op.method in ('POST', 'PATCH') else None)
+            response = self.call(op.method.lower(), url, body=body, **kw)
+            with self.subTest(op=f'{op.method} {op.path}'):
+                self.assertEqual(response.status_code, 403, response.content)
+            refused += 1
+        self.assertGreaterEqual(refused, 18)
+
+    def test_handlers_are_fully_annotated(self) -> None:
+        import inspect
+
+        from backend.apps.accounts.api import api
+        from backend.apps.accounts.viewsets.auth import ApiRequest
+
+        checked = 0
+        for _prefix, router in api._routers:
+            for path, view in router.path_operations.items():
+                for operation in view.operations:
+                    function = operation.view_func
+                    signature = inspect.signature(function, follow_wrapped=True)
+                    with self.subTest(handler=f'{path} {function.__name__}'):
+                        self.assertIsNot(
+                            signature.return_annotation, inspect.Signature.empty, 'return type'
+                        )
+                        for name, parameter in signature.parameters.items():
+                            self.assertIsNot(
+                                parameter.annotation, inspect.Parameter.empty, f'parameter {name}'
+                            )
+                        first = next(iter(signature.parameters.values()))
+                        self.assertIs(first.annotation, ApiRequest)
+                    checked += 1
+        self.assertGreaterEqual(checked, 22)
+
+    def test_no_schema_is_untyped(self) -> None:
+        spec = self.client.get('/api/v1/openapi.json').json()
+
+        def typed(schema: dict) -> bool:
+            keys = ('type', '$ref', 'anyOf', 'oneOf', 'allOf', 'enum', 'const')
+            return any(k in schema for k in keys)
+
+        for name, schema in spec['components']['schemas'].items():
+            for field, definition in (schema.get('properties') or {}).items():
+                with self.subTest(schema=name, field=field):
+                    self.assertTrue(typed(definition), definition)
+        for url, item in spec['paths'].items():
+            for method, document in item.items():
+                for status, response in document['responses'].items():
+                    content = (response.get('content') or {}).get('application/json')
+                    if content is not None:
+                        with self.subTest(op=f'{method} {url} {status}'):
+                            self.assertTrue(typed(content['schema']), content)
+        ids = [d['operationId'] for item in spec['paths'].values() for d in item.values()]
+        self.assertEqual(len(ids), len(set(ids)), 'operation ids are unique')
+
+    def test_errors_share_one_documented_shape(self) -> None:
+        spec = self.client.get('/api/v1/openapi.json').json()
+        self.assertEqual(
+            spec['components']['schemas']['ErrorV1']['required'],
+            ['detail'],
+        )
+        document = spec['paths']['/api/v1/mailboxes']['post']['responses']
+        for status in ('401', '403', '409', '422', '429'):
+            self.assertEqual(
+                document[status]['content']['application/json']['schema']['$ref'],
+                '#/components/schemas/ErrorV1',
+            )
+
+
+class VersionedSurfaceTests(ApiBase):
+    """Every JSON endpoint is a v1 operation, or is listed with the reason it is not."""
+
+    def json_routes(self) -> list[tuple[str, str]]:
+        import inspect
+
+        from django.urls import get_resolver
+        from django.urls.resolvers import URLResolver
+
+        def walk(patterns, prefix=''):
+            for pattern in patterns:
+                route = prefix + str(pattern.pattern)
+                if isinstance(pattern, URLResolver):
+                    yield from walk(pattern.url_patterns, route)
+                else:
+                    yield route, pattern.callback
+
+        found = []
+        for route, callback in walk(get_resolver().url_patterns):
+            function = callback
+            while hasattr(function, '__wrapped__'):
+                function = function.__wrapped__
+            try:
+                source = inspect.getsource(function)
+            except (OSError, TypeError):
+                continue
+            if 'JsonResponse' in source:
+                found.append((route, f'{function.__module__}.{function.__name__}'))
+        return found
+
+    def test_every_json_endpoint_is_versioned_or_explained(self) -> None:
+        from backend.config.api_versions import (
+            CONSOLE,
+            CONSOLE_PREFIXES,
+            INFRASTRUCTURE,
+        )
+
+        routes = self.json_routes()
+        self.assertGreaterEqual(len(routes), 10, 'the scan itself must find the endpoints')
+        stray = []
+        for route, view in routes:
+            if route == 'api/':
+                continue  # the version index
+            if route in INFRASTRUCTURE or route in CONSOLE:
+                continue
+            if route.startswith(CONSOLE_PREFIXES):
+                continue
+            stray.append(f'{route} ({view})')
+        self.assertEqual(
+            stray, [], 'a JSON endpoint outside /api/vN must be listed in api_versions.py'
+        )
+
+    def test_the_registry_matches_the_mounted_versions(self) -> None:
+        from backend.config.api_versions import CURRENT, LEGACY_MACHINE_PATHS, VERSIONS
+
+        labels = [v.version for v in VERSIONS]
+        self.assertIn(CURRENT, labels)
+        index = self.client.get('/api/').json()
+        self.assertEqual([v['version'] for v in index['versions']], labels)
+        for v in VERSIONS:
+            with self.subTest(version=v.version):
+                self.assertTrue(v.api.version.startswith(v.version.removeprefix('v') + '.'))
+                spec = self.client.get(f'/api/{v.version}/openapi.json')
+                self.assertEqual(spec.status_code, 200)
+                self.assertEqual(spec.json()['info']['version'], v.api.version)
+        spec = self.client.get(f'/api/{CURRENT}/openapi.json').json()
+        for target in LEGACY_MACHINE_PATHS.values():
+            self.assertIn(f'/api/{CURRENT}/{target}', spec['paths'])
+
+    def test_unknown_route_is_not_swallowed_by_the_legacy_redirect(self) -> None:
+        self.assertEqual(self.client.get('/api/v9/status').status_code, 404)

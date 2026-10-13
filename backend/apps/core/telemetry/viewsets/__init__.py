@@ -1,84 +1,59 @@
-"""telemetry — viewsets: API operation handlers (API flow).
+"""telemetry — viewsets: operations over the error log, shaped into the v1 contract.
 
 Layer: api.py → viewsets/ → serializers/ → services/ → models/.
 """
 
 from __future__ import annotations
 
-import logging
-
-from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, JsonResponse
-from django.views.decorators.http import require_GET, require_POST
-
-from backend.apps.accounts.types.permissions import PermissionCode
-from backend.apps.accounts.views.auth import require_perm
-from backend.apps.core.telemetry.serializers import serialize_event, serialize_fingerprint
+from backend.apps.core.serializers.health import FingerprintV1, TelemetryStatsV1
+from backend.apps.core.telemetry.serializers import (
+    ErrorEventV1,
+    ErrorPageV1,
+    FingerprintListV1,
+)
 from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
 from backend.apps.core.telemetry.types import ErrorStatus
 
-logger = logging.getLogger('backend.telemetry')
-
-_PAGE_SIZE = 25
+PAGE_SIZE = 25
 
 
-@login_required
-@require_perm(PermissionCode.AUDIT_VIEW)
-@require_GET
-def telemetry_errors(request: HttpRequest) -> JsonResponse:
-    """GET: paginated error events (?severity=&source=&q=&page=)."""
-    result = TelemetryService.list_events(
-        severity=request.GET.get('severity', '').strip().upper(),
-        source=request.GET.get('source', '').strip().upper(),
-        query=request.GET.get('q', '').strip(),
-        page=int(request.GET.get('page', '1') or 1),
-        page_size=_PAGE_SIZE,
+def list_errors(*, severity: str, source: str, query: str, page: int) -> ErrorPageV1:
+    """One page of error events, newest first, filtered by severity, source and message text."""
+    found = TelemetryService.list_events(
+        severity=severity.strip().upper(),
+        source=source.strip().upper(),
+        query=query.strip(),
+        page=max(page, 1),
+        page_size=PAGE_SIZE,
     )
-    return JsonResponse(
-        {
-            'results': [serialize_event(e) for e in result['results']],
-            'page': result['page'],
-            'num_pages': result['num_pages'],
-            'total': result['total'],
-        }
+    return ErrorPageV1(
+        results=[ErrorEventV1(**event) for event in found['results']],
+        page=int(found['page']),
+        num_pages=int(found['num_pages']),
+        total=int(found['total']),
     )
 
 
-@login_required
-@require_perm(PermissionCode.AUDIT_VIEW)
-@require_GET
-def telemetry_stats(request: HttpRequest) -> JsonResponse:
-    """GET: aggregate stats for dashboards."""
-    return JsonResponse(TelemetryService.get_stats())
+def stats() -> TelemetryStatsV1:
+    """Open critical errors and totals of the last 24 hours, with the top fingerprints."""
+    return TelemetryStatsV1(**TelemetryService.get_stats())
 
 
-@login_required
-@require_perm(PermissionCode.AUDIT_VIEW)
-@require_GET
-def telemetry_fingerprints(request: HttpRequest) -> JsonResponse:
-    """GET: top fingerprints for grouping view."""
-    rows = TelemetryService.list_fingerprints(limit=25)
-    return JsonResponse({'results': [serialize_fingerprint(f) for f in rows]})
+def fingerprints() -> FingerprintListV1:
+    """The most frequent error fingerprints."""
+    rows = TelemetryService.list_fingerprints(limit=PAGE_SIZE)
+    return FingerprintListV1(results=[FingerprintV1(**row) for row in rows])
 
 
-@login_required
-@require_perm(PermissionCode.AUDIT_VIEW)
-@require_POST
-def telemetry_ack(request: HttpRequest) -> JsonResponse:
-    """POST: {fingerprint, status} → ACKED/RESOLVED/MUTED."""
-    fingerprint_hash = request.POST.get('fingerprint', '').strip()
-    status = request.POST.get('status', ErrorStatus.ACKED.value).strip().upper()
-    if not fingerprint_hash or status not in {s.value for s in ErrorStatus}:
-        return JsonResponse(
-            {'success': False, 'message': 'Invalid fingerprint or status'}, status=400
-        )
-    ok = TelemetryService.ack_fingerprint(fingerprint_hash, status)
-    return JsonResponse({'success': ok}, status=200 if ok else 404)
+def valid_status(value: str) -> str | None:
+    """The canonical status word, or None when it is not one of ACKED/RESOLVED/MUTED/..."""
+    wanted = value.strip().upper()
+    return wanted if wanted in {s.value for s in ErrorStatus} else None
 
 
-__all__ = [
-    'telemetry_ack',
-    'telemetry_errors',
-    'telemetry_fingerprints',
-    'telemetry_stats',
-]
+def acknowledge(fingerprint_hash: str, status: str) -> bool:
+    """Set a fingerprint's status. False when the fingerprint does not exist."""
+    return bool(TelemetryService.ack_fingerprint(fingerprint_hash, status))
+
+
+__all__ = ['acknowledge', 'fingerprints', 'list_errors', 'stats', 'valid_status']

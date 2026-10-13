@@ -204,10 +204,17 @@ speaks: `/api/`).
 
 | Scope | Endpoints |
 | --- | --- |
+| none | `GET /health` (liveness for monitors; the only operation without a key) |
 | `console.access` | `GET /status` |
-| `audit.view` | `GET /metrics` (Prometheus text) |
+| `audit.view` | `GET /metrics` (Prometheus text), `GET /health/full`, `GET /health/dns`, `GET /health/deliverability`, `GET /telemetry/errors`, `GET /telemetry/stats`, `GET /telemetry/fingerprints` |
+| `system.manage` | `POST /telemetry/fingerprints/{fingerprint}/ack` |
 | `mail.manage` | `GET/POST /mailboxes`, `GET/PATCH/DELETE /mailboxes/{address}`, `GET/POST /aliases`, `DELETE /aliases/{id}` |
-| `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify` |
+| `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify`, `GET /dns/status` |
+
+The table is generated from the running server: `GET /api/v1/openapi.json` states each
+operation's `x-required-scope`, and the Settings assistant reads the same contract, so it can tell
+you what a key may do and which keys look unsafe. Ask it "how can a program create mailboxes?" or
+"are my API keys set up safely?".
 
 - **Safe by construction.** A key never exceeds the permissions of the person who created it, and
   keeps being narrowed by them. Mailboxes whose login has console access cannot be changed through
@@ -223,7 +230,16 @@ speaks: `/api/`).
   failed attempts are recorded once per address and reason.
 - **Versions.** Within `v1` only additions are made. A breaking change is `/api/v2/`, mounted next
   to `v1`, which keeps answering until its retirement is announced in the changelog. The older
-  unversioned `/api/<path>` answers `308` to `/api/v1/<path>`.
+  unversioned `/api/<path>` answers `308` to `/api/v1/<path>`, and so do the machine endpoints that
+  used to live outside `/api/` (`/health/full/`, `/health/dns/`, `/health/deliverability/` and
+  `/telemetry/*`). Those detailed health reports now need a key with `audit.view`: they run live
+  lookups and name your domains, which an anonymous caller should not trigger.
+- **One rule for every endpoint.** Every JSON endpoint is either a `/api/vN/` operation or listed in
+  `backend/config/api_versions.py` with the reason it is not (probes and formats other parties
+  define, and the console's own page calls). A test fails when a new one is in neither place.
+- **Type safe.** Every request and response is a typed schema, every handler is annotated, errors
+  share one `{"detail": "..."}` shape, and `make typecheck` (strict mypy, also in CI) covers the API
+  layer.
 
 ## Outbound relay settings
 

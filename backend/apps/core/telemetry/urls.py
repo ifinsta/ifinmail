@@ -1,12 +1,10 @@
-from django.urls import path
+"""telemetry — urls.py: nothing is served here any more.
 
-from .api import telemetry_ack, telemetry_errors, telemetry_fingerprints, telemetry_stats
+The error log is part of the versioned API (``/api/v1/telemetry/...``, see ``api.py``). The old
+unversioned ``/telemetry/<name>/`` paths are redirected by ``backend/config/api_versions.py``.
+"""
+
+from django.urls import URLPattern
 
 app_name = 'telemetry'
-
-urlpatterns = [
-    path('errors/', telemetry_errors, name='errors'),
-    path('stats/', telemetry_stats, name='stats'),
-    path('fingerprints/', telemetry_fingerprints, name='fingerprints'),
-    path('ack/', telemetry_ack, name='ack'),
-]
+urlpatterns: list[URLPattern] = []

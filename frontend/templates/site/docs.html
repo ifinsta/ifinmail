@@ -87,6 +87,8 @@ curl -u ifm_KEY:ifs_SECRET -X POST https://mail.your-domain/api/v1/mailboxes \
             <li>{% trans 'Within version 1 only additions are made. A breaking change is a new version beside it.' %}</li>
             <li>{% trans 'Lists are paged with limit and offset. Errors are JSON with a detail message. A key has a calls-per-minute limit and answers 429 with Retry-After when it is exceeded.' %}</li>
             <li>{% trans 'Logins with console access cannot be changed through the API, and domains cannot be removed through it.' %}</li>
+            <li>{% trans 'GET /api/v1/health needs no key and is safe to poll from a monitor. The detailed health, DNS, deliverability and error-log reports need a key with the audit.view scope.' %}</li>
+            <li>{% trans 'The assistant knows the API and your keys: ask it how to connect a program, or whether your keys are set up safely.' %}</li>
             <li>{% trans 'Rotate a key with an overlap so the integration can switch secrets without an outage. Every change is in the audit trail under the key’s name.' %}</li>
         </ul>
 

@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.0.22
+- **Every API is versioned.** The health reports and the error log that lived outside `/api/` are
+  now `/api/v1` operations (`GET /health`, `/health/full`, `/health/dns`, `/health/deliverability`,
+  `/telemetry/errors`, `/telemetry/stats`, `/telemetry/fingerprints`, and acknowledging a
+  fingerprint), plus `GET /dns/status`. The old `/health/full/`, `/health/dns/`,
+  `/health/deliverability/` and `/telemetry/*` paths answer `308` to the versioned ones. `/health/`
+  stays as the infrastructure probe (Docker, nginx and the updater use it).
+- **Security fix on the way:** the detailed health reports were open to anyone who could reach the
+  server. They ran live DNS, blocklist and port checks on every call and returned internal error
+  text and your domain names. They now need a key with `audit.view`; only liveness is anonymous.
+- **A rule that cannot rot.** Every JSON endpoint is a v1 operation or is listed in
+  `backend/config/api_versions.py` with the reason it is not (browser or mail-client formats, probes,
+  and the console's own page calls). A test scans the URL configuration and fails on a new one.
+- **Type safe.** Every request and response of the API is a typed schema (the contract has no
+  untyped field), every handler and the authentication layer are annotated, all errors are one
+  documented `{"detail"}` shape, each operation states `x-required-scope` in the OpenAPI document
+  (read from the code that enforces it), and strict **mypy** covers the API layer (`make
+  typecheck`, and a CI step). It found and fixed three real problems while being introduced.
+- **The assistant knows your API integrations.** Two new read tools: *API overview* (versions,
+  authentication, every operation with its scope, rules; read from the live contract so it cannot
+  describe an endpoint that does not exist) and *API keys* (which keys exist, owner, scopes, expiry,
+  last use, and what looks wrong: expired, unused, too broad, owner no longer holds a scope; plus
+  failed authentications and changes made with keys). Secrets never reach it, and `ifs_` / `ifm.`
+  values are masked if they appear anywhere. Two suggestions on the start page: *How can a program
+  manage mailboxes through the API?* and *Are my API keys set up safely?*
+- Found while moving them: the old error-log endpoint returned blank fields for every event (it
+  serialised dictionaries with `getattr`). The v1 version is typed and tested.
+
 ## v0.0.21
 - **The Assistant is now a chat workspace.** Conversations are listed on the left, grouped
   (Today, Yesterday, Previous 7 days, Older), each with its own delete; **New chat** is one

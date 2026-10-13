@@ -32,6 +32,11 @@ SUGGESTIONS = (
     ('Why might my mail land in spam?', 'Check PTR, SPF, DKIM, DMARC and blocklists.'),
     ('Is my DNS and certificate set up correctly?', 'Domains, delegation, DNSSEC and TLS.'),
     ('Which plugins should I turn on?', 'Review what is installed and draft sensible settings.'),
+    (
+        'How can a program manage mailboxes through the API?',
+        'Authentication, scopes and endpoints.',
+    ),
+    ('Are my API keys set up safely?', 'Expiry, scope, networks and failed attempts.'),
 )
 
 

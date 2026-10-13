@@ -144,9 +144,12 @@ class TokenService:
     @staticmethod
     def get(token_id: str) -> APIToken | None:
         try:
-            return APIToken.objects.select_related('user').filter(pk=token_id).first()
+            row: APIToken | None = (
+                APIToken.objects.select_related('user').filter(pk=token_id).first()
+            )
         except (ValueError, TypeError):  # not a UUID
             return None
+        return row
 
     @staticmethod
     @transaction.atomic
@@ -277,4 +280,4 @@ class TokenService:
     def revoke(user: MailUser, token_id: str) -> bool:
         """Delete one of ``user``'s tokens. Use counts as the audit trail."""
         deleted, _ = APIToken.objects.filter(user=user, pk=token_id).delete()
-        return deleted > 0
+        return bool(deleted > 0)

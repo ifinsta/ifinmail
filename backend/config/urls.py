@@ -15,7 +15,6 @@ from django.views.decorators.csrf import csrf_exempt
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
 from backend.config import api_versions, public_pages
 from backend.config.branding import DEFAULT_BRAND_NAME
-from backend.config.env import primary_domain
 
 logger = logging.getLogger('backend')
 
@@ -62,70 +61,15 @@ def csp_report(request: HttpRequest) -> JsonResponse:
 
 
 def health_check(request: HttpRequest) -> JsonResponse:
-    """Health check endpoint for load balancers and monitoring."""
-    from django.db import connections
-    from django.db.utils import OperationalError
+    """Liveness probe for Docker, nginx and the updater (same body as ``GET /api/v1/health``)."""
+    from backend.apps.core.viewsets.health import liveness
 
-    status = {'status': 'ok', 'database': 'ok'}
-    try:
-        with connections['default'].cursor() as cursor:
-            cursor.execute('SELECT 1')
-    except OperationalError:
-        status['database'] = 'unreachable'
-        status['status'] = 'degraded'
-
-    http_status = 200 if status['status'] == 'ok' else 503
-    return JsonResponse(status, status=http_status, content_type='application/json; charset=utf-8')
-
-
-def health_full(request: HttpRequest) -> JsonResponse:
-    """Full system health check — database, redis, TLS, disk + telemetry."""
-    from backend.apps.core.platform.services.monitoring import MonitoringService
-
-    health = MonitoringService.get_full_health()
-    try:
-        from backend.apps.core.telemetry.services.telemetry_service import TelemetryService
-
-        health['telemetry'] = TelemetryService.get_stats()
-    except Exception:
-        health['telemetry'] = {'open_critical_24h': 0, 'total_24h': 0, 'top': []}
-    http_status = 200 if health['status'] == 'ok' else (503 if health['status'] == 'err' else 200)
-    return JsonResponse(health, status=http_status, content_type='application/json; charset=utf-8')
-
-
-def health_dns(request: HttpRequest) -> JsonResponse:
-    """DNS health check for configured domains."""
-    from backend.apps.core.platform.services.monitoring import MonitoringService
-    from backend.apps.domains.services import DomainService
-
-    domains_data = {}
-    try:
-        for domain in DomainService.get_all_domains():
-            domains_data[domain.name] = MonitoringService.check_dns(domain.name)
-    except Exception:
-        fallback = primary_domain()
-        domains_data[fallback] = MonitoringService.check_dns(fallback)
-
-    all_pass = all(
-        all(r['status'] == 'pass' for r in records.values()) for records in domains_data.values()
-    )
+    body, healthy = liveness()
     return JsonResponse(
-        {
-            'status': 'ok' if all_pass else 'warn',
-            'domains': domains_data,
-        },
+        body.model_dump(),
+        status=200 if healthy else 503,
         content_type='application/json; charset=utf-8',
     )
-
-
-def health_deliverability(request: HttpRequest) -> JsonResponse:
-    """Deliverability check — DNS propagation, blacklists, rDNS, port 25, TLS."""
-    domain = request.GET.get('domain', '')
-    from backend.apps.core.platform.services.deliverability import DeliverabilityService
-
-    result = DeliverabilityService.run_all_checks(domain=domain or None)
-    http_status = 200 if result.get('status') != 'fail' else 503
-    return JsonResponse(result, status=http_status, content_type='application/json; charset=utf-8')
 
 
 def legacy_accounts_redirect(request: HttpRequest, path: str = '') -> HttpResponse:
@@ -194,12 +138,8 @@ urlpatterns = [
     path('manifest.webmanifest', manifest, name='manifest'),
     path('csp-report/', csp_report, name='csp-report'),
     path('health/', health_check, name='health-check'),
-    path('health/full/', health_full, name='health-full'),
-    path('health/dns/', health_dns, name='health-dns'),
-    path('health/deliverability/', health_deliverability, name='health-deliverability'),
     path('accounts/', include('backend.apps.accounts.urls')),
     *api_versions.urlpatterns,
-    path('telemetry/', include('backend.apps.core.telemetry.urls')),
     path('admin/', legacy_accounts_redirect),
     path('admin/<path:path>', legacy_accounts_redirect),
     path('manage-panel/', admin.site.urls),

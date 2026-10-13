@@ -44,6 +44,9 @@ jobs:
         # Fails the build on any known CVE in the locked production set.
         run: python -m pip_audit -r requirements/prod.lock --disable-pip
 
+      - name: Type check (API layer, strict — configuration in pyproject.toml)
+        run: mypy
+
       - name: Lint (blocking — see docs/enterprise-slo.md)
         run: |
           ruff check backend/

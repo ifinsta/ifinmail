@@ -14,7 +14,10 @@ reason goes to the audit trail, never to the caller.
 from __future__ import annotations
 
 import functools
+from collections.abc import Callable
+from typing import Concatenate, ParamSpec, TypeVar, cast
 
+from django.http import HttpRequest
 from ninja.errors import HttpError
 from ninja.security import HttpBasicAuth, HttpBearer
 
@@ -28,8 +31,20 @@ from backend.apps.accounts.services.tokens import (
     split_token,
 )
 
+P = ParamSpec('P')
+R = TypeVar('R')
 
-def _admit(request, prefix: str, secret: str) -> VerifiedToken | None:
+SCOPE_ATTR = 'required_scope'
+
+
+class ApiRequest(HttpRequest):
+    """The request of an authenticated API call: what Ninja and our middleware attach to it."""
+
+    auth: VerifiedToken
+    api_rate: api_access.RateState
+
+
+def _admit(request: HttpRequest, prefix: str, secret: str) -> VerifiedToken | None:
     """Check the credential, then spend one call from the key's rate budget."""
     address = api_access.client_address(request)
     verified, reason = TokenService.check(prefix, secret, address)
@@ -44,7 +59,7 @@ def _admit(request, prefix: str, secret: str) -> VerifiedToken | None:
 
 
 class TokenBearer(HttpBearer):
-    def authenticate(self, request, token: str) -> VerifiedToken | None:
+    def authenticate(self, request: HttpRequest, token: str) -> VerifiedToken | None:
         split = split_token(token)
         if split is None:
             return None
@@ -52,28 +67,38 @@ class TokenBearer(HttpBearer):
 
 
 class KeyBasic(HttpBasicAuth):
-    def authenticate(self, request, username: str, password: str) -> VerifiedToken | None:
+    def authenticate(
+        self, request: HttpRequest, username: str, password: str
+    ) -> VerifiedToken | None:
         prefix = parse_key(username)
         if prefix is None or not password:
             return None
         return _admit(request, prefix, password)
 
 
-def actor(request) -> str:
+def actor(request: ApiRequest) -> str:
     """Who an audit entry should name for a call made with a key."""
-    auth: VerifiedToken | None = getattr(request, 'auth', None)
+    auth = getattr(request, 'auth', None)
     if auth is None:
         return 'api'
     return f'api:{key_id(auth.row.prefix)} ({auth.user.email})'
 
 
-def require_scope(code: str):
-    """Endpoint decorator: token must carry ``code`` and the owner must hold it."""
+def require_scope(
+    code: str,
+) -> Callable[[Callable[Concatenate[ApiRequest, P], R]], Callable[Concatenate[ApiRequest, P], R]]:
+    """Endpoint decorator: the key must carry ``code`` and its owner must still hold it.
 
-    def decorator(view_func):
+    The scope is also recorded on the function (see ``scope_of``) so the OpenAPI contract and the
+    assistant can state it without a second list that could drift.
+    """
+
+    def decorator(
+        view_func: Callable[Concatenate[ApiRequest, P], R],
+    ) -> Callable[Concatenate[ApiRequest, P], R]:
         @functools.wraps(view_func)
-        def wrapper(request, *args: object, **kwargs: object):
-            auth: VerifiedToken | None = request.auth
+        def wrapper(request: ApiRequest, *args: P.args, **kwargs: P.kwargs) -> R:
+            auth = getattr(request, 'auth', None)
             if auth is None:
                 raise HttpError(401, 'A valid API key is required.')
             if code not in (auth.row.scopes or []):
@@ -82,9 +107,21 @@ def require_scope(code: str):
                 raise HttpError(403, f'This login no longer holds {code}.')
             return view_func(request, *args, **kwargs)
 
-        return wrapper
+        setattr(wrapper, SCOPE_ATTR, code)
+        return cast(Callable[Concatenate[ApiRequest, P], R], wrapper)
 
     return decorator
 
 
-__all__ = ['KeyBasic', 'TokenBearer', 'actor', 'require_scope']
+def scope_of(view_func: Callable[..., object]) -> str | None:
+    """The scope ``require_scope`` attached, looking through pagination and other wrappers."""
+    seen: object | None = view_func
+    while seen is not None:
+        scope = getattr(seen, SCOPE_ATTR, None)
+        if isinstance(scope, str):
+            return scope
+        seen = getattr(seen, '__wrapped__', None)
+    return None
+
+
+__all__ = ['ApiRequest', 'KeyBasic', 'TokenBearer', 'actor', 'require_scope', 'scope_of']

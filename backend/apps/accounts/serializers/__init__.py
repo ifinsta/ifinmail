@@ -24,4 +24,25 @@ class StatusOut(Schema):
     mailboxes: int
 
 
-__all__ = ['DomainOut', 'StatusOut']
+# -- API-wide contract types --------------------------------------------------------------------
+
+
+class ErrorV1(Schema):
+    """Every error answer of the API: a message safe to show, nothing else."""
+
+    detail: str
+
+
+class ApiVersionV1(Schema):
+    version: str
+    status: str
+    url: str
+    openapi: str
+
+
+class ApiIndexV1(Schema):
+    current: str
+    versions: list[ApiVersionV1]
+
+
+__all__ = ['ApiIndexV1', 'ApiVersionV1', 'DomainOut', 'ErrorV1', 'StatusOut']

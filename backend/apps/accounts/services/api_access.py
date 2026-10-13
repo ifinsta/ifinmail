@@ -29,12 +29,12 @@ _FAILURE_QUIET = 600
 
 
 def client_address(request: HttpRequest) -> str:
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    forwarded = str(request.META.get('HTTP_X_FORWARDED_FOR', ''))
     if forwarded:
         last = forwarded.split(',')[-1].strip()
         if last:
             return last
-    return request.META.get('REMOTE_ADDR', '')
+    return str(request.META.get('REMOTE_ADDR', ''))
 
 
 def default_limit() -> int:

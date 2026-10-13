@@ -22,6 +22,8 @@ _SECRET_VALUE_RES = (
     re.compile(r'\bsk-[A-Za-z0-9_\-]{16,}'),  # OpenAI-style keys
     re.compile(r'\b(?:xox[abp]|ghp|gho|glpat)-?[A-Za-z0-9_\-]{16,}'),
     re.compile(r'(?i)\bbearer\s+[A-Za-z0-9._\-]{16,}'),
+    re.compile(r'\bifs_[A-Za-z0-9_\-]{16,}'),  # an ifinmail API secret
+    re.compile(r'\bifm\.[A-Za-z0-9]{6,}\.[A-Za-z0-9_\-]{16,}'),  # an ifinmail Bearer token
     re.compile(r'(?i)(password|passwd|pwd)\s*[=:]\s*\S+'),
 )
 

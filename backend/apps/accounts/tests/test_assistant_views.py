@@ -23,7 +23,9 @@ from backend.apps.core.tests.mail_base import MailTablesTestCase
 GOOD = 'Correct-Horse-9'
 
 
-class AssistantPageTests(MailTablesTestCase):
+class AssistantBase(MailTablesTestCase):
+    """A signed-in owner, a scripted model server and the assistant plugin on demand."""
+
     def setUp(self) -> None:
         super().setUp()
         SetupState.mark_complete()
@@ -59,6 +61,8 @@ class AssistantPageTests(MailTablesTestCase):
             self.admin.email,
         )
 
+
+class AssistantPageTests(AssistantBase):
     def test_only_managers_can_use_it(self) -> None:
         self.login('support@ifinmail.test', role='support')
         self.assertEqual(self.client.get(reverse('accounts:assistant')).status_code, 403)
@@ -263,7 +267,7 @@ class AssistantPageTests(MailTablesTestCase):
         # Greeting, composer and suggestions share one empty-state container.
         self.assertIn('ifinmail-assistant-chat--empty', empty)
         self.assertIn('data-assistant-composer', empty)
-        self.assertEqual(empty.count('data-assistant-ask'), 1 + 4)  # composer + 4 suggestions
+        self.assertEqual(empty.count('data-assistant-ask'), 1 + 6)  # composer + 6 suggestions
         self.assertIn('data-assistant-scroll', empty)
         self.assertNotIn('ifinmail-assistant-chat--empty', self._with_conversation())
 
@@ -311,3 +315,120 @@ class AssistantPageTests(MailTablesTestCase):
         self.assertLess(page.index('today one'), page.index('yesterday one'))
         self.assertLess(page.index('last week'), page.index('ancient'))
         self.assertNotIn('>Previous 30 days<', page)  # empty groups are not shown
+
+
+class AssistantApiKnowledgeTests(AssistantBase):
+    """The assistant knows the API integrations: what exists, what is set up, what is unsafe."""
+
+    def run_tool(self, name: str, **arguments: object) -> dict:
+        from backend.apps.core.assistant.services import tools
+
+        tool = tools.get(name)
+        assert tool is not None, f'{name} is not registered'
+        self.assertIsNone(tool.check_arguments(dict(arguments)))
+        return tool.handler(dict(arguments), tools.ToolContext(user=self.admin.email))
+
+    def make_key(self, name: str, scopes: list[str], **kwargs: object):
+        from backend.apps.accounts.services.tokens import TokenService
+
+        return TokenService.create(self.admin, name, scopes, expires_in_days=30, **kwargs)
+
+    def test_both_tools_are_read_tier_and_the_prompt_points_at_them(self) -> None:
+        from backend.apps.core.assistant.services import agent, tools
+        from backend.apps.core.assistant.types import ToolTier
+
+        for name in ('api_overview', 'api_keys'):
+            tool = tools.get(name)
+            assert tool is not None
+            self.assertEqual(tool.tier, ToolTier.READ)
+            self.assertIn(name, agent.SYSTEM_PROMPT)
+
+    def test_overview_is_the_live_contract_not_a_copy(self) -> None:
+        from backend.apps.accounts.api import api
+        from backend.apps.accounts.viewsets.contract import operations
+
+        overview = self.run_tool('api_overview')
+        live = operations(api)
+        self.assertEqual(len(overview['operations']), len(live))
+        listed = {(o['method'], o['path']): o for o in overview['operations']}
+        self.assertEqual(listed[('GET', '/api/v1/mailboxes')]['needs_scope'], 'mail.manage')
+        self.assertEqual(listed[('GET', '/api/v1/health')]['needs_scope'], 'none (anonymous)')
+        self.assertIn('dns.manage', overview['scopes_in_use'])
+        self.assertEqual(overview['base_path'], '/api/v1/')
+        self.assertIn('/api/<path>', overview['old_paths_that_redirect'])
+        self.assertIn('Settings > API keys', overview['authentication']['create_a_key'])
+
+    def test_overview_can_be_narrowed(self) -> None:
+        narrowed = self.run_tool('api_overview', area='aliases')
+        self.assertTrue(narrowed['operations'])
+        self.assertTrue(all('aliases' in o['path'] for o in narrowed['operations']))
+
+    def test_keys_report_findings_and_never_a_secret(self) -> None:
+        from datetime import timedelta
+
+        from backend.apps.accounts.models import APIToken
+
+        broad, broad_token = self.make_key('Billing', ['mail.manage'])
+        locked, _ = self.make_key('Monitor', ['audit.view'], allowed_networks=['203.0.113.0/24'])
+        old, _ = self.make_key('Forgotten', ['console.access'])
+        APIToken.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=60))
+        APIToken.objects.filter(pk=locked.pk).update(expires_at=timezone.now() + timedelta(days=3))
+        report = self.run_tool('api_keys')
+        text = str(report)
+        self.assertEqual(report['count'], 3)
+        by_name = {k['name']: k for k in report['keys']}
+        self.assertIn('works from any address', ' '.join(by_name['Billing']['notes']))
+        self.assertNotIn('works from any address', ' '.join(by_name['Monitor']['notes']))
+        self.assertIn('expires in', ' '.join(by_name['Monitor']['notes']))
+        self.assertIn('never used', ' '.join(by_name['Forgotten']['notes']))
+        self.assertIn(f'ifm_{broad.prefix}', text)
+        self.assertNotIn(broad_token.split('.', 2)[2], text)
+        self.assertNotIn(broad.token_hash, text)
+        self.assertEqual(by_name['Monitor']['only_from_networks'], ['203.0.113.0/24'])
+
+    def test_keys_report_failed_sign_ins_and_changes_made_with_keys(self) -> None:
+        AuditService.record(
+            action='api_auth_failed',
+            user='api:ifm_abcdefghijkl',
+            detail='bad_secret from 198.51.100.7',
+            severity='warning',
+        )
+        AuditService.record(
+            action='api_mailbox_created', user='api:ifm_abcdefghijkl (a@b.test)', detail='x@b.test'
+        )
+        report = self.run_tool('api_keys')
+        self.assertEqual(report['failed_sign_ins_last_24h'], 1)
+        self.assertIn('bad_secret', report['recent_failures'][0]['why'])
+        self.assertEqual(
+            report['recent_changes_made_with_keys'][0]['action'], 'api_mailbox_created'
+        )
+
+    def test_redaction_masks_api_secrets_wherever_they_appear(self) -> None:
+        from backend.apps.core.assistant.services.redaction import redact
+
+        secret = 'ifs_' + 'A1b2C3d4' * 5
+        bearer = 'ifm.abcdefghijkl.' + secret
+        text = redact({'note': f'use {secret} or {bearer}', 'fine': 'ifm_abcdefghijkl'})
+        self.assertNotIn(secret, text)
+        self.assertNotIn('abcdefghijkl.ifs_', text)
+        self.assertIn('ifm_abcdefghijkl', text)  # the key id is public and stays
+
+    def test_an_api_question_is_answered_through_the_tools_end_to_end(self) -> None:
+        self.connect()
+        _, token = self.make_key('Billing', ['mail.manage'])
+        self.fake.push(tool_call('api_overview', {'area': 'mailboxes'}))
+        self.fake.push(tool_call('api_keys', {}, 'call_2'))
+        self.fake.push(answer('Use `POST /api/v1/mailboxes` with the `mail.manage` scope.'))
+        response = self.client.post(
+            reverse('accounts:assistant_ask'),
+            {'question': 'How can a program create mailboxes?'},
+            follow=True,
+        )
+        self.assertContains(response, 'Checked 2 things')
+        self.assertContains(response, 'api_overview')
+        self.assertContains(response, 'api_keys')
+        sent = self.fake.sent_text()
+        self.assertIn('/api/v1/mailboxes', sent)
+        self.assertIn('Billing', sent)
+        self.assertNotIn(token.split('.', 2)[2], sent)
+        self.assertNotIn(token, sent)

@@ -8,10 +8,11 @@ stay for in-process callers and tests.
 from ninja import Router, Status
 from ninja.pagination import LimitOffsetPagination, paginate
 
-from backend.apps.accounts.viewsets.auth import actor, require_scope
-from backend.apps.accounts.viewsets.errors import problem
+from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
+from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    AliasCreateIn,
     AliasCreateV1,
     AliasV1,
     MailboxCreateIn,
@@ -49,19 +50,20 @@ def _address(raw: str) -> str:
     return raw.strip().lower()
 
 
-@router.get('/mailboxes', response=list[MailboxV1], summary='List mailboxes')
+@router.get('/mailboxes', response={200: list[MailboxV1], **errors()}, summary='List mailboxes')
 @paginate(LimitOffsetPagination)
 @require_scope('mail.manage')
-def api_list_mailboxes(request, domain: str | None = None):
+def api_list_mailboxes(request: ApiRequest, domain: str | None = None) -> list[MailboxV1]:
     """Mailboxes, ordered by domain then name. Filter with ``?domain=example.com``."""
     wanted = _address(domain) if domain else None
-    rows = ops.list_mailboxes()
-    return [MailboxV1.of(r) for r in rows if wanted is None or r.domain == wanted]
+    return [MailboxV1.of(r) for r in ops.list_mailboxes() if wanted is None or r.domain == wanted]
 
 
-@router.post('/mailboxes', response={201: MailboxV1}, summary='Create a mailbox')
+@router.post(
+    '/mailboxes', response={201: MailboxV1, **errors(409, 422)}, summary='Create a mailbox'
+)
 @require_scope('mail.manage')
-def api_create_mailbox(request, payload: MailboxCreateV1):
+def api_create_mailbox(request: ApiRequest, payload: MailboxCreateV1) -> Status[MailboxV1]:
     """Create a mailbox and its login together. Without a password the login is *invited*:
     it cannot sign in until its owner sets one through the setup link."""
     try:
@@ -83,18 +85,24 @@ def api_create_mailbox(request, payload: MailboxCreateV1):
     return Status(201, MailboxV1.of(created))
 
 
-@router.get('/mailboxes/{address}', response=MailboxV1, summary='Get a mailbox')
+@router.get(
+    '/mailboxes/{address}', response={200: MailboxV1, **errors(404)}, summary='Get a mailbox'
+)
 @require_scope('mail.manage')
-def api_get_mailbox(request, address: str):
+def api_get_mailbox(request: ApiRequest, address: str) -> MailboxV1:
     row = ops.get_mailbox(_address(address))
     if row is None:
         raise problem(MailboxError(f'{_address(address)} does not exist.'))
     return MailboxV1.of(row)
 
 
-@router.patch('/mailboxes/{address}', response=MailboxV1, summary='Change a mailbox')
+@router.patch(
+    '/mailboxes/{address}',
+    response={200: MailboxV1, **errors(404, 422)},
+    summary='Change a mailbox',
+)
 @require_scope('mail.manage')
-def api_update_mailbox(request, address: str, payload: MailboxUpdateV1):
+def api_update_mailbox(request: ApiRequest, address: str, payload: MailboxUpdateV1) -> MailboxV1:
     """Change the quota, disable or enable it, or set a new password. Send only what changes."""
     target = _address(address)
     changed = payload.model_dump(exclude_unset=True)
@@ -113,13 +121,16 @@ def api_update_mailbox(request, address: str, payload: MailboxUpdateV1):
     AuditService.record(
         action='api_mailbox_updated', user=actor(request), detail=f'{target} {fields}'
     )
-    assert row is not None
+    if row is None:  # removed between the change and the read
+        raise problem(MailboxError(f'{target} does not exist.'))
     return MailboxV1.of(row)
 
 
-@router.delete('/mailboxes/{address}', response={204: None}, summary='Delete a mailbox')
+@router.delete(
+    '/mailboxes/{address}', response={204: None, **errors(404)}, summary='Delete a mailbox'
+)
 @require_scope('mail.manage')
-def api_delete_mailbox(request, address: str):
+def api_delete_mailbox(request: ApiRequest, address: str) -> Status[None]:
     """Remove the mailbox, its login and the aliases that start at it. Stored mail stays on disk
     until the server's operator removes it."""
     target = _address(address)
@@ -132,19 +143,19 @@ def api_delete_mailbox(request, address: str):
     return Status(204, None)
 
 
-@router.get('/aliases', response=list[AliasV1], summary='List aliases')
+@router.get('/aliases', response={200: list[AliasV1], **errors()}, summary='List aliases')
 @paginate(LimitOffsetPagination)
 @require_scope('mail.manage')
-def api_list_aliases(request, domain: str | None = None):
+def api_list_aliases(request: ApiRequest, domain: str | None = None) -> list[AliasV1]:
+    """Aliases, ordered by domain then source. Filter with ``?domain=example.com``."""
     wanted = _address(domain) if domain else None
     return [AliasV1.of(a) for a in ops.list_aliases() if wanted is None or a.domain == wanted]
 
 
-@router.post('/aliases', response={201: AliasV1}, summary='Create an alias')
+@router.post('/aliases', response={201: AliasV1, **errors(409, 422)}, summary='Create an alias')
 @require_scope('mail.manage')
-def api_create_alias(request, payload: AliasCreateV1):
-    from backend.apps.mail.serializers import AliasCreateIn
-
+def api_create_alias(request: ApiRequest, payload: AliasCreateV1) -> Status[AliasV1]:
+    """Forward ``source`` to ``destination``. Loops and clashes with mailboxes are refused."""
     try:
         created = ops.create_alias(
             AliasCreateIn(source=_address(payload.source), destination=payload.destination)
@@ -159,9 +170,11 @@ def api_create_alias(request, payload: AliasCreateV1):
     return Status(201, AliasV1.of(created))
 
 
-@router.delete('/aliases/{alias_id}', response={204: None}, summary='Delete an alias')
+@router.delete(
+    '/aliases/{alias_id}', response={204: None, **errors(404)}, summary='Delete an alias'
+)
 @require_scope('mail.manage')
-def api_delete_alias(request, alias_id: str):
+def api_delete_alias(request: ApiRequest, alias_id: str) -> Status[None]:
     try:
         ops.delete_alias(alias_id)
     except MailboxError as exc:

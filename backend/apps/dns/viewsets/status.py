@@ -8,6 +8,7 @@ from django.http import HttpRequest, JsonResponse
 from backend.apps.accounts.types.permissions import PermissionCode
 from backend.apps.accounts.views.auth import require_perm
 from backend.apps.core.platform.services.monitoring import MonitoringService
+from backend.apps.core.serializers.health import DnsCheckV1, DnsStatusV1
 from backend.apps.dns.serializers import DNSStatusResponse
 from backend.apps.domains.services import DomainService
 from backend.apps.domains.services.verification import DomainVerificationService
@@ -42,4 +43,19 @@ def dns_status(request: HttpRequest) -> JsonResponse:
         return JsonResponse(response.to_dict(), status=500)
 
 
-__all__ = ['dns_status']
+def check_status(domain: str | None) -> DnsStatusV1:
+    """The DNS records of one domain against public resolvers; changes nothing.
+
+    A blank name means the configured mail domain. Raises ``ValueError`` (safe to show) when there
+    is none. Unlike ``POST /domains/{name}/verify`` it does not store the outcome.
+    """
+    name = (domain or '').strip().lower() or primary_domain()
+    if not name:
+        raise ValueError('No mail domain is configured.')
+    records = MonitoringService.check_dns(name)
+    return DnsStatusV1(
+        domain=name, records={key: DnsCheckV1(**value) for key, value in records.items()}
+    )
+
+
+__all__ = ['check_status', 'dns_status']

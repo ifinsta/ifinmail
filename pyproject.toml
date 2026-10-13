@@ -12,6 +12,54 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
 [tool.ruff.format]
 quote-style = "single"
 
+# The API layer is type checked strictly: every request and response of /api/v1 is a typed
+# schema, every handler is annotated, and `make typecheck` (and CI) keeps it that way. Django has
+# no inline types here, so its names are treated as Any; ninja and pydantic are fully typed.
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+files = [
+    "backend/config/api_versions.py",
+    "backend/config/public_pages.py",
+    "backend/apps/accounts/api.py",
+    "backend/apps/accounts/viewsets",
+    "backend/apps/accounts/serializers",
+    "backend/apps/accounts/services/tokens.py",
+    "backend/apps/accounts/services/api_access.py",
+    "backend/apps/accounts/assistant_handlers.py",
+    "backend/apps/accounts/views/api_keys.py",
+    "backend/apps/mail/api.py",
+    "backend/apps/mail/serializers",
+    "backend/apps/domains/api.py",
+    "backend/apps/domains/serializers",
+    "backend/apps/core/api.py",
+    "backend/apps/core/serializers/health.py",
+    "backend/apps/core/viewsets/health.py",
+    "backend/apps/core/telemetry/api.py",
+    "backend/apps/core/telemetry/serializers",
+    "backend/apps/core/telemetry/viewsets",
+    "backend/apps/dns/api.py",
+]
+strict = true
+ignore_missing_imports = true
+follow_imports = "silent"
+# django's classes are Any without stubs; subclassing them is expected
+disallow_subclassing_any = false
+disallow_any_generics = true
+warn_unused_ignores = true
+warn_return_any = true
+
+# Django's transaction.atomic and view decorators are untyped (no stubs); the code that uses
+# them is still checked.
+[[tool.mypy.overrides]]
+module = ["backend.apps.accounts.services.tokens", "backend.apps.accounts.views.api_keys"]
+disallow_untyped_decorators = false
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "backend.config.settings.testing"
 python_files = ["test_*.py", "*_test.py"]

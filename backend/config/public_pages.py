@@ -10,6 +10,7 @@ disagree.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -42,7 +43,7 @@ def _context(**extra: object) -> dict[str, object]:
     }
 
 
-def _page(template: str):
+def _page(template: str) -> Callable[[HttpRequest], HttpResponse]:
     def view(request: HttpRequest) -> HttpResponse:
         return render(request, template, _context())
 

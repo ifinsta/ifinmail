@@ -40,6 +40,9 @@ TARGET ?= .
 lint:
 	ruff check $(TARGET)
 
+typecheck:
+	mypy
+
 lint-fix:
 	ruff check --fix $(TARGET)
 

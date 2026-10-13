@@ -9,6 +9,10 @@ class MailboxError(ValueError):
     """A mailbox or alias request that cannot be fulfilled (message is user-safe)."""
 
 
+class MailboxProtectedError(MailboxError):
+    """The mailbox's login has console access, so it can only be changed in the console."""
+
+
 @dataclass(frozen=True)
 class MailboxRow:
     id: str

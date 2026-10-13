@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ninja import Schema
+
 from backend.apps.mail.services.postfix_runtime import OutboundState
 from backend.apps.mail.types.provisioning import AliasRow, MailboxRow
 from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
@@ -85,10 +87,71 @@ class OutboundStateOut:
         )
 
 
+# -- v1 API contract ------------------------------------------------------------------------
+# Wire shapes of /api/v1. They are written out here (not derived from the dataclasses above) so
+# that refactoring the internals can never change what an integration receives. Within v1 fields
+# are only ever added; a removal or a changed meaning is a new version.
+
+
+class MailboxV1(Schema):
+    address: str
+    domain: str
+    quota_bytes: int
+    is_active: bool
+    console_access: bool
+    invite_pending: bool
+    created_at: str
+
+    @classmethod
+    def of(cls, out: MailboxOut) -> MailboxV1:
+        return cls(
+            address=out.address,
+            domain=out.domain,
+            quota_bytes=out.quota_bytes,
+            is_active=out.is_active,
+            console_access=out.is_admin,
+            invite_pending=out.invite_pending,
+            created_at=out.created_at,
+        )
+
+
+class MailboxCreateV1(Schema):
+    address: str
+    password: str | None = None
+    quota_bytes: int | None = None
+
+
+class MailboxUpdateV1(Schema):
+    quota_bytes: int | None = None
+    is_active: bool | None = None
+    password: str | None = None
+
+
+class AliasV1(Schema):
+    id: str
+    source: str
+    destination: str
+    domain: str
+
+    @classmethod
+    def of(cls, out: AliasOut) -> AliasV1:
+        return cls(id=out.id, source=out.source, destination=out.destination, domain=out.domain)
+
+
+class AliasCreateV1(Schema):
+    source: str
+    destination: str
+
+
 __all__ = [
     'AliasCreateIn',
+    'AliasCreateV1',
     'AliasOut',
+    'AliasV1',
     'MailboxCreateIn',
+    'MailboxCreateV1',
     'MailboxOut',
+    'MailboxUpdateV1',
+    'MailboxV1',
     'OutboundStateOut',
 ]

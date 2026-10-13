@@ -133,6 +133,35 @@ class TokenActionForm(forms.Form):
     action = forms.ChoiceField(choices=[('rotate', 'rotate'), ('revoke', 'revoke')])
 
 
+class ApiKeyCreateForm(forms.Form):
+    """Create an API key for an integration (secret shown once)."""
+
+    name = forms.CharField(max_length=64, strip=True)
+    scopes = forms.MultipleChoiceField(required=False)
+    expires_in_days = forms.IntegerField(min_value=1, max_value=90)
+    networks = forms.CharField(required=False, strip=True, widget=forms.Textarea)
+    rate_limit_per_minute = forms.IntegerField(required=False, min_value=1, max_value=6000)
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        from backend.apps.accounts.types.permissions import TOKEN_SCOPES
+
+        super().__init__(*args, **kwargs)
+        self.fields['scopes'].choices = [(code, code) for code in TOKEN_SCOPES]
+
+    def clean_networks(self) -> list[str]:
+        """One range per line or comma-separated; validated by the token service."""
+        raw = self.cleaned_data.get('networks') or ''
+        return [part.strip() for part in raw.replace(',', '\n').splitlines() if part.strip()]
+
+
+class ApiKeyActionForm(forms.Form):
+    """Rotate (optionally keeping the old secret for a while) or revoke one key."""
+
+    token_id = forms.UUIDField()
+    action = forms.ChoiceField(choices=[('rotate', 'rotate'), ('revoke', 'revoke')])
+    grace_hours = forms.IntegerField(required=False, min_value=0, max_value=168)
+
+
 class MailboxSetupForm(forms.Form):
     """The mailbox owner sets their own password via a setup link."""
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from backend.apps.mail.serializers import MailboxCreateIn, MailboxOut
 from backend.apps.mail.services.mailboxes import MailboxService
+from backend.apps.mail.types.provisioning import MailboxError, MailboxProtectedError
 
 
 def list_mailboxes() -> list[MailboxOut]:
@@ -27,6 +28,31 @@ def create_mailbox(payload: MailboxCreateIn) -> MailboxOut:
     address = f'{payload.local_part.strip().lower()}@{payload.domain_name.strip().lower()}'
     rows = [r for r in MailboxService.list_rows() if r.address == address]
     return MailboxOut.from_row(rows[0])
+
+
+def get_mailbox(address: str) -> MailboxOut | None:
+    """One mailbox by address, or None when unknown."""
+    wanted = address.strip().lower()
+    for row in MailboxService.list_rows():
+        if row.address == wanted:
+            return MailboxOut.from_row(row)
+    return None
+
+
+def ensure_plain(address: str) -> None:
+    """Refuse changes to a mailbox whose login can sign in to the console.
+
+    API keys manage ordinary mailboxes. A login with console access (staff or owner) is changed
+    in the console, where a person confirms it, so a leaked key can never be used to take over an
+    administrator by resetting that login's password.
+    """
+    row = get_mailbox(address)
+    if row is None:
+        raise MailboxError(f'{address.strip().lower()} does not exist.')
+    if row.is_admin:
+        raise MailboxProtectedError(
+            f'{row.address} has console access. Change it in the console, not through the API.'
+        )
 
 
 def set_password(address: str, password: str) -> None:
@@ -52,6 +78,8 @@ def delete_mailbox(address: str) -> None:
 __all__ = [
     'create_mailbox',
     'delete_mailbox',
+    'ensure_plain',
+    'get_mailbox',
     'list_mailboxes',
     'set_active',
     'set_admin',

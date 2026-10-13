@@ -1,0 +1,123 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}API keys — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'API keys' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'A key and its secret let an integration call the API on this server. Each key has scopes, an expiry and, if you want, a list of networks it may be used from.' %}</p>
+            </div>
+        </div>
+
+        {% if revealed %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="key-secret" role="status">
+            <h2 class="ifinmail-panel-title" id="key-secret">{% blocktrans trimmed with name=revealed.name %}Secret for {{ name }}{% endblocktrans %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Copy it now and store it in the integration’s secret store. It is not shown again; if it is lost, rotate the key.' %}</p>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Key' %}</dt><dd><code class="ifinmail-text--mono" id="api-key-id">{{ revealed.key }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Secret' %}</dt><dd>
+                    <div class="ifinmail-toolbox-record">
+                        <div class="ifinmail-codebox" id="api-key-secret">{{ revealed.secret }}</div>
+                        <button class="ifinmail-btn ifinmail-btn--sm" type="button" data-action="copy-invite" data-value="{{ revealed.secret|escapejs }}">{% trans 'Copy' %}</button>
+                    </div>
+                </dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Try it' %}</dt><dd><code class="ifinmail-text--mono">curl -u {{ revealed.key }}:&lt;secret&gt; https://{{ request.get_host }}/api/v1/status</code></dd></div>
+            </dl>
+        </section>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="key-new">
+            <h2 class="ifinmail-panel-title" id="key-new">{% trans 'Create a key' %}</h2>
+            <form method="post" action="{% url 'accounts:api_key_create' %}" class="ifinmail-inline-form" autocomplete="off">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="key-name">{% trans 'Name' %}</label>
+                    <input class="ifinmail-input" id="key-name" name="name" maxlength="64" required placeholder="{% trans 'Billing system' %}">
+                    <p class="ifinmail-help-text">{% trans 'What or who will use it. It appears in the audit trail.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <span class="ifinmail-label" id="key-scopes-label">{% trans 'Scopes' %}</span>
+                    {% for code in scope_choices %}
+                    <label class="ifinmail-check"><input type="checkbox" name="scopes" value="{{ code }}"{% if code == 'console.access' %} checked{% endif %}> <span><code class="ifinmail-text--mono">{{ code }}</code></span></label>
+                    {% endfor %}
+                    <p class="ifinmail-help-text">{% trans 'Give only what the integration needs. A key can never do more than you can.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="key-days">{% trans 'Valid for' %}</label>
+                    <select class="ifinmail-input" id="key-days" name="expires_in_days">
+                        <option value="30">{% trans '30 days' %}</option>
+                        <option value="60">{% trans '60 days' %}</option>
+                        <option value="{{ max_days }}" selected>{% blocktrans trimmed with n=max_days %}{{ n }} days{% endblocktrans %}</option>
+                    </select>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="key-networks">{% trans 'Allowed networks (optional)' %}</label>
+                    <textarea class="ifinmail-input ifinmail-text--mono" id="key-networks" name="networks" rows="2" spellcheck="false" placeholder="203.0.113.0/24"></textarea>
+                    <p class="ifinmail-help-text">{% trans 'One address or range per line. Empty means the key works from anywhere.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="key-rate">{% trans 'Calls per minute (optional)' %}</label>
+                    <input class="ifinmail-input" id="key-rate" name="rate_limit_per_minute" type="number" min="1" max="6000" placeholder="120">
+                </div>
+                <div class="ifinmail-field">
+                    <label for="key-confirm">{% trans 'Your password' %}</label>
+                    <input class="ifinmail-input" id="key-confirm" name="confirm_password" type="password" autocomplete="current-password" required>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Create key' %}</button></div>
+            </form>
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'API keys' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Keys on this server' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th scope="col">{% trans 'Name' %}</th><th scope="col">{% trans 'Key' %}</th><th scope="col">{% trans 'Scopes' %}</th><th scope="col">{% trans 'Owner' %}</th><th scope="col">{% trans 'Expires' %}</th><th scope="col">{% trans 'Last used' %}</th><th scope="col"><span class="ifinmail-sr-only">{% trans 'Manage' %}</span></th></tr></thead>
+                <tbody>
+                {% for k in keys %}
+                <tr>
+                    <td>{{ k.name }}{% if k.allowed_networks %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with n=k.allowed_networks|join:", " %}Only from {{ n }}{% endblocktrans %}</span>{% endif %}</td>
+                    <td><code class="ifinmail-text--mono">ifm_{{ k.prefix }}</code></td>
+                    <td><code class="ifinmail-text--mono">{{ k.scopes|join:", " }}</code></td>
+                    <td>{{ k.user.email }}</td>
+                    <td>{{ k.expires_at|date:"Y-m-d" }}{% if k.previous_expires_at %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with when=k.previous_expires_at|date:"Y-m-d H:i" %}Old secret valid until {{ when }}{% endblocktrans %}</span>{% endif %}</td>
+                    <td>{% if k.last_used_at %}{{ k.last_used_at|date:"Y-m-d H:i" }}{% if k.last_used_ip %}<br><span class="ifinmail-help-text ifinmail-text--mono">{{ k.last_used_ip }}</span>{% endif %}{% else %}{% trans 'Never' %}{% endif %}</td>
+                    <td>
+                        <details class="ifinmail-key-manage">
+                            <summary class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm">{% trans 'Manage' %}</summary>
+                            <form method="post" action="{% url 'accounts:api_key_action' %}" class="ifinmail-inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="token_id" value="{{ k.id }}">
+                                <div class="ifinmail-field">
+                                    <label for="grace-{{ k.id }}">{% trans 'Keep the old secret working for' %}</label>
+                                    <select class="ifinmail-input" id="grace-{{ k.id }}" name="grace_hours">
+                                        <option value="0">{% trans 'Cut it off now' %}</option>
+                                        <option value="1">{% trans '1 hour' %}</option>
+                                        <option value="24">{% trans '24 hours' %}</option>
+                                        <option value="168">{% trans '7 days' %}</option>
+                                    </select>
+                                </div>
+                                <div class="ifinmail-field">
+                                    <label for="confirm-{{ k.id }}">{% trans 'Your password (to rotate)' %}</label>
+                                    <input class="ifinmail-input" id="confirm-{{ k.id }}" name="confirm_password" type="password" autocomplete="current-password">
+                                </div>
+                                <div class="ifinmail-inline-form--row">
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="rotate">{% trans 'Rotate' %}</button>
+                                    <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="revoke" data-confirm="{% trans 'Revoke this key? Integrations using it stop working immediately.' %}">{% trans 'Revoke' %}</button>
+                                </div>
+                            </form>
+                        </details>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No keys yet. Create one above for the first integration.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        <p class="ifinmail-help-text">{% trans 'To rotate without an outage, keep the old secret working for a while, switch the integration to the new one, then let the old one expire.' %}</p>
+    </div>
+</section>
+{% endblock %}

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ninja import Schema
+
 from backend.apps.domains.models import DKIMKey, Domain
 from backend.apps.domains.types.provisioning import ProvisionResult, VerificationResult
 
@@ -113,9 +115,58 @@ class ProvisionResultOut:
         )
 
 
+# -- v1 API contract ------------------------------------------------------------------------
+# Written out here, not derived from the dataclasses above, so refactoring the internals can never
+# change what an integration receives. Within v1 fields are only added, never removed.
+
+
+class DomainV1(Schema):
+    name: str
+    verified: bool
+    mx_verified: bool
+    spf_verified: bool
+    dkim_verified: bool
+    dmarc_verified: bool
+
+
+class DomainDetailV1(DomainV1):
+    dkim_selectors: list[str]
+
+
+class DomainCreateV1(Schema):
+    name: str
+
+
+class ProvisionStepV1(Schema):
+    name: str
+    status: str
+    detail: str
+
+
+class ProvisionResultV1(Schema):
+    domain: str
+    created: bool
+    ok: bool
+    steps: list[ProvisionStepV1]
+    dns_records: list[dict[str, str]]
+    nameservers: list[str]
+
+
+class VerificationV1(Schema):
+    domain: str
+    accepts_mail: bool
+    checks: dict[str, dict[str, str]]
+
+
 __all__ = [
     'DKIMKeyOut',
+    'DomainCreateV1',
+    'DomainDetailV1',
     'DomainOut',
+    'DomainV1',
+    'ProvisionResultV1',
+    'ProvisionStepV1',
+    'VerificationV1',
     'DomainStatsOut',
     'ProvisionResultOut',
     'ProvisionStepOut',

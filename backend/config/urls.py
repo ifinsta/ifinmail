@@ -12,9 +12,8 @@ from django.shortcuts import redirect, render
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.apps.accounts.api import api as api_v1
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
-from backend.config import public_pages
+from backend.config import api_versions, public_pages
 from backend.config.branding import DEFAULT_BRAND_NAME
 from backend.config.env import primary_domain
 
@@ -199,7 +198,7 @@ urlpatterns = [
     path('health/dns/', health_dns, name='health-dns'),
     path('health/deliverability/', health_deliverability, name='health-deliverability'),
     path('accounts/', include('backend.apps.accounts.urls')),
-    path('api/', api_v1.urls),
+    *api_versions.urlpatterns,
     path('telemetry/', include('backend.apps.core.telemetry.urls')),
     path('admin/', legacy_accounts_redirect),
     path('admin/<path:path>', legacy_accounts_redirect),

@@ -1646,6 +1646,11 @@ html.ifinmail-shell .ifinmail-flash--error {
         gap: var(--ifinmail-space-1);
     }
 
+    /* Settings is also in the account menu; the extra icon pushed the bar past 360px */
+    html.ifinmail-shell .ifinmail-header-settings {
+        display: none;
+    }
+
     html.ifinmail-shell .ifinmail-header-actions {
         margin-left: auto;
     }

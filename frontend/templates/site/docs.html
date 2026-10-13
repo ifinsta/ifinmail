@@ -23,6 +23,7 @@
             <li><a href="#dns">{% trans 'DNS and delegation' %}</a></li>
             <li><a href="#operate">{% trans 'Daily operation' %}</a></li>
             <li><a href="#backups">{% trans 'Backups' %}</a></li>
+            <li><a href="#api">{% trans 'API' %}</a></li>
             <li><a href="#extend">{% trans 'Plugins and assistant' %}</a></li>
             <li><a href="#troubleshooting">{% trans 'Troubleshooting' %}</a></li>
         </ul>
@@ -72,6 +73,21 @@ sudo make backup      # run a full backup now</code></pre>
         <ul>
             <li>{% trans 'Set an off-site target (any machine you reach over SSH) and run the offsite check. Every backup is then copied and compared by hash.' %}</li>
             <li>{% trans 'Export the backup key once, store it away from the server, and delete it from the server. System health confirms the key can open the newest backup.' %}</li>
+        </ul>
+
+        <h2 id="api">{% trans 'API' %}</h2>
+        <p>{% trans 'Programs can manage mailboxes, aliases and domains over a versioned HTTP API. An administrator creates a key under Settings, then API keys: a key that is safe to log, and a secret that is shown once. Scopes can never exceed what the administrator holds.' %}</p>
+        <pre tabindex="0"><code>curl -u ifm_KEY:ifs_SECRET https://mail.your-domain/api/v1/mailboxes
+
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.your-domain/api/v1/mailboxes \
+  -H "Content-Type: application/json" \
+  -d '{"address": "ana@example.com", "password": "a long passphrase"}'</code></pre>
+        <ul>
+            <li>{% trans 'The contract is at /api/v1/openapi.json, and /api/lists the versions this server speaks.' %}</li>
+            <li>{% trans 'Within version 1 only additions are made. A breaking change is a new version beside it.' %}</li>
+            <li>{% trans 'Lists are paged with limit and offset. Errors are JSON with a detail message. A key has a calls-per-minute limit and answers 429 with Retry-After when it is exceeded.' %}</li>
+            <li>{% trans 'Logins with console access cannot be changed through the API, and domains cannot be removed through it.' %}</li>
+            <li>{% trans 'Rotate a key with an overlap so the integration can switch secrets without an outage. Every change is in the audit trail under the key’s name.' %}</li>
         </ul>
 
         <h2 id="extend">{% trans 'Plugins and assistant' %}</h2>

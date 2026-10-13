@@ -121,6 +121,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 {'slug': 'security'},
             ),
             SettingsItem(
+                'api-keys',
+                _('API keys'),
+                _('Keys and secrets for integrations that call the API.'),
+                SettingsIcon.SECURITY,
+                'accounts:api_keys',
+                ('api', 'key', 'secret', 'token', 'integration', 'webhook', 'automation', 'v1'),
+            ),
+            SettingsItem(
                 'certificates',
                 _('TLS certificates'),
                 _('Issue, renew or upload the server certificate.'),

@@ -30,7 +30,7 @@ class MetricsTests(MailTablesTestCase):
 
     def _get(self, token: str | None):
         headers = {} if token is None else {'HTTP_AUTHORIZATION': f'Bearer {token}'}
-        return self.client.get('/api/metrics', **headers)
+        return self.client.get('/api/v1/metrics', **headers)
 
     def test_requires_a_token_with_the_audit_scope(self) -> None:
         self.assertEqual(self._get(None).status_code, 401)

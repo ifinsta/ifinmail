@@ -10,6 +10,8 @@ from backend.apps.mail.viewsets.aliases import create_alias, delete_alias, list_
 from backend.apps.mail.viewsets.mailboxes import (
     create_mailbox,
     delete_mailbox,
+    ensure_plain,
+    get_mailbox,
     list_mailboxes,
     set_active,
     set_admin,
@@ -29,6 +31,8 @@ __all__ = [
     'create_mailbox',
     'delete_alias',
     'delete_mailbox',
+    'ensure_plain',
+    'get_mailbox',
     'get_outbound_state',
     'list_aliases',
     'list_mailboxes',

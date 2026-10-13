@@ -8,7 +8,7 @@ with the risk register (`docs/risk-register.md`). A secret not listed here is a 
 | Administrator and mailbox passwords | `users.password`, `users.password_hash` | Salted hashes (Django hasher for the console, SHA512-CRYPT for Dovecot) | Offline guessing only | On request; first-sign-in change forced |
 | TOTP secrets | `accounts_totp_device.secret_encrypted` | Fernet, key derived from `SECRET_KEY` | Unreadable without `SECRET_KEY` (`.env`) | Re-enroll |
 | Recovery codes | `accounts_mfa_recovery_code` | Hashes only; single use | Not recoverable | Regenerate |
-| API tokens | `accounts_api_token.token_hash` | SHA-256; plaintext shown once | Not recoverable | Rotate or revoke; expire in ≤ 90 days |
+| API keys and tokens | `accounts_api_token.token_hash` (and `previous_hash` during a rotation overlap) | SHA-256 of a 256-bit secret, compared in constant time; plaintext shown once | Not recoverable | Rotate (optionally keeping the old secret ≤ 7 days) or revoke; expire in ≤ 90 days |
 | DNS provider credentials | `dns_provider_config.credentials` | Encrypted (`decrypt_credentials`) | Unreadable without `SECRET_KEY` | Re-enter |
 | **DKIM private keys** | `dkim_keys.private_key` **and** `/etc/dkim/*.key` | **None** (plaintext). File mode 0644 so Rspamd can read it | **Readable**: an attacker could sign mail as your domain | New selector, republish DNS |
 | DNSSEC keys | `dns_data` volume (Knot) | File permissions only (backups mode 600) | n/a (not in the database) | Key rollover at registrar |

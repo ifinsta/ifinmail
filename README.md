@@ -186,6 +186,45 @@ The audit trail keeps 365 days (`AUDIT_RETENTION_DAYS`, minimum 30). Each entry 
 one before it; `sudo make audit-verify` checks the chain and
 prints its head, and **Logs → Export** (`?format=jsonl`) downloads the full trail with hashes.
 
+## API for integrations
+
+Programs can manage mailboxes, aliases and domains through a versioned HTTP API at
+`https://mail.yourdomain.com/api/v1/` (contract: `/api/v1/openapi.json`; the versions this server
+speaks: `/api/`).
+
+1. **Create a key**: Settings → **API keys**. You get a **key** (`ifm_…`, public, safe to log) and a
+   **secret** (`ifs_…`, shown once). Choose the scopes it needs, how long it lives (up to 90 days),
+   optionally the networks it may be used from and a calls-per-minute limit.
+2. **Call it** with HTTP Basic, or with one Bearer value:
+
+   ```bash
+   curl -u ifm_KEY:ifs_SECRET https://mail.yourdomain.com/api/v1/status
+   curl -H "Authorization: Bearer ifm.KEY.ifs_SECRET" https://mail.yourdomain.com/api/v1/status
+   ```
+
+| Scope | Endpoints |
+| --- | --- |
+| `console.access` | `GET /status` |
+| `audit.view` | `GET /metrics` (Prometheus text) |
+| `mail.manage` | `GET/POST /mailboxes`, `GET/PATCH/DELETE /mailboxes/{address}`, `GET/POST /aliases`, `DELETE /aliases/{id}` |
+| `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify` |
+
+- **Safe by construction.** A key never exceeds the permissions of the person who created it, and
+  keeps being narrowed by them. Mailboxes whose login has console access cannot be changed through
+  the API, and the API cannot create one, so a leaked key cannot be turned into an administrator.
+  Domain removal is not offered.
+- **Lists are paged**: `?limit=` (default 50, at most 200) and `?offset=`; the reply is
+  `{"items": [...], "count": N}`.
+- **Errors** are `{"detail": "..."}` with 401 (credentials), 403 (scope or protected mailbox),
+  404, 409 (already exists), 422 (invalid) or 429 (slow down; see `Retry-After`).
+  Every response carries `X-API-Version` and `X-RateLimit-*`.
+- **Rotation** can keep the old secret working for up to 7 days so an integration switches over
+  without an outage. Every change made with a key is in the audit trail under the key's name;
+  failed attempts are recorded once per address and reason.
+- **Versions.** Within `v1` only additions are made. A breaking change is `/api/v2/`, mounted next
+  to `v1`, which keeps answering until its retirement is announced in the changelog. The older
+  unversioned `/api/<path>` answers `308` to `/api/v1/<path>`.
+
 ## Outbound relay settings
 
 Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. The console publishes them to a file that the postfix container applies with `postconf` and reloads within seconds (only an allow-list of keys is ever applied). The relay hostnames themselves come from `MAIL_SMART_HOST` and `MAIL_SMTP_PROXY` in the environment.

@@ -172,7 +172,16 @@ class APIToken(models.Model):
     scopes = models.JSONField(default=list)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
+    last_used_ip = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Rotation with overlap: the replaced secret keeps working until this moment, so an
+    # integration can switch over without an outage.
+    previous_hash = models.CharField(max_length=64, blank=True, default='')
+    previous_expires_at = models.DateTimeField(null=True, blank=True)
+    # CIDR ranges the key may be used from; empty means anywhere.
+    allowed_networks = models.JSONField(default=list, blank=True)
+    # Calls per minute; null uses the server default (API_RATE_LIMIT_PER_MINUTE).
+    rate_limit_per_minute = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'accounts_api_token'

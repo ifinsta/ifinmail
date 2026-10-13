@@ -19,6 +19,7 @@ once a minute to avoid a session write on every request.
 
 from __future__ import annotations
 
+import re
 import time
 
 from django.conf import settings
@@ -26,7 +27,6 @@ from django.contrib.auth import logout
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils.deprecation import MiddlewareMixin
-
 
 FIRST_PASSWORD_PATH = '/accounts/first-password/'
 
@@ -100,6 +100,41 @@ class SetupRequiredMiddleware(MiddlewareMixin):
             self._setup_done = True
             return None
         return redirect('accounts:setup_wizard')
+
+
+class ApiResponseHeadersMiddleware:
+    """Headers every API response carries, whichever version or endpoint produced it.
+
+    * ``X-API-Version`` — the version in the URL (``/api/v1/...`` is ``1``), so a logged
+      response says which contract it followed.
+    * ``Cache-Control: no-store`` — responses can hold mailbox data; nothing should keep a copy.
+    * ``X-RateLimit-*`` and ``Retry-After`` — the caller's budget, when the call was metered.
+    * ``WWW-Authenticate`` on a 401, so clients know both ways to present a key.
+    """
+
+    _VERSION = re.compile(r'^/api/v(\d+)/')
+
+    def __init__(self, get_response: object) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        if not request.path.startswith('/api/'):
+            return response
+        match = self._VERSION.match(request.path)
+        if match:
+            response['X-API-Version'] = match.group(1)
+        response['Cache-Control'] = 'no-store'
+        state = getattr(request, 'api_rate', None)
+        if state is not None:
+            response['X-RateLimit-Limit'] = str(state.limit)
+            response['X-RateLimit-Remaining'] = str(state.remaining)
+            response['X-RateLimit-Reset'] = str(state.reset_in)
+            if response.status_code == 429:
+                response['Retry-After'] = str(state.reset_in)
+        if response.status_code == 401:
+            response['WWW-Authenticate'] = 'Basic realm="ifinmail API", Bearer realm="ifinmail API"'
+        return response
 
 
 class MFAEnforcementMiddleware(MiddlewareMixin):

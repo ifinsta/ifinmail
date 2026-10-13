@@ -76,6 +76,7 @@ MIDDLEWARE = [
     'backend.apps.accounts.middleware.MFAEnforcementMiddleware',
     'backend.apps.accounts.middleware.SessionIdleTimeoutMiddleware',
     'backend.apps.accounts.middleware.FormEndpointGetMiddleware',
+    'backend.apps.accounts.middleware.ApiResponseHeadersMiddleware',
     'csp.middleware.CSPMiddleware',
     'axes.middleware.AxesMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -275,6 +276,10 @@ AXES_FAILURE_LIMIT = int(os.environ.get('AXES_FAILURE_LIMIT', '5'))
 AXES_COOLOFF_TIME = float(os.environ.get('AXES_COOLOFF_TIME', '1'))
 AXES_LOCK_OUT_AT_FAILURE = True
 AXES_RESET_ON_SUCCESS = True
+
+# Integration API (/api/v1): list endpoints return a page, `?limit=&offset=`.
+NINJA_PAGINATION_PER_PAGE = 50
+NINJA_PAGINATION_MAX_LIMIT = 200
 
 # CORS
 CORS_ALLOWED_ORIGINS = [

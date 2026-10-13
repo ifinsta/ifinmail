@@ -113,17 +113,17 @@ class TokenEndpointTests(MailTablesTestCase):
         return self.client.get(path, **headers)
 
     def test_anonymous_and_malformed_are_401(self) -> None:
-        self.assertEqual(self._get('/api/status', None).status_code, 401)
-        self.assertEqual(self._get('/api/status', 'junk').status_code, 401)
-        self.assertEqual(self._get('/api/status', 'ifm.nope.secret').status_code, 401)
+        self.assertEqual(self._get('/api/v1/status', None).status_code, 401)
+        self.assertEqual(self._get('/api/v1/status', 'junk').status_code, 401)
+        self.assertEqual(self._get('/api/v1/status', 'ifm.nope.secret').status_code, 401)
 
     def test_scoped_calls_succeed_and_cross_scope_is_403(self) -> None:
-        response = self._get('/api/status', self.plain)
+        response = self._get('/api/v1/status', self.plain)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()['ok'])
-        self.assertEqual(self._get('/api/domains', self.plain).status_code, 200)
+        self.assertEqual(self._get('/api/v1/domains', self.plain).status_code, 200)
         _, narrow = TokenService.create(self.user, 'narrow', ['console.access'], expires_in_days=30)
-        self.assertEqual(self._get('/api/domains', narrow).status_code, 403)
+        self.assertEqual(self._get('/api/v1/domains', narrow).status_code, 403)
 
     def test_role_narrowing_shrinks_live_tokens(self) -> None:
         # Token holds dns.manage, but the owner's role loses it mid-flight.
@@ -131,12 +131,12 @@ class TokenEndpointTests(MailTablesTestCase):
             'root@ifinmail.test', GOOD, is_staff=True, is_superuser=True
         )
         RoleService.assign(self.user, 'support')
-        self.assertEqual(self._get('/api/domains', self.plain).status_code, 403)
-        self.assertEqual(self._get('/api/status', self.plain).status_code, 200)
+        self.assertEqual(self._get('/api/v1/domains', self.plain).status_code, 403)
+        self.assertEqual(self._get('/api/v1/status', self.plain).status_code, 200)
         self.assertTrue(other.is_superuser)  # holder of last resort untouched
 
     def test_domains_payload_has_no_secrets(self) -> None:
-        body = self._get('/api/domains', self.plain).json()
+        body = self._get('/api/v1/domains', self.plain).json()
         self.assertEqual(
             set(body[0]),
             {'name', 'verified', 'mx_verified', 'spf_verified', 'dkim_verified', 'dmarc_verified'},
@@ -144,8 +144,8 @@ class TokenEndpointTests(MailTablesTestCase):
         self.assertEqual(body[0]['name'], 'ifinmail.test')
 
     def test_openapi_contract_exists_docs_ui_does_not(self) -> None:
-        self.assertEqual(self.client.get('/api/openapi.json').status_code, 200)
-        self.assertEqual(self.client.get('/api/docs').status_code, 404)
+        self.assertEqual(self.client.get('/api/v1/openapi.json').status_code, 200)
+        self.assertEqual(self.client.get('/api/v1/docs').status_code, 404)
 
 
 class TokenProfileFlowTests(MailTablesTestCase):

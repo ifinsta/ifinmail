@@ -1,17 +1,23 @@
-"""First-party API tokens: scoped, expiring, rotatable (service layer).
+"""API keys and tokens: scoped, expiring, rotatable (service layer).
 
-Wire format: ``ifm.<12-char prefix>.<secret>``. Only the SHA-256 hash of the
-secret is stored; the plaintext is returned once at creation/rotation.
+A credential is a **key** (public identifier, safe to log: ``ifm_<12 chars>``) and a
+**secret** (``ifs_<43 chars>``, shown once). Present them as HTTP Basic ``key:secret``, or as one
+Bearer value ``ifm.<12 chars>.<secret>``. Only the SHA-256 hash of the secret is stored (it is
+256 bits of randomness, so a slow hash adds nothing) and it is compared in constant time.
 
 Effective power of a token call = token scopes ∩ the owner's *current*
 permissions, so narrowing a user's role instantly narrows their tokens.
 Tokens bypass interactive MFA by design (they are the machine credential);
-expiry + rotation + per-token revocation are the compensating controls.
+expiry + rotation + per-token revocation, an optional network allow-list and a per-key rate limit
+are the compensating controls. A rotation can keep the old secret alive for a short overlap so an
+integration switches over without an outage.
 """
 
 from __future__ import annotations
 
 import hashlib
+import hmac
+import ipaddress
 import logging
 import secrets
 import string
@@ -29,10 +35,16 @@ from .roles import RoleService
 logger = logging.getLogger('backend')
 
 _TOKEN_PREFIX = 'ifm'
+KEY_MARK = 'ifm_'  # a key id starts with this, so secret scanners and people can recognise it
+SECRET_MARK = 'ifs_'
 # Longest lifetime a token may be given; owners rotate rather than keep one for a year.
 MAX_TOKEN_DAYS = 90
+MAX_GRACE_HOURS = 168  # a rotated secret may overlap the new one for at most a week
+MAX_NETWORKS = 20
+MAX_RATE_LIMIT = 6000
 _PREFIX_CHARS = string.ascii_letters + string.digits
 _PREFIX_LEN = 12
+_USED_STAMP_EVERY = timedelta(seconds=60)  # last-used is written at most this often
 
 
 class TokenError(ValueError):
@@ -50,7 +62,7 @@ def _prefix() -> str:
 
 
 def _secret() -> str:
-    return secrets.token_urlsafe(32)
+    return SECRET_MARK + secrets.token_urlsafe(32)
 
 
 def _digest(secret: str) -> str:
@@ -59,6 +71,56 @@ def _digest(secret: str) -> str:
 
 def format_token(prefix: str, secret: str) -> str:
     return f'{_TOKEN_PREFIX}.{prefix}.{secret}'
+
+
+def key_id(prefix: str) -> str:
+    """The public key identifier shown to people and written to logs."""
+    return f'{KEY_MARK}{prefix}'
+
+
+def parse_key(value: str) -> str | None:
+    """A key id (``ifm_<prefix>``, or the bare prefix) to the stored prefix, or None."""
+    text = (value or '').strip()
+    if text.startswith(KEY_MARK):
+        text = text[len(KEY_MARK) :]
+    if not text or len(text) > 16 or not all(c in _PREFIX_CHARS for c in text):
+        return None
+    return text
+
+
+def normalize_networks(values: list[str] | None) -> list[str]:
+    """Canonical CIDR strings; raises TokenError for anything that is not an address range."""
+    cleaned: list[str] = []
+    for raw in values or []:
+        text = str(raw).strip()
+        if not text:
+            continue
+        try:
+            network = str(ipaddress.ip_network(text, strict=False))
+        except ValueError as exc:
+            raise TokenError(f'"{text}" is not an IP address or CIDR range.') from exc
+        if network not in cleaned:
+            cleaned.append(network)
+    if len(cleaned) > MAX_NETWORKS:
+        raise TokenError(f'Allow at most {MAX_NETWORKS} networks per key.')
+    return cleaned
+
+
+def address_allowed(networks: list[str] | None, address: str) -> bool:
+    """True when the list is empty (anywhere) or the address lies in one of the ranges."""
+    if not networks:
+        return True
+    try:
+        ip = ipaddress.ip_address((address or '').strip())
+    except ValueError:
+        return False
+    for text in networks:
+        try:
+            if ip in ipaddress.ip_network(text, strict=False):
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def split_token(value: str) -> tuple[str, str] | None:
@@ -75,6 +137,18 @@ class TokenService:
         return list(APIToken.objects.filter(user=user).order_by('-created_at'))
 
     @staticmethod
+    def list_all() -> list[APIToken]:
+        """Every key on the server, newest first (the API keys page)."""
+        return list(APIToken.objects.select_related('user').order_by('-created_at'))
+
+    @staticmethod
+    def get(token_id: str) -> APIToken | None:
+        try:
+            return APIToken.objects.select_related('user').filter(pk=token_id).first()
+        except (ValueError, TypeError):  # not a UUID
+            return None
+
+    @staticmethod
     @transaction.atomic
     def create(
         user: MailUser,
@@ -82,6 +156,8 @@ class TokenService:
         scopes: list[str],
         *,
         expires_in_days: int,
+        allowed_networks: list[str] | None = None,
+        rate_limit_per_minute: int | None = None,
     ) -> tuple[APIToken, str]:
         """Create a token; returns ``(row, plaintext)`` — plaintext shown once."""
         clean_name = (name or '').strip()[:64]
@@ -89,6 +165,9 @@ class TokenService:
             raise TokenError('Give the token a name, e.g. "uptime monitor".')
         if expires_in_days <= 0 or expires_in_days > MAX_TOKEN_DAYS:
             raise TokenError(f'Expiry must be between 1 and {MAX_TOKEN_DAYS} days.')
+        if rate_limit_per_minute is not None and not 1 <= rate_limit_per_minute <= MAX_RATE_LIMIT:
+            raise TokenError(f'The rate limit must be between 1 and {MAX_RATE_LIMIT} per minute.')
+        networks = normalize_networks(allowed_networks)
         wanted = {str(scope) for scope in scopes or [] if str(scope) in TOKEN_SCOPES}
         if not wanted:
             raise TokenError('Pick at least one scope for the token.')
@@ -110,47 +189,87 @@ class TokenService:
             token_hash=_digest(secret),
             scopes=sorted(allowed),
             expires_at=timezone.now() + timedelta(days=expires_in_days),
+            allowed_networks=networks,
+            rate_limit_per_minute=rate_limit_per_minute,
         )
         return row, format_token(prefix, secret)
 
     @staticmethod
-    def verify(value: str) -> VerifiedToken | None:
-        """Validate wire format; returns the owner + row or None (no exceptions)."""
-        split = split_token(value)
-        if split is None:
-            return None
-        prefix, secret = split
+    def check(prefix: str, secret: str, address: str = '') -> tuple[VerifiedToken | None, str]:
+        """Validate a key and secret. Returns ``(verified, '')`` or ``(None, reason)``.
+
+        Reasons: ``unknown_key``, ``bad_secret``, ``expired``, ``owner_disabled``, ``network``.
+        They are for the audit trail and logs; callers answer the client with one generic 401.
+        """
         try:
             row = APIToken.objects.select_related('user').filter(prefix=prefix).first()
         except Exception:
             logger.exception('Token lookup failed')
-            return None
+            return None, 'unknown_key'
         if row is None:
-            return None
-        if row.expires_at is not None and row.expires_at <= timezone.now():
-            return None
+            return None, 'unknown_key'
+        now = timezone.now()
+        presented = _digest(secret)
+        current = hmac.compare_digest(row.token_hash, presented)
+        overlap = bool(
+            row.previous_hash
+            and row.previous_expires_at is not None
+            and row.previous_expires_at > now
+            and hmac.compare_digest(row.previous_hash, presented)
+        )
+        if not (current or overlap):
+            return None, 'bad_secret'
+        if row.expires_at is not None and row.expires_at <= now:
+            return None, 'expired'
         user = row.user
         if user is None or not user.is_active:
+            return None, 'owner_disabled'
+        if not address_allowed(row.allowed_networks, address):
+            return None, 'network'
+        stale = row.last_used_at is None or now - row.last_used_at >= _USED_STAMP_EVERY
+        if stale or (address and row.last_used_ip != address):
+            row.last_used_at = now
+            row.last_used_ip = address or row.last_used_ip
+            try:
+                row.save(update_fields=['last_used_at', 'last_used_ip'])
+            except Exception:
+                logger.warning('Could not stamp token usage for %s', prefix)
+        return VerifiedToken(user=user, row=row), ''
+
+    @staticmethod
+    def verify(value: str, address: str = '') -> VerifiedToken | None:
+        """Validate the one-value Bearer wire format; None when anything is wrong."""
+        split = split_token(value)
+        if split is None:
             return None
-        if row.token_hash != _digest(secret):
-            return None
-        row.last_used_at = timezone.now()
-        try:
-            row.save(update_fields=['last_used_at'])
-        except Exception:
-            logger.warning('Could not stamp token usage for %s', prefix)
-        return VerifiedToken(user=user, row=row)
+        return TokenService.check(split[0], split[1], address)[0]
 
     @staticmethod
     @transaction.atomic
-    def rotate(user: MailUser, token_id: str) -> tuple[APIToken, str]:
-        """Replace the secret, keeping prefix/scopes (old secret dies now)."""
+    def rotate(user: MailUser, token_id: str, *, grace_hours: int = 0) -> tuple[APIToken, str]:
+        """Replace the secret, keeping prefix and scopes.
+
+        With ``grace_hours`` the replaced secret keeps working for that long (never past the
+        key's own expiry), so an integration can be switched over without an outage.
+        """
+        if not 0 <= grace_hours <= MAX_GRACE_HOURS:
+            raise TokenError(f'The overlap must be between 0 and {MAX_GRACE_HOURS} hours.')
         row = APIToken.objects.filter(user=user, pk=token_id).first()
         if row is None:
             raise TokenError('That token no longer exists.')
+        now = timezone.now()
+        if grace_hours:
+            until = now + timedelta(hours=grace_hours)
+            if row.expires_at is not None:
+                until = min(until, row.expires_at)
+            row.previous_hash = row.token_hash
+            row.previous_expires_at = until
+        else:
+            row.previous_hash = ''
+            row.previous_expires_at = None
         secret = _secret()
         row.token_hash = _digest(secret)
-        row.save(update_fields=['token_hash'])
+        row.save(update_fields=['token_hash', 'previous_hash', 'previous_expires_at'])
         return row, format_token(row.prefix, secret)
 
     @staticmethod

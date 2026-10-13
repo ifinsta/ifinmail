@@ -10,6 +10,7 @@ from .views.assistant import (
     assistant_status,
     assistant_test,
 )
+from .views.api_keys import api_key_action, api_key_create, api_keys
 from .views.sending import sending, sending_resume
 from .views.marketplace import (
     marketplace,
@@ -163,6 +164,9 @@ urlpatterns = [
     path('settings/account/', account_page, name='account'),
     path('settings/account/name/', account_name, name='account_name'),
     path('settings/account/password/', account_password, name='account_password'),
+    path('settings/api-keys/', api_keys, name='api_keys'),
+    path('settings/api-keys/create/', api_key_create, name='api_key_create'),
+    path('settings/api-keys/action/', api_key_action, name='api_key_action'),
     path('settings/<slug:slug>/', settings_page, name='settings_page'),
     path('branding/', branding_identity, name='branding_identity'),
     path('login/', login_view, name='login'),

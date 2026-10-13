@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.0.19
+- **An API for integrations, versioned.** `/api/v1/` now lets a program manage **mailboxes**
+  (list, create, read, change quota / disable / set password, delete), **aliases** and **domains**
+  (list, read, add, verify), next to the existing `status` and `metrics`. The contract is
+  `/api/v1/openapi.json`; `/api/` lists the versions the server speaks. Within `v1` only additions
+  are made; a breaking change will be `/api/v2/` beside it. The old unversioned `/api/<path>`
+  answers `308` to the same path under `/api/v1/` (with `Deprecation` and `Link` headers), so
+  existing scrapers and scripts keep working.
+- **API keys: a key and a secret.** Settings → **API keys** creates a key (`ifm_…`, public) and a
+  secret (`ifs_…`, shown once, stored only as a hash and compared in constant time). Present them
+  as HTTP Basic (`curl -u key:secret`) or as one Bearer value. A key has scopes that can never
+  exceed its creator's permissions, an expiry (at most 90 days), an optional network allow-list and
+  a calls-per-minute limit (default 120; `429` with `Retry-After`, `X-RateLimit-*` on every reply).
+  **Rotation can overlap**: keep the old secret working for up to 7 days while the integration
+  switches. The key list shows owner, last use and address.
+- **Hard to turn into a takeover.** The API cannot create a login with console access and cannot
+  change or delete one (a leaked key must not be able to reset an administrator's password), and
+  it does not offer domain removal. Every call that changes something is audited under the key and
+  its owner; failed attempts are audited once per address and reason; all failures answer the same
+  401.
+- **Network allow-lists use the address nginx saw** (the last `X-Forwarded-For` entry), not the
+  first, which a caller can forge.
+- Fixed: on a 360 px screen the Settings pages' header was 32 px wider than the screen; the
+  settings icon is now only in the account menu there.
+- Tests: 41 for the API (credential format, rotation overlap, networks incl. a forged forwarding
+  header, rate limit, versioning and the legacy redirect, scopes, mailboxes, aliases, domains, the
+  console page, and "no operation is reachable anonymously" over the whole contract).
+
 ## v0.0.18
 - **A real public site.** The landing page, Terms and Privacy are rebuilt, and seven pages that
   were only links are added: **Features**, **Pricing**, **Security**, **Docs**, **Changelog**,

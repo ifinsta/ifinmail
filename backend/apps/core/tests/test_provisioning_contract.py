@@ -745,3 +745,24 @@ class LogFoundationContractTests(SimpleTestCase):
         self.assertIn('control: warning', knot)
         self.assertNotRegex(knot, r'(?m)^\s+any:')  # "any" would override control: warning
 
+
+class ExposureHardeningContractTests(SimpleTestCase):
+    """Findings of the first real exposure scan, kept fixed."""
+
+    def test_nginx_does_not_name_its_version_and_says_each_header_once(self) -> None:
+        conf = _read('nginx', 'conf.d', 'ifinmail.conf')
+        self.assertIn('server_tokens off;', conf)
+        for header in ('Strict-Transport-Security', 'X-Content-Type-Options', 'X-Frame-Options'):
+            self.assertIn(f'proxy_hide_header {header};', conf)
+        self.assertIn('add_header Referrer-Policy "same-origin";', conf)
+
+    def test_postfix_does_not_confirm_which_mailboxes_exist(self) -> None:
+        self.assertRegex(_read('postfix', 'main.cf'), r'(?m)^disable_vrfy_command = yes\s*$')
+
+    def test_the_firewall_bans_scanner_only_paths_on_the_first_hits(self) -> None:
+        agent = _read('firewall', 'entrypoint.sh')
+        self.assertIn('CANARY_WEIGHT="${CANARY_WEIGHT:-15}"', agent)
+        for path in ('.env', 'wp-login', 'phpmyadmin', 'xmlrpc'):
+            self.assertIn(path, agent)
+        self.assertNotIn('security.txt', agent.split('CANARY=')[1].split('\n')[0])  # a convention
+

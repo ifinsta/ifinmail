@@ -23,6 +23,7 @@ class SettingKey(StrEnum):
     NETWORK_RATE_LIMITS = 'network.rate_limits'
     NETWORK_AUTOBLOCK = 'network.autoblock'  # opt-in automatic blocking: enabled, hours, allow-list
     PROVISION_SIGNATURES = 'domains.provision_signatures'  # last outcome per domain (audit noise)
+    EXPOSURE_LAST = 'security.exposure_last'  # the last exposure self-check (accounts.exposure)
     NETWORK_FLOOD = 'network.flood'  # flood mode while it lasts: {'until': iso, 'reason': text}
     # Bundled plugins with install_by_default already offered once (installed, or later removed).
     PLUGIN_DEFAULTS_OFFERED = 'plugins.defaults_offered'

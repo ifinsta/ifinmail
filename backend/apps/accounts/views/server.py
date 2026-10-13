@@ -38,6 +38,7 @@ from ..forms.server import (
     RateForm,
     UnblockForm,
 )
+from ..services import exposure
 from ..services.stepup import StepUpService
 from ..types.permissions import PermissionCode
 from .auth import _get_client_ip, require_perm
@@ -191,6 +192,8 @@ def network_page(request: HttpRequest) -> HttpResponse:
             'web_concurrent': WEB_CONCURRENT,
             'scan_ban': SCAN_BAN_THRESHOLD,
             'agent': EntryPointService.agent_status(),
+            'exposure': exposure.summarise(exposure.last()),
+            'exposure_checks': (exposure.last() or {}).get('checks', []),
             'client_ip': _get_client_ip(request),
         },
     )
@@ -280,6 +283,31 @@ def network_auto(request: HttpRequest) -> HttpResponse:
     )
     AuditService.record(action='network_auto_config', user=_actor(request), detail=detail)
     messages.success(request, _('Automatic protection saved.'))
+    return redirect('accounts:network')
+
+
+@login_required
+@_SECURITY
+@require_POST
+def network_exposure_run(request: HttpRequest) -> HttpResponse:
+    """Start the exposure self-check now (it also runs weekly)."""
+    from django.core.cache import cache
+
+    from backend.apps.core.tasks import exposure_check
+
+    if not cache.add('exposure:running', 1, 120):
+        messages.info(request, _('A check is already running; its result appears in a minute.'))
+        return redirect('accounts:network')
+    try:
+        exposure_check.delay()
+    except Exception:
+        cache.delete('exposure:running')
+        messages.error(request, _('The check could not be started; try again in a moment.'))
+        return redirect('accounts:network')
+    AuditService.record(action='exposure_check_requested', user=_actor(request))
+    messages.success(
+        request, _('The exposure check is running; the result appears here in a minute.')
+    )
     return redirect('accounts:network')
 
 

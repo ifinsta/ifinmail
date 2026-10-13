@@ -341,6 +341,10 @@ the worker) and the sign-in record every ten minutes and keeps only what a decis
   Rspamd and Dovecot (joined by queue id and Message-ID); the report is emailed to the
   administrators each Monday (`LOG_REPORT_EMAIL=0` turns that off); the assistant can answer from
   the same figures.
+- **Exposure check (Settings → Network).** Weekly and on request the server probes itself like a
+  stranger (scanner paths, internal ports, certificate, headers, open relay, VRFY, plain-text
+  logins, open resolver). Results appear in System health. Scanner-only paths such as `/.env`
+  put an address in the penalty box after two requests.
 - **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
 - **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
   no findings after a week, resolved findings after 30 days. The audit trail is never touched.

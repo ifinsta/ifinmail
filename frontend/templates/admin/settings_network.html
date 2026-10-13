@@ -130,6 +130,34 @@
             </form>
         </section>
 
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-exposure">
+            <h2 class="ifinmail-panel-title" id="fw-exposure">{% trans 'Exposure check' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'This server looks at itself the way a stranger does: it asks for the files scanners ask for, probes the ports that must stay closed, checks the certificate and headers, and talks to the mail ports the way an open-relay or address-harvesting tool would (it never sends a message). It runs every Sunday.' %}</p>
+            {% if exposure.state == 'never' %}
+            <p class="ifinmail-help-text">{% trans 'It has not run yet.' %}</p>
+            {% else %}
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Exposure check results' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th scope="col">{% trans 'Check' %}</th><th scope="col">{% trans 'Result' %}</th><th scope="col">{% trans 'What it saw' %}</th></tr></thead>
+                    <tbody>
+                    {% for c in exposure_checks %}
+                    <tr>
+                        <td>{{ c.title }}</td>
+                        <td><span class="ifinmail-badge ifinmail-badge--{% if c.status == 'ok' %}success{% elif c.status == 'warning' %}warning{% else %}danger{% endif %}">{% if c.status == 'ok' %}{% trans 'Fine' %}{% elif c.status == 'warning' %}{% trans 'Look at it' %}{% else %}{% trans 'Fix this' %}{% endif %}</span></td>
+                        <td>{{ c.detail }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+            <p class="ifinmail-help-text">{% blocktrans trimmed with when=exposure.at|date:'Y-m-d H:i' %}Last run {{ when }} UTC.{% endblocktrans %}</p>
+            {% endif %}
+            <form method="post" action="{% url 'accounts:network_exposure_run' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Run now' %}</button></div>
+            </form>
+        </section>
+
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-block">
             <h2 class="ifinmail-panel-title" id="fw-block">{% trans 'Blocked networks' %}</h2>
             <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with ip=client_ip %}Blocked addresses cannot reach any service. You are connecting from <code>{{ ip }}</code>, which cannot be blocked from here.{% endblocktrans %}</p>

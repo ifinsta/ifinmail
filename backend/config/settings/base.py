@@ -269,6 +269,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'telemetry.threat_digest',
         'schedule': crontab(minute='1,11,21,31,41,51'),
     },
+    'exposure-check': {
+        # What a stranger sees: scanner paths, ports, certificate, headers, relay, resolver.
+        'task': 'core.exposure_check',
+        'schedule': crontab(hour=3, minute=10, day_of_week=0),
+    },
     'weekly-report': {
         # The week's logs report by email (Monday morning, UTC); LOG_REPORT_EMAIL=0 turns it off.
         'task': 'telemetry.weekly_report',

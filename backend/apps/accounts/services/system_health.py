@@ -838,6 +838,41 @@ def _firewall() -> HealthCheck:
     )
 
 
+def _exposure() -> HealthCheck:
+    """What the last self-check saw from outside (see accounts.services.exposure)."""
+    from backend.apps.accounts.services import exposure
+
+    title = 'Exposure self-check'
+    link = {'link': _url('accounts:network'), 'link_label': 'Network & entry points'}
+    summary = exposure.summarise(exposure.last())
+    if summary['state'] == 'never':
+        return HealthCheck(
+            'exposure', GROUP_SECURITY, title, WAITING,
+            'It has not run yet; it runs weekly, or press Run now on the Network page.', **link,
+        )
+    when = summary['at'].strftime('%Y-%m-%d') if summary['at'] else 'an unknown date'
+    if summary['errors']:
+        names = '; '.join(f'{c["title"]}: {c["detail"]}' for c in summary['errors'][:3])
+        return HealthCheck(
+            'exposure', GROUP_SECURITY, title, ERROR,
+            f'{len(summary["errors"])} thing(s) a stranger can use ({when}).', names[:300], **link,
+        )
+    if summary['warnings'] or summary['stale']:
+        what = '; '.join(f'{c["title"]}: {c["detail"]}' for c in summary['warnings'][:3])
+        if summary['stale']:
+            what = (what + '; ' if what else '') + 'the last check is old: run it again.'
+        return HealthCheck(
+            'exposure', GROUP_SECURITY, title, WARNING,
+            f'Worth a look ({when}).', what[:300], **link,
+        )
+    return HealthCheck(
+        'exposure', GROUP_SECURITY, title, OK,
+        f'{summary["ok"]} checks passed on {when}: no scanner path served, internal ports closed, '
+        'no open relay, no open resolver.',
+        **link,
+    )
+
+
 def _security() -> list[HealthCheck]:
     from backend.apps.accounts.models import MailUser, TOTPDevice
     from backend.apps.core.services import SystemSettings
@@ -934,6 +969,7 @@ def _collect() -> HealthReport:
     checks += _check(_background_jobs)
     checks += _check(_software_version)
     checks += _check(_firewall)
+    checks += _check(_exposure)
     checks += _check(_security)
     return HealthReport(checked_at=datetime.now(UTC), checks=checks)
 

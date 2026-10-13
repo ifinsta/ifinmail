@@ -72,6 +72,26 @@ def reconcile_entrypoints() -> dict[str, object]:
     return {'wrote': wrote, 'lapsed': lapsed, **EntryPointService.summary()}
 
 
+@shared_task(name='core.exposure_check')
+def exposure_check() -> dict[str, object]:
+    """Look at this server as a stranger does and store what was seen (weekly, or on request)."""
+    from backend.apps.accounts.services import exposure
+
+    result = exposure.run()
+    exposure.store(result)
+    summary = exposure.summarise(result)
+    AuditService.record(
+        action='exposure_check',
+        user='system',
+        detail=(
+            f'{summary["ok"]} of {summary.get("total", 0)} checks passed; '
+            f'{len(summary["errors"])} failed, {len(summary["warnings"])} warned'
+        ),
+        severity='warning' if summary['errors'] else 'info',
+    )
+    return {'state': summary['state'], 'errors': [c['title'] for c in summary['errors']]}
+
+
 @shared_task(name='core.check_for_updates')
 def check_for_updates() -> dict[str, object]:
     """Every six hours: is a newer ifinmail release published? (off when disabled)."""

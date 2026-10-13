@@ -38,12 +38,21 @@ penalised() {
     echo "$n"
 }
 
-# Addresses refused (400/403/404/405/444, static files aside) in the log since the last look.
+# Paths that only a scanner asks for: no page of this server, and no client of it, has any use for
+# them. One hit is nearly proof, so a hit counts CANARY_WEIGHT refusals whatever the answer was
+# (a scanner that got a redirect or a 200 is worse than one that got a 404). The security.txt
+# convention (/.well-known/security.txt) is deliberately not on the list.
+CANARY='\/\.(env|git|svn|hg|aws|ssh|DS_Store|htpasswd|htaccess|npmrc|docker|kube)|wp-login\.php|wp-admin|wp-content|wp-includes|xmlrpc\.php|phpmyadmin|phpinfo\.php|\/cgi-bin\/|vendor\/phpunit|\/actuator|server-status|boaform|HNAP1|\.sql(\.gz)?$|\.bak$'
+CANARY_WEIGHT="${CANARY_WEIGHT:-15}"
+
+# Addresses refused (400/403/404/405/444, static files aside) in the log since the last look;
+# an address that asked for a canary path is listed CANARY_WEIGHT times for each such request.
 refused_since_last_look() {
-    awk '
+    awk -v canary="$CANARY" -v weight="$CANARY_WEIGHT" '
         match($0, /"ip": *"[^"]+"/) { ip = substr($0, RSTART, RLENGTH); sub(/^"ip": *"/, "", ip); sub(/"$/, "", ip) }
         match($0, /"st": *[0-9]+/) { st = substr($0, RSTART, RLENGTH); sub(/^"st": */, "", st) }
         match($0, /"uri": *"[^"]*"/) { uri = substr($0, RSTART, RLENGTH); sub(/^"uri": *"/, "", uri); sub(/"$/, "", uri) }
+        ip != "" && uri !~ /^\/static\// && uri ~ canary { for (i = 0; i < weight; i++) print ip; ip = "" }
         ip != "" && (st == 400 || st == 403 || st == 404 || st == 405 || st == 444) && uri !~ /^\/static\// { print ip }
         { ip = ""; st = ""; uri = "" }
     '

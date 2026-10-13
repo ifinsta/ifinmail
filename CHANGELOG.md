@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.0.38
+- **Exposure check: the server looks at itself the way a stranger does.** Weekly (Sunday 03:10
+  UTC) and on *Run now* (Settings → Network → Exposure check), from inside the stack, against this
+  server's own names and address only. It asks for 22 files scanners ask for on each name (a 2xx is
+  an error), probes 12 ports that must never be open (PostgreSQL, Redis, the console, the spam
+  filter, the Docker API...), validates the certificate (chain, name, days left, TLS version),
+  reads the security headers (missing, repeated, version shown), and talks to the mail ports as an
+  open-relay or address-harvesting tool would (it stops at `RCPT TO`; it never sends a message):
+  relay refused, VRFY not offered, no AUTH before STARTTLS on 587, no plain-text IMAP login, and a
+  recursive DNS query refused (an open resolver amplifies attacks). The result is stored, audited
+  and shown in System health.
+- **First real scan found three things; all fixed.** nginx told strangers its exact version
+  (`server_tokens off`); HSTS, X-Content-Type-Options and X-Frame-Options were sent twice (nginx and
+  the console, with two different HSTS max-ages), so nginx's copy now stands alone and Referrer-Policy
+  agrees with the console's stricter value; and Postfix offered `VRFY`, which lets anyone ask which
+  mailboxes exist (`disable_vrfy_command = yes`).
+- **Canary paths ban on the first hits.** `/.env`, `/.git/...`, `wp-login.php`, `phpmyadmin`,
+  `xmlrpc.php`, `/.aws`, backups and similar paths that nothing here uses count as 15 refusals each
+  (whatever the answer was), so a scanner is in the penalty box after two requests instead of 30.
+  `/.well-known/security.txt` is deliberately not on the list; this server, its own side and the
+  allow-list are exempt as before. Tested against the real agent and kernel.
+
 ## v0.0.37
 - **Mail trace (Logs → Mail trace).** Search by address, domain or queue id and see each matching
   message as one timeline: received (and who signed in), queued, the spam filter's verdict with its

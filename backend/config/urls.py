@@ -5,13 +5,13 @@ Root URL configuration for ifinmail.
 import logging
 
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 
+from backend.apps.core.storage.views.media import media as storage_media
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
 from backend.config import api_versions, public_pages
 from backend.config.branding import DEFAULT_BRAND_NAME
@@ -156,10 +156,9 @@ urlpatterns = [
     path('.well-known/mta-sts.txt', mta_sts_policy, name='mta-sts-policy'),
 ]
 
-# Serve uploaded media (branding logo/favicon) through the dev server; nginx serves
-# MEDIA_ROOT in production, so this only applies when DEBUG is on.
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Uploaded media: nginx serves files on the disk itself; anything not there (media in object
+# storage, or the dev server) reaches the console, which negotiates retrieval.
+urlpatterns.append(path('media/<path:key>', storage_media, name='media'))
 
 # Custom error handlers
 ERROR_HANDLERS: dict[int, tuple[str, str, str, str, str]] = {

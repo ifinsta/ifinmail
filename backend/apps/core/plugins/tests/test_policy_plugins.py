@@ -251,6 +251,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'compliance-journal',
                 'inbound-protection',
                 'mailbox-care',
+                'object-storage',
                 'outbound-policy',
             ],
         )
@@ -824,6 +825,7 @@ class ApplyStatusTests(MailTablesTestCase):
             [
                 'console.assistant',
                 'console.containment',
+                'console.storage',
                 'dovecot.policy',
                 'postfix.main',
                 'postfix.sender_policy',

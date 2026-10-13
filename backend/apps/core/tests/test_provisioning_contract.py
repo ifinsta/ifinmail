@@ -413,7 +413,12 @@ class AuthoritativeServerContractTests(SimpleTestCase):
         self.assertIn('media_data', compose['volumes'])
         nginx = _read('nginx', 'conf.d', 'ifinmail.conf')
         self.assertIn('location /media/', nginx)
-        self.assertIn('alias /app/media/', nginx)
+        # Served from the disk when the file is there, otherwise handed to the console (media in
+        # object storage): see core.storage.views.media.
+        block = nginx[nginx.index('location /media/') :]
+        self.assertIn('root /app;', block)
+        self.assertIn('try_files $uri @media;', block)
+        self.assertIn('location @media', nginx)
 
 
 class Pop3ContractTests(SimpleTestCase):

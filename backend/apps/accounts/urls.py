@@ -11,6 +11,7 @@ from .views.assistant import (
     assistant_status,
     assistant_test,
 )
+from .views.file_storage import file_storage, file_storage_probe, file_storage_sync
 from .views.marketplace import (
     marketplace,
     marketplace_plugin,
@@ -134,6 +135,9 @@ urlpatterns = [
     path('login/passkey/options/', passkey_login_options, name='passkey_login_options'),
     path('login/passkey/verify/', passkey_login_verify, name='passkey_login_verify'),
     path('passkeys/', passkeys_page, name='passkeys'),
+    path('settings/file-storage/', file_storage, name='file_storage'),
+    path('settings/file-storage/test/', file_storage_probe, name='file_storage_probe'),
+    path('settings/file-storage/copy-media/', file_storage_sync, name='file_storage_sync'),
     path('passkeys/register/options/', passkey_register_options, name='passkey_register_options'),
     path('passkeys/register/verify/', passkey_register_verify, name='passkey_register_verify'),
     path('passkeys/remove/', passkey_remove, name='passkey_remove'),

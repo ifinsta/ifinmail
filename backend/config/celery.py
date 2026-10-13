@@ -14,6 +14,7 @@ app.autodiscover_tasks(
     [
         'backend.apps.core',
         'backend.apps.core.plugins',
+        'backend.apps.core.storage',
         'backend.apps.core.assistant',
         'backend.apps.core.telemetry',
         'backend.apps.dns',

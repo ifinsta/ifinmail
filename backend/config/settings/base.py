@@ -175,6 +175,12 @@ CSS_VERSION = (
 
 MEDIA_URL = os.environ.get('MEDIA_URL', '/media/')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', BASE_DIR / 'media'))
+# Files the console stores go through core.storage: the local disk by default, or the store the
+# Object storage plugin configures (docs/storage-contract.md). Static files are unchanged.
+STORAGES = {
+    'default': {'BACKEND': 'backend.apps.core.storage.backends.ObjectStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -268,6 +274,11 @@ CELERY_BEAT_SCHEDULE = {
         # findings and a slim hourly summary (the assistant writes the gist when connected).
         'task': 'telemetry.threat_digest',
         'schedule': crontab(minute='1,11,21,31,41,51'),
+    },
+    'storage-probe': {
+        # External file store (Object storage plugin): write, read back and remove a test object.
+        'task': 'storage.probe',
+        'schedule': crontab(minute='5,35'),
     },
     'exposure-check': {
         # What a stranger sees: scanner paths, ports, certificate, headers, relay, resolver.

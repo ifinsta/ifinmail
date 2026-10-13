@@ -84,9 +84,27 @@ def _existing_upload(url: str, base_dir: str | os.PathLike[str] | None) -> str:
         return url
     relative = url[len(media_url) :].lstrip('/')
     path = os.path.normpath(os.path.join(root, relative))
-    if not path.startswith(os.path.normpath(root) + os.sep) or not os.path.isfile(path):
+    if not path.startswith(os.path.normpath(root) + os.sep):
         return ''
-    return url
+    if os.path.isfile(path):
+        return url
+    return url if _in_media_store(relative) else ''
+
+
+def _in_media_store(key: str) -> bool:
+    """True when media lives in an external store that holds ``key`` (never during start-up)."""
+    try:
+        from django.apps import apps
+
+        if not apps.ready:
+            return False
+        from backend.apps.core.storage import config
+
+        if config.external('media') is None:
+            return False
+        return config.store_for('media').exists(key)
+    except Exception:  # an unreachable store must not take the console's pages down
+        return False
 
 
 @dataclass(frozen=True)

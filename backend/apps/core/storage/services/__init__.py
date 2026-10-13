@@ -19,6 +19,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 
+from backend.apps.core.storage.contract import ObjectInfo
 from backend.apps.core.storage.models.stored_file import StoredFile
 
 logger = logging.getLogger(__name__)
@@ -120,3 +121,30 @@ class StorageService:
             entity_id=entity_id or None,
         )
         return stored
+
+    # -- fixed-key assets (branding and similar): one object per key, replaced in place --------
+
+    @staticmethod
+    def put_asset(key: str, data: object, *, content_type: str = '') -> ObjectInfo:
+        """Write ``data`` (bytes, a file or an upload) under ``key`` in the media store."""
+        from backend.apps.core.storage import config
+
+        store = config.store_for('media')
+        if isinstance(data, bytes):
+            return store.put(key, data, content_type=content_type)
+        stream = getattr(data, 'file', data)
+        if hasattr(stream, 'seek'):
+            stream.seek(0)
+        return store.put_stream(key, stream, content_type=content_type)  # type: ignore[arg-type]
+
+    @staticmethod
+    def delete_asset(key: str) -> None:
+        from backend.apps.core.storage import config
+
+        config.store_for('media').delete(key)
+
+    @staticmethod
+    def asset_exists(key: str) -> bool:
+        from backend.apps.core.storage import config
+
+        return config.store_for('media').exists(key)

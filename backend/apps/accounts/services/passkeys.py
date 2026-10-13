@@ -160,7 +160,7 @@ def finish_registration(request: HttpRequest, user: Any, payload: dict[str, Any]
 
 
 def authentication_options(request: HttpRequest, user: Any | None = None) -> dict[str, Any]:
-    """Options for a sign-in; with ``user`` (second step) only that person's passkeys are offered."""
+    """Options for a sign-in; with ``user`` (second step) only their passkeys are offered."""
     rp_id, _ = relying_party(request)
     challenge = webauthn.generate_challenge()
     _remember(request, _SIGN_IN, challenge, user=str(user.pk) if user is not None else '')
@@ -192,14 +192,14 @@ def finish_authentication(
     generic = PasskeyError('That passkey could not be used. Try again or sign in another way.')
     if passkey is None or not passkey.user.is_active:
         raise generic
-    if expected_user is not None and passkey.user_id != expected_user.pk:
+    if expected_user is not None and passkey.user.pk != expected_user.pk:
         raise generic
-    if state.get('user') and state['user'] != str(passkey.user_id):
+    if state.get('user') and state['user'] != str(passkey.user.pk):
         raise generic
     handle = str(response.get('userHandle') or '')
     if handle:
         try:
-            if b64url_decode(handle).decode() != str(passkey.user_id):
+            if b64url_decode(handle).decode() != str(passkey.user.pk):
                 raise generic
         except (WebAuthnError, UnicodeDecodeError) as exc:
             raise generic from exc

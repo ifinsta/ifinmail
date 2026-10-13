@@ -1,0 +1,109 @@
+manifest_version = 2
+
+[plugin]
+id = "object-storage"
+name = "Object storage (S3-compatible)"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "operations"
+summary = "Keep uploaded media and encrypted backups in S3-compatible object storage (AWS, R2, B2, Wasabi, Hetzner, Ceph, Garage and more)."
+requires_core = "0.0.40"
+description = """
+Moves the files the console manages off this server's disk: uploaded media (logos, attachments) and, if you tick it, the encrypted nightly backups. Mailboxes stay on this server.
+
+Create a bucket and an access key that may only read and write that bucket, then enter the endpoint, region, bucket and key here. Test connection writes, reads back and removes a small test object. Nothing is moved until the test passes and you save.
+
+How people get media: "redirect" sends each visitor a link signed for a few minutes straight to the storage (fast, the bucket stays private); "public" uses a public or CDN address you enter; "proxy" sends everything through this server (for storage only this server can reach). Backups leave this server already encrypted with your backup key, so the storage provider can never read your mail. The secret key is stored encrypted and sent nowhere but the storage endpoint.
+"""
+
+[[settings]]
+key = "endpoint"
+type = "text"
+label = "Endpoint"
+help = "For example https://s3.eu-central-1.amazonaws.com, https://<account>.r2.cloudflarestorage.com or https://fsn1.your-objectstorage.com."
+max_length = 300
+required = true
+
+[[settings]]
+key = "region"
+type = "text"
+label = "Region"
+help = "The bucket's region. Use us-east-1 if the provider does not ask for one (R2: auto)."
+max_length = 40
+default = "us-east-1"
+
+[[settings]]
+key = "bucket"
+type = "text"
+label = "Bucket"
+max_length = 63
+required = true
+
+[[settings]]
+key = "prefix"
+type = "text"
+label = "Folder in the bucket"
+help = "Lets several servers share one bucket. Leave as is unless you have a reason."
+max_length = 200
+default = "ifinmail"
+
+[[settings]]
+key = "access_key"
+type = "text"
+label = "Access key ID"
+max_length = 128
+required = true
+
+[[settings]]
+key = "secret_key"
+type = "secret"
+label = "Secret access key"
+help = "Stored encrypted. Leave empty to keep the current one."
+max_length = 200
+
+[[settings]]
+key = "addressing"
+type = "choice"
+label = "Addressing"
+options = ["path", "virtual"]
+default = "path"
+help = "Path style works almost everywhere; choose virtual only if the provider requires bucket.endpoint addresses."
+
+[[settings]]
+key = "retrieval"
+type = "choice"
+label = "How visitors get media"
+options = ["redirect", "public", "proxy"]
+default = "redirect"
+
+[[settings]]
+key = "public_base_url"
+type = "text"
+label = "Public or CDN address"
+help = "Only for 'public': the address where the bucket's objects can be read, e.g. https://media.example.com."
+max_length = 300
+
+[[settings]]
+key = "url_seconds"
+type = "integer"
+label = "Signed link lifetime (seconds)"
+min = 30
+max = 86400
+default = 300
+
+[[settings]]
+key = "store_media"
+type = "boolean"
+label = "Keep uploaded media here"
+default = true
+
+[[settings]]
+key = "store_backups"
+type = "boolean"
+label = "Send encrypted backups here"
+default = false
+help = "make backup uploads each encrypted archive and removes ones older than the retention period."
+
+[[contributes]]
+capability = "storage.objects"
+values = { driver = "s3", endpoint = "{endpoint}", region = "{region}", bucket = "{bucket}", prefix = "{prefix}", access_key = "{access_key}", secret_key = "{secret_key}", addressing = "{addressing}", retrieval = "{retrieval}", public_base_url = "{public_base_url}", url_seconds = "{url_seconds}", media = "{store_media}", backups = "{store_backups}" }

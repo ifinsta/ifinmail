@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.0.40
+- **External file storage: a neutral storage contract, with S3-compatible object storage as the
+  first plugin.** No new dependency: the S3 driver signs requests itself (AWS Signature V4 with the
+  standard library).
+  - **Contract** (`backend/apps/core/storage/contract.py`): an `ObjectStore` protocol (put, streamed
+    put, get, streamed open, head, exists, delete, list, retrieval URL, probe), one set of key rules
+    (relative, no `..`, no control characters, at most 512 bytes) and one set of errors (not found,
+    unavailable, rejected, invalid key). Drivers register by name; `local` (atomic writes on the
+    server's disk) and `s3` ship built in.
+  - **S3 driver:** path or virtual-host addressing, multipart upload for large files (16 MB parts,
+    aborted cleanly on failure), streamed downloads, ListObjectsV2, pre-signed URLs (at most 7
+    days), retries with backoff on throttling and server errors, credentials never logged.
+  - **Plugin:** *Object storage (S3-compatible)* (Marketplace) contributes the engine-neutral
+    `storage.objects` capability: endpoint, region, bucket, prefix, access key, secret key (stored
+    encrypted), addressing, how files are handed out, and whether media and/or backups go there.
+    Without it, everything stays on the local disk as before.
+  - **Media:** Django's default storage routes through the contract, so `StoredFile` and branding
+    uploads land in the bucket. `/media/...` links do not change: nginx serves a file that is on
+    disk, and otherwise asks the console, which redirects to a signed link, to a public/CDN
+    address, or streams it. Only branding and files marked public are shown to visitors; the rest
+    need an administrator.
+  - **Backups:** with backups routed to object storage, the nightly off-site step uploads the
+    encrypted archive, compares SHA-256 and prunes to the retention. Unencrypted archives are
+    refused. `manage.py storage check|status|upload|list|prune|sync-media`.
+  - **Health:** a connection test twice an hour, a *File storage* System health check, and
+    **Settings → File storage** (where each kind of file is kept, *Test connection*, *Copy media to
+    object storage*). Failures and recoveries are audited once each.
+  - Verified against the AWS-published SigV4 examples and end to end against two independent
+    S3 implementations (Garage and SeaweedFS), including a 40 MB multipart backup and signed
+    redirects fetched by a plain client. Design and research: `docs/storage-contract.md`.
+- Tests no longer touch the repository's `branding_overrides.json`.
+
 ## v0.0.39
 - **Passkeys: sign in to the console with a fingerprint, face, screen lock or a security key.**
   Part of core account authentication, with no new dependency (the WebAuthn checks use the

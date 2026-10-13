@@ -8,3 +8,6 @@ class StorageConfig(AppConfig):
 
     def ready(self) -> None:
         import backend.apps.core.storage.signals  # noqa: F401 — register signal handlers (EC-77)
+        from backend.apps.core.storage.plugin_contract import register
+
+        register()  # the storage.objects capability plugins configure

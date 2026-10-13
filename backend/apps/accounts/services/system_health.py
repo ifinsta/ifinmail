@@ -838,6 +838,41 @@ def _firewall() -> HealthCheck:
     )
 
 
+def _file_storage() -> HealthCheck:
+    """Where the console's files live, and whether an external store still answers."""
+    from backend.apps.core.storage import config, health
+
+    title = 'File storage'
+    link = {'link': _url('accounts:file_storage'), 'link_label': 'File storage'}
+    chosen = config.current()
+    if chosen is None:
+        return HealthCheck(
+            'file-storage', GROUP_SERVER, title, OK,
+            'Media and backups are kept on this server’s disk.', **link,
+        )
+    where = ', '.join(sorted(chosen.purposes))
+    probe = health.last()
+    if not probe:
+        return HealthCheck(
+            'file-storage', GROUP_SERVER, title, WAITING,
+            f'{where} go to object storage; the first check runs within half an hour.', **link,
+        )
+    if not probe.get('ok'):
+        return HealthCheck(
+            'file-storage', GROUP_SERVER, title, ERROR,
+            f'The object store for {where} is failing: {probe.get("detail", "")}',
+            'New uploads and backups cannot be stored until it answers. Check the key, the bucket '
+            'and the endpoint in Marketplace → Object storage.',
+            **link,
+        )
+    return HealthCheck(
+        'file-storage', GROUP_SERVER, title, OK,
+        f'{where} in object storage; it answered the last check in '
+        f'{probe.get("milliseconds", 0)} ms.',
+        **link,
+    )
+
+
 def _exposure() -> HealthCheck:
     """What the last self-check saw from outside (see accounts.services.exposure)."""
     from backend.apps.accounts.services import exposure
@@ -976,6 +1011,7 @@ def _collect() -> HealthReport:
     checks += _check(_sending)
     checks += _check(_background_jobs)
     checks += _check(_software_version)
+    checks += _check(_file_storage)
     checks += _check(_firewall)
     checks += _check(_exposure)
     checks += _check(_security)

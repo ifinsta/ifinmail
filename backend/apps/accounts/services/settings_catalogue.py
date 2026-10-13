@@ -244,6 +244,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 {'slug': 'storage'},
             ),
             SettingsItem(
+                'file-storage',
+                _('File storage'),
+                _('Where media and backups are kept: this server or object storage.'),
+                SettingsIcon.STORAGE,
+                'accounts:file_storage',
+                ('s3', 'object storage', 'bucket', 'r2', 'b2', 'wasabi', 'media', 'offsite'),
+            ),
+            SettingsItem(
                 'backups',
                 _('Backups & scheduled jobs'),
                 _('Backup status and automatic checks.'),

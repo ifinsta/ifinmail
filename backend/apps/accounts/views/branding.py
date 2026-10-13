@@ -11,6 +11,8 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.storage.contract import StorageError
+from backend.apps.core.storage.services import StorageService
 from backend.config.branding import (
     DEFAULT_ACCENT,
     DEFAULT_PRIMARY,
@@ -32,9 +34,6 @@ def _get_overrides_file_path() -> str:
 
 
 _BRANDING_OVERRIDES_FILE = _get_overrides_file_path()
-_MEDIA_ROOT = getattr(
-    django_settings, 'MEDIA_ROOT', os.path.join(os.environ.get('APP_DIR', '/app'), 'media')
-)
 
 # Available web-safe fonts for the selector
 _WEB_FONTS = [
@@ -52,6 +51,15 @@ _WEB_FONTS = [
     ('PT Sans', 'PT Sans'),
     ('Noto Sans', 'Noto Sans'),
 ]
+
+
+def _store_failed(exc: Exception) -> JsonResponse:
+    logger.warning('Branding upload could not be stored: %s', exc)
+    return JsonResponse(
+        {'status': 'err', 'error': f'The file could not be stored: {exc}'},
+        status=502,
+        content_type='application/json; charset=utf-8',
+    )
 
 
 def _load_overrides() -> dict:
@@ -144,12 +152,11 @@ def branding_save(request: HttpRequest) -> HttpResponse:
     # Favicon upload
     uploaded = request.FILES.get('favicon')
     if uploaded:
-        favicon_dir = os.path.join(_MEDIA_ROOT, 'branding')
-        os.makedirs(favicon_dir, exist_ok=True)
-        favicon_path = os.path.join(favicon_dir, 'favicon.ico')
-        with open(favicon_path, 'wb+') as dest:
-            for chunk in uploaded.chunks():
-                dest.write(chunk)
+        # Through core.storage: the disk, or the object store the Object storage plugin set up.
+        try:
+            StorageService.put_asset('branding/favicon.ico', uploaded, content_type='image/x-icon')
+        except StorageError as exc:
+            return _store_failed(exc)
         overrides['favicon_url'] = (
             f'{getattr(django_settings, "MEDIA_URL", "/media/")}branding/favicon.ico'
         )
@@ -160,13 +167,15 @@ def branding_save(request: HttpRequest) -> HttpResponse:
     if uploaded_logo:
         ext = os.path.splitext(uploaded_logo.name)[1].lower()
         if ext in {'.png', '.svg', '.jpg', '.jpeg', '.webp'}:
-            logo_dir = os.path.join(_MEDIA_ROOT, 'branding')
-            os.makedirs(logo_dir, exist_ok=True)
             logo_name = f'logo{ext}'
-            logo_path = os.path.join(logo_dir, logo_name)
-            with open(logo_path, 'wb+') as dest:
-                for chunk in uploaded_logo.chunks():
-                    dest.write(chunk)
+            try:
+                StorageService.put_asset(
+                    f'branding/{logo_name}',
+                    uploaded_logo,
+                    content_type=uploaded_logo.content_type or '',
+                )
+            except StorageError as exc:
+                return _store_failed(exc)
             overrides['logo_url'] = (
                 f'{getattr(django_settings, "MEDIA_URL", "/media/")}branding/{logo_name}'
             )
@@ -208,14 +217,8 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
         if os.path.isfile(_BRANDING_OVERRIDES_FILE):
             os.remove(_BRANDING_OVERRIDES_FILE)
         # Also remove uploaded favicon and logo assets
-        branding_dir = os.path.join(_MEDIA_ROOT, 'branding')
-        favicon_path = os.path.join(branding_dir, 'favicon.ico')
-        if os.path.isfile(favicon_path):
-            os.remove(favicon_path)
-        for logo_name in ('logo.png', 'logo.svg', 'logo.jpg', 'logo.jpeg', 'logo.webp'):
-            logo_path = os.path.join(branding_dir, logo_name)
-            if os.path.isfile(logo_path):
-                os.remove(logo_path)
+        for name in ('favicon.ico', 'logo.png', 'logo.svg', 'logo.jpg', 'logo.jpeg', 'logo.webp'):
+            StorageService.delete_asset(f'branding/{name}')
 
         # Dynamic hot-reload of branding config to reset defaults
         from backend.config.branding import BrandingConfig
@@ -227,7 +230,7 @@ def branding_reset(request: HttpRequest) -> HttpResponse:
             user=request.user.email if request.user.is_authenticated else None,
             detail='Branding overrides cleared',
         )
-    except OSError as e:
+    except (OSError, StorageError) as e:
         logger.exception('Failed to reset branding: %s', e)
         return JsonResponse(
             {'status': 'err', 'error': str(e)},

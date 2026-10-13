@@ -42,6 +42,15 @@ files = [
     "backend/apps/core/telemetry/serializers",
     "backend/apps/core/telemetry/viewsets",
     "backend/apps/dns/api.py",
+    "backend/apps/core/storage/contract.py",
+    "backend/apps/core/storage/drivers",
+    "backend/apps/core/storage/config.py",
+    "backend/apps/core/storage/backends.py",
+    "backend/apps/core/storage/health.py",
+    "backend/apps/core/storage/plugin_contract.py",
+    "backend/apps/core/storage/views/media.py",
+    "backend/apps/accounts/services/passkeys.py",
+    "backend/apps/accounts/services/webauthn.py",
 ]
 strict = true
 ignore_missing_imports = true

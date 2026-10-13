@@ -1,0 +1,70 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}File storage — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'File storage' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Where the console keeps the files it manages: uploaded media (logos, attachments) and encrypted backups. Mailboxes always stay on this server.' %}</p>
+            </div>
+            {% if external %}
+            <div class="ifinmail-page-actions">
+                <form method="post" action="{% url 'accounts:file_storage_probe' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="ifinmail-btn ifinmail-btn--outline">{% trans 'Test now' %}</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if probe and not probe.ok %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--danger" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+            <div><p class="ifinmail-hbanner__headline">{% trans 'The object store is not answering.' %}</p>
+            <p class="ifinmail-hbanner__next">{{ probe.detail }}</p></div>
+        </div>
+        {% endif %}
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Where files live' %}">
+            <table class="ifinmail-admin-table">
+                <thead><tr><th scope="col">{% trans 'Files' %}</th><th scope="col">{% trans 'Kept in' %}</th><th scope="col">{% trans 'Where' %}</th><th scope="col">{% trans 'How visitors get them' %}</th></tr></thead>
+                <tbody>
+                {% for purpose, where in layout.purposes.items %}
+                <tr>
+                    <td>{% if purpose == 'media' %}{% trans 'Uploaded media' %}{% else %}{% trans 'Encrypted backups' %}{% endif %}</td>
+                    <td>{% if where.driver == 'local' %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'This server' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--info">{% trans 'Object storage' %}</span>{% endif %}</td>
+                    <td class="ifinmail-text--mono">{{ where.where }}</td>
+                    <td>{% if where.retrieval == 'redirect' %}{% trans 'A link signed for a few minutes, straight to the store' %}{% elif where.retrieval == 'public' %}{% trans 'The public or CDN address' %}{% elif where.retrieval == 'proxy' %}{% trans 'Through this server' %}{% else %}{{ where.retrieval|default:'—' }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        {% if probe and probe.ok %}
+        <p class="ifinmail-help-text">{% blocktrans trimmed with when=probe.at|slice:':16' ms=probe.milliseconds %}Last check {{ when }} UTC: it wrote, read back and removed a test object in {{ ms }} ms.{% endblocktrans %}</p>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fs-how">
+            <h2 class="ifinmail-panel-title" id="fs-how">{% if external %}{% trans 'Change or stop using object storage' %}{% else %}{% trans 'Use object storage' %}{% endif %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Install the Object storage plugin from the Marketplace and enter an S3-compatible endpoint, bucket and key (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, Hetzner, OVHcloud, Scaleway, Ceph, Garage, SeaweedFS and others). Its Test connection proves the bucket works before anything moves.' %}</p>
+            <p><a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:marketplace' %}">{% trans 'Open the Marketplace' %}</a></p>
+        </section>
+
+        {% if media_external %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fs-copy">
+            <h2 class="ifinmail-panel-title" id="fs-copy">{% trans 'Copy media already on this server' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Files uploaded before object storage was turned on are still on this disk (and still served from it). Copy them to the store so the disk copy is no longer needed. Files already in the store are left as they are.' %}</p>
+            <form method="post" action="{% url 'accounts:file_storage_sync' %}">
+                {% csrf_token %}
+                <button type="submit" class="ifinmail-btn ifinmail-btn--primary">{% trans 'Copy media to object storage' %}</button>
+            </form>
+        </section>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

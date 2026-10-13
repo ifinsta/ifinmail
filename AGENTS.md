@@ -120,6 +120,15 @@ result = StorageService.upload(
 )
 ```
 
+**Where the bytes live** is not the caller's concern. `default_storage` is the routing backend
+`backend.apps.core.storage.backends.ObjectStorage`, and `StorageService` asks
+`storage.config.store_for(purpose)` for an `ObjectStore` (`media` or `backups`): the local disk,
+or an external store chosen by a plugin through the `storage.objects` capability. New remote
+protocols are drivers registered with `storage.drivers.register(name, factory)` that satisfy the
+`ObjectStore` protocol in `storage/contract.py`; never call a vendor SDK or a bucket directly.
+Never build a file path from `MEDIA_ROOT` for media: the file may not be on this disk. Full
+contract and rules: `docs/storage-contract.md`.
+
 # ifinmail - Frontend Design Guide (Remediation)
 - Please refer to [DESIGN.md] for any new design or remediation of existing design when checking against compliance requirements for frontend designs.
 - Agent skills in `.agents/skills/` encode the approved template redesign. Load `ifinmail-design-system` before any UI work, follow `ifinmail-template-builder` when touching `frontend/templates` or `frontend/static`, and finish with `ifinmail-design-audit`. The template-to-board map is in `docs/html_templates.md`.

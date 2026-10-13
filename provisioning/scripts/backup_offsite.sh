@@ -13,7 +13,9 @@
 # sent with the backups: a backup stored next to its key is not encrypted in any useful sense.
 #
 # Settings (provisioning/.env):
-#   BACKUP_OFFSITE_TARGET   user@host:/absolute/path   (empty disables the off-site copy)
+#   BACKUP_OFFSITE_TARGET   user@host:/absolute/path, or "object-storage" (the store the Object
+#                           storage plugin configures in the console). Empty: object storage when
+#                           that plugin has "Send encrypted backups here" ticked, otherwise none.
 #   BACKUP_OFFSITE_PORT     SSH port, default 22
 #   BACKUP_OFFSITE_SSH_KEY  private key file for the target (default: ssh's own defaults)
 set -euo pipefail
@@ -59,6 +61,41 @@ notify_failure() {
 
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+# ---------------------------------------------------------------- object storage (via the console)
+
+# The console holds the store's settings and encrypted key; the archive is streamed into it.
+API_CONTAINER="${COMPOSE_PROJECT_NAME:-docker}-api-1"
+console_storage() { docker exec -i "$API_CONTAINER" python manage.py storage "$@"; }
+
+backups_in_object_storage() {
+    [ "$TARGET" = "object-storage" ] && return 0
+    [ -z "$TARGET" ] || return 1
+    console_storage status 2>/dev/null | grep '^backups: ' | grep -vq '^backups: local '
+}
+
+send_object_storage() { # <archive.gpg>
+    local archive="$1" name local_sum out stored_sum
+    name="$(basename "$archive")"
+    local_sum="$(sha256sum "$archive" | cut -d' ' -f1)"
+    echo "  Off-site copy: $name -> object storage"
+    if ! out="$(console_storage upload --purpose backups "$name" < "$archive" 2>&1)"; then
+        record_status offsite-status "failed $(now) object storage refused the upload"
+        notify_failure "object storage upload of $name failed: ${out##*Error: }"
+        echo "$out" >&2
+        return 1
+    fi
+    stored_sum="$(printf '%s' "$out" | sed -n 's/.*sha256 \([0-9a-f]\{64\}\).*/\1/p')"
+    if [ "$stored_sum" != "$local_sum" ]; then
+        record_status offsite-status "failed $(now) object storage checksum mismatch"
+        notify_failure "checksum mismatch for $name in object storage"
+        return 1
+    fi
+    console_storage prune --purpose backups --days "$RETENTION_DAYS" \
+        || echo "  (could not prune old copies in object storage)"
+    record_status offsite-status "ok $(now) object storage"
+    echo "  Off-site copy: verified in object storage (sha256 matches)"
+}
+
 # ---------------------------------------------------------------- target handling
 
 parse_target() {
@@ -98,6 +135,16 @@ copy_verified() { # <local file> <remote name>
 
 cmd_send() {
     local archive="${1:-}"
+    if backups_in_object_storage; then
+        [ -f "$archive" ] || die "archive not found: $archive"
+        case "$archive" in
+            *.gpg) ;;
+            *) record_status offsite-status "failed $(now) refused an unencrypted archive"
+               die "refusing to send an unencrypted archive off the server: $archive" ;;
+        esac
+        send_object_storage "$archive"
+        return
+    fi
     if [ -z "$TARGET" ]; then
         echo "  Off-site copy: not configured (set BACKUP_OFFSITE_TARGET in provisioning/.env)"
         record_status offsite-status "disabled $(now)"
@@ -127,6 +174,11 @@ cmd_send() {
 }
 
 cmd_check() {
+    if backups_in_object_storage; then
+        console_storage check --purpose backups || die "the object store did not pass the check"
+        echo "OK: object storage accepts, stores and returns files byte for byte."
+        return
+    fi
     [ -n "$TARGET" ] || die "BACKUP_OFFSITE_TARGET is not set in $ENV_FILE"
     parse_target
     local tmp name

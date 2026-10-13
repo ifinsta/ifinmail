@@ -187,6 +187,29 @@ answer are shown as text or plain links, never executed or loaded.
 - Limits: a daily token budget (default 200,000), 8 model calls per question, one question at a
   time per administrator; conversations are kept 30 days. Answers are prepared by the `worker`.
 
+### External file storage (object storage)
+
+Uploaded media (branding, attachments) and backups live on the server's own disk unless you
+install the built-in **Object storage (S3-compatible)** plugin: Marketplace → Object storage, then
+the endpoint, bucket, region and an access key of any S3-compatible service (AWS S3, Cloudflare R2,
+Backblaze B2, Wasabi, DigitalOcean Spaces, Hetzner, Scaleway, Ceph, Garage, SeaweedFS...). No
+vendor SDK is involved: requests are signed by the console itself.
+
+- **Choose what goes there:** media, backups, or both. Mailboxes always stay on the server's disk
+  (mail delivery and IMAP need fast local files).
+- **How files are handed out** (`/media/...` links never change): *redirect* (a short-lived signed
+  link to the store, the default), *public* (your CDN or public bucket address) or *proxy* (the
+  console streams the file). Private files are only handed to administrators either way.
+- **Settings → File storage** shows where each kind of file is kept and when the store last
+  answered, offers *Test connection*, and *Copy media to object storage* for files uploaded
+  before the plugin. The connection is tested twice an hour; a failure turns System health red and
+  is audited once.
+- **Backups:** with backups routed there, the nightly encrypted archive is uploaded (in 16 MB
+  parts), compared by SHA-256, and old copies are pruned to the same retention.
+  `python manage.py storage check|status|list|prune` inside the `api` container does the same by
+  hand.
+- Design, research and how to add another protocol: `docs/storage-contract.md`.
+
 ### Off-site copy and the backup key
 
 Backups are encrypted with GPG and, by default, stay on the same disk as the server. Two small

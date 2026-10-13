@@ -1,99 +1,103 @@
 {% extends "base.html" %}
 {% load i18n static assistant_markdown %}
+{% comment %}
+Assistant, laid out like a chat workspace: conversations on the left, one centred reading column,
+the composer pinned below. The whole `.ifinmail-assistant` element is replaced in place by
+ifinmail-assistant.js when a question is sent or an answer arrives, so everything that changes
+lives inside it.
+{% endcomment %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name %}Assistant — {{ name }}{% endblocktrans %}{% endblock %}
 
 {% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
-{% block header %}{% include "includes/header.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" with hide_search=True %}{% endblock %}
+{% block footer %}{% endblock %}
 
 {% block content %}
-<section class="ifinmail-admin-content">
-    <div class="ifinmail-admin-page">
-        <div class="ifinmail-page-header">
-            <div>
-                <h1 class="ifinmail-page-title">{% trans 'Assistant' %}</h1>
-                <p class="ifinmail-page-subtitle">
-                    {% if configured %}{% blocktrans trimmed with model=model host=host %}Using <span class="ifinmail-text--mono">{{ model }}</span> at <span class="ifinmail-text--mono">{{ host }}</span>. It reads this server's checks and drafts changes; it never changes anything by itself.{% endblocktrans %}
-                    {% else %}{% trans 'Ask why something is wrong and get a plain answer, or have it draft plugin settings for you to apply.' %}{% endif %}
-                </p>
+{% if not configured %}
+<section class="ifinmail-assistant-unconfigured">
+    {% include "includes/flash_messages.html" %}
+    <div class="ifinmail-empty-state">
+        <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg>
+        <h1 class="ifinmail-assistant-greeting">{% trans 'No model is connected' %}</h1>
+        <p>{% trans 'Enter the API base URL and model of any OpenAI-compatible service. Nothing is sent anywhere until you do.' %}</p>
+        <p><a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'accounts:marketplace_plugin' plugin_id='assistant' %}">{% trans 'Connect a model' %}</a></p>
+    </div>
+</section>
+{% else %}
+<div class="ifinmail-assistant" data-label-copy="{% trans 'Copy' %}" data-label-copied="{% trans 'Copied' %}">
+    <aside class="ifinmail-assistant-rail" id="as-rail" data-assistant-rail aria-label="{% trans 'Conversations' %}">
+        <a class="ifinmail-assistant-new" href="{% url 'accounts:assistant' %}">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span>{% trans 'New chat' %}</span>
+        </a>
+        <nav class="ifinmail-assistant-history" aria-label="{% trans 'Conversation history' %}">
+            {% for group in history %}
+            <h2 class="ifinmail-assistant-history__group">{{ group.label }}</h2>
+            <ul>
+                {% for item in group.items %}
+                <li class="ifinmail-assistant-history__item{% if conversation and item.pk == conversation.pk %} is-current{% endif %}">
+                    <a href="{% url 'accounts:assistant_conversation' conversation_id=item.pk %}"{% if conversation and item.pk == conversation.pk %} aria-current="page"{% endif %}>{{ item.title }}</a>
+                    <form method="post" action="{% url 'accounts:assistant_delete' conversation_id=item.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="ifinmail-assistant-history__delete" aria-label="{% blocktrans trimmed with title=item.title %}Delete {{ title }}{% endblocktrans %}" data-assistant-confirm="{% trans 'Delete this conversation?' %}">
+                            <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+                        </button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            {% empty %}
+            <p class="ifinmail-assistant-history__empty">{% trans 'Your conversations appear here. They are kept for 30 days and visible only to you.' %}</p>
+            {% endfor %}
+        </nav>
+        <div class="ifinmail-assistant-rail__foot">
+            <div class="ifinmail-assistant-meter">
+                <label for="as-meter">{% blocktrans trimmed with today=usage.today|floatformat:"0g" budget=usage.budget|floatformat:"0g" %}Tokens today: {{ today }} of {{ budget }}{% endblocktrans %}</label>
+                <progress id="as-meter" value="{{ usage.today }}" max="{{ usage.budget }}">{{ usage_percent }}%</progress>
             </div>
-            <div class="ifinmail-page-actions">
-                <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:marketplace_plugin' plugin_id='assistant' %}">{% trans 'Connection settings' %}</a>
-                {% if configured %}
+            <div class="ifinmail-assistant-rail__links">
+                <a href="{% url 'accounts:marketplace_plugin' plugin_id='assistant' %}">{% trans 'Connection settings' %}</a>
                 <form method="post" action="{% url 'accounts:assistant_test' %}">
                     {% csrf_token %}
-                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Test connection' %}</button>
+                    <button type="submit">{% trans 'Test connection' %}</button>
                 </form>
-                {% endif %}
             </div>
         </div>
+    </aside>
+
+    <section class="ifinmail-assistant-chat{% if not conversation %} ifinmail-assistant-chat--empty{% endif %}" aria-label="{% trans 'Assistant' %}">
+        <header class="ifinmail-assistant-bar">
+            <button type="button" class="ifinmail-assistant-bar__toggle" data-assistant-rail-toggle aria-controls="as-rail" aria-expanded="false" aria-label="{% trans 'Conversations' %}">
+                <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+            </button>
+            <h1 class="ifinmail-assistant-bar__title">{% if conversation %}{{ conversation.title }}{% else %}{% trans 'Assistant' %}{% endif %}</h1>
+            <span class="ifinmail-assistant-bar__model ifinmail-text--mono" title="{% blocktrans trimmed with model=model host=host %}{{ model }} at {{ host }}{% endblocktrans %}">{{ model }}</span>
+            <a class="ifinmail-assistant-bar__new" href="{% url 'accounts:assistant' %}" aria-label="{% trans 'New chat' %}">
+                <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </a>
+        </header>
 
         {% include "includes/flash_messages.html" %}
 
-        {% if not configured %}
-        <section class="ifinmail-panel ifinmail-settings-section">
-            <div class="ifinmail-empty-state">
-                <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg>
-                <p><strong>{% trans 'No model is connected' %}</strong></p>
-                <p>{% trans 'Enter the API base URL and model of any OpenAI-compatible service. Nothing is sent anywhere until you do.' %}</p>
-                <p><a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'accounts:marketplace_plugin' plugin_id='assistant' %}">{% trans 'Connect a model' %}</a></p>
-            </div>
-        </section>
-        {% else %}
-        <div class="ifinmail-assistant" data-label-copy="{% trans 'Copy' %}" data-label-copied="{% trans 'Copied' %}">
-            <details class="ifinmail-assistant-rail" open data-assistant-rail>
-                <summary>{% blocktrans trimmed count n=conversations|length %}Conversation{% plural %}Conversations ({{ n }}){% endblocktrans %}</summary>
-                <a class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm ifinmail-assistant-new" href="{% url 'accounts:assistant' %}">{% trans 'New conversation' %}</a>
-                <ul class="ifinmail-assistant-history">
-                    {% for item in conversations %}
-                    <li{% if conversation and item.pk == conversation.pk %} class="is-current"{% endif %}>
-                        <a href="{% url 'accounts:assistant_conversation' conversation_id=item.pk %}"{% if conversation and item.pk == conversation.pk %} aria-current="page"{% endif %}>
-                            <span class="ifinmail-assistant-history__title">{{ item.title }}</span>
-                            <span class="ifinmail-assistant-history__when ifinmail-text--mono">{{ item.updated_at|date:'d M H:i' }}</span>
-                        </a>
-                    </li>
-                    {% empty %}
-                    <li class="ifinmail-help-text">{% trans 'Your conversations appear here. They are kept for 30 days and visible only to you.' %}</li>
-                    {% endfor %}
-                </ul>
-                <div class="ifinmail-assistant-meter">
-                    <label for="as-meter">{% blocktrans trimmed with today=usage.today|floatformat:"0g" budget=usage.budget|floatformat:"0g" %}Tokens today: {{ today }} of {{ budget }}{% endblocktrans %}</label>
-                    <progress id="as-meter" value="{{ usage.today }}" max="{{ usage.budget }}">{{ usage_percent }}%</progress>
-                </div>
-            </details>
-
-            <div class="ifinmail-assistant-main">
+        <div class="ifinmail-assistant-scroll" data-assistant-scroll>
+            <div class="ifinmail-assistant-column">
                 {% if not conversation %}
-                <section class="ifinmail-panel ifinmail-assistant-start" aria-labelledby="as-start">
-                    <h2 class="ifinmail-panel-title" id="as-start">{% trans 'What would you like to know?' %}</h2>
-                    <p class="ifinmail-help-text">{% trans 'It looks at the same checks as System health, your plugins and the audit trail, then explains the cause and the fix.' %}</p>
-                    <div class="ifinmail-assistant-suggestions">
-                        {% for question, hint in suggestions %}
-                        <form method="post" action="{% url 'accounts:assistant_ask' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="question" value="{{ question }}">
-                            <button type="submit" class="ifinmail-assistant-suggestion">
-                                <span>{{ question }}</span>
-                                <small>{{ hint }}</small>
-                            </button>
-                        </form>
-                        {% endfor %}
-                    </div>
-                </section>
+                <div class="ifinmail-assistant-start">
+                    <h2 class="ifinmail-assistant-greeting">{% trans 'How can I help with this server?' %}</h2>
+                    <p class="ifinmail-assistant-lede">{% blocktrans trimmed with host=host %}I read the same checks as System health, your plugins and the audit trail, explain what I find and draft changes for you to apply. Questions go to <span class="ifinmail-text--mono">{{ host }}</span>.{% endblocktrans %}</p>
+                </div>
                 {% else %}
-                <div class="ifinmail-assistant-thread" aria-live="polite">
+                <div class="ifinmail-assistant-thread" role="log" aria-live="polite" aria-label="{% trans 'Conversation' %}">
                     {% for turn in turns %}
                     <article class="ifinmail-assistant-turn">
-                        <div class="ifinmail-assistant-msg ifinmail-assistant-msg--user">
-                            <span class="ifinmail-overline">{% trans 'You' %}</span>
-                            <p>{{ turn.question.content }}</p>
-                        </div>
+                        <div class="ifinmail-assistant-user"><p>{{ turn.question.content }}</p></div>
 
                         {% if turn.steps %}
                         <details class="ifinmail-assistant-sent">
                             <summary>
+                                <svg class="ifinmail-icon ifinmail-icon--sm ifinmail-assistant-sent__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                                 <span>{% blocktrans trimmed count n=turn.steps|length with host=conversation.provider_host %}Checked {{ n }} thing · sent to {{ host }}{% plural %}Checked {{ n }} things · sent to {{ host }}{% endblocktrans %}</span>
-                                {% for step in turn.steps %}<span class="ifinmail-assistant-chip ifinmail-text--mono">{{ step.tool_name }}</span>{% endfor %}
                             </summary>
                             <ol class="ifinmail-assistant-steps">
                                 {% for step in turn.steps %}
@@ -107,36 +111,38 @@
                         {% endif %}
 
                         {% for answer in turn.answers %}
-                        <div class="ifinmail-assistant-msg ifinmail-assistant-msg--assistant">
-                            <div class="ifinmail-assistant-msg__head">
-                                <span class="ifinmail-overline">{% trans 'Assistant' %}</span>
-                                <button type="button" class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--sm" data-assistant-copy="{{ answer.content }}">{% trans 'Copy' %}</button>
-                            </div>
+                        <div class="ifinmail-assistant-answer">
                             {{ answer.content|markdown }}
+                            <div class="ifinmail-assistant-actions">
+                                <button type="button" class="ifinmail-assistant-action" data-assistant-copy="{{ answer.content }}">
+                                    <svg class="ifinmail-icon ifinmail-icon--sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+                                    <span>{% trans 'Copy' %}</span>
+                                </button>
+                            </div>
                         </div>
                         {% endfor %}
 
                         {% for step in turn.proposals %}
                         <section class="ifinmail-assistant-proposal" aria-label="{% trans 'Drafted settings' %}">
-                            <h2 class="ifinmail-panel-title">{% blocktrans trimmed with plugin=step.proposal.plugin_name %}Draft: {{ plugin }}{% endblocktrans %}</h2>
+                            <h3 class="ifinmail-assistant-proposal__title">{% blocktrans trimmed with plugin=step.proposal.plugin_name %}Draft: {{ plugin }}{% endblocktrans %}</h3>
                             {% if not step.proposal.installed %}<p class="ifinmail-help-text">{% trans 'Applying also installs and enables this plugin.' %}</p>{% endif %}
-                            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Drafted changes' %}">
+                            <div class="ifinmail-assistant-proposal__table" tabindex="0" role="region" aria-label="{% trans 'Drafted changes' %}">
                                 <table class="ifinmail-admin-table">
-                                    <thead><tr><th>{% trans 'Setting' %}</th><th>{% if step.proposal.installed %}{% trans 'Now' %}{% else %}{% trans 'Default' %}{% endif %}</th><th>{% trans 'Draft' %}</th></tr></thead>
+                                    <thead><tr><th scope="col">{% trans 'Setting' %}</th><th scope="col">{% if step.proposal.installed %}{% trans 'Now' %}{% else %}{% trans 'Default' %}{% endif %}</th><th scope="col">{% trans 'Draft' %}</th></tr></thead>
                                     <tbody>
                                     {% for change in step.proposal.changes %}
                                         <tr><td>{{ change.setting }}</td><td class="ifinmail-text--mono">{{ change.before|default_if_none:'—' }}</td><td class="ifinmail-text--mono">{{ change.after|default_if_none:'—' }}</td></tr>
                                     {% endfor %}
                                     </tbody>
                                 </table>
-                            </article>
+                            </div>
                             {% if step.proposal_applied_at %}
                             <p><span class="ifinmail-badge ifinmail-badge--success">{% trans 'Applied' %}</span> <span class="ifinmail-help-text">{% blocktrans trimmed with who=step.proposal_applied_by when=step.proposal_applied_at|date:'Y-m-d H:i' %}by {{ who }} at {{ when }}{% endblocktrans %}</span></p>
                             {% else %}
                             <form method="post" action="{% url 'accounts:assistant_apply' message_id=step.pk %}" class="ifinmail-assistant-apply">
                                 {% csrf_token %}
                                 <input type="hidden" name="conversation" value="{{ conversation.pk }}">
-                                <button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Apply these settings' %}</button>
+                                <button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Apply these settings' %}</button>
                                 <span class="ifinmail-help-text">{% trans 'Validated again when you apply; recorded in the audit trail.' %}</span>
                             </form>
                             {% endif %}
@@ -148,37 +154,50 @@
                     {% if running %}
                     <div class="ifinmail-assistant-working" role="status" data-assistant-poll="{% url 'accounts:assistant_status' conversation_id=conversation.pk %}" data-messages="{{ message_count }}">
                         <span class="ifinmail-assistant-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-                        <span>{% if working_steps %}{% blocktrans trimmed with step=working_steps|last %}Working on it: checked <span class="ifinmail-text--mono">{{ step }}</span>…{% endblocktrans %}{% else %}{% trans 'Working on it…' %}{% endif %} <span class="ifinmail-help-text">{% trans 'This page updates by itself.' %}</span></span>
+                        <span>{% if working_steps %}{% blocktrans trimmed with step=working_steps|last %}Checked <span class="ifinmail-text--mono">{{ step }}</span>, working on it…{% endblocktrans %}{% else %}{% trans 'Working on it…' %}{% endif %}</span>
                     </div>
                     {% elif conversation.status == 'failed' %}
                     <p class="ifinmail-error-banner" role="alert">{{ conversation.error }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
-
-                <form method="post" action="{% url 'accounts:assistant_ask' %}" class="ifinmail-assistant-composer" data-assistant-composer>
-                    {% csrf_token %}
-                    {% if conversation %}<input type="hidden" name="conversation" value="{{ conversation.pk }}">{% endif %}
-                    <label class="ifinmail-sr-only" for="as-question">{% trans 'Question' %}</label>
-                    <textarea class="ifinmail-input" id="as-question" name="question" rows="2" maxlength="2000" required aria-describedby="as-question-help" placeholder="{% if conversation %}{% trans 'Ask a follow-up…' %}{% else %}{% trans 'Ask about this server, or describe the settings you want…' %}{% endif %}"{% if running %} disabled{% endif %}>{{ prefill }}</textarea>
-                    <div class="ifinmail-assistant-composer__bar">
-                        <small class="ifinmail-help-text" id="as-question-help">{% trans 'Sent to the model: your question and the results of the checks it runs. Never message contents, passwords or keys.' %} <span data-assistant-count></span></small>
-                        <div class="ifinmail-assistant-composer__actions">
-                            {% if conversation %}
-                            <button type="submit" class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--sm" form="as-delete" data-assistant-confirm="{% trans 'Delete this conversation?' %}"{% if running %} disabled{% endif %}>{% trans 'Delete' %}</button>
-                            {% endif %}
-                            <button class="ifinmail-btn ifinmail-btn--primary" type="submit"{% if running %} disabled{% endif %}>{% trans 'Ask' %}</button>
-                        </div>
-                    </div>
-                </form>
-                {% if conversation %}
-                <form id="as-delete" method="post" action="{% url 'accounts:assistant_delete' conversation_id=conversation.pk %}">{% csrf_token %}</form>
-                {% endif %}
             </div>
         </div>
-        {% endif %}
-    </div>
-</section>
+
+        <div class="ifinmail-assistant-dock">
+            <form method="post" action="{% url 'accounts:assistant_ask' %}" class="ifinmail-assistant-composer" data-assistant-composer data-assistant-ask>
+                {% csrf_token %}
+                {% if conversation %}<input type="hidden" name="conversation" value="{{ conversation.pk }}">{% endif %}
+                <label class="ifinmail-sr-only" for="as-question">{% trans 'Question' %}</label>
+                <textarea id="as-question" name="question" rows="1" maxlength="2000" required placeholder="{% if conversation %}{% trans 'Ask a follow-up…' %}{% else %}{% trans 'Ask about this server, or describe the settings you want…' %}{% endif %}">{{ prefill }}</textarea>
+                <div class="ifinmail-assistant-composer__bar">
+                    <span class="ifinmail-assistant-composer__hint" data-assistant-count>{% trans 'Enter to send, Shift+Enter for a new line' %}</span>
+                    <button class="ifinmail-assistant-send" type="submit" aria-label="{% trans 'Send' %}"{% if running %} disabled{% endif %}>
+                        <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                    </button>
+                </div>
+            </form>
+
+            {% if not conversation %}
+            <div class="ifinmail-assistant-suggestions">
+                {% for question, hint in suggestions %}
+                <form method="post" action="{% url 'accounts:assistant_ask' %}" data-assistant-ask>
+                    {% csrf_token %}
+                    <input type="hidden" name="question" value="{{ question }}">
+                    <button type="submit" class="ifinmail-assistant-suggestion">
+                        <span>{{ question }}</span>
+                        <small>{{ hint }}</small>
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <p class="ifinmail-assistant-note">{% trans 'Sent to the model: your question and the results of the checks it runs. Never message contents, passwords or keys. It can draft changes; applying them is always your click.' %}</p>
+        </div>
+    </section>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

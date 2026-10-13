@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.21
+- **The Assistant is now a chat workspace.** Conversations are listed on the left, grouped
+  (Today, Yesterday, Previous 7 days, Older), each with its own delete; **New chat** is one
+  click. The reading column is centred: your question as a quiet bubble on the right, the answer
+  as plain text (full Markdown, tables, code with Copy), and a single "Checked N things · sent to
+  host" line that opens to show exactly what was checked and sent. A drafted change is a card with
+  the Apply button. The composer is pinned at the bottom (Enter sends, Shift+Enter adds a line,
+  an arrow button sends), and a new chat starts with a greeting, the composer and suggested
+  questions together in the middle.
+- **No page reloads.** A question appears the moment you send it, progress and the answer replace
+  the thread in place, the address updates, and the thread stays scrolled to the newest message.
+  Without JavaScript every form still works as a normal post.
+- Below 1024 px the conversation list is a drawer (scrim, Escape closes); touch targets are 44 px
+  on phones and the composer sits edge to edge.
+- Connection settings and Test connection moved into the list's footer; the page title area that
+  repeated the introduction is gone.
+
 ## v0.0.20
 - Fixed: the **Changelog page showed "No changelog on this server"** on installed servers. The
   image build ignores `*.md`, so `CHANGELOG.md` was never in the image (the tests read the source

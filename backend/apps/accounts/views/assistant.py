@@ -10,6 +10,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.core.assistant.services import ConversationService
@@ -57,10 +59,36 @@ def _turns(conversation) -> list[dict]:  # noqa: ANN001
     return turns
 
 
+# (label, how many days back it reaches); the last bucket takes everything older.
+_HISTORY_BUCKETS = (
+    (_('Today'), 0),
+    (_('Yesterday'), 1),
+    (_('Previous 7 days'), 7),
+    (_('Previous 30 days'), 30),
+)
+
+
+def _history(items) -> list[dict]:  # noqa: ANN001
+    """Conversations grouped by how recently they were used, newest group first."""
+    today = timezone.localdate()
+    groups: list[dict] = [{'label': label, 'items': []} for label, _days in _HISTORY_BUCKETS]
+    groups.append({'label': _('Older'), 'items': []})
+    for item in items:
+        age = (today - timezone.localtime(item.updated_at).date()).days
+        for index, (_label, days) in enumerate(_HISTORY_BUCKETS):
+            if age <= days:
+                groups[index]['items'].append(item)
+                break
+        else:
+            groups[-1]['items'].append(item)
+    return [group for group in groups if group['items']]
+
+
 def _page(request: HttpRequest, conversation=None) -> HttpResponse:  # noqa: ANN001
     settings = assistant_config.current()
     usage = ConversationService.usage()
     turns = _turns(conversation) if conversation else []
+    history = ConversationService.list_for(_actor(request))
     running = bool(conversation and conversation.status == ConversationStatus.RUNNING)
     context = {
         'active_section': 'assistant',
@@ -69,7 +97,8 @@ def _page(request: HttpRequest, conversation=None) -> HttpResponse:  # noqa: ANN
         'host': settings.host if settings else '',
         'usage': usage,
         'usage_percent': min(100, round(100 * usage['today'] / max(usage['budget'], 1))),
-        'conversations': ConversationService.list_for(_actor(request)),
+        'conversations': history,
+        'history': _history(history),
         'conversation': conversation,
         'turns': turns,
         'running': running,

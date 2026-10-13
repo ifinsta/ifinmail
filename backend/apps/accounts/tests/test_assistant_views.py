@@ -248,7 +248,7 @@ class AssistantPageTests(MailTablesTestCase):
     def test_start_page_offers_questions_and_lists_conversations(self) -> None:
         self.connect()
         page = self.client.get(reverse('accounts:assistant'))
-        self.assertContains(page, 'What would you like to know?')
+        self.assertContains(page, 'How can I help with this server?')
         self.assertContains(page, 'Is anything wrong with this server?')
         self.assertContains(page, 'Tokens today: 0 of 200,000')
         self.fake.push(answer('ok'))
@@ -256,3 +256,58 @@ class AssistantPageTests(MailTablesTestCase):
         page = self.client.get(reverse('accounts:assistant'))
         self.assertContains(page, 'Why is it slow?')
         self.assertContains(page, 'data-assistant-rail')
+
+    def test_page_is_a_chat_workspace_with_hooks_for_in_place_updates(self) -> None:
+        self.connect()
+        empty = self.client.get(reverse('accounts:assistant')).content.decode()
+        # Greeting, composer and suggestions share one empty-state container.
+        self.assertIn('ifinmail-assistant-chat--empty', empty)
+        self.assertIn('data-assistant-composer', empty)
+        self.assertEqual(empty.count('data-assistant-ask'), 1 + 4)  # composer + 4 suggestions
+        self.assertIn('data-assistant-scroll', empty)
+        self.assertNotIn('ifinmail-assistant-chat--empty', self._with_conversation())
+
+    def _with_conversation(self) -> str:
+        self.fake.push(answer('ok'))
+        self.client.post(reverse('accounts:assistant_ask'), {'question': 'Why is it slow?'})
+        conversation = AssistantConversation.objects.get()
+        return self.client.get(
+            reverse('accounts:assistant_conversation', kwargs={'conversation_id': conversation.pk})
+        ).content.decode()
+
+    def test_everything_still_works_as_plain_forms_without_the_script(self) -> None:
+        self.connect()
+        page = self._with_conversation()
+        # The composer and every suggestion are ordinary POST forms with a CSRF token.
+        self.assertIn(f'action="{reverse("accounts:assistant_ask")}"', page)
+        self.assertIn('csrfmiddlewaretoken', page)
+        self.assertIn('<textarea id="as-question" name="question"', page)
+        # Each conversation in the list can be deleted from the list itself.
+        conversation = AssistantConversation.objects.get()
+        delete = reverse('accounts:assistant_delete', kwargs={'conversation_id': conversation.pk})
+        self.assertIn(f'action="{delete}"', page)
+
+    def test_history_is_grouped_by_recency(self) -> None:
+        from datetime import timedelta
+
+        self.connect()
+        now = timezone.now()
+        for title, age in (
+            ('today one', 0),
+            ('yesterday one', 1),
+            ('last week', 5),
+            ('ancient', 90),
+        ):
+            row = AssistantConversation.objects.create(user=self.admin.email, title=title)
+            AssistantConversation.objects.filter(pk=row.pk).update(
+                updated_at=now - timedelta(days=age)
+            )
+        page = self.client.get(reverse('accounts:assistant')).content.decode()
+        labels = [
+            page.index(label)
+            for label in ('>Today<', '>Yesterday<', '>Previous 7 days<', '>Older<')
+        ]
+        self.assertEqual(labels, sorted(labels))
+        self.assertLess(page.index('today one'), page.index('yesterday one'))
+        self.assertLess(page.index('last week'), page.index('ancient'))
+        self.assertNotIn('>Previous 30 days<', page)  # empty groups are not shown

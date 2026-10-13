@@ -5,9 +5,14 @@ access are read-only here (see ``viewsets.mailboxes.ensure_plain``); the plain r
 stay for in-process callers and tests.
 """
 
-from ninja import Router, Status
+from typing import Annotated
+
+from django.core.cache import cache
+from ninja import Header, Router, Status
+from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
 
+from backend.apps.accounts.services.tokens import key_id
 from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
@@ -19,8 +24,17 @@ from backend.apps.mail.serializers import (
     MailboxCreateV1,
     MailboxUpdateV1,
     MailboxV1,
+    MessageAcceptedV1,
+    MessageIn,
 )
 from backend.apps.mail.services.mailboxes import split_address
+from backend.apps.mail.services.messages import (
+    MessageService,
+    SendingKey,
+    SendRefused,
+    SendRequest,
+    digest,
+)
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
 
@@ -43,7 +57,8 @@ from .viewsets import (
     set_smtp_proxy,
 )
 
-router = Router(tags=['mailboxes', 'aliases'])
+router = Router(tags=['mailboxes', 'aliases', 'messages'])
+IDEMPOTENCY_TTL = 24 * 3600
 
 
 def _address(raw: str) -> str:
@@ -181,6 +196,81 @@ def api_delete_alias(request: ApiRequest, alias_id: str) -> Status[None]:
         raise problem(exc) from exc
     AuditService.record(action='api_alias_deleted', user=actor(request), detail=alias_id)
     return Status(204, None)
+
+
+@router.post(
+    '/messages',
+    response={202: MessageAcceptedV1, **errors(403, 409, 413, 422, 502, 503)},
+    summary='Send a message',
+)
+@require_scope('mail.send')
+def api_send_message(
+    request: ApiRequest,
+    payload: MessageIn,
+    idempotency_key: Annotated[str | None, Header(alias='Idempotency-Key')] = None,
+) -> Status[MessageAcceptedV1]:
+    """Send one message as one of the key's allowed senders.
+
+    The server signs it with DKIM and delivers it like any other outgoing mail, under the same
+    limits as a mailbox (recipients per message, blocked destinations, containment) plus the
+    key's own daily cap. ``202`` means *accepted for delivery*, not delivered. Send an
+    ``Idempotency-Key`` header (up to 64 characters) to make a retry safe: the same key and
+    message return the first answer instead of sending twice.
+    """
+    row = request.auth.row
+    sending = SendingKey(
+        key_id=key_id(row.prefix),
+        allowed_senders=tuple(row.allowed_senders or ()),
+        daily_recipients=row.send_limit_per_day,
+    )
+    message = SendRequest(
+        sender=payload.from_,
+        to=tuple(payload.to),
+        cc=tuple(payload.cc),
+        bcc=tuple(payload.bcc),
+        reply_to=payload.reply_to,
+        subject=payload.subject,
+        text=payload.text,
+        html=payload.html,
+    )
+    token = (idempotency_key or '').strip()
+    if len(token) > 64:
+        raise HttpError(422, 'The Idempotency-Key is limited to 64 characters.')
+    slot = f'apiidem:{sending.key_id}:{token}' if token else ''
+    fingerprint = digest(payload.model_dump_json(by_alias=True))
+    if slot:
+        previous = cache.get(slot)
+        if isinstance(previous, dict):
+            if previous.get('fingerprint') != fingerprint:
+                raise HttpError(422, 'That Idempotency-Key was used with a different message.')
+            if previous.get('state') == 'pending':
+                raise HttpError(409, 'A request with this Idempotency-Key is still in progress.')
+            return Status(202, MessageAcceptedV1(**previous['receipt']))
+        cache.set(slot, {'state': 'pending', 'fingerprint': fingerprint}, 300)
+    try:
+        receipt = MessageService.send(message, sending)
+    except SendRefused as exc:
+        if slot:
+            cache.delete(slot)
+        if exc.retry_after is not None:
+            request.api_retry_after = exc.retry_after
+        raise HttpError(exc.status, exc.message) from exc
+    accepted = MessageAcceptedV1(
+        id=receipt.message_id, status='queued', recipients=receipt.recipients
+    )
+    if slot:
+        cache.set(
+            slot,
+            {'state': 'done', 'fingerprint': fingerprint, 'receipt': accepted.model_dump()},
+            IDEMPOTENCY_TTL,
+        )
+    domains = sorted({a.rpartition('@')[2] for a in (*message.to, *message.cc, *message.bcc)})
+    AuditService.record(
+        action='api_message_sent',
+        user=actor(request),
+        detail=f'{message.sender} -> {receipt.recipients} recipient(s) [{",".join(domains)}]',
+    )
+    return Status(202, accepted)
 
 
 __all__ = [

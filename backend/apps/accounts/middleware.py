@@ -132,6 +132,9 @@ class ApiResponseHeadersMiddleware:
             response['X-RateLimit-Reset'] = str(state.reset_in)
             if response.status_code == 429:
                 response['Retry-After'] = str(state.reset_in)
+        retry_after = getattr(request, 'api_retry_after', None)
+        if retry_after is not None and response.status_code == 429:
+            response['Retry-After'] = str(int(retry_after))  # e.g. a daily cap: until midnight UTC
         if response.status_code == 401:
             response['WWW-Authenticate'] = 'Basic realm="ifinmail API", Bearer realm="ifinmail API"'
         return response

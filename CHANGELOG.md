@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.0.23
+- **Send email through an API key.** `POST /api/v1/messages` (scope `mail.send`): `from`, `to`,
+  `cc`, `bcc`, `reply_to`, `subject`, `text` and/or `html`. `202` means the server accepted the
+  message for delivery; it is signed with DKIM and sent like any other outgoing mail.
+- **A sending key names who it may be.** It lists the addresses it may send as (`name@domain`, or
+  `*@domain`), which must be on hosted domains and are checked again on every send, so removing a
+  domain stops the key. Support and other read-only roles cannot create one: `mail.send` is a new
+  permission held by Owner and Administrator.
+- **The guards submission gets from Postfix, applied in the console** (the internal relay trusts
+  the Docker network and checks nothing): recipients per message, blocked destinations,
+  internal-only mailboxes and messages per minute and per day for the From address (all from the
+  Outbound policy plugin), a paused mailbox cannot send, and each key has a daily cap on recipients
+  (default 500, `API_SEND_LIMIT_PER_DAY`) that answers `429` with the wait until midnight UTC.
+  If the quota store is down the send is refused, not unlimited.
+- **Containment sees API mail.** What a key sends is added to the same hourly counters Rspamd writes
+  for a logged-in mailbox, so a flood through a key pauses the mailbox like a flood through a
+  password.
+- **`Idempotency-Key`** (up to 64 characters) makes a retry safe: the same key and message return
+  the first answer; a different message under the same key is refused.
+- **Cannot be turned into a mail cannon or a spoofing tool:** no attachments, no custom headers,
+  bare addresses only (a newline or a display name is refused), a single-line subject, 100
+  recipients and 1 MB per message. Every send is audited with the key, the From address and the
+  recipient domains, never the content.
+- Console: **Settings > API keys** has *Allowed senders* and *Recipients per day*; the mailbox
+  profile token form no longer offers `mail.send` (it has no field for senders). The assistant
+  knows the new operation, flags keys that can send as a whole domain, and the contract lists it.
+- Checked over real HTTP into a real SMTP socket: envelope sender, every recipient including Bcc
+  (with no Bcc header), the Message-ID in the sender's domain, the HTML alternative, and exactly
+  one message for an idempotent retry. 36 new tests; strict mypy covers the new service.
+
 ## v0.0.22
 - **Every API is versioned.** The health reports and the error log that lived outside `/api/` are
   now `/api/v1` operations (`GET /health`, `/health/full`, `/health/dns`, `/health/deliverability`,

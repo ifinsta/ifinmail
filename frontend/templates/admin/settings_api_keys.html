@@ -60,6 +60,15 @@
                     <p class="ifinmail-help-text">{% trans 'One address or range per line. Empty means the key works from anywhere.' %}</p>
                 </div>
                 <div class="ifinmail-field">
+                    <label for="key-senders">{% trans 'Allowed senders (required for mail.send)' %}</label>
+                    <textarea class="ifinmail-input ifinmail-text--mono" id="key-senders" name="senders" rows="2" spellcheck="false" placeholder="billing@example.com&#10;*@example.com"></textarea>
+                    <p class="ifinmail-help-text">{% trans 'The addresses this key may send as, one per line. *@domain allows any address on that domain. Only needed when you tick mail.send.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="key-send-cap">{% trans 'Recipients per day (optional, mail.send)' %}</label>
+                    <input class="ifinmail-input" id="key-send-cap" name="send_limit_per_day" type="number" min="1" max="100000" placeholder="500">
+                </div>
+                <div class="ifinmail-field">
                     <label for="key-rate">{% trans 'Calls per minute (optional)' %}</label>
                     <input class="ifinmail-input" id="key-rate" name="rate_limit_per_minute" type="number" min="1" max="6000" placeholder="120">
                 </div>
@@ -78,7 +87,7 @@
                 <tbody>
                 {% for k in keys %}
                 <tr>
-                    <td>{{ k.name }}{% if k.allowed_networks %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with n=k.allowed_networks|join:", " %}Only from {{ n }}{% endblocktrans %}</span>{% endif %}</td>
+                    <td>{{ k.name }}{% if k.allowed_networks %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with n=k.allowed_networks|join:", " %}Only from {{ n }}{% endblocktrans %}</span>{% endif %}{% if k.allowed_senders %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with s=k.allowed_senders|join:", " %}Sends as {{ s }}{% endblocktrans %}</span>{% endif %}</td>
                     <td><code class="ifinmail-text--mono">ifm_{{ k.prefix }}</code></td>
                     <td><code class="ifinmail-text--mono">{{ k.scopes|join:", " }}</code></td>
                     <td>{{ k.user.email }}</td>

@@ -18,6 +18,7 @@ the per-minute sending limit and the recipients-per-message limit.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import re
@@ -237,6 +238,54 @@ def resume(login: str, actor: str) -> bool:
     AuditService.record(action='sending_resumed', user=actor, detail=login)
     _publish()
     return True
+
+
+# The same atomic script the Rspamd rule runs (rspamd.local.lua): a counter and two sets that
+# expire together an hour after the first message.
+_COUNT_SCRIPT = """
+local window = tonumber(ARGV[1])
+local naddr = tonumber(ARGV[2])
+local n = redis.call('INCR', KEYS[1])
+if n == 1 then redis.call('EXPIRE', KEYS[1], window) end
+for i = 1, naddr do redis.call('SADD', KEYS[2], ARGV[2 + i]) end
+if naddr > 0 and redis.call('TTL', KEYS[2]) < 0 then redis.call('EXPIRE', KEYS[2], window) end
+local ndom = #ARGV - 2 - naddr
+for i = 1, ndom do redis.call('SADD', KEYS[3], ARGV[2 + naddr + i]) end
+if ndom > 0 and redis.call('TTL', KEYS[3]) < 0 then redis.call('EXPIRE', KEYS[3], window) end
+return n
+"""
+_WINDOW_SECONDS = 3600
+
+
+def _short_hash(value: str) -> str:
+    # Rspamd's rspamd_cryptobox_hash.create is BLAKE2b; only the counts matter downstream.
+    return hashlib.blake2b(value.lower().encode()).hexdigest()[:16]
+
+
+def record_send(login: str, recipients: list[str], client: Any | None = None) -> None:
+    """Count one message sent as ``login`` outside Postfix authentication (the API).
+
+    Mail submitted with a mailbox password is counted by Rspamd; mail an API key sends is not
+    authenticated that way, so it is added to the same counters here and containment sees both.
+    A Redis outage costs a counter, never a message.
+    """
+    base = f'{KEY_PREFIX}{login.strip().lower()}'
+    addresses = [_short_hash(r) for r in recipients]
+    domains = sorted({_short_hash(r.rpartition('@')[2]) for r in recipients})
+    try:
+        (client or redis_client()).eval(
+            _COUNT_SCRIPT,
+            3,
+            f'{base}:m',
+            f'{base}:r',
+            f'{base}:d',
+            _WINDOW_SECONDS,
+            len(addresses),
+            *addresses,
+            *domains,
+        )
+    except Exception:
+        logger.warning('Could not count an API send for %s', login)
 
 
 def evaluate(client: Any | None = None, now: datetime | None = None) -> dict[str, list[str]]:

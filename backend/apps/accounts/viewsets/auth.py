@@ -42,6 +42,7 @@ class ApiRequest(HttpRequest):
 
     auth: VerifiedToken
     api_rate: api_access.RateState
+    api_retry_after: int  # set by a handler whose 429 has its own wait
 
 
 def _admit(request: HttpRequest, prefix: str, secret: str) -> VerifiedToken | None:

@@ -29,6 +29,7 @@ files = [
     "backend/apps/accounts/assistant_handlers.py",
     "backend/apps/accounts/views/api_keys.py",
     "backend/apps/mail/api.py",
+    "backend/apps/mail/services/messages.py",
     "backend/apps/mail/serializers",
     "backend/apps/domains/api.py",
     "backend/apps/domains/serializers",

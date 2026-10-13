@@ -182,6 +182,10 @@ class APIToken(models.Model):
     allowed_networks = models.JSONField(default=list, blank=True)
     # Calls per minute; null uses the server default (API_RATE_LIMIT_PER_MINUTE).
     rate_limit_per_minute = models.PositiveIntegerField(null=True, blank=True)
+    # Addresses (or ``*@domain``) the key may send as; required for the ``mail.send`` scope.
+    allowed_senders = models.JSONField(default=list, blank=True)
+    # Recipients per day for ``POST /messages``; null uses API_SEND_LIMIT_PER_DAY.
+    send_limit_per_day = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'accounts_api_token'

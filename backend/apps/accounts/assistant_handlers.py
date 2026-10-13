@@ -14,7 +14,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # Scopes that change things; a key holding one without a network list deserves a mention.
-_WRITE_SCOPES = frozenset({'mail.manage', 'dns.manage', 'system.manage', 'users.manage'})
+_WRITE_SCOPES = frozenset(
+    {'mail.manage', 'mail.send', 'dns.manage', 'system.manage', 'users.manage'}
+)
 _EXPIRING_DAYS = 7
 _IDLE_DAYS = 30
 
@@ -86,6 +88,10 @@ def _api_overview(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
             'A key has a calls-per-minute limit (default 120) and an optional list of networks.',
             'Logins with console access cannot be changed or created through the API, and '
             'domains cannot be removed through it.',
+            'Sending (POST /messages) needs the mail.send scope and a key that names its '
+            'allowed senders; it is signed with DKIM, limited by the Outbound policy plugin '
+            "and by the key's own daily recipient cap, and 202 means accepted, not delivered. "
+            'An Idempotency-Key header makes a retry safe.',
         ],
         'operations': listed,
         'scopes_in_use': sorted({o.scope for o in catalogue if o.scope}),
@@ -119,6 +125,10 @@ def _api_keys(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
             notes.append(f'owner no longer holds: {", ".join(lost)}')
         if row.last_used_at is None and now - row.created_at > timedelta(days=_IDLE_DAYS):
             notes.append(f'never used in {_IDLE_DAYS}+ days: revoke it if it is not needed')
+        if 'mail.send' in (row.scopes or []):
+            wide = [s for s in (row.allowed_senders or []) if s.startswith('*@')]
+            if wide:
+                notes.append(f'can send as anyone on {", ".join(s[2:] for s in wide)}')
         if set(row.scopes or []) & _WRITE_SCOPES and not row.allowed_networks:
             notes.append('can change things and works from any address: consider a network list')
         if row.previous_expires_at and row.previous_expires_at > now:
@@ -135,6 +145,8 @@ def _api_keys(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
                 'last_used': row.last_used_at.isoformat() if row.last_used_at else None,
                 'last_used_from': row.last_used_ip,
                 'only_from_networks': list(row.allowed_networks or []),
+                'may_send_as': list(row.allowed_senders or []),
+                'recipients_per_day': row.send_limit_per_day,
                 'calls_per_minute': row.rate_limit_per_minute,
                 'notes': notes,
             }

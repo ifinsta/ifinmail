@@ -78,6 +78,8 @@ def api_key_create(request: HttpRequest) -> HttpResponse:
             expires_in_days=data['expires_in_days'],
             allowed_networks=data['networks'],
             rate_limit_per_minute=data['rate_limit_per_minute'],
+            allowed_senders=data['senders'],
+            send_limit_per_day=data['send_limit_per_day'],
         )
     except TokenError as exc:
         messages.error(request, str(exc))
@@ -92,7 +94,8 @@ def api_key_create(request: HttpRequest) -> HttpResponse:
         action='api_key_created',
         user=_actor(request),
         detail=f'{key_id(row.prefix)} {row.name} scopes={",".join(row.scopes)}'
-        + (f' networks={",".join(row.allowed_networks)}' if row.allowed_networks else ''),
+        + (f' networks={",".join(row.allowed_networks)}' if row.allowed_networks else '')
+        + (f' senders={",".join(row.allowed_senders)}' if row.allowed_senders else ''),
     )
     messages.success(request, f'Key {row.name} created. Copy the secret below; it is shown once.')
     return redirect('accounts:api_keys')

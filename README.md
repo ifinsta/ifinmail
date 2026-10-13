@@ -209,6 +209,7 @@ speaks: `/api/`).
 | `audit.view` | `GET /metrics` (Prometheus text), `GET /health/full`, `GET /health/dns`, `GET /health/deliverability`, `GET /telemetry/errors`, `GET /telemetry/stats`, `GET /telemetry/fingerprints` |
 | `system.manage` | `POST /telemetry/fingerprints/{fingerprint}/ack` |
 | `mail.manage` | `GET/POST /mailboxes`, `GET/PATCH/DELETE /mailboxes/{address}`, `GET/POST /aliases`, `DELETE /aliases/{id}` |
+| `mail.send` | `POST /messages` |
 | `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify`, `GET /dns/status` |
 
 The table is generated from the running server: `GET /api/v1/openapi.json` states each
@@ -220,6 +221,25 @@ you what a key may do and which keys look unsafe. Ask it "how can a program crea
   keeps being narrowed by them. Mailboxes whose login has console access cannot be changed through
   the API, and the API cannot create one, so a leaked key cannot be turned into an administrator.
   Domain removal is not offered.
+- **Sending mail.** A key with `mail.send` names the addresses it may send as (`billing@example.com`,
+  or `*@example.com` for a whole domain) and has a daily cap on recipients (default 500):
+
+  ```bash
+  curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/messages \
+    -H 'Content-Type: application/json' -H 'Idempotency-Key: order-1001' \
+    -d '{"from":"billing@example.com","to":["ana@example.org"],"subject":"Your invoice",
+         "text":"Thanks for your order.","html":"<p>Thanks for <b>your order</b>.</p>"}'
+  ```
+
+  `202` means *accepted for delivery* (the id is the Message-ID), not delivered; bounces go to the
+  sender address. The message is signed with DKIM and delivered like any other outgoing mail, and it
+  obeys the Outbound policy plugin: recipients per message, blocked destinations, internal-only
+  mailboxes, and messages per minute and per day for the From address. A mailbox that containment
+  paused cannot send, and what a key sends is counted by the same counters containment reads.
+  `to`, `cc` and `bcc` are bare addresses (no names), at most 100 recipients, 1 MB of body; there
+  are no attachments yet. The `Idempotency-Key` header (up to 64 characters) makes a retry safe: the
+  same key and message return the first answer instead of sending twice. Nothing is stored: there
+  is no Sent folder for API mail.
 - **Lists are paged**: `?limit=` (default 50, at most 200) and `?offset=`; the reply is
   `{"items": [...], "count": N}`.
 - **Errors** are `{"detail": "..."}` with 401 (credentials), 403 (scope or protected mailbox),

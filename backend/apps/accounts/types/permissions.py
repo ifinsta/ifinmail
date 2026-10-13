@@ -19,6 +19,7 @@ class PermissionCode(StrEnum):
 
     CONSOLE_ACCESS = 'console.access'  # open the dashboard / settings hub
     MAIL_MANAGE = 'mail.manage'  # mailboxes, aliases, profiles, mailbox MFA
+    MAIL_SEND = 'mail.send'  # send messages through the API (keys also name allowed senders)
     DNS_MANAGE = 'dns.manage'  # zones, records, provider push, delegation
     SECURITY_MANAGE = 'security.manage'  # firewall, TLS, spam policy
     SYSTEM_MANAGE = 'system.manage'  # branding, maintenance actions, shell

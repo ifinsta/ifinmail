@@ -818,6 +818,12 @@ class ContractTests(ApiBase):
             ('POST', '/domains'): {'name': 'example.com'},
             ('PATCH', '/mailboxes/{address}'): {'quota_bytes': 1},
             ('POST', '/telemetry/fingerprints/{fingerprint}/ack'): {'status': 'ACKED'},
+            ('POST', '/messages'): {
+                'from': 'a@ifinmail.test',
+                'to': ['b@example.org'],
+                'subject': 's',
+                'text': 't',
+            },
         }
         refused = 0
         for op in ops:

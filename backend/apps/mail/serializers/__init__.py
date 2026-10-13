@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ninja import Schema
+from pydantic import ConfigDict, Field
 
 from backend.apps.mail.services.postfix_runtime import OutboundState
 from backend.apps.mail.types.provisioning import AliasRow, MailboxRow
@@ -143,6 +144,29 @@ class AliasCreateV1(Schema):
     destination: str
 
 
+class MessageIn(Schema):
+    """``POST /messages``. Addresses are bare (``name@domain``); there are no attachments yet."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: str = Field(alias='from', description="The sender; one of the key's allowed senders.")
+    to: list[str] = Field(min_length=1, max_length=100)
+    cc: list[str] = Field(default_factory=list, max_length=100)
+    bcc: list[str] = Field(default_factory=list, max_length=100)
+    reply_to: str | None = None
+    subject: str = Field(min_length=1, max_length=255)
+    text: str | None = Field(default=None, max_length=1_000_000)
+    html: str | None = Field(default=None, max_length=1_000_000)
+
+
+class MessageAcceptedV1(Schema):
+    """The server accepted the message for delivery (it is not a delivery receipt)."""
+
+    id: str  # the Message-ID header, without the angle brackets
+    status: str  # "queued"
+    recipients: int
+
+
 __all__ = [
     'AliasCreateIn',
     'AliasCreateV1',
@@ -153,5 +177,7 @@ __all__ = [
     'MailboxOut',
     'MailboxUpdateV1',
     'MailboxV1',
+    'MessageAcceptedV1',
+    'MessageIn',
     'OutboundStateOut',
 ]

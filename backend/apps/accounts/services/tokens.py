@@ -41,7 +41,10 @@ SECRET_MARK = 'ifs_'
 MAX_TOKEN_DAYS = 90
 MAX_GRACE_HOURS = 168  # a rotated secret may overlap the new one for at most a week
 MAX_NETWORKS = 20
+MAX_SENDERS = 20
+SEND_SCOPE = 'mail.send'
 MAX_RATE_LIMIT = 6000
+MAX_SEND_LIMIT = 100000  # recipients per day a key may be given
 _PREFIX_CHARS = string.ascii_letters + string.digits
 _PREFIX_LEN = 12
 _USED_STAMP_EVERY = timedelta(seconds=60)  # last-used is written at most this often
@@ -106,6 +109,48 @@ def normalize_networks(values: list[str] | None) -> list[str]:
     return cleaned
 
 
+def normalize_senders(values: list[str] | None) -> list[str]:
+    """Canonical sender entries: ``name@domain`` or ``*@domain``; raises TokenError otherwise.
+
+    The domain of each entry must be hosted on this server (checked here, and again on every
+    send, because a domain can be removed later).
+    """
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    from backend.apps.domains.models import Domain
+
+    cleaned: list[str] = []
+    for raw in values or []:
+        text = str(raw).strip().lower()
+        if not text:
+            continue
+        local, _, domain = text.rpartition('@')
+        if not domain or not local:
+            raise TokenError(f'"{text}" is not an address. Use name@domain or *@domain.')
+        if local != '*':
+            try:
+                validate_email(text)
+            except ValidationError as exc:
+                raise TokenError(f'"{text}" is not a valid address.') from exc
+        if not Domain.objects.filter(name=domain).exists():
+            raise TokenError(f'{domain} is not a domain on this server.')
+        if text not in cleaned:
+            cleaned.append(text)
+    if len(cleaned) > MAX_SENDERS:
+        raise TokenError(f'Allow at most {MAX_SENDERS} senders per key.')
+    return cleaned
+
+
+def sender_allowed(allowed: list[str] | None, address: str) -> bool:
+    """True when ``address`` is one of the key's senders or on a ``*@domain`` entry."""
+    wanted = (address or '').strip().lower()
+    local, _, domain = wanted.rpartition('@')
+    if not local or not domain:
+        return False
+    return any(entry == wanted or entry == f'*@{domain}' for entry in (allowed or []))
+
+
 def address_allowed(networks: list[str] | None, address: str) -> bool:
     """True when the list is empty (anywhere) or the address lies in one of the ranges."""
     if not networks:
@@ -161,6 +206,8 @@ class TokenService:
         expires_in_days: int,
         allowed_networks: list[str] | None = None,
         rate_limit_per_minute: int | None = None,
+        allowed_senders: list[str] | None = None,
+        send_limit_per_day: int | None = None,
     ) -> tuple[APIToken, str]:
         """Create a token; returns ``(row, plaintext)`` — plaintext shown once."""
         clean_name = (name or '').strip()[:64]
@@ -170,6 +217,8 @@ class TokenService:
             raise TokenError(f'Expiry must be between 1 and {MAX_TOKEN_DAYS} days.')
         if rate_limit_per_minute is not None and not 1 <= rate_limit_per_minute <= MAX_RATE_LIMIT:
             raise TokenError(f'The rate limit must be between 1 and {MAX_RATE_LIMIT} per minute.')
+        if send_limit_per_day is not None and not 1 <= send_limit_per_day <= MAX_SEND_LIMIT:
+            raise TokenError(f'The daily sending limit must be between 1 and {MAX_SEND_LIMIT}.')
         networks = normalize_networks(allowed_networks)
         wanted = {str(scope) for scope in scopes or [] if str(scope) in TOKEN_SCOPES}
         if not wanted:
@@ -178,6 +227,12 @@ class TokenService:
         allowed = wanted & RoleService.effective_permissions(user)
         if not allowed:
             raise TokenError('None of those scopes are held by this login.')
+        senders = normalize_senders(allowed_senders) if SEND_SCOPE in allowed else []
+        if SEND_SCOPE in allowed and not senders:
+            raise TokenError(
+                'A key that can send mail must name the addresses it may send as '
+                '(name@domain, or *@domain for a whole domain).'
+            )
         for _ in range(5):
             prefix = _prefix()
             if not APIToken.objects.filter(prefix=prefix).exists():
@@ -194,6 +249,8 @@ class TokenService:
             expires_at=timezone.now() + timedelta(days=expires_in_days),
             allowed_networks=networks,
             rate_limit_per_minute=rate_limit_per_minute,
+            allowed_senders=senders,
+            send_limit_per_day=send_limit_per_day if SEND_SCOPE in allowed else None,
         )
         return row, format_token(prefix, secret)
 

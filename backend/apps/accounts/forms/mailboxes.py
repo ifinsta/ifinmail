@@ -111,7 +111,11 @@ class RoleChangeForm(forms.Form):
 
 
 class TokenCreateForm(forms.Form):
-    """Mint a scoped API token for one login (plaintext shown once)."""
+    """Mint a scoped API token for one login (plaintext shown once).
+
+    A key that can send mail also names its allowed senders, which this form has no field for:
+    those are created on the API keys page.
+    """
 
     address = forms.CharField(max_length=255, strip=True)
     name = forms.CharField(max_length=64, strip=True)
@@ -119,10 +123,11 @@ class TokenCreateForm(forms.Form):
     expires_in_days = forms.IntegerField(min_value=1, max_value=90)
 
     def __init__(self, *args: object, **kwargs: object) -> None:
+        from backend.apps.accounts.services.tokens import SEND_SCOPE
         from backend.apps.accounts.types.permissions import TOKEN_SCOPES
 
         super().__init__(*args, **kwargs)
-        self.fields['scopes'].choices = [(code, code) for code in TOKEN_SCOPES]
+        self.fields['scopes'].choices = [(c, c) for c in TOKEN_SCOPES if c != SEND_SCOPE]
 
 
 class TokenActionForm(forms.Form):
@@ -141,6 +146,8 @@ class ApiKeyCreateForm(forms.Form):
     expires_in_days = forms.IntegerField(min_value=1, max_value=90)
     networks = forms.CharField(required=False, strip=True, widget=forms.Textarea)
     rate_limit_per_minute = forms.IntegerField(required=False, min_value=1, max_value=6000)
+    senders = forms.CharField(required=False, strip=True, widget=forms.Textarea)
+    send_limit_per_day = forms.IntegerField(required=False, min_value=1, max_value=100000)
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         from backend.apps.accounts.types.permissions import TOKEN_SCOPES
@@ -151,6 +158,11 @@ class ApiKeyCreateForm(forms.Form):
     def clean_networks(self) -> list[str]:
         """One range per line or comma-separated; validated by the token service."""
         raw = self.cleaned_data.get('networks') or ''
+        return [part.strip() for part in raw.replace(',', '\n').splitlines() if part.strip()]
+
+    def clean_senders(self) -> list[str]:
+        """One address (or *@domain) per line or comma-separated; checked by the token service."""
+        raw = self.cleaned_data.get('senders') or ''
         return [part.strip() for part in raw.replace(',', '\n').splitlines() if part.strip()]
 
 

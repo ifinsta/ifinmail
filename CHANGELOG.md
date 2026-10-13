@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.16
+- **PostgreSQL now uses its tuning file.** Since the first release the database ran on the image's
+  defaults: `postgres/custom.conf` was mounted but never read (an include was appended to a file
+  PostgreSQL does not load). It is now the server's main configuration (`postgres -c
+  config_file=...`), verified on a fresh initialisation and on a restart over existing data.
+  Effects: shared buffers 64 MB instead of 128 MB (less memory), at most 50 connections (the
+  console, worker and mail services use about a dozen), and quieter logs: no line for every
+  connection, warnings and above only, autovacuum only when slower than a second.
+- A contract test keeps the file in use and keeps what the image's own configuration provided
+  (`listen_addresses`) in it.
+- Updating restarts the database container once; the console and worker reconnect by themselves.
+
 ## v0.0.15
 - **System logs** reworked. Activity (the audit trail) and Application errors are tabs with a
   summary (events, errors, warnings, and whether the tamper-evident chain is intact), a search box

@@ -102,6 +102,37 @@ class DatabaseContractTests(SimpleTestCase):
                 self.assertIn(f'GRANT SELECT ON {table} TO postfix;', init, msg=path.name)
 
 
+class PostgresConfigContractTests(SimpleTestCase):
+    def test_the_tuning_file_is_the_servers_main_configuration(self) -> None:
+        # Regression: the file used to be mounted but never read (an include appended to the
+        # wrong file), so the server ran on defaults for months.
+        import yaml
+
+        postgres = yaml.safe_load(_read('docker-compose.yml'))['services']['postgres']
+        self.assertEqual(
+            postgres['command'], ['postgres', '-c', 'config_file=/etc/postgresql/custom.conf']
+        )
+        self.assertIn('./postgres/custom.conf:/etc/postgresql/custom.conf:ro', postgres['volumes'])
+
+    def test_the_file_repeats_what_the_image_would_have_set(self) -> None:
+        settings = dict(
+            re.findall(
+                r"^([a-z_]+)\s*=\s*'?([^'#\n]*?)'?\s*(?:#.*)?$",
+                _read('postgres', 'custom.conf'),
+                re.M,
+            )
+        )
+        # As the main file it replaces the image's, which is where listen_addresses came from.
+        self.assertEqual(settings.get('listen_addresses'), '*')
+        # Connection and statement logging stay off: one line per console request drowns the log.
+        self.assertEqual(settings.get('log_connections'), 'off')
+        self.assertEqual(settings.get('log_disconnections'), 'off')
+        self.assertEqual(settings.get('log_min_messages'), 'warning')
+        # More than the console, worker and mail services can use at once, and no more.
+        self.assertLessEqual(int(settings['max_connections']), 100)
+        self.assertGreaterEqual(int(settings['max_connections']), 30)
+
+
 class SenderIdentityContractTests(SimpleTestCase):
     """A logged-in user may send only as their own address or an alias that delivers to them."""
 

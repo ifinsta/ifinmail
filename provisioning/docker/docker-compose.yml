@@ -23,6 +23,9 @@ services:
       - ./postgres/custom.conf:/etc/postgresql/custom.conf:ro
     # Only containers on the internal network reach PostgreSQL, so it does not use TLS (and needs
     # no restart when the mail certificate is renewed).
+    # The tuning file is the main configuration (the image's own file in the data directory is
+    # not read), so memory and logging settings in postgres/custom.conf actually apply.
+    command: ["postgres", "-c", "config_file=/etc/postgresql/custom.conf"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ifinmail"]
       interval: 10s

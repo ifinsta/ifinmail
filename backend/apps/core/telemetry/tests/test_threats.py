@@ -428,7 +428,7 @@ class DigestRunTests(MailTablesTestCase):
         digest.run(NOW, summarise=False)
         self.write([])
         digest.run(NOW + timedelta(hours=26), summarise=False)
-        self.assertEqual(ThreatFinding.objects.get().status, 'resolved')
+        self.assertEqual(ThreatFinding.objects.get(kind='probe_sweep').status, 'resolved')
         self.write(
             [
                 line(ip='203.0.113.7', uri=p, st=404, at=NOW + timedelta(hours=27), cid=f'z{i}')
@@ -436,7 +436,7 @@ class DigestRunTests(MailTablesTestCase):
             ]
         )
         digest.run(NOW + timedelta(hours=27, minutes=1), summarise=False)
-        self.assertEqual(ThreatFinding.objects.get().status, 'open')
+        self.assertEqual(ThreatFinding.objects.get(kind='probe_sweep').status, 'open')
 
     def test_a_probe_that_raised_an_exception_is_joined_by_request_id(self) -> None:
         self.write(self.probes(cid_prefix='boom'))

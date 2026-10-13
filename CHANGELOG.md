@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.0.36
+- **Logs → Report: one report across every log the console collects.** A health banner (how many
+  sources are reporting, which need attention), a summary strip, a *Log sources* table (status,
+  newest line, lines in the last hour, how long each is kept, a note), and panels for mail
+  (received, delivered, sent on, deferred, bounced, relay attempts refused, mailbox sign-ins, spam
+  filter decisions), web and API (status classes, refused, closed without an answer, busiest minute,
+  slowest page), security (findings, blocks, failed sign-ins, new places) and changes. A period
+  selector (24 hours, 7 days, 30 days) and a JSON export.
+- **Built to cost the same at any volume.** The report is a sum of the hourly summaries the
+  threat digest already writes: each source is reduced to a few counters per hour (never an
+  address, a subject or a message), so a month of a busy server is 720 small rows. The page does
+  not read a log file.
+- **The silence detector.** A source that stops writing is a finding (*A log has gone quiet*):
+  the web server after 30 minutes, Postfix after 6 hours, Rspamd after 12, Dovecot after 48. A dead
+  log looks like a quiet system, which is exactly when you are blind.
+- **A blocklist that refuses this server is a finding** (*A spam blocklist is refusing this
+  server's lookups*), from Rspamd's own log, so a repeat of the URIBL problem fixed in v0.0.35 is
+  seen the first hour.
+- Mail flow is now understood from the Postfix log (queue id kept so one message can be followed
+  across Postfix, Rspamd and Dovecot) and the spam filter's verdicts from Rspamd's log: counts only.
+- Next: Mail trace, the weekly report email and an assistant tool on the same data.
+
 ## v0.0.35
 - **The spam filter's blocklists work again.** Rspamd logged "DNS query blocked on
   `multi.uribl.com` ... possibly due to high volume" 84 times in a day: URIBL (and other

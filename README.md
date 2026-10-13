@@ -331,6 +331,12 @@ the worker) and the sign-in record every ten minutes and keeps only what a decis
     crosses a threshold. Quiet hourly rows are now kept 28 days for this.
 
   `THREAT_ADAPTIVE=0` turns it off; `GEO_DISABLED=1` stops the database download.
+- **One report across every log (Logs → Report).** Each collected source (web server, Postfix,
+  Dovecot, Rspamd) is reduced to a few counters per hour and stored with the digest's hourly row,
+  so the report for a day, week or month is a sum of small rows and costs the same at any traffic.
+  It shows which sources are reporting (a log that goes quiet is itself a finding), mail flow and
+  spam decisions, web status classes, security and changes, and exports as JSON. Container output
+  of the console, worker, DNS, calendar, Redis and database is not collected (`make logs`).
 - **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
 - **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
   no findings after a week, resolved findings after 30 days. The audit trail is never touched.

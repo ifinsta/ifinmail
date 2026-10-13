@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
+from typing import Any
 
 
 class Severity(IntEnum):
@@ -88,6 +89,7 @@ class MailEvent:
     kind: str  # auth_failed | login_success | relay_denied | unknown_recipient
     who: str  # the account tried (Dovecot lines only), '' otherwise
     weight: int = 1  # Dovecot reports several attempts on one line
+    ref: str = ''  # Postfix queue id, when the line has one (joins Postfix, Rspamd, Dovecot)
 
 
 @dataclass
@@ -106,5 +108,6 @@ class WindowSummary:
     mail_failures: int = 0  # failed sign-ins on the mail ports (SMTP submission, IMAP, POP3)
     countries: dict[str, int] = field(default_factory=dict)  # events by country (adaptive)
     providers: list[dict[str, object]] = field(default_factory=list)  # top operators (adaptive)
+    sources: dict[str, dict[str, Any]] = field(default_factory=dict)  # per log source (rollup)
     server_errors: int = 0
     skipped_bytes: int = 0  # log that was not read because the window was too big (a flood)

@@ -48,6 +48,7 @@
         </div>
 
         <nav class="ifinmail-tabs" aria-label="{% trans 'Log sections' %}">
+            <a class="ifinmail-tab" href="{% url 'accounts:logs_report' %}">{% trans 'Report' %}</a>
             <a class="ifinmail-tab{% if tab == 'activity' %} ifinmail-tab--active{% endif %}" href="?tab=activity{% if tab_query %}&amp;{{ tab_query }}{% endif %}"{% if tab == 'activity' %} aria-current="page"{% endif %}>{% trans 'Activity' %}</a>
             <a class="ifinmail-tab{% if tab == 'errors' %} ifinmail-tab--active{% endif %}" href="?tab=errors{% if tab_query %}&amp;{{ tab_query }}{% endif %}"{% if tab == 'errors' %} aria-current="page"{% endif %}>{% trans 'Application errors' %}{% if error_total_24h %} <span class="ifinmail-badge ifinmail-badge--danger" aria-label="{% blocktrans count n=error_total_24h %}{{ n }} in the last 24 hours{% plural %}{{ n }} in the last 24 hours{% endblocktrans %}">{{ error_total_24h }}</span>{% endif %}</a>
         </nav>

@@ -3192,3 +3192,28 @@ html.ifinmail-shell .ifinmail-health .ifinmail-health-section { margin-bottom: 0
         border-radius: 0;
     }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Logs report: label and figure pairs in a responsive grid of panels
+   --------------------------------------------------------------------------------------------- */
+html.ifinmail-shell .ifinmail-report__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: var(--ifinmail-space-4);
+    margin-top: var(--ifinmail-space-4);
+}
+html.ifinmail-shell .ifinmail-report__facts { margin: 0; }
+html.ifinmail-shell .ifinmail-report__facts > div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-3);
+    padding: var(--ifinmail-space-1) 0;
+    border-top: 1px solid var(--ifinmail-border);
+    font-size: var(--ifinmail-font-size-body);
+}
+html.ifinmail-shell .ifinmail-report__facts > div:first-child { border-top: 0; }
+html.ifinmail-shell .ifinmail-report__facts dt { color: var(--ifinmail-text-secondary); }
+html.ifinmail-shell .ifinmail-report__facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+@media (max-width: 767px) {
+    html.ifinmail-shell .ifinmail-report__grid { grid-template-columns: 1fr; }
+}

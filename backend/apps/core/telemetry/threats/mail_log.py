@@ -12,8 +12,10 @@ none of them is dropped on sight.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -22,7 +24,8 @@ from .classify import clean
 from .types import MailEvent
 
 DEFAULT_DIR = '/var/log/ifinmail-mail'
-FILES = ('postfix.log', 'dovecot.log')
+FILES = ('postfix.log', 'dovecot.log', 'rspamd.log')
+SERVICE_OF = {'postfix.log': 'postfix', 'dovecot.log': 'dovecot', 'rspamd.log': 'rspamd'}
 MAX_BYTES = 12 * 1024 * 1024  # per file, across the file and its rotated copy
 MAX_LINE = 2048
 
@@ -55,6 +58,25 @@ _DOVECOT_OK = re.compile(
 )
 
 
+# Mail flow (counted, never read for content): a message queued, delivered locally (LMTP), sent on,
+# deferred or bounced. The queue id is kept so one message can be followed across the three logs.
+_QUEUED = re.compile(
+    r'postfix/(?:\w+/)?qmgr\[\d+\]: (?P<qid>[0-9A-Za-z]+): '
+    r'from=<[^>]*>, size=\d+, nrcpt=\d+ \(queue active\)'
+)
+_STATUS = re.compile(
+    r'postfix/(?:\w+/)?(?P<svc>smtp|lmtp|local|virtual)\[\d+\]: (?P<qid>[0-9A-Za-z]+): to=<[^>]*>, '
+    r'(?:orig_to=<[^>]*>, )?relay=[^,]*, .*?status=(?P<status>sent|deferred|bounced)'
+)
+# Rspamd's one line per message: its verdict, and the queue id Postfix gave the message.
+_RSPAMD = re.compile(
+    r'rspamd_task_write_log: .*?\(default: [TF] \((?P<action>[^)]+)\): '
+    r'\[(?P<score>-?[0-9.]+)/[0-9.]+\]'
+)
+_QID = re.compile(r'qid: <(?P<qid>[0-9A-Za-z]+)>')
+_BLOCKED_DNS = re.compile(r'DNS query blocked on (?P<zone>[a-z0-9.-]+)')
+
+
 def log_dir() -> Path:
     return Path(os.environ.get('IFINMAIL_MAIL_LOG_DIR', DEFAULT_DIR))
 
@@ -73,26 +95,29 @@ def _when(match: re.Match[str], now: datetime) -> datetime | None:
         return None
 
 
-def parse_line(raw: str, now: datetime) -> MailEvent | None:
+def _split(raw: str, now: datetime) -> tuple[datetime, str] | None:
+    """A log line's time (UTC) and the rest of it, or ``None`` when it has no readable time."""
     if len(raw) > MAX_LINE:
         return None
-    at: datetime | None
     iso = _ISO.match(raw)
     if iso:
         try:
             at = datetime.fromisoformat(iso['stamp'].replace(' ', 'T'))
         except ValueError:
             return None
-        at = (at if at.tzinfo else at.astimezone()).astimezone(UTC)
-        rest = iso['rest']
-    else:
-        found = _STAMP.match(raw)
-        if not found:
-            return None
-        at = _when(found, now)
-        rest = found['rest']
-    if at is None:
+        return (at if at.tzinfo else at.astimezone()).astimezone(UTC), iso['rest']
+    found = _STAMP.match(raw)
+    if not found:
         return None
+    stamped = _when(found, now)
+    return (stamped, found['rest']) if stamped is not None else None
+
+
+def parse_line(raw: str, now: datetime) -> MailEvent | None:
+    split = _split(raw, now)
+    if split is None:
+        return None
+    at, rest = split
     for pattern, kind, service in (
         (_SASL, 'auth_failed', 'postfix'),
         (_RELAY, 'relay_denied', 'postfix'),
@@ -119,25 +144,70 @@ def parse_line(raw: str, now: datetime) -> MailEvent | None:
             if net
             else None
         )
+    match = _STATUS.search(rest)
+    if match:
+        status, service = match['status'], match['svc']
+        kind = status if status != 'sent' else ('delivered' if service != 'smtp' else 'sent')
+        return MailEvent(at, '', 'postfix', kind, '', 1, match['qid'])
+    match = _QUEUED.search(rest)
+    if match:
+        return MailEvent(at, '', 'postfix', 'received', '', 1, match['qid'])
+    match = _RSPAMD.search(rest)
+    if match:
+        action = re.sub(r'[^a-z]+', '_', match['action'].lower()).strip('_')
+        qid = _QID.search(rest)
+        return MailEvent(at, '', 'rspamd', f'spam_{action}', '', 1, qid['qid'] if qid else '')
+    match = _BLOCKED_DNS.search(rest)
+    if match:
+        return MailEvent(at, '', 'rspamd', 'dns_blocked', clean(match['zone'], 60), 1)
     return None
+
+
+@dataclass(frozen=True)
+class SourceStats:
+    """What one log file looked like in the window: is it alive, and how busy."""
+
+    exists: bool = False
+    size: int = 0
+    lines: int = 0  # lines with a readable time inside the window
+    last_at: datetime | None = None  # the newest line, anywhere in what was read
+
+
+def read_window_with_stats(
+    since: datetime, now: datetime, *, directory: Path | None = None
+) -> tuple[list[MailEvent], dict[str, SourceStats]]:
+    """Events at or after ``since`` (oldest first), and per-file statistics."""
+    base = directory or log_dir()
+    events: list[MailEvent] = []
+    stats: dict[str, SourceStats] = {}
+    for name in FILES:
+        main = base / name
+        lines, last_at, size = 0, None, 0
+        for path in (main.with_name(name + '.1'), main):
+            data, _ = _tail(path, MAX_BYTES)
+            with contextlib.suppress(OSError):
+                size += path.stat().st_size
+            for raw in data.decode('utf-8', 'replace').splitlines():
+                split = _split(raw, now)
+                if split is None:
+                    continue
+                if last_at is None or split[0] > last_at:
+                    last_at = split[0]
+                if split[0] >= since:
+                    lines += 1
+                    event = parse_line(raw, now)
+                    if event is not None:
+                        events.append(event)
+        stats[SERVICE_OF[name]] = SourceStats(main.exists(), size, lines, last_at)
+    events.sort(key=lambda e: e.at)
+    return events, stats
 
 
 def read_window(
     since: datetime, now: datetime, *, directory: Path | None = None
 ) -> list[MailEvent]:
     """Events at or after ``since``, oldest first; empty when the logs are not there yet."""
-    base = directory or log_dir()
-    events: list[MailEvent] = []
-    for name in FILES:
-        main = base / name
-        for path in (main.with_name(name + '.1'), main):
-            data, _ = _tail(path, MAX_BYTES)
-            for raw in data.decode('utf-8', 'replace').splitlines():
-                event = parse_line(raw, now)
-                if event is not None and event.at >= since:
-                    events.append(event)
-    events.sort(key=lambda e: e.at)
-    return events
+    return read_window_with_stats(since, now, directory=directory)[0]
 
 
 def available(directory: Path | None = None) -> bool:

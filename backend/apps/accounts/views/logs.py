@@ -209,6 +209,33 @@ def logs(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @require_perm(PermissionCode.AUDIT_VIEW)
+def logs_report(request: HttpRequest) -> HttpResponse:
+    """One report across every log the console collects (see ``telemetry.report``)."""
+    from backend.apps.core.telemetry import report
+
+    period = request.GET.get('period', 'day')
+    data = report.build(period, chain=_chain())
+    if request.GET.get('format') == 'json':
+        response = JsonResponse(data, json_dumps_params={'indent': 2})
+        response['Content-Disposition'] = (
+            f'attachment; filename="ifinmail-report-{data["period"]}.json"'
+        )
+        return response
+    return render(
+        request,
+        'admin/logs_report.html',
+        {
+            'active_section': 'logs',
+            'tab': 'report',
+            'report': data,
+            'periods': [(key, label) for key, (label, _) in report.PERIODS.items()],
+            'chain': _chain(),
+        },
+    )
+
+
+@login_required
+@require_perm(PermissionCode.AUDIT_VIEW)
 def logs_export(request: HttpRequest) -> HttpResponse:
     """Export the retained audit trail as CSV (default) or JSONL (``?format=jsonl``).
 

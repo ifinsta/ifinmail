@@ -1,0 +1,147 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Logs report — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page ifinmail-logs ifinmail-report">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'System logs' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'One report across the web server, mail, spam filter, firewall, audit trail and errors. It is built from hourly summaries, so it costs the same however much traffic there is. Message content is never read.' %}</p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <form method="get" class="ifinmail-inline-form--row">
+                    <label class="ifinmail-sr-only" for="report-period">{% trans 'Period' %}</label>
+                    <select class="ifinmail-input" id="report-period" name="period" data-autosubmit>
+                        {% for value, label in periods %}<option value="{{ value }}"{% if report.period == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    <noscript><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Apply' %}</button></noscript>
+                </form>
+                <a class="ifinmail-btn ifinmail-btn--outline" href="?period={{ report.period }}&amp;format=json" download>{% trans 'Export JSON' %}</a>
+            </div>
+        </div>
+
+        <nav class="ifinmail-tabs" aria-label="{% trans 'Log sections' %}">
+            <a class="ifinmail-tab ifinmail-tab--active" href="{% url 'accounts:logs_report' %}" aria-current="page">{% trans 'Report' %}</a>
+            <a class="ifinmail-tab" href="{% url 'accounts:logs' %}?tab=activity">{% trans 'Activity' %}</a>
+            <a class="ifinmail-tab" href="{% url 'accounts:logs' %}?tab=errors">{% trans 'Errors' %}</a>
+        </nav>
+
+        <div class="ifinmail-hbanner ifinmail-hbanner--{% if report.attention %}warning{% else %}ok{% endif %}" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                {% if report.attention %}<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/>{% else %}<path d="M20 6 9 17l-5-5"/>{% endif %}
+            </svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{% blocktrans trimmed with ok=report.sources_ok total=report.sources_total %}{{ ok }} of {{ total }} log sources are healthy.{% endblocktrans %}</p>
+                <p class="ifinmail-hbanner__next">{% if report.attention %}{% trans 'Needs attention' %}: {{ report.attention|join:', ' }}.{% else %}{% trans 'Every source is reporting and nothing is silent.' %}{% endif %}{% if report.hours_covered < report.hours_expected %} {% blocktrans trimmed with n=report.hours_covered of=report.hours_expected %}Summaries exist for {{ n }} of the last {{ of }} hours.{% endblocktrans %}{% endif %}</p>
+            </div>
+        </div>
+
+        <div class="ifinmail-summary">
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Web requests' %}</span>
+                <span class="ifinmail-summary__value">{{ report.web.requests }}</span>
+            </div>
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Mail delivered' %}</span>
+                <span class="ifinmail-summary__value">{{ report.mail.delivered }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if report.web.refused %} ifinmail-summary__cell--warning{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Refused requests' %}</span>
+                <span class="ifinmail-summary__value">{{ report.web.refused }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if report.security.open %} ifinmail-summary__cell--warning{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Open findings' %}</span>
+                <span class="ifinmail-summary__value">{{ report.security.open }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if report.errors.by_type %} ifinmail-summary__cell--error{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Errors' %}</span>
+                <span class="ifinmail-summary__value">{{ report.errors.by_type|length }}</span>
+            </div>
+            <div class="ifinmail-summary__cell ifinmail-summary__cell--{% if chain.ok %}ok{% elif chain.ok is None %}neutral{% else %}error{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Audit trail' %}</span>
+                <span class="ifinmail-summary__value ifinmail-summary__value--word">{% if chain.ok %}{% trans 'Intact' %}{% elif chain.ok is None %}{% trans 'Not checked' %}{% else %}{% trans 'Broken' %}{% endif %}</span>
+            </div>
+        </div>
+
+        <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="rp-sources">
+            <h2 class="ifinmail-panel-title" id="rp-sources">{% trans 'Log sources' %}</h2>
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Log sources' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th scope="col">{% trans 'Source' %}</th><th scope="col">{% trans 'Status' %}</th><th scope="col">{% trans 'Last line' %}</th><th scope="col">{% trans 'Lines (last hour)' %}</th><th scope="col">{% trans 'Kept' %}</th><th scope="col">{% trans 'Note' %}</th></tr></thead>
+                    <tbody>
+                    {% for s in report.sources %}
+                    <tr>
+                        <td>{{ s.label }}</td>
+                        <td><span class="ifinmail-badge ifinmail-badge--{% if s.status == 'ok' %}success{% elif s.status == 'missing' %}neutral{% else %}warning{% endif %}">{% if s.status == 'ok' %}{% trans 'Reporting' %}{% elif s.status == 'silent' %}{% trans 'Silent' %}{% elif s.status == 'missing' %}{% trans 'Not collected' %}{% else %}{% trans 'Needs attention' %}{% endif %}</span></td>
+                        <td>{{ s.last }}</td>
+                        <td>{{ s.lines }}</td>
+                        <td>{{ s.kept }}</td>
+                        <td>{{ s.note|default:'—' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+            <p class="ifinmail-help-text">{% trans 'The console, worker, DNS, calendar, Redis and database services write to the container output only (make logs); they are not collected here.' %}</p>
+        </section>
+
+        <div class="ifinmail-report__grid">
+            <section class="ifinmail-panel" aria-labelledby="rp-mail">
+                <h2 class="ifinmail-panel-title" id="rp-mail">{% trans 'Mail' %}</h2>
+                <dl class="ifinmail-report__facts">
+                    <div><dt>{% trans 'Received' %}</dt><dd>{{ report.mail.received }}</dd></div>
+                    <div><dt>{% trans 'Delivered to mailboxes' %}</dt><dd>{{ report.mail.delivered }}</dd></div>
+                    <div><dt>{% trans 'Sent to other servers' %}</dt><dd>{{ report.mail.sent }}</dd></div>
+                    <div><dt>{% trans 'Deferred' %}</dt><dd>{{ report.mail.deferred }}</dd></div>
+                    <div><dt>{% trans 'Bounced' %}</dt><dd>{{ report.mail.bounced }}</dd></div>
+                    <div><dt>{% trans 'Relay attempts refused' %}</dt><dd>{{ report.mail.relay_denied }}</dd></div>
+                    <div><dt>{% trans 'Mailbox sign-ins' %}</dt><dd>{{ report.mail.logins }}</dd></div>
+                </dl>
+                {% if report.mail.spam %}
+                <p class="ifinmail-help-text">{% trans 'Spam filter decisions' %}: {% for action, n in report.mail.spam.items %}<span class="ifinmail-text--mono">{{ action }}</span> {{ n }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+                {% endif %}
+            </section>
+
+            <section class="ifinmail-panel" aria-labelledby="rp-web">
+                <h2 class="ifinmail-panel-title" id="rp-web">{% trans 'Web and API' %}</h2>
+                <dl class="ifinmail-report__facts">
+                    {% for cls, n in report.web.by_status.items %}<div><dt>{{ cls }}</dt><dd>{{ n }}</dd></div>{% endfor %}
+                    <div><dt>{% trans 'Closed without an answer' %}</dt><dd>{{ report.web.closed }}</dd></div>
+                    <div><dt>{% trans 'Busiest minute' %}</dt><dd>{{ report.web.busiest_minute }}</dd></div>
+                </dl>
+                {% if report.web.slowest %}<p class="ifinmail-help-text">{% blocktrans trimmed with page=report.web.slowest.page secs=report.web.slowest.seconds %}Slowest page: {{ page }} ({{ secs }} s).{% endblocktrans %}</p>{% endif %}
+            </section>
+
+            <section class="ifinmail-panel" aria-labelledby="rp-sec">
+                <h2 class="ifinmail-panel-title" id="rp-sec">{% trans 'Security' %}</h2>
+                <dl class="ifinmail-report__facts">
+                    <div><dt>{% trans 'Findings' %}</dt><dd>{{ report.security.findings }}</dd></div>
+                    <div><dt>{% trans 'Networks blocked' %}</dt><dd>{{ report.security.blocks }}</dd></div>
+                    <div><dt>{% trans 'Failed console sign-ins' %}</dt><dd>{{ report.security.failed_console_signins }}</dd></div>
+                    <div><dt>{% trans 'Failed mail sign-ins' %}</dt><dd>{{ report.security.failed_mail_signins }}</dd></div>
+                    <div><dt>{% trans 'New sign-in places' %}</dt><dd>{{ report.security.new_places }}</dd></div>
+                </dl>
+                {% if report.security.top %}
+                <ul class="ifinmail-threats__list">
+                    {% for f in report.security.top %}<li><span class="ifinmail-badge ifinmail-badge--{% if f.severity == 'critical' or f.severity == 'high' %}danger{% elif f.severity == 'medium' %}warning{% else %}info{% endif %}">{{ f.severity|capfirst }}</span> {{ f.title }} <span class="ifinmail-text--mono">{{ f.subject }}</span></li>{% endfor %}
+                </ul>
+                <p class="ifinmail-help-text"><a href="{% url 'accounts:threats' %}">{% trans 'Open Threats' %}</a></p>
+                {% endif %}
+            </section>
+
+            <section class="ifinmail-panel" aria-labelledby="rp-changes">
+                <h2 class="ifinmail-panel-title" id="rp-changes">{% trans 'Changes' %}</h2>
+                {% if report.changes %}
+                <ul class="ifinmail-threats__list">
+                    {% for c in report.changes %}<li><span class="ifinmail-text--mono">{{ c.when }}</span> {{ c.action }} <span class="ifinmail-help-text">{{ c.user }}</span></li>{% endfor %}
+                </ul>
+                {% else %}<p class="ifinmail-help-text">{% trans 'No changes in this period.' %}</p>{% endif %}
+                <p class="ifinmail-help-text"><a href="{% url 'accounts:logs' %}?tab=activity">{% trans 'Open Activity' %}</a></p>
+            </section>
+        </div>
+    </div>
+</section>
+{% endblock %}

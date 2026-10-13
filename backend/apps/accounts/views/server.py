@@ -16,6 +16,10 @@ from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.platform.services.entrypoints import (
     CATALOGUE,
     FLOOD_WEB_PER_MINUTE,
+    MAIL_CONCURRENT,
+    PENALTY_MINUTES,
+    WEB_CONCURRENT,
+    WEB_GUARD_PER_MINUTE,
     EntryPointService,
     NetworkError,
 )
@@ -180,6 +184,10 @@ def network_page(request: HttpRequest) -> HttpResponse:
             'flood_until': EntryPointService.flood_until(),
             'flood_mail': EntryPointService.effective_rate(True),
             'flood_web': FLOOD_WEB_PER_MINUTE,
+            'penalty_minutes': PENALTY_MINUTES,
+            'web_guard': WEB_GUARD_PER_MINUTE,
+            'mail_concurrent': MAIL_CONCURRENT,
+            'web_concurrent': WEB_CONCURRENT,
             'agent': EntryPointService.agent_status(),
             'client_ip': _get_client_ip(request),
         },

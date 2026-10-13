@@ -17,6 +17,7 @@ import hashlib
 import ipaddress
 import json
 import logging
+import os
 import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -44,6 +45,26 @@ MAX_BLOCKLIST = 500
 FLOOD_MAIL_PER_MINUTE = 30
 FLOOD_WEB_PER_MINUTE = 240
 FLOOD_WEB_KEYS = ('http', 'https')
+FLOOD_WEB_BURST = 60
+# Denial-of-service guard (on whenever the connection cap is on): decided in the kernel, in the
+# second a limit is crossed, long before the threat digest's next pass.
+PENALTY_MINUTES = 10  # an address far over a rate cap loses every new connection for this long
+PENALTY_FACTOR = 4  # "far over": this many times the cap. Just over it only loses the excess.
+WEB_GUARD_PER_MINUTE = 600  # new web connections a minute per address (a browser opens a handful)
+WEB_BURST = 120
+MAIL_BURST_MIN = 20  # mail clients open several connections at once; bursts are not floods
+MAIL_CONCURRENT = 50  # open mail connections per address (a phone uses 2-5)
+WEB_CONCURRENT = 100  # open web connections per address
+_OWN_SIDE = (
+    '10.0.0.0/8',
+    '172.16.0.0/12',
+    '192.168.0.0/16',
+    '127.0.0.0/8',
+    '169.254.0.0/16',
+    '::1/128',
+    'fc00::/7',
+    'fe80::/10',
+)
 _MIN_PREFIX = {4: 8, 6: 16}
 _PROBE_CACHE_KEY = 'entrypoints:probes'
 _PROBE_CACHE_SECONDS = 20
@@ -169,6 +190,7 @@ class AgentStatus:
     applied_at: datetime | None
     in_sync: bool
     message: str
+    penalised: int = 0  # addresses in the kernel's penalty box right now (agent-reported)
 
 
 def parse_network(text: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
@@ -178,6 +200,20 @@ def parse_network(text: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
         raise NetworkError(
             _('"{text}" is not an IP address or network (use 203.0.113.0/24).').format(text=text)
         ) from None
+
+
+def _collapse(items: list[str], version: int) -> list[str]:
+    """Networks of one family, merged so that an nftables interval set never sees an overlap
+    (overlapping elements make nft reject the whole rule set)."""
+    networks = []
+    for item in items:
+        try:
+            network = ipaddress.ip_network(item.strip(), strict=False)
+        except ValueError:
+            continue
+        if network.version == version:
+            networks.append(network)
+    return [str(n) for n in ipaddress.collapse_addresses(networks)]  # type: ignore[arg-type]
 
 
 class EntryPointService:
@@ -353,6 +389,16 @@ class EntryPointService:
         EntryPointService.apply()
         return value
 
+    @staticmethod
+    def exempt() -> tuple[list[str], list[str]]:
+        """Networks the per-address limits never apply to: this server, its own side, and the
+        allow-list of Automatic protection."""
+        raw = SystemSettings.get(SettingKey.NETWORK_AUTOBLOCK, None)
+        allow = raw.get('allow', []) if isinstance(raw, dict) else []
+        own = [os.environ.get('SERVER_IP', ''), os.environ.get('SERVER_IPV6', '')]
+        items = [*_OWN_SIDE, *(str(a) for a in allow if isinstance(a, str)), *own]
+        return _collapse(items, 4), _collapse(items, 6)
+
     # -- flood mode ---------------------------------------------------------
     @staticmethod
     def flood_until(now: datetime | None = None) -> datetime | None:
@@ -429,15 +475,6 @@ class EntryPointService:
             flood = EntryPointService.flood_until() is not None
         if rate is None:
             rate = EntryPointService.effective_rate(flood)
-        web = sorted(
-            {
-                port
-                for e in CATALOGUE
-                if flood and e.key in FLOOD_WEB_KEYS and enabled.get(e.key, True)
-                for proto, port in e.ports
-                if proto == Proto.TCP
-            }
-        )
         v4 = sorted(c for c in blocked if ':' not in c)
         v6 = sorted(c for c in blocked if ':' in c)
         limited = sorted(
@@ -449,53 +486,75 @@ class EntryPointService:
                 if proto == Proto.TCP
             }
         )
+        web = sorted(
+            {
+                port
+                for e in CATALOGUE
+                if e.key in FLOOD_WEB_KEYS and enabled.get(e.key, True)
+                for proto, port in e.ports
+                if proto == Proto.TCP
+            }
+        )
+        exempt4, exempt6 = EntryPointService.exempt()
+        web_rate, web_burst = (
+            (FLOOD_WEB_PER_MINUTE, FLOOD_WEB_BURST) if flood else (WEB_GUARD_PER_MINUTE, WEB_BURST)
+        )
+        mail_burst = max(MAIL_BURST_MIN, rate // 4) if rate else 0
 
         def elements(items: list[str]) -> str:
             return f'elements = {{ {", ".join(items)} }}' if items else ''
+
+        def fixed(name: str, kind: str, items: list[str]) -> list[str]:
+            items = _collapse(items, 4 if kind == 'ipv4_addr' else 6)
+            body = ['    ' + elements(items)] if items else []
+            return [f'  set {name} {{', f'    type {kind}', '    flags interval', *body, '  }']
+
+        def dynamic(name: str, kind: str, timeout: str = '') -> list[str]:
+            flags = 'dynamic,timeout' if timeout else 'dynamic'
+            extra = [f'    timeout {timeout}'] if timeout else []
+            return [
+                f'  set {name} {{',
+                f'    type {kind}',
+                f'    flags {flags}',
+                *extra,
+                '    size 65535',
+                '  }',
+            ]
 
         lines = [
             '# Generated by ifinmail. Applied by the firewall container; do not edit.',
             'table inet ifinmail',
             'delete table inet ifinmail',
             'table inet ifinmail {',
-            '  set blocked4 {',
-            '    type ipv4_addr',
-            '    flags interval',
-            *(['    ' + elements(v4)] if v4 else []),
-            '  }',
-            '  set blocked6 {',
-            '    type ipv6_addr',
-            '    flags interval',
-            *(['    ' + elements(v6)] if v6 else []),
-            '  }',
-            '  set flood4 {',
-            '    type ipv4_addr',
-            '    flags dynamic,timeout',
-            '    timeout 5m',
-            '    size 65535',
-            '  }',
-            '  set flood6 {',
-            '    type ipv6_addr',
-            '    flags dynamic,timeout',
-            '    timeout 5m',
-            '    size 65535',
-            '  }',
-            # The web ports keep their own sets: a set's limiter state is per address, so sharing
-            # one with the mail ports would apply whichever rate touched the address first.
-            *(
-                line
-                for name, kind in (('floodweb4', 'ipv4_addr'), ('floodweb6', 'ipv6_addr'))
-                for line in (
-                    f'  set {name} {{',
-                    f'    type {kind}',
-                    '    flags dynamic,timeout',
-                    '    timeout 5m',
-                    '    size 65535',
-                    '  }',
-                )
-                if web
-            ),
+            *fixed('blocked4', 'ipv4_addr', v4),
+            *fixed('blocked6', 'ipv6_addr', v6),
         ]
+        if rate:
+            # Per-address limits, all decided in the kernel within the second they are crossed:
+            # an address that keeps opening connections faster than the cap is put in the penalty
+            # box (every new connection from it dropped) for PENALTY_MINUTES, instead of merely
+            # losing the excess. Concurrent connections per address are capped too, so one address
+            # cannot hold every login slot or web worker open (slow-request attacks).
+            lines += [
+                *fixed('exempt4', 'ipv4_addr', exempt4),
+                *fixed('exempt6', 'ipv6_addr', exempt6),
+                *dynamic('penalty4', 'ipv4_addr', f'{PENALTY_MINUTES}m'),
+                *dynamic('penalty6', 'ipv6_addr', f'{PENALTY_MINUTES}m'),
+                *dynamic('pen4', 'ipv4_addr', '5m'),
+                *dynamic('pen6', 'ipv6_addr', '5m'),
+                *dynamic('penweb4', 'ipv4_addr', '5m'),
+                *dynamic('penweb6', 'ipv6_addr', '5m'),
+                *dynamic('flood4', 'ipv4_addr', '5m'),
+                *dynamic('flood6', 'ipv6_addr', '5m'),
+                # The web ports keep their own sets: a set's limiter state is per address, so
+                # sharing one with the mail ports would apply whichever rate touched it first.
+                *dynamic('floodweb4', 'ipv4_addr', '5m'),
+                *dynamic('floodweb6', 'ipv6_addr', '5m'),
+                *dynamic('conn4', 'ipv4_addr'),
+                *dynamic('conn6', 'ipv6_addr'),
+                *dynamic('connweb4', 'ipv4_addr'),
+                *dynamic('connweb6', 'ipv6_addr'),
+            ]
         # The same checks run for traffic Docker forwards to a container (ct original proto-dst is
         # the port as published) and for traffic addressed to the host itself (dport).
         for chain, hook, match in (
@@ -515,24 +574,42 @@ class EntryPointService:
                 if ports:
                     sel = f'{match} {{ {", ".join(map(str, ports))} }}'
                     lines.append(f'    meta l4proto {proto} {sel} drop')
-            if rate and limited:
-                ports = ', '.join(map(str, limited))
-                sel = f'{match} {{ {ports} }}'
-                lines.append(
-                    f'    meta l4proto tcp {sel} ct state new '
-                    f'add @flood4 {{ ip saddr limit rate over {rate}/minute }} drop'
-                )
-                lines.append(
-                    f'    meta l4proto tcp {sel} ct state new '
-                    f'add @flood6 {{ ip6 saddr limit rate over {rate}/minute }} drop'
-                )
-            if web:
-                sel = f'{match} {{ {", ".join(map(str, web))} }}'
-                for name, saddr in (('floodweb4', 'ip'), ('floodweb6', 'ip6')):
+            if not rate:
+                lines.append('  }')
+                continue
+            lines.append(f'    {guard}ip saddr @exempt4 accept')
+            lines.append(f'    {guard}ip6 saddr @exempt6 accept')
+            lines.append(f'    {guard}ip saddr @penalty4 drop')
+            lines.append(f'    {guard}ip6 saddr @penalty6 drop')
+            groups = [
+                (limited, 'conn', MAIL_CONCURRENT, 'flood', 'pen', rate, mail_burst),
+                (web, 'connweb', WEB_CONCURRENT, 'floodweb', 'penweb', web_rate, web_burst),
+            ]
+            for ports_of, conn, most, meter, pen, per_minute, burst in groups:
+                if not ports_of:
+                    continue
+                sel = f'meta l4proto tcp {match} {{ {", ".join(map(str, ports_of))} }} ct state new'
+                # Far over the cap: a flood, so the address goes in the penalty box. First, so
+                # that every attempt counts, even those the open-connection cap would refuse.
+                for family, saddr in (('4', 'ip'), ('6', 'ip6')):
                     lines.append(
-                        f'    meta l4proto tcp {sel} ct state new '
-                        f'add @{name} {{ {saddr} saddr limit rate over '
-                        f'{FLOOD_WEB_PER_MINUTE}/minute }} drop'
+                        f'    {sel} add @{pen}{family} {{ {saddr} saddr limit rate over '
+                        f'{per_minute * PENALTY_FACTOR}/minute '
+                        f'burst {burst * PENALTY_FACTOR} packets }} '
+                        f'add @penalty{family} {{ {saddr} saddr }} drop'
+                    )
+                # Too many open at once (slow-request attacks hold connections to exhaust them).
+                for family, saddr in (('4', 'ip'), ('6', 'ip6')):
+                    lines.append(
+                        f'    {sel} add @{conn}{family} {{ {saddr} saddr ct count over {most} }} '
+                        'reject with tcp reset'
+                    )
+                # Just over it: only the excess is dropped (a busy office behind one address
+                # retries a moment later rather than being shut out).
+                for family, saddr in (('4', 'ip'), ('6', 'ip6')):
+                    lines.append(
+                        f'    {sel} add @{meter}{family} {{ {saddr} saddr limit rate over '
+                        f'{per_minute}/minute burst {burst} packets }} drop'
                     )
             lines.append('  }')
         lines.append('}')
@@ -590,7 +667,11 @@ class EntryPointService:
         message = str(data.get('message', ''))
         if not fresh:
             message = message or _('The firewall agent is not reporting.')
-        return AgentStatus(fresh, applied, fresh and in_sync, message)
+        try:
+            penalised = max(int(data.get('penalised', 0) or 0), 0)
+        except (TypeError, ValueError):
+            penalised = 0
+        return AgentStatus(fresh, applied, fresh and in_sync, message, penalised if fresh else 0)
 
     # -- probes -------------------------------------------------------------
     @staticmethod

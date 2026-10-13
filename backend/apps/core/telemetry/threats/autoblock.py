@@ -49,6 +49,8 @@ KEY_MEMORY = timedelta(days=30)  # ... nor networks an API key was used from
 PLACE_MEMORY = timedelta(days=14)  # ... nor where an account was last seen signing in
 FLOOD_HOLD = timedelta(hours=2)  # flood mode lasts this long after the last flood sighting
 NOTE = 'Auto: '
+MAX_HOURS = 168  # a repeat offender's block doubles each time, up to a week, and still lifts
+OFFENCE_MEMORY = timedelta(days=30)  # earlier automatic blocks counted for the doubling
 _FULL_NOTICE = 'autoblock:full'
 
 
@@ -66,6 +68,7 @@ class Result:
     skipped: int = 0  # candidates left alone for a safety reason
     full: bool = False
     flood_started: bool = False
+    hours: dict[str, int] = field(default_factory=dict)  # how long each new block lasts
 
 
 def config() -> Config:
@@ -105,7 +108,27 @@ def save(*, block: bool, flood: bool, hours: int, allow_text: str) -> Config:
         SettingKey.NETWORK_AUTOBLOCK,
         {'block': bool(block), 'flood': bool(flood), 'hours': hours, 'allow': list(allow)},
     )
+    EntryPointService.apply()  # the allow-list is also exempt from the kernel's per-address limits
     return config()
+
+
+def offences(net: str, now: datetime) -> int:
+    """Automatic blocks of this network in the last month (from the audit trail)."""
+    from backend.apps.core.platform.models import AuditEvent
+
+    return int(
+        AuditEvent.objects.filter(
+            action='network_auto_block',
+            detail__startswith=f'{net} ',
+            time__gte=now - OFFENCE_MEMORY,
+        ).count()
+    )
+
+
+def hours_for(net: str, base: int, now: datetime) -> int:
+    """The block length: the chosen time, doubled for each earlier offence, at most a week."""
+    hours: int = base * 2 ** min(offences(net, now), 8)
+    return min(hours, MAX_HOURS)
 
 
 def _known_good(now: datetime) -> set[str]:
@@ -189,7 +212,6 @@ def _block(cfg: Config, now: datetime) -> Result:
     automatic = sum(1 for r in active if str(r.get('note', '')).startswith(NOTE))
     good = _known_good(now)
     own = _own_addresses()
-    expires = now + timedelta(hours=cfg.hours)
     for row in candidates:
         net = row.subject
         if len(result.blocked) >= MAX_PER_PASS:
@@ -207,19 +229,24 @@ def _block(cfg: Config, now: datetime) -> Result:
         if automatic + len(result.blocked) >= MAX_AUTO:
             result.full = True
             break
+        hours = hours_for(net, cfg.hours, now)
         try:
             text = EntryPointService.block(
-                net, f'{NOTE}{row.title}'[:120], protect=own, expires_at=expires
+                net,
+                f'{NOTE}{row.title}'[:120],
+                protect=own,
+                expires_at=now + timedelta(hours=hours),
             )
         except NetworkError:
             result.skipped += 1
             continue
         result.blocked.append(text)
+        result.hours[text] = hours
         in_force.append(text)
         AuditService.record(
             action='network_auto_block',
             user='system',
-            detail=f'{text} for {cfg.hours} h ({row.kind}: {row.title}; finding {row.key})',
+            detail=f'{text} for {hours} h ({row.kind}: {row.title}; finding {row.key})',
             severity='warning',
         )
     return result
@@ -233,11 +260,22 @@ def run(now: datetime | None = None) -> Result:
     if cfg.block:
         result = _block(cfg, now)
     if cfg.flood:
-        flooding = ThreatFinding.objects.filter(
-            kind='distributed_flood',
-            status__in=[ThreatFinding.OPEN, ThreatFinding.ACKNOWLEDGED],
-            last_seen__gte=now - FRESH,
-        ).exists()
+        recent = now - FRESH
+        flooding = (
+            ThreatFinding.objects.filter(
+                kind='distributed_flood',
+                status__in=[ThreatFinding.OPEN, ThreatFinding.ACKNOWLEDGED],
+                last_seen__gte=recent,
+            ).exists()
+            # The adaptive baseline: web traffic far above normal for this hour is a flood too,
+            # even when it is spread thinly enough that no single network stands out.
+            or ThreatFinding.objects.filter(
+                key='surge:requests',
+                severity__gte=int(Severity.HIGH),
+                status=ThreatFinding.OPEN,
+                last_seen__gte=recent,
+            ).exists()
+        )
         if flooding:
             result.flood_started = EntryPointService.start_flood(
                 now + FLOOD_HOLD, 'distributed flood'
@@ -261,9 +299,18 @@ def run(now: datetime | None = None) -> Result:
         )
     lines = []
     if result.blocked:
+        each = ', '.join(
+            f'{net} for {result.hours.get(net, cfg.hours)} hours'
+            + (
+                ' (back again: blocked longer)'
+                if result.hours.get(net, cfg.hours) > cfg.hours
+                else ''
+            )
+            for net in result.blocked
+        )
         lines.append(
-            f'Blocked for {cfg.hours} hours: ' + ', '.join(result.blocked) + '. Each one lifts '
-            'itself; to lift one sooner, remove it under Settings, Network.'
+            f'Blocked: {each}. Each one lifts itself; to lift one sooner, remove it under '
+            'Settings, Network.'
         )
     if result.flood_started:
         lines.append(

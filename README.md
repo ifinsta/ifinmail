@@ -85,6 +85,13 @@ allow-list, or a network people signed in from lately; at most 50 at once, audit
 and *flood mode*, which holds each address to 30 new mail connections and 240 web connections a
 minute while traffic arrives from many networks at once and ends by itself afterwards.
 
+**Denial-of-service guard (kernel, instant).** Whenever the connection limit is on: an address
+opening connections at four times a limit loses every new connection for 10 minutes (the penalty
+box); just over a limit only loses the excess; the web ports allow 600 new connections a minute per
+address (240 in flood mode); one address may hold at most 50 mail and 100 web connections open. The
+allow-list, this server and its own side are exempt. nginx also closes slow requests in seconds.
+Automatic blocks of a network that keeps coming back double in length (up to a week).
+
 Lists every published port (SMTP, submission, SMTPS, IMAP, IMAPS, HTTP, HTTPS, DNS) with a live check that the service answers. You can close ports you do not use (IMAP on 143, SMTPS, DNS), block networks, and cap new mail connections per address per minute. Rules are applied by the `firewall` container with nftables, for Docker-published ports and host traffic alike, and the page shows whether they are in force. Ports the server cannot work without (25, 80, 443) stay open, and you cannot block the address you are using. SSH and the host firewall are not touched.
 
 ## First sign-in and setup

@@ -800,11 +800,17 @@ def _firewall() -> HealthCheck:
                 'a couple of hours after the flood stops. See Threats.',
                 **link,
             )
+        penalty = (
+            f' {status.penalised} address(es) are in the penalty box for going over a limit.'
+            if status.penalised
+            else ''
+        )
         return HealthCheck(
             'firewall', GROUP_SECURITY, title, OK,
             f'In force: {counts["closed"]} port(s) closed, {counts["blocked"]} network(s) '
             f'blocked, and at most {counts["rate_per_minute"]} new connections a minute from one '
-            f'address to {counts["rate_limited_ports"]} mail ports.'
+            f'address to {counts["rate_limited_ports"]} mail ports, with the web ports guarded '
+            f'too.{penalty}'
             if counts['rate_per_minute']
             else f'In force: {counts["closed"]} port(s) closed, {counts["blocked"]} network(s) '
             'blocked. The connection cap is off.',

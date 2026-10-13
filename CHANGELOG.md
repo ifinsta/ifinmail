@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.0.32
+- **Repeat offenders are blocked longer.** An automatic block lasts the chosen time (24 hours by
+  default) the first time, then doubles each time the same network is blocked again within a
+  month: 24, 48, 96 hours, then a week at most. Every block still lifts itself; the email says
+  when a network came back.
+- **Denial-of-service guard, decided in the kernel the moment a limit is crossed** (the threat
+  digest only looks every ten minutes). On whenever the connection limit is on:
+  - *Penalty box:* an address opening connections at four times a limit or more (a flood, not a
+    busy office) loses every new connection on every port for 10 minutes.
+  - *Just over a limit* only loses the excess, as before; short bursts (a mail app opening several
+    connections) are allowed.
+  - *The web ports are guarded all the time* now: 600 new connections a minute per address
+    (240 during flood mode). Before, they had no per-address limit unless flood mode was on.
+  - *Open connections per address* are capped (50 mail, 100 web), so one address cannot hold every
+    login slot or web worker open with slow requests.
+  - This server, its own side and the Automatic protection allow-list are never limited; explicit
+    blocks still apply to them. The firewall agent reports how many addresses are in the penalty
+    box, shown on the Network page and in System health.
+  - Measured against a real kernel: 60 connections at once from one address (an office) passed 45
+    and dropped the excess with no penalty; a flood of 400 put the address in the penalty box,
+    cutting it off the web port too; the same flood from an allow-listed address passed
+    untouched; 60 held-open connections were capped at 50.
+- **Slow-request protection in nginx:** a client that trickles its headers or body is cut off in
+  seconds (header 10 s, body and send 20 s between reads), and over-limit answers are 429 rather
+  than 503.
+- **Flood mode also starts from the adaptive baseline**: web traffic far above normal for the hour
+  turns it on even when no single network stands out.
+- Overlapping blocked networks (a /16 and a /24 inside it) no longer make the kernel reject the
+  whole rule set: they are merged first.
+
 ## v0.0.31
 - **Automatic protection is now on by default.** Both parts (block networks that are attacking;
   tighten the limits during a flood) are on until an administrator turns them off on Settings →

@@ -16,6 +16,7 @@ from backend.apps.core.platform.models import AuditEvent
 from backend.apps.core.platform.services.entrypoints import (
     FLOOD_MAIL_PER_MINUTE,
     FLOOD_WEB_PER_MINUTE,
+    WEB_GUARD_PER_MINUTE,
     EntryPointService,
 )
 from backend.apps.core.services import SystemSettings
@@ -26,6 +27,8 @@ from backend.apps.core.telemetry.threats.types import Severity
 from backend.apps.core.types import SettingKey
 
 NOW = datetime(2026, 10, 13, 12, 30, tzinfo=UTC)
+WEB_NORMAL = f'limit rate over {WEB_GUARD_PER_MINUTE}/minute burst'
+WEB_FLOOD = f'limit rate over {FLOOD_WEB_PER_MINUTE}/minute burst'
 
 
 def finding(
@@ -218,14 +221,15 @@ class FloodModeTests(AutoBase):
 
     def test_the_default_rules_are_unchanged_while_there_is_no_flood(self) -> None:
         text = EntryPointService.render()
-        self.assertNotIn('floodweb4', text)
-        self.assertIn('limit rate over 120/minute', text)
+        self.assertNotIn(WEB_FLOOD, text)
+        self.assertIn('limit rate over 120/minute burst 30 packets } drop', text)
+        self.assertIn(WEB_NORMAL, text)
 
     def test_on_by_default_and_off_when_turned_off(self) -> None:
         self.flood()
         self.turn_on(block=False, flood=False)
         self.assertFalse(autoblock.run(NOW).flood_started)
-        self.assertNotIn('floodweb4', EntryPointService.render())
+        self.assertNotIn(WEB_FLOOD, EntryPointService.render())
         self.turn_on(block=False, flood=True)
         self.assertTrue(autoblock.run(NOW).flood_started)
 
@@ -236,7 +240,7 @@ class FloodModeTests(AutoBase):
         self.assertTrue(result.flood_started)
         text = EntryPointService.render()
         self.assertIn(f'limit rate over {FLOOD_MAIL_PER_MINUTE}/minute', text)
-        self.assertNotIn('limit rate over 120/minute', text)
+        self.assertNotIn('limit rate over 120/minute burst 30 packets } drop', text)
         self.assertIn(f'limit rate over {FLOOD_WEB_PER_MINUTE}/minute', text)
         self.assertRegex(text, r'th dport \{ 443, 80 \}|th dport \{ 80, 443 \}')
         self.assertTrue(AuditEvent.objects.filter(action='flood_mode_on').exists())
@@ -267,10 +271,10 @@ class FloodModeTests(AutoBase):
         self.turn_on(block=False, flood=True)
         until = timezone.now() + timedelta(hours=2)
         EntryPointService.start_flood(until, 'test')
-        self.assertIn('floodweb4', EntryPointService.render())
+        self.assertIn(WEB_FLOOD, EntryPointService.render())
         self.assertFalse(EntryPointService.expire_flood())  # still in force
         EntryPointService.start_flood(timezone.now() - timedelta(minutes=1), 'test')
-        self.assertNotIn('floodweb4', EntryPointService.render())  # ignored even before the sweep
+        self.assertNotIn(WEB_FLOOD, EntryPointService.render())  # ignored even before the sweep
         result = reconcile_entrypoints()
         self.assertTrue(result['wrote'] or EntryPointService.flood_until() is None)
         self.assertTrue(AuditEvent.objects.filter(action='flood_mode_off').exists())
@@ -334,3 +338,124 @@ class AutoProtectPageTests(AutoBase):
         response = self.client.post(reverse('accounts:network_auto'), {'hours': '24'})
         self.assertEqual(response.status_code, 403)
         self.assertIsNone(SystemSettings.get(SettingKey.NETWORK_AUTOBLOCK, None))
+
+
+class EscalationTests(AutoBase):
+    def test_a_network_that_comes_back_is_blocked_twice_as_long_up_to_a_week(self) -> None:
+        self.turn_on(hours=24)
+        expected = [24, 48, 96, 168, 168]
+        for hours in expected:
+            ThreatFinding.objects.all().delete()
+            finding()
+            result = autoblock.run(NOW)
+            self.assertEqual(result.hours, {'203.0.113.0/24': hours})
+            row = EntryPointService.blocklist()[0]
+            self.assertEqual(datetime.fromisoformat(row['expires']) - NOW, timedelta(hours=hours))
+            EntryPointService.unblock('203.0.113.0/24')  # as if it had lifted
+
+    def test_offences_older_than_a_month_are_forgotten(self) -> None:
+        AuditEvent.objects.create(
+            action='network_auto_block',
+            user='system',
+            detail='203.0.113.0/24 for 24 h (old)',
+            time=NOW - timedelta(days=40),
+        )
+        self.assertEqual(autoblock.hours_for('203.0.113.0/24', 24, NOW), 24)
+
+    def test_the_email_says_it_came_back(self) -> None:
+        self.turn_on(hours=24)
+        AuditEvent.objects.create(
+            action='network_auto_block',
+            user='system',
+            detail='203.0.113.0/24 for 24 h (earlier)',
+            time=NOW - timedelta(days=2),
+        )
+        finding()
+        with patch.dict('os.environ', {'ADMIN_EMAIL': 'owner@ifinmail.test', 'THREAT_ALERTS': '1'}):
+            autoblock.run(NOW)
+        self.assertIn('203.0.113.0/24 for 48 hours (back again', mail.outbox[0].body)
+
+    def test_a_high_traffic_surge_turns_flood_mode_on(self) -> None:
+        self.turn_on(block=False, flood=True)
+        finding('the server', kind='traffic_surge', severity=Severity.HIGH, key='surge:requests')
+        self.assertTrue(autoblock.run(NOW).flood_started)
+
+
+class DosGuardTests(AutoBase):
+    def test_the_guard_is_in_the_default_rules(self) -> None:
+        text = EntryPointService.render()
+        self.assertIn('set penalty4', text)
+        self.assertIn('ip saddr @penalty4 drop', text)
+        self.assertIn('add @penalty4 { ip saddr } drop', text)
+        self.assertIn('ct count over 50 } reject with tcp reset', text)  # mail ports
+        self.assertIn('ct count over 100 } reject with tcp reset', text)  # web ports
+        self.assertIn('limit rate over 480/minute burst 120 packets', text)  # 4x: penalty box
+        self.assertIn(WEB_NORMAL, text)
+
+    def test_the_penalty_meter_comes_before_the_open_connection_cap(self) -> None:
+        text = EntryPointService.render()
+        self.assertLess(text.index('add @pen4'), text.index('add @conn4'))
+        self.assertLess(text.index('add @conn4'), text.index('add @flood4'))
+
+    def test_own_side_and_allow_list_are_exempt_and_blocks_still_win(self) -> None:
+        self.turn_on(allow_text='198.51.100.0/24')
+        EntryPointService.block('198.51.100.0/24', 'explicit')
+        text = EntryPointService.render()
+        self.assertIn('10.0.0.0/8', text)
+        self.assertIn('fc00::/7', text)
+        exempt = text[text.index('set exempt4') : text.index('set exempt6')]
+        self.assertIn('198.51.100.0/24', exempt)
+        for chain in ('chain forward', 'chain input'):
+            body = text[text.index(chain) :]
+            self.assertLess(body.index('@blocked4 drop'), body.index('@exempt4 accept'))
+
+    def test_saving_the_allow_list_republishes_the_rules(self) -> None:
+        from backend.apps.core.platform.services.entrypoints import RULES_FILE
+        from backend.apps.core.platform.services.runtime import read_runtime_file
+
+        self.turn_on(allow_text='198.51.100.7')
+        self.assertIn('198.51.100.7/32', read_runtime_file(RULES_FILE) or '')
+
+    def test_overlapping_blocks_never_make_the_kernel_reject_the_rules(self) -> None:
+        EntryPointService.block('203.0.113.0/24', 'narrow')
+        EntryPointService.block('203.0.0.0/16', 'wide')
+        blocked = EntryPointService.render().split('set blocked4')[1].split('}')[0]
+        self.assertIn('203.0.0.0/16', blocked)
+        self.assertNotIn('203.0.113.0/24', blocked)  # merged into the /16
+
+    def test_with_the_cap_off_there_are_no_per_address_limits_at_all(self) -> None:
+        EntryPointService.set_rate_per_minute(0)
+        text = EntryPointService.render()
+        self.assertNotIn('penalty', text)
+        self.assertNotIn('ct count', text)
+        self.assertNotIn('limit rate', text)
+
+    def test_the_agent_reports_the_penalty_box(self) -> None:
+        import json
+
+        from backend.apps.core.platform.services.entrypoints import RULES_FILE, STATUS_FILE
+        from backend.apps.core.platform.services.runtime import write_runtime_file
+
+        EntryPointService.apply()
+        from backend.apps.core.platform.services.runtime import read_runtime_file
+
+        sha = hashlib.sha256((read_runtime_file(RULES_FILE) or '').encode()).hexdigest()
+        stamp = datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
+        write_runtime_file(
+            STATUS_FILE,
+            json.dumps(
+                {
+                    'updated': stamp,
+                    'ok': True,
+                    'sha256': sha,
+                    'message': 'Rules applied.',
+                    'penalised': 3,
+                }
+            ),
+        )
+        self.assertEqual(EntryPointService.agent_status().penalised, 3)
+        page = self.client.get(reverse('accounts:network'))
+        self.assertContains(page, '3 addresses in the penalty box right now')
+        from backend.apps.accounts.services import system_health
+
+        self.assertIn('3 address(es) are in the penalty box', system_health._firewall().summary)

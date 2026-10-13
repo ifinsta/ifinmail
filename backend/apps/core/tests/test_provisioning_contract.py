@@ -665,3 +665,20 @@ class MailLogContractTests(SimpleTestCase):
             r"'django\.security\.DisallowedHost': \{[^}]*'level': 'CRITICAL'"
             r"[^}]*'propagate': False",
         )
+
+    def test_the_firewall_agent_reports_the_penalty_box(self) -> None:
+        agent = _read('firewall', 'entrypoint.sh')
+        self.assertIn('nft list set inet ifinmail "$set"', agent)
+        self.assertIn('"penalised":%s', agent)
+
+    def test_nginx_closes_slow_requests(self) -> None:
+        conf = _read('nginx', 'conf.d', 'ifinmail.conf')
+        for directive in (
+            'client_header_timeout 10s;',
+            'client_body_timeout 20s;',
+            'limit_req_status 429;',
+        ):
+            self.assertIn(directive, conf)
+        # keepalive_timeout is set by the image's nginx.conf; a second one stops nginx starting
+        self.assertNotIn('keepalive_timeout', conf)
+

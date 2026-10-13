@@ -24,6 +24,15 @@
                         {% if agent.message and not agent.in_sync %}<span class="ifinmail-settings-row__value">{{ agent.message }}</span>{% endif %}</dd>
                 </div>
                 <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Denial-of-service guard' %}</dt>
+                    <dd>
+                        {% if rate %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'On' %}</span>
+                        {% if agent.penalised %}<span class="ifinmail-settings-row__value">{% blocktrans trimmed count n=agent.penalised %}{{ n }} address in the penalty box right now{% plural %}{{ n }} addresses in the penalty box right now{% endblocktrans %}</span>{% endif %}
+                        {% else %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Off (the connection limit below is 0)' %}</span>{% endif %}
+                        <p class="ifinmail-settings-row__help">{% blocktrans trimmed with minutes=penalty_minutes web=web_guard mail_open=mail_concurrent web_open=web_concurrent %}Decided in the kernel the moment a limit is crossed: an address that keeps opening connections faster than the mail limit below, or faster than {{ web }} a minute to the web ports, loses every new connection for {{ minutes }} minutes. One address may also hold at most {{ mail_open }} mail and {{ web_open }} web connections open at once. Short bursts (a mail app opening several connections) are allowed; this server, its own side and the allow-list under Automatic protection are never limited.{% endblocktrans %}</p>
+                    </dd>
+                </div>
+                <div class="ifinmail-settings-row">
                     <dt>{% trans 'Emergency stop' %}</dt>
                     <dd>
                         <p class="ifinmail-settings-row__help">{% trans 'If a rule ever cuts off something it should not, sign in to the server over SSH and run the command below. It removes every rule at once and the server then accepts everything again. SSH itself is never filtered.' %}</p>

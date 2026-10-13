@@ -16,10 +16,20 @@ applied=""
 ok=false
 message="Waiting for rules from the console."
 
+# Addresses the kernel put in the penalty box (over a per-address rate cap), counted for the console.
+penalised() {
+    n=0
+    for set in penalty4 penalty6; do
+        c="$(nft list set inet ifinmail "$set" 2>/dev/null | grep -o 'expires' | wc -l)"
+        n=$(( n + ${c:-0} ))
+    done
+    echo "$n"
+}
+
 report() {
     msg="$(printf '%s' "$message" | tr '\n"\\' '  /' | cut -c1-300)"
-    printf '{"updated":"%s","ok":%s,"sha256":"%s","message":"%s"}\n' \
-        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ok" "$applied" "$msg" > "$STATUS.tmp" \
+    printf '{"updated":"%s","ok":%s,"sha256":"%s","message":"%s","penalised":%s}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$ok" "$applied" "$msg" "$(penalised)" > "$STATUS.tmp" \
         && mv "$STATUS.tmp" "$STATUS"
 }
 

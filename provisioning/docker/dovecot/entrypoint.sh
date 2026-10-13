@@ -27,6 +27,17 @@ chmod 0755 /var/mail/vhosts
 # Certificates come from the whole Let's Encrypt tree (live/ files link into archive/).
 ln -sfn "/etc/letsencrypt/live/${MAIL_HOSTNAME:?MAIL_HOSTNAME is required}" /etc/dovecot/certs
 
+# The log is a file on a volume the console reads (the threat digest counts failed sign-ins);
+# tail forwards it to the container output so docker logs shows the same lines. Without the
+# volume the default in dovecot.conf (the container output) stays in force.
+MAIL_LOG=/var/log/ifinmail/dovecot.log
+if mkdir -p "$(dirname "$MAIL_LOG")" 2>/dev/null && touch "$MAIL_LOG" 2>/dev/null; then
+    chmod 0644 "$MAIL_LOG"
+    printf 'log_path = %s\n' "$MAIL_LOG" > /etc/dovecot/ifinmail-log.conf
+    tail -n 0 -F "$MAIL_LOG" &
+    /usr/local/bin/ifinmail-log-rotate "$MAIL_LOG" &
+fi
+
 # Plugin settings (dovecot.policy): apply once before Dovecot starts, then watch for changes.
 DOVECOT_RELOAD=true /usr/local/bin/ifinmail-dovecot-sync --once || true
 /usr/local/bin/ifinmail-dovecot-sync &

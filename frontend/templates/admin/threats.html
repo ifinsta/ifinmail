@@ -67,6 +67,10 @@
                 <span class="ifinmail-summary__label">{% trans 'Failed sign-ins' %}</span>
                 <span class="ifinmail-summary__value">{{ summary.auth_failures|default:0 }}</span>
             </div>
+            <div class="ifinmail-summary__cell{% if summary.mail_failures %} ifinmail-summary__cell--warning{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Failed mail sign-ins' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.mail_failures|default:0 }}</span>
+            </div>
             <div class="ifinmail-summary__cell{% if summary.server_errors %} ifinmail-summary__cell--error{% endif %}">
                 <span class="ifinmail-summary__label">{% trans 'Server errors' %}</span>
                 <span class="ifinmail-summary__value">{{ summary.server_errors|default:0 }}</span>
@@ -101,7 +105,7 @@
                     {% if f.samples or f.evidence %}
                     <details class="ifinmail-threats__more">
                         <summary>{% trans 'Evidence' %}</summary>
-                        {% if f.samples %}<p class="ifinmail-help-text">{% trans 'Requested' %}: <code class="ifinmail-text--mono">{{ f.samples|join:'  ' }}</code></p>{% endif %}
+                        {% if f.samples %}<p class="ifinmail-help-text">{% if f.samples_label == 'Requested' %}{% trans 'Requested' %}{% else %}{% trans 'Accounts tried' %}{% endif %}: <code class="ifinmail-text--mono">{{ f.samples|join:'  ' }}</code></p>{% endif %}
                         {% if f.evidence %}<p class="ifinmail-help-text">{% trans 'Request ids' %} ({% trans 'search Logs for these' %}): <code class="ifinmail-text--mono">{{ f.evidence|join:', ' }}</code></p>{% endif %}
                         <p class="ifinmail-help-text">{% blocktrans trimmed with n=f.count first=f.first_seen|date:'H:i' last=f.last_seen|date:'H:i' %}{{ n }} events, between {{ first }} and {{ last }} UTC.{% endblocktrans %}</p>
                     </details>

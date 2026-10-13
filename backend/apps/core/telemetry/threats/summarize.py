@@ -91,6 +91,7 @@ def facts(summary: WindowSummary, findings: list[Finding]) -> dict[str, Any]:
             'by_class': summary.by_class,
             'server_errors': summary.server_errors,
             'auth_failures': summary.auth_failures,
+            'mail_failures': summary.mail_failures,
             'top_networks': summary.top_networks,
         },
         'findings': [
@@ -101,7 +102,7 @@ def facts(summary: WindowSummary, findings: list[Finding]) -> dict[str, Any]:
                 'subject': _mask(f.subject),
                 'count': f.count,
                 'what': f.title,
-                'samples': f.samples[:3],
+                'samples': [_mask(s) for s in f.samples[:3]],
                 'tighten_at': [a.where or a.label for a in f.tighten],
             }
             for f in findings[:12]

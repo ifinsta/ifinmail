@@ -46,7 +46,18 @@ fi
 # Log to the container output (docker logs): without a syslog daemon Postfix
 # logged nowhere. postlogd needs its own service entry.
 postconf -Me 'postlog/unix-dgram=postlog unix-dgram n - n - 1 postlogd'
-postconf -e maillog_file=/dev/stdout
+# The log is a file on a volume the console reads (the threat digest counts failed sign-ins and
+# relay attempts); tail forwards it to the container output so docker logs shows the same lines.
+# Without the volume Postfix logs straight to the container output as before.
+MAIL_LOG=/var/log/ifinmail/postfix.log
+if mkdir -p "$(dirname "$MAIL_LOG")" 2>/dev/null && touch "$MAIL_LOG" 2>/dev/null; then
+    chmod 0644 "$MAIL_LOG"
+    postconf -e "maillog_file=$MAIL_LOG"
+    tail -n 0 -F "$MAIL_LOG" &
+    /usr/local/bin/ifinmail-log-rotate "$MAIL_LOG" &
+else
+    postconf -e maillog_file=/dev/stdout
+fi
 
 mkdir -p /var/spool/postfix /var/mail/vhosts
 if command -v postfix >/dev/null 2>&1; then

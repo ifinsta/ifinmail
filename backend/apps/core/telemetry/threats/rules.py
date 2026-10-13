@@ -92,7 +92,17 @@ _INTERNAL = tuple(
 
 
 # Findings whose subject is a network that the console can block.
-NETWORK_KINDS = frozenset({'probe_sweep', 'request_flood', 'login_guessing', 'api_key_guessing'})
+NETWORK_KINDS = frozenset(
+    {
+        'probe_sweep',
+        'request_flood',
+        'login_guessing',
+        'api_key_guessing',
+        'mail_login_guessing',
+        'mail_relay_probe',
+        'mail_recipient_guessing',
+    }
+)
 
 
 def is_internal(net: str) -> bool:

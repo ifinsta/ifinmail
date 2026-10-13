@@ -20,7 +20,7 @@ from django.db import transaction
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.telemetry.models import ErrorEvent, ThreatDigest, ThreatFinding
 
-from . import access_log, collect, rules, summarize
+from . import access_log, collect, mail_log, mail_rules, rules, summarize
 from .classify import clean, probe_class
 from .types import Action, Finding, Severity, WindowSummary
 
@@ -272,7 +272,10 @@ def run(now: datetime | None = None, *, summarise: bool = True) -> DigestResult:
     auth_all = collect.auth_events(now - timedelta(hours=AUTH_HOURS))
     auth_window = [e for e in auth_all if e.at >= start]
     summary = rules.summarise(log.requests, auth_window, start, now, log.skipped_bytes)
+    mail = mail_log.read_window(start, now)
+    summary.mail_failures = mail_rules.failures(mail)
     found = rules.analyze(log.requests, auth_all, now)
+    found += mail_rules.analyze(mail)
     found += _probe_errors(log.requests)
     found.sort(key=lambda f: (-int(f.severity), -f.count, f.key))
 

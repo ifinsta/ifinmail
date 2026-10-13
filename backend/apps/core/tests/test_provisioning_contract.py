@@ -626,3 +626,42 @@ class HealthcheckContractTests(SimpleTestCase):
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class MailLogContractTests(SimpleTestCase):
+    """The threat digest reads Postfix and Dovecot logs from a shared volume (read-only)."""
+
+    def test_the_console_reads_the_same_volume_the_mail_services_write(self) -> None:
+        compose = _read('docker-compose.yml')
+        self.assertRegex(compose, r'(?m)^  mail_logs:')
+        self.assertEqual(compose.count('mail_logs:/var/log/ifinmail\n'), 0)  # never bare
+        writers = compose.count('- mail_logs:/var/log/ifinmail ')
+        self.assertGreaterEqual(writers, 2)  # postfix and dovecot
+        self.assertIn('mail_logs:/var/log/ifinmail-mail:ro', compose)  # worker, read-only
+
+    def test_each_service_logs_to_the_file_and_still_to_the_container_output(self) -> None:
+        postfix = _read('postfix', 'entrypoint.sh')
+        self.assertIn('maillog_file=$MAIL_LOG', postfix)
+        self.assertIn('tail -n 0 -F "$MAIL_LOG"', postfix)
+        self.assertIn('maillog_file=/dev/stdout', postfix)  # the fallback without the volume
+        dovecot = _read('dovecot', 'entrypoint.sh')
+        self.assertIn('/etc/dovecot/ifinmail-log.conf', dovecot)
+        self.assertIn('tail -n 0 -F "$MAIL_LOG"', dovecot)
+        conf = _read('dovecot', 'dovecot.conf')
+        self.assertIn('!include_try /etc/dovecot/ifinmail-log.conf', conf)
+
+    def test_the_logs_are_rotated_and_stay_readable_by_the_console(self) -> None:
+        reopeners = (('postfix', 'pkill -x postlogd'), ('dovecot', 'doveadm log reopen'))
+        for service, reopen in reopeners:
+            script = _read(service, 'log-rotate.sh')
+            self.assertIn(reopen, script)
+            self.assertIn('chmod 0644', script)  # a fresh file would otherwise be root-only
+            self.assertIn('ifinmail-log-rotate', _read(service, 'Dockerfile'))
+
+    def test_scanner_hosts_do_not_flood_the_log_with_tracebacks(self) -> None:
+        production = (ROOT / 'backend' / 'config' / 'settings' / 'production.py').read_text()
+        self.assertRegex(
+            production,
+            r"'django\.security\.DisallowedHost': \{[^}]*'level': 'CRITICAL'"
+            r"[^}]*'propagate': False",
+        )

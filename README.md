@@ -294,6 +294,14 @@ the worker) and the sign-in record every ten minutes and keeps only what a decis
   guessing or spraying, a sign-in that succeeded after repeated failures, a real API key being
   attacked, a probe that made the server raise an exception (joined by request id), a sensitive file
   being served.
+- **The mail ports too.** Postfix and Dovecot write their logs to a size-capped file in the
+  `mail_logs` volume (and still to `docker logs`); the console reads them read-only and keeps four
+  things, never message content: failed mail sign-ins, successful ones, refused attempts to relay,
+  and refused recipients that do not exist. Findings: password guessing or spraying against
+  mailboxes (a single account failing again and again is only a medium "check the client"), relay
+  probing, address guessing, guessing from many networks at once, and a mailbox that signed in right
+  after a spray from the same network (critical). `MAIL_LOG_MAX_BYTES` (default 16 MiB) caps each
+  file. The one-click block and automatic blocking cover these findings like any other.
 - **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
 - **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
   no findings after a week, resolved findings after 30 days. The audit trail is never touched.

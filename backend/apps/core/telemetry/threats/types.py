@@ -78,6 +78,18 @@ class Finding:
     tighten: list[Action] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class MailEvent:
+    """One mail-server log event worth keeping: who from, what kind, never the message."""
+
+    at: datetime
+    net: str
+    service: str  # postfix | dovecot
+    kind: str  # auth_failed | login_success | relay_denied | unknown_recipient
+    who: str  # the account tried (Dovecot lines only), '' otherwise
+    weight: int = 1  # Dovecot reports several attempts on one line
+
+
 @dataclass
 class WindowSummary:
     """The slim version of a window: counts and classes, no individual requests."""
@@ -91,5 +103,6 @@ class WindowSummary:
     peak_per_minute: int = 0
     top_networks: list[dict[str, object]] = field(default_factory=list)
     auth_failures: int = 0
+    mail_failures: int = 0  # failed sign-ins on the mail ports (SMTP submission, IMAP, POP3)
     server_errors: int = 0
     skipped_bytes: int = 0  # log that was not read because the window was too big (a flood)

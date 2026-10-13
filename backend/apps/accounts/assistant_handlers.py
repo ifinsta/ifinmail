@@ -232,7 +232,14 @@ def _threat_digest(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
         'written_by': latest.gist_source if latest else None,
         'traffic': {
             key: summary.get(key)
-            for key in ('requests', 'clients', 'peak_per_minute', 'auth_failures', 'server_errors')
+            for key in (
+                'requests',
+                'clients',
+                'peak_per_minute',
+                'auth_failures',
+                'mail_failures',
+                'server_errors',
+            )
         },
         'by_class': summary.get('by_class', {}),
         'findings': findings,

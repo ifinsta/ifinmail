@@ -86,6 +86,7 @@ services:
       - rundir:/var/run/dovecot
       - runtime_data:/var/lib/ifinmail/runtime:ro   # outbound settings from the console
       - mail_status:/var/lib/ifinmail/status       # queue counts published for the console
+      - mail_logs:/var/log/ifinmail                 # mail log the console's threat digest reads
     ports:
       - "25:25"
       - "465:465"
@@ -133,6 +134,7 @@ services:
       - rundir:/var/run/dovecot
       - runtime_data:/var/lib/ifinmail/runtime:ro   # plugin settings from the console
       - mail_status:/var/lib/ifinmail/status        # acknowledges applied plugin settings
+      - mail_logs:/var/log/ifinmail                 # mail log the console's threat digest reads
     ports:
       - "110:110"
       - "143:143"
@@ -452,6 +454,7 @@ services:
       - mail_status:/var/lib/ifinmail/status:ro
       # The threat digest reads nginx's JSON access log (read-only).
       - nginx_logs:/var/log/ifinmail:ro
+      - mail_logs:/var/log/ifinmail-mail:ro   # Postfix and Dovecot logs for the threat digest
     depends_on:
       api:
         condition: service_healthy
@@ -527,6 +530,7 @@ volumes:
   dav_data:       # calendars and address books
   mail_status:    # mail queue counts the postfix container publishes for System health
   nginx_logs:     # nginx's JSON access log, read by the console's threat digest
+  mail_logs:      # Postfix and Dovecot logs, read by the console's threat digest
 
 networks:
   default:

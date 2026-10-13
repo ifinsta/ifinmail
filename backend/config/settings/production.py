@@ -153,6 +153,14 @@ LOGGING = {
             'level': os.environ.get('LOG_LEVEL_DJANGO_REQUEST', 'WARNING'),
             'propagate': False,
         },
+        # A request for a Host this server does not serve (scanners send arbitrary ones) is
+        # answered 400 and counted by the threat digest from the access log; Django would log
+        # each as an ERROR with a traceback, which only buries real errors.
+        'django.security.DisallowedHost': {
+            'handlers': ['console'],
+            'level': 'CRITICAL',
+            'propagate': False,
+        },
         'django.security': {
             'handlers': ['console'],
             'level': os.environ.get('LOG_LEVEL_DJANGO_SECURITY', 'WARNING'),

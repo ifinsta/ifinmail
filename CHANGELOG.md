@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.0.29
+- **Phase 4 of the entry-point firewall: the mail ports in the threat digest.** Until now the
+  digest saw the web server and the console's sign-ins only; password guessing against IMAP, POP3
+  and SMTP submission, and relay probing, were invisible. Postfix and Dovecot now write their logs
+  to a size-capped file on a new `mail_logs` volume (the console mounts it read-only) while
+  `docker logs` shows the same lines as before; each file is rotated at 16 MiB and stays readable.
+  Without the volume both fall back to the container output.
+- **New findings** (kept: failed and successful mail sign-ins, refused relay attempts, refused
+  recipients that do not exist; never message content): *Password guessing against the mail ports*
+  (medium for one account failing repeatedly, which is usually a client with an old password; high
+  for spraying across accounts or sheer volume), *Someone is testing whether the server relays*,
+  *Someone is guessing which mailboxes exist*, *Password guessing from many networks at once*, and
+  *A mailbox signed in from a network that was guessing passwords* (critical). They appear on the
+  Threats page with a *Failed mail sign-ins* figure, offer the one-click block, and are covered by
+  opt-in automatic blocking. The assistant sees masked account names only.
+- **Fewer false alarms in the log:** a request for a Host this server does not serve is answered
+  400 and counted by the digest from the access log, but no longer logged as an ERROR with a
+  traceback each time.
+- This completes the four phases of the firewall and entry-point work.
+
 ## v0.0.28
 - **Phase 3 of the entry-point firewall: automatic protection, opt-in.** Settings → Network has a
   new *Automatic protection* panel with two switches, both **off** until an administrator turns

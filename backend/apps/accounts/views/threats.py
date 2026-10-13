@@ -122,6 +122,7 @@ def _present(row: ThreatFinding, blocked: dict[str, dict[str, Any]]) -> dict[str
         'status': row.status,
         'evidence': row.evidence,
         'samples': row.samples,
+        'samples_label': 'Accounts tried' if row.kind.startswith('mail_') else 'Requested',
         'tighten': [{**a, 'url': _link(a.get('where', ''))} for a in (row.tighten or [])],
     }
 

@@ -115,6 +115,22 @@ class PublicSiteTests(TestCase):
                 self.assertContains(self.get(name), f'{public_pages.LEGAL_UPDATED.year}')
 
 
+class ChangelogShippedTests(TestCase):
+    def test_the_image_build_context_keeps_the_changelog(self) -> None:
+        """`*.md` is ignored by the image build; the Changelog page needs this one file.
+
+        The last matching pattern wins in a .dockerignore, so the exception must come after it.
+        """
+        lines = [
+            line.strip()
+            for line in (ROOT / '.dockerignore').read_text(encoding='utf-8').splitlines()
+            if line.strip() and not line.startswith('#')
+        ]
+        self.assertIn('!CHANGELOG.md', lines)
+        self.assertGreater(lines.index('!CHANGELOG.md'), lines.index('*.md'))
+        self.assertTrue((ROOT / 'CHANGELOG.md').is_file())
+
+
 class ChangelogTests(TestCase):
     TEXT = (
         '# Changelog\n\n## v0.0.3\n- **Third** thing\n- Fourth\n\n'

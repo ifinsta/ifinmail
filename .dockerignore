@@ -79,3 +79,5 @@ backups/
 Makefile
 *.md
 *.mdx
+# The public Changelog page renders this file, so the image must carry it.
+!CHANGELOG.md

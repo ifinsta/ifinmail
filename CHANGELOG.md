@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.20
+- Fixed: the **Changelog page showed "No changelog on this server"** on installed servers. The
+  image build ignores `*.md`, so `CHANGELOG.md` was never in the image (the tests read the source
+  tree and could not see it). The build now keeps that one file, and a test checks the ignore
+  rules.
+
 ## v0.0.19
 - **An API for integrations, versioned.** `/api/v1/` now lets a program manage **mailboxes**
   (list, create, read, change quota / disable / set password, delete), **aliases** and **domains**

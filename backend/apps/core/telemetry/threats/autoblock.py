@@ -1,10 +1,11 @@
-"""Opt-in automatic protection: block a network that is attacking, and tighten during a flood.
+"""Automatic protection: block a network that is attacking, and tighten during a flood.
 
-Everything here is off until an administrator turns it on, and every effect is temporary and
-recorded. A person cannot be locked out by it: it never touches the server's own address, ranges on
-the server's own side, the allow-list, a network somebody signed in from recently, or a finding an
-administrator has already acknowledged. It runs after each digest pass, so a block follows within
-minutes of the finding that earns it and lifts itself when the time is up.
+On by default (an administrator can turn either part off on the Network page), and every effect
+is temporary and recorded. A person cannot be locked out by it: it never touches the server's own
+address, ranges on the server's own side, the allow-list, a network somebody signed in from
+recently, or a finding an administrator has already acknowledged. It runs after each digest pass,
+so a block follows within minutes of the finding that earns it and lifts itself when the time is
+up.
 """
 
 from __future__ import annotations
@@ -28,10 +29,10 @@ from backend.apps.core.platform.services.entrypoints import (
     parse_network,
 )
 from backend.apps.core.services import SystemSettings
-from backend.apps.core.telemetry.models import ThreatFinding
+from backend.apps.core.telemetry.models import KnownPlace, ThreatFinding
 from backend.apps.core.types import SettingKey
 
-from . import collect, rules
+from . import collect, mail_log, rules
 from .access_log import network_of
 from .types import Severity
 
@@ -45,6 +46,7 @@ MAX_ALLOW = 50
 FRESH = timedelta(minutes=70)  # a finding must have been seen in the last pass or two
 LOGIN_MEMORY = timedelta(days=7)  # networks people signed in from are never blocked ...
 KEY_MEMORY = timedelta(days=30)  # ... nor networks an API key was used from
+PLACE_MEMORY = timedelta(days=14)  # ... nor where an account was last seen signing in
 FLOOD_HOLD = timedelta(hours=2)  # flood mode lasts this long after the last flood sighting
 NOTE = 'Auto: '
 _FULL_NOTICE = 'autoblock:full'
@@ -52,8 +54,8 @@ _FULL_NOTICE = 'autoblock:full'
 
 @dataclass(frozen=True)
 class Config:
-    block: bool = False  # block networks that are attacking
-    flood: bool = False  # tighten connection caps during a distributed flood
+    block: bool = True  # block networks that are attacking
+    flood: bool = True  # tighten connection caps during a distributed flood
     hours: int = DEFAULT_HOURS
     allow: tuple[str, ...] = ()  # networks that are never blocked automatically
 
@@ -73,8 +75,8 @@ def config() -> Config:
     hours = raw.get('hours')
     allow = raw.get('allow')
     return Config(
-        block=bool(raw.get('block')),
-        flood=bool(raw.get('flood')),
+        block=bool(raw.get('block', True)),
+        flood=bool(raw.get('flood', True)),
         hours=hours if hours in HOURS else DEFAULT_HOURS,
         allow=tuple(str(a) for a in allow) if isinstance(allow, list) else (),
     )
@@ -113,6 +115,17 @@ def _known_good(now: datetime) -> set[str]:
         for e in collect.auth_events(now - LOGIN_MEMORY)
         if e.kind == 'login_success' and e.net
     }
+    # Mailbox sign-ins (the console's audit trail has none) and the places accounts are known by.
+    nets.update(
+        e.net
+        for e in mail_log.read_window(now - timedelta(hours=1), now)
+        if e.kind == 'login_success' and e.net
+    )
+    nets.update(
+        KnownPlace.objects.filter(last_seen__gte=now - PLACE_MEMORY)
+        .exclude(net='')
+        .values_list('net', flat=True)
+    )
     from backend.apps.accounts.models import APIToken
 
     for address in APIToken.objects.filter(

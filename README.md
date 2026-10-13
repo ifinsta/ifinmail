@@ -79,7 +79,7 @@ network* for 1 hour, 24 hours, 7 days or until removed. It asks for your passwor
 your own address, this server or networks on its own side, and a block with a time limit lifts itself
 (within five minutes, audited as `network_unblock` by the system).
 
-**Automatic protection (off by default).** Two opt-in switches on the same page: block networks
+**Automatic protection (on by default).** Two switches on the same page, either can be turned off: block networks
 that a serious threat finding names (for a chosen time, never your own side, the server, an
 allow-list, or a network people signed in from lately; at most 50 at once, audited and emailed),
 and *flood mode*, which holds each address to 30 new mail connections and 240 web connections a

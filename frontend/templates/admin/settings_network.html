@@ -82,7 +82,7 @@
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-auto">
             <h2 class="ifinmail-panel-title" id="fw-auto">{% trans 'Automatic protection' %}</h2>
-            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with max=auto_max %}Both are off until you turn them on. Every action is temporary, recorded in the audit trail and emailed to the administrators. Nothing is ever blocked automatically that is this server, an address on its own side, a network someone signed in from in the last week, or on the list below; at most {{ max }} automatic blocks are in force at once.{% endblocktrans %}</p>
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with max=auto_max %}Both are on unless you turn them off here. Every action is temporary, recorded in the audit trail and emailed to the administrators. Nothing is ever blocked automatically that is this server, an address on its own side, a network someone signed in from lately (console, mailbox or API key), or on the list below; at most {{ max }} automatic blocks are in force at once.{% endblocktrans %}</p>
             {% if flood_until %}
             <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
                 <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>

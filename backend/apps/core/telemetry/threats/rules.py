@@ -95,6 +95,7 @@ _INTERNAL = tuple(
 NETWORK_KINDS = frozenset(
     {
         'probe_sweep',
+        'probe_triggered_error',
         'request_flood',
         'login_guessing',
         'api_key_guessing',

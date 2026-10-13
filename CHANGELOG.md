@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.31
+- **Automatic protection is now on by default.** Both parts (block networks that are attacking;
+  tighten the limits during a flood) are on until an administrator turns them off on Settings →
+  Network, and a choice that was saved is kept. Everything v0.0.28 promised still holds: each
+  block is temporary (24 hours by default), audited and emailed, and never covers the server, the
+  server's own side, the allow-list, or a finding an administrator has acknowledged.
+- A probe that made the server raise an exception (a stranger triggering an error on purpose) now
+  counts as a network finding: it can be blocked from the page and by automatic protection.
+- **Wider protection for real users, since it is now on:** a network is also left alone when a
+  mailbox signed in from it in the last hour or an account was last seen signing in from it in the
+  last 14 days (before, only console and API-key use counted).
+
 ## v0.0.30
 - **The adaptive service: the digest learns what is normal on this server and flags what is not.**
   It only raises findings; it never changes a limit or a block by itself (that stays with the

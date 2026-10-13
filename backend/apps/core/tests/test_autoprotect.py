@@ -18,10 +18,12 @@ from backend.apps.core.platform.services.entrypoints import (
     FLOOD_WEB_PER_MINUTE,
     EntryPointService,
 )
+from backend.apps.core.services import SystemSettings
 from backend.apps.core.tasks import reconcile_entrypoints
 from backend.apps.core.telemetry.models import ThreatFinding
 from backend.apps.core.telemetry.threats import autoblock
 from backend.apps.core.telemetry.threats.types import Severity
+from backend.apps.core.types import SettingKey
 
 NOW = datetime(2026, 10, 13, 12, 30, tzinfo=UTC)
 
@@ -66,9 +68,13 @@ class AutoBase(base.AssistantBase):
 
 
 class AutoBlockTests(AutoBase):
-    def test_it_does_nothing_until_it_is_turned_on(self) -> None:
+    def test_it_is_on_by_default_and_stays_off_once_turned_off(self) -> None:
+        self.assertTrue(autoblock.config().block)  # nothing was ever saved
+        self.assertTrue(autoblock.config().flood)
         finding()
-        self.assertFalse(autoblock.config().block)
+        self.assertEqual(autoblock.run(NOW).blocked, ['203.0.113.0/24'])
+        EntryPointService.unblock('203.0.113.0/24')
+        self.turn_on(block=False)
         self.assertEqual(autoblock.run(NOW).blocked, [])
         self.assertEqual(EntryPointService.blocklist(), [])
 
@@ -93,6 +99,11 @@ class AutoBlockTests(AutoBase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('203.0.113.0/24', mail.outbox[0].body)
         self.assertIn('lifts', mail.outbox[0].body)
+
+    def test_a_probe_that_made_the_server_raise_is_blocked_too(self) -> None:
+        self.turn_on()
+        finding('203.0.113.0/24', kind='probe_triggered_error')
+        self.assertEqual(autoblock.run(NOW).blocked, ['203.0.113.0/24'])
 
     def test_and_a_second_pass_does_not_repeat_itself(self) -> None:
         self.turn_on()
@@ -137,6 +148,37 @@ class AutoBlockTests(AutoBase):
         self.assertEqual(result.blocked, [])
         self.assertEqual(result.skipped, 2)
 
+    def test_mailbox_users_and_learned_places_are_protected_too(self) -> None:
+        from backend.apps.core.telemetry.models import KnownPlace
+
+        finding('203.0.113.0/24', key='a')
+        finding('198.51.100.0/24', key='b')
+        KnownPlace.objects.create(
+            actor='bob@ifinmail.test',
+            channel='mail',
+            place='DE/AS1',
+            country='DE',
+            asn=1,
+            net='198.51.100.0/24',
+            first_seen=NOW - timedelta(days=9),
+            last_seen=NOW - timedelta(days=3),
+        )
+        # a mailbox sign-in in the last hour, from the other network, read from the mail log
+        import os
+        import tempfile
+        from pathlib import Path
+
+        d = Path(tempfile.mkdtemp(prefix='ifm-mail-'))
+        stamp = (NOW - timedelta(minutes=5)).strftime('%b %d %H:%M:%S').replace(' 0', '  ', 1)
+        (d / 'dovecot.log').write_text(
+            f'{stamp} imap-login: Info: Login: user=<amy@ifinmail.test>, method=PLAIN, '
+            'rip=203.0.113.20, lip=192.0.2.10, TLS, session=<x>\n'
+        )
+        with patch.dict(os.environ, {'IFINMAIL_MAIL_LOG_DIR': str(d)}):
+            result = autoblock.run(NOW)
+        self.assertEqual(result.blocked, [])
+        self.assertEqual(result.skipped, 2)
+
     def test_a_network_that_is_already_blocked_or_inside_a_block_is_skipped(self) -> None:
         self.turn_on()
         EntryPointService.block('203.0.0.0/16', 'manual')
@@ -174,12 +216,18 @@ class FloodModeTests(AutoBase):
             key='distributed_flood:all',
         )
 
-    def test_off_by_default_and_the_default_rules_are_unchanged(self) -> None:
-        self.flood()
-        self.assertFalse(autoblock.run(NOW).flood_started)
+    def test_the_default_rules_are_unchanged_while_there_is_no_flood(self) -> None:
         text = EntryPointService.render()
         self.assertNotIn('floodweb4', text)
         self.assertIn('limit rate over 120/minute', text)
+
+    def test_on_by_default_and_off_when_turned_off(self) -> None:
+        self.flood()
+        self.turn_on(block=False, flood=False)
+        self.assertFalse(autoblock.run(NOW).flood_started)
+        self.assertNotIn('floodweb4', EntryPointService.render())
+        self.turn_on(block=False, flood=True)
+        self.assertTrue(autoblock.run(NOW).flood_started)
 
     def test_a_flood_tightens_mail_ports_and_caps_the_web_for_a_while(self) -> None:
         self.turn_on(block=False, flood=True)
@@ -253,15 +301,17 @@ class AutoProtectPageTests(AutoBase):
         data.update(extra)
         return self.client.post(reverse('accounts:network_auto'), data, follow=True)
 
-    def test_the_panel_is_there_and_off_by_default(self) -> None:
+    def test_the_panel_is_there_and_on_by_default(self) -> None:
         page = self.client.get(reverse('accounts:network'))
         self.assertContains(page, 'Automatic protection')
-        self.assertFalse(autoblock.config().block)
-        self.assertFalse(autoblock.config().flood)
+        self.assertRegex(page.content.decode(), r'name="block" checked')
+        self.assertRegex(page.content.decode(), r'name="flood" checked')
+        self.assertTrue(autoblock.config().block)
+        self.assertTrue(autoblock.config().flood)
 
     def test_saving_needs_the_password_and_is_audited(self) -> None:
         self.assertContains(self.post(confirm_password='wrong'), 'not correct')
-        self.assertFalse(autoblock.config().block)
+        self.assertIsNone(SystemSettings.get(SettingKey.NETWORK_AUTOBLOCK, None))  # nothing saved
         self.assertContains(self.post(), 'Automatic protection saved')
         cfg = autoblock.config()
         self.assertTrue(cfg.block)
@@ -272,7 +322,7 @@ class AutoProtectPageTests(AutoBase):
     def test_a_bad_allow_list_or_duration_is_refused(self) -> None:
         self.assertContains(self.post(allow='not-a-network'), 'is not an IP address')
         self.assertContains(self.post(hours='5'), 'one of the offered durations')
-        self.assertFalse(autoblock.config().block)
+        self.assertIsNone(SystemSettings.get(SettingKey.NETWORK_AUTOBLOCK, None))
 
     def test_turning_flood_mode_off_ends_one_in_progress(self) -> None:
         EntryPointService.start_flood(timezone.now() + timedelta(hours=1), 'test')
@@ -283,4 +333,4 @@ class AutoProtectPageTests(AutoBase):
         self.login('support@ifinmail.test', role='support')
         response = self.client.post(reverse('accounts:network_auto'), {'hours': '24'})
         self.assertEqual(response.status_code, 403)
-        self.assertFalse(autoblock.config().block)
+        self.assertIsNone(SystemSettings.get(SettingKey.NETWORK_AUTOBLOCK, None))

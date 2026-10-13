@@ -106,6 +106,32 @@
                         <p class="ifinmail-help-text">{% blocktrans trimmed with n=f.count first=f.first_seen|date:'H:i' last=f.last_seen|date:'H:i' %}{{ n }} events, between {{ first }} and {{ last }} UTC.{% endblocktrans %}</p>
                     </details>
                     {% endif %}
+                    {% if f.blocked %}
+                    <p class="ifinmail-hc__fix"><span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Blocked' %}</span> {% if f.blocked_until %}{% blocktrans trimmed with when=f.blocked_until|date:'Y-m-d H:i' %}until {{ when }} UTC{% endblocktrans %}{% else %}{% trans 'until you remove it under Network' %}{% endif %}</p>
+                    {% elif f.blockable and can_block %}
+                    <details class="ifinmail-threats__more">
+                        <summary>{% trans 'Block this network' %}</summary>
+                        <form method="post" action="{% url 'accounts:threats_block' %}" class="ifinmail-inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="finding" value="{{ f.id }}">
+                            <p class="ifinmail-help-text">{% blocktrans trimmed with net=f.subject %}Everything from {{ net }} is dropped before it reaches the web server or the mail ports. Your own address and this server cannot be blocked.{% endblocktrans %}</p>
+                            <div class="ifinmail-field">
+                                <label for="block-for-{{ f.id }}">{% trans 'Block for' %}</label>
+                                <select class="ifinmail-input" id="block-for-{{ f.id }}" name="duration">
+                                    <option value="1h">{% trans '1 hour' %}</option>
+                                    <option value="24h" selected>{% trans '24 hours' %}</option>
+                                    <option value="7d">{% trans '7 days' %}</option>
+                                    <option value="forever">{% trans 'Until I remove it' %}</option>
+                                </select>
+                            </div>
+                            <div class="ifinmail-field">
+                                <label for="block-pw-{{ f.id }}">{% trans 'Your password' %}</label>
+                                <input class="ifinmail-input" id="block-pw-{{ f.id }}" name="confirm_password" type="password" autocomplete="current-password" required>
+                            </div>
+                            <div><button class="ifinmail-btn ifinmail-btn--danger ifinmail-btn--sm" type="submit">{% trans 'Block network' %}</button></div>
+                        </form>
+                    </details>
+                    {% endif %}
                     {% if can_manage %}
                     <form method="post" action="{% url 'accounts:threats_ack' %}" class="ifinmail-hc__actions">
                         {% csrf_token %}

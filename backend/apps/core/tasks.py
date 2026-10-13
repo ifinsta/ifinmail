@@ -56,14 +56,17 @@ def reconcile_entrypoints() -> dict[str, object]:
     """Keep the firewall's rule file equal to what the console intends (every few minutes)."""
     from backend.apps.core.platform.services.entrypoints import EntryPointService
 
-    wrote = EntryPointService.reconcile()
+    lapsed = EntryPointService.expire()
+    for cidr in lapsed:
+        AuditService.record(action='network_unblock', user='system', detail=f'{cidr} (time was up)')
+    wrote = EntryPointService.reconcile() or bool(lapsed)
     if wrote:
         AuditService.record(
             action='firewall_published',
             user='system',
             detail=', '.join(f'{k}={v}' for k, v in EntryPointService.summary().items()),
         )
-    return {'wrote': wrote, **EntryPointService.summary()}
+    return {'wrote': wrote, 'lapsed': lapsed, **EntryPointService.summary()}
 
 
 @shared_task(name='core.check_for_updates')
@@ -85,8 +88,7 @@ def audit_maintenance() -> dict[str, object]:
         AuditService.record(
             action='audit_chain_broken',
             detail=(
-                f'Audit trail fails verification at seq {error.get("seq")} '
-                f'({error.get("reason")})'
+                f'Audit trail fails verification at seq {error.get("seq")} ({error.get("reason")})'
             ),
             severity='err',
         )

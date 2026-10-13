@@ -30,7 +30,7 @@ from .views.server import (
     network_toggle,
     network_unblock,
 )
-from .views.threats import threats, threats_ack, threats_run
+from .views.threats import threats, threats_ack, threats_block, threats_run
 from .web import (
     account_name,
     account_page,
@@ -199,6 +199,7 @@ urlpatterns = [
     path('threats/', threats, name='threats'),
     path('threats/run/', threats_run, name='threats_run'),
     path('threats/ack/', threats_ack, name='threats_ack'),
+    path('threats/block/', threats_block, name='threats_block'),
     path('sending/', sending, name='sending'),
     path('sending/resume/', sending_resume, name='sending_resume'),
     path('assistant/', assistant, name='assistant'),
@@ -214,9 +215,7 @@ urlpatterns = [
     path('assistant/proposals/<uuid:message_id>/apply/', assistant_apply, name='assistant_apply'),
     path('marketplace/', marketplace, name='marketplace'),
     path('marketplace/submit/', marketplace_submit, name='marketplace_submit'),
-    path(
-        'marketplace/plugins/<slug:plugin_id>/', marketplace_plugin, name='marketplace_plugin'
-    ),
+    path('marketplace/plugins/<slug:plugin_id>/', marketplace_plugin, name='marketplace_plugin'),
     path(
         'marketplace/plugins/<slug:plugin_id>/action/',
         marketplace_plugin_action,

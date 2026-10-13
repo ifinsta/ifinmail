@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,7 @@ from backend.apps.accounts.tests import test_assistant_views as base
 from backend.apps.core.assistant.services import agent
 from backend.apps.core.assistant.tests.fake_provider import answer
 from backend.apps.core.platform.models import AuditEvent
+from backend.apps.core.platform.services.entrypoints import EntryPointService
 from backend.apps.core.telemetry.models import ThreatDigest, ThreatFinding
 from backend.apps.core.telemetry.threats import digest
 
@@ -122,6 +124,85 @@ class ThreatsPageTests(ThreatBase):
     def test_it_is_in_the_settings_hub(self) -> None:
         hub = self.client.get(reverse('accounts:settings')).content.decode()
         self.assertIn(reverse('accounts:threats'), hub)
+
+
+class BlockFromThreatsTests(ThreatBase):
+    """One click from a finding to a firewall rule: password again, never your own side, expires."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.scan()
+        digest.run(NOW, summarise=False)
+        self.finding = ThreatFinding.objects.get()
+        self.url = reverse('accounts:threats_block')
+
+    def post(self, **extra: str) -> object:
+        data = {
+            'finding': str(self.finding.pk),
+            'duration': '24h',
+            'confirm_password': base.GOOD,
+        }
+        client_ip = extra.pop('ip', '')
+        data.update(extra)
+        meta = {'HTTP_X_FORWARDED_FOR': client_ip} if client_ip else {}
+        return self.client.post(self.url, data, follow=True, **meta)
+
+    def test_the_finding_offers_the_block_and_posting_it_publishes_the_rule(self) -> None:
+        self.assertContains(self.client.get(reverse('accounts:threats')), 'Block this network')
+        response = self.post()
+        self.assertContains(response, '203.0.113.0/24 is blocked until')
+        row = EntryPointService.blocklist()[0]
+        self.assertEqual(row['cidr'], '203.0.113.0/24')
+        self.assertIn('expires', row)
+        self.assertIn('203.0.113.0/24', EntryPointService.render())
+        self.assertEqual(ThreatFinding.objects.get().status, 'acknowledged')
+        audit = AuditEvent.objects.get(action='network_block')
+        self.assertIn(self.finding.key, audit.detail)
+        self.assertContains(self.client.get(reverse('accounts:threats')), 'Blocked')
+
+    def test_the_lifetimes(self) -> None:
+        now = timezone.now()
+        self.post(duration='1h')
+        hours = datetime.fromisoformat(EntryPointService.blocklist()[0]['expires']) - now
+        self.assertLess(abs(hours - timedelta(hours=1)), timedelta(minutes=2))
+        EntryPointService.unblock('203.0.113.0/24')
+        self.post(duration='forever')
+        self.assertNotIn('expires', EntryPointService.blocklist()[0])
+
+    def test_a_wrong_or_missing_password_changes_nothing(self) -> None:
+        self.assertContains(self.post(confirm_password='nope'), 'not correct')
+        self.assertContains(self.post(confirm_password=''), 'Enter your password')
+        self.assertEqual(EntryPointService.blocklist(), [])
+        self.assertTrue(AuditEvent.objects.filter(action='stepup_failed').exists())
+
+    def test_it_will_not_block_the_network_you_are_on(self) -> None:
+        response = self.post(ip='203.0.113.50')  # the admin is inside the scanner's /24
+        self.assertContains(response, 'which you are using')
+        self.assertEqual(EntryPointService.blocklist(), [])
+
+    def test_it_will_not_block_this_servers_own_side(self) -> None:
+        ThreatFinding.objects.filter(pk=self.finding.pk).update(subject='192.168.1.0/24')
+        self.assertContains(self.post(), 'own side')
+        self.assertEqual(EntryPointService.blocklist(), [])
+
+    def test_only_findings_about_a_network_can_be_blocked(self) -> None:
+        ThreatFinding.objects.filter(pk=self.finding.pk).update(
+            kind='account_attack', subject='owner@ifinmail.test'
+        )
+        self.assertContains(self.post(), 'not about a network')
+        self.assertEqual(EntryPointService.blocklist(), [])
+
+    def test_a_finding_that_is_gone_or_malformed_is_a_message_not_an_error(self) -> None:
+        self.assertContains(self.post(finding='not-an-id'), 'already gone')
+        self.assertContains(self.post(finding=str(uuid.uuid4())), 'already gone')
+
+    def test_it_takes_the_firewall_permission(self) -> None:
+        self.login('support@ifinmail.test', role='support')
+        self.assertEqual(
+            self.client.post(self.url, {'finding': str(self.finding.pk)}).status_code, 403
+        )
+        self.assertNotContains(self.client.get(reverse('accounts:threats')), 'Block this network')
+        self.assertEqual(EntryPointService.blocklist(), [])
 
 
 class ThreatToolTests(ThreatBase):

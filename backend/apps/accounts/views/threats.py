@@ -12,6 +12,7 @@ from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -19,16 +20,28 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.platform.services.entrypoints import EntryPointService, NetworkError
 from backend.apps.core.telemetry.models import ThreatDigest, ThreatFinding
-from backend.apps.core.telemetry.threats import access_log, digest
+from backend.apps.core.telemetry.threats import access_log, digest, rules
 from backend.apps.core.telemetry.threats.types import Severity
 
+from ..forms.server import ThreatBlockForm
 from ..services.roles import RoleService
+from ..services.stepup import StepUpService
 from ..types.permissions import PermissionCode
 from .auth import require_perm
+from .server import blocklist_row, protected_addresses
 
 _VIEW = require_perm(PermissionCode.AUDIT_VIEW)
 _MANAGE = require_perm(PermissionCode.SYSTEM_MANAGE)
+_FIREWALL = require_perm(PermissionCode.SECURITY_MANAGE)
+
+_BLOCK_FOR = {
+    '1h': timedelta(hours=1),
+    '24h': timedelta(hours=24),
+    '7d': timedelta(days=7),
+    'forever': None,
+}
 
 # The symbols the digest uses for "where", resolved here so the digest never imports a URL.
 _WHERE = {
@@ -88,9 +101,14 @@ def _verdict(findings: list[ThreatFinding], log_available: bool) -> dict[str, An
     return {'tone': 'ok', 'headline': 'Quiet: nothing that needs action.', 'next': ''}
 
 
-def _present(row: ThreatFinding) -> dict[str, Any]:
+def _present(row: ThreatFinding, blocked: dict[str, dict[str, Any]]) -> dict[str, Any]:
     severity = Severity(min(max(row.severity, 0), 4))
+    is_network = row.kind in rules.NETWORK_KINDS and bool(row.subject)
+    held = blocked.get(row.subject) if is_network else None
     return {
+        'blocked': held is not None,
+        'blocked_until': held.get('until') if held else None,
+        'blockable': is_network and held is None and not rules.is_internal(row.subject),
         'id': row.pk,
         'key': row.key,
         'title': row.title,
@@ -124,7 +142,10 @@ def threats(request: HttpRequest) -> HttpResponse:
     )
     summary = (latest.summary if latest else {}) or {}
     priorities = {p.get('key'): p.get('why', '') for p in (latest.priorities if latest else [])}
-    findings = [_present(r) | {'why': priorities.get(r.key, '')} for r in open_rows]
+    blocked: dict[str, dict[str, Any]] = {
+        str(r['cidr']): r for r in map(blocklist_row, EntryPointService.active_blocklist(now))
+    }
+    findings = [_present(r, blocked) | {'why': priorities.get(r.key, '')} for r in open_rows]
     from backend.apps.core.assistant.services import config as assistant_config
 
     return render(
@@ -142,8 +163,16 @@ def threats(request: HttpRequest) -> HttpResponse:
             'assistant_connected': assistant_config.current() is not None,
             'log_available': access_log.log_path().exists(),
             'can_manage': RoleService.has_perm(request.user, PermissionCode.SYSTEM_MANAGE),
+            'can_block': RoleService.has_perm(request.user, PermissionCode.SECURITY_MANAGE),
         },
     )
+
+
+def _finding(pk: str) -> ThreatFinding | None:
+    try:
+        return ThreatFinding.objects.filter(pk=pk).first()
+    except (ValidationError, ValueError):
+        return None
 
 
 @login_required
@@ -168,7 +197,7 @@ def threats_run(request: HttpRequest) -> HttpResponse:
 @_MANAGE
 @require_POST
 def threats_ack(request: HttpRequest) -> HttpResponse:
-    row = ThreatFinding.objects.filter(pk=request.POST.get('finding', '')).first()
+    row = _finding(request.POST.get('finding', ''))
     if row is None:
         messages.error(request, 'That finding is already gone.')
         return redirect('accounts:threats')
@@ -178,3 +207,52 @@ def threats_ack(request: HttpRequest) -> HttpResponse:
         action='threat_finding_acknowledged', user=request.user.email, detail=row.key
     )
     return redirect('accounts:threats')
+
+
+@login_required
+@_FIREWALL
+@require_POST
+def threats_block(request: HttpRequest) -> HttpResponse:
+    """Block the network a finding is about: password again, never your own side, lifts itself."""
+    back = redirect('accounts:threats')
+    form = ThreatBlockForm(request.POST)
+    row = _finding(request.POST.get('finding', '')) if form.is_valid() else None
+    if row is None:
+        messages.error(request, 'That finding is already gone.')
+        return back
+    if row.kind not in rules.NETWORK_KINDS or not row.subject:
+        messages.error(
+            request, 'This finding is not about a network, so there is nothing to block.'
+        )
+        return back
+    if rules.is_internal(row.subject):
+        messages.error(
+            request, f'{row.subject} is on this server’s own side, so it is never blocked here.'
+        )
+        return back
+    problem = StepUpService.confirm(request)
+    if problem:
+        messages.error(request, problem)
+        return back
+    lifetime = _BLOCK_FOR[form.cleaned_data['duration']]
+    expires_at = timezone.now() + lifetime if lifetime else None
+    try:
+        text = EntryPointService.block(
+            row.subject,
+            f'Threats: {row.title}',
+            protect=protected_addresses(request),
+            expires_at=expires_at,
+        )
+    except NetworkError as exc:
+        messages.error(request, str(exc))
+        return back
+    until = f'until {expires_at:%Y-%m-%d %H:%M} UTC' if expires_at else 'until removed'
+    row.status = ThreatFinding.ACKNOWLEDGED
+    row.save(update_fields=['status', 'updated_at'])
+    AuditService.record(
+        action='network_block',
+        user=request.user.email,
+        detail=f'{text} {until} (finding {row.key})',
+    )
+    messages.success(request, f'{text} is blocked {until}.')
+    return back

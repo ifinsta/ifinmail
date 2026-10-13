@@ -74,6 +74,11 @@ in force, being applied, rejected, or the agent not reporting. **Emergency stop:
 `docker stop docker-firewall-1` removes every rule at once and the server accepts everything
 again (SSH is never filtered); `docker start docker-firewall-1` brings them back.
 
+**Blocking from Threats.** A finding about a scanner, flood or password guessing offers *Block this
+network* for 1 hour, 24 hours, 7 days or until removed. It asks for your password again, never blocks
+your own address, this server or networks on its own side, and a block with a time limit lifts itself
+(within five minutes, audited as `network_unblock` by the system).
+
 Lists every published port (SMTP, submission, SMTPS, IMAP, IMAPS, HTTP, HTTPS, DNS) with a live check that the service answers. You can close ports you do not use (IMAP on 143, SMTPS, DNS), block networks, and cap new mail connections per address per minute. Rules are applied by the `firewall` container with nftables, for Docker-published ports and host traffic alike, and the page shows whether they are in force. Ports the server cannot work without (25, 80, 443) stay open, and you cannot block the address you are using. SSH and the host firewall are not touched.
 
 ## First sign-in and setup

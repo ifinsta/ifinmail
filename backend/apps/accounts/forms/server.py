@@ -28,6 +28,14 @@ class BlockForm(forms.Form):
     note = forms.CharField(max_length=120, strip=True, required=False)
 
 
+class ThreatBlockForm(forms.Form):
+    """Block the network a Threats finding is about, for a while or until removed."""
+
+    DURATIONS = ('1h', '24h', '7d', 'forever')
+    finding = forms.CharField(max_length=64)
+    duration = forms.ChoiceField(choices=[(d, d) for d in DURATIONS], initial='24h')
+
+
 class UnblockForm(forms.Form):
     cidr = forms.CharField(max_length=64, strip=True)
 

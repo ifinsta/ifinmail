@@ -91,7 +91,11 @@ _INTERNAL = tuple(
 )
 
 
-def _is_private(net: str) -> bool:
+# Findings whose subject is a network that the console can block.
+NETWORK_KINDS = frozenset({'probe_sweep', 'request_flood', 'login_guessing', 'api_key_guessing'})
+
+
+def is_internal(net: str) -> bool:
     """A client on the server's own side (LAN, loopback, link-local), not a stranger.
 
     Documentation and reserved ranges are *not* internal: they are what test traffic looks like,
@@ -210,7 +214,7 @@ def _probing(requests: list[Access], t: Thresholds) -> list[Finding]:
         # was *answered* (a page, or an error that the request provoked) or when it is a flood.
         answered = [r for r in probes if r.status < 300 or r.status >= 500]
         severity = Severity.HIGH if answered or len(probes) >= t.probe_flood else Severity.MEDIUM
-        if _is_private(net):
+        if is_internal(net):
             severity = Severity.LOW  # an internal client misbehaving is a different problem
         samples = [clean(p) for p, _ in Counter(r.path for r in probes or items).most_common(5)]
         listed = ', '.join(f'{n} x{c}' for n, c in classes.most_common(4)) or 'unknown paths'
@@ -236,7 +240,7 @@ def _probing(requests: list[Access], t: Thresholds) -> list[Finding]:
                 last_seen=items[-1].at,
                 evidence=_ids(probes or items),
                 samples=samples,
-                tighten=[] if _is_private(net) else [_block(net), _RATE],
+                tighten=[] if is_internal(net) else [_block(net), _RATE],
             )
         )
     return found
@@ -297,7 +301,7 @@ def _floods(requests: list[Access], t: Thresholds) -> list[Finding]:
             Finding(
                 key=f'request_flood:{net}',
                 kind='request_flood',
-                severity=Severity.HIGH if not _is_private(net) else Severity.LOW,
+                severity=Severity.HIGH if not is_internal(net) else Severity.LOW,
                 subject=net,
                 title='One network is sending requests far faster than a person',
                 summary=(
@@ -309,7 +313,7 @@ def _floods(requests: list[Access], t: Thresholds) -> list[Finding]:
                 last_seen=items[-1].at,
                 evidence=_ids(items),
                 samples=[clean(p) for p, _ in Counter(r.path for r in items).most_common(3)],
-                tighten=[] if _is_private(net) else [_block(net), _RATE],
+                tighten=[] if is_internal(net) else [_block(net), _RATE],
             )
         )
     peak = max(per_minute.values(), default=0)

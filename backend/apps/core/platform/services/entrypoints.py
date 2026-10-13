@@ -226,8 +226,18 @@ class EntryPointService:
         )
 
     @staticmethod
-    def block(cidr: str, note: str = '', *, protect: tuple[str, ...] = ()) -> str:
-        """Block a source network. ``protect`` lists addresses that must stay reachable."""
+    def block(
+        cidr: str,
+        note: str = '',
+        *,
+        protect: tuple[str, ...] = (),
+        expires_at: datetime | None = None,
+    ) -> str:
+        """Block a source network. ``protect`` lists addresses that must stay reachable.
+
+        With ``expires_at`` the block lifts itself (see ``expire``): a mistaken /24 must not linger,
+        and most scanners move on within a day.
+        """
         network = parse_network(cidr)
         if network.prefixlen < _MIN_PREFIX[network.version]:
             raise NetworkError(_('That network is too large to block.'))
@@ -254,14 +264,54 @@ class EntryPointService:
                 raise NetworkError(
                     _('The blocklist is full ({limit} entries).').format(limit=MAX_BLOCKLIST)
                 )
-            rows.append(
-                {'cidr': text, 'note': note.strip()[:120], 'added': datetime.now(UTC).isoformat()}
-            )
+            row = {'cidr': text, 'note': note.strip()[:120], 'added': datetime.now(UTC).isoformat()}
+            if expires_at is not None:
+                row['expires'] = expires_at.astimezone(UTC).isoformat()
+            rows.append(row)
             return rows
 
         SystemSettings.mutate(SettingKey.NETWORK_BLOCKLIST, _append, [])
         EntryPointService.apply()
         return text
+
+    @staticmethod
+    def _expired(row: dict[str, str], now: datetime) -> bool:
+        raw = row.get('expires')
+        if not raw:
+            return False
+        try:
+            return datetime.fromisoformat(raw) <= now
+        except ValueError:
+            return False
+
+    @staticmethod
+    def active_blocklist(now: datetime | None = None) -> list[dict[str, str]]:
+        """The blocklist without entries whose time is up (the rules never include those)."""
+        moment = now or datetime.now(UTC)
+        return [
+            r for r in EntryPointService.blocklist() if not EntryPointService._expired(r, moment)
+        ]
+
+    @staticmethod
+    def expire(now: datetime | None = None) -> list[str]:
+        """Remove entries whose time is up and republish. Returns the networks removed."""
+        moment = now or datetime.now(UTC)
+        gone: list[str] = []
+
+        def _keep(rows: Any) -> list[dict[str, str]]:
+            rows = rows if isinstance(rows, list) else []
+            kept = []
+            for row in rows:
+                if isinstance(row, dict) and EntryPointService._expired(row, moment):
+                    gone.append(str(row.get('cidr', '')))
+                else:
+                    kept.append(row)
+            return kept
+
+        SystemSettings.mutate(SettingKey.NETWORK_BLOCKLIST, _keep, [])
+        if gone:
+            EntryPointService.apply()
+        return gone
 
     @staticmethod
     def unblock(cidr: str) -> bool:
@@ -314,7 +364,7 @@ class EntryPointService:
                 for proto, port in e.ports
             ]
         if blocked is None:
-            blocked = [r['cidr'] for r in EntryPointService.blocklist()]
+            blocked = [r['cidr'] for r in EntryPointService.active_blocklist()]
         if rate is None:
             rate = EntryPointService.rate_per_minute()
         v4 = sorted(c for c in blocked if ':' not in c)

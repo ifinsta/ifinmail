@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.27
+- **Phase 2 of the entry-point firewall: block a network from the finding that names it.** A
+  finding about a scanner, a flood or password guessing now has *Block this network* (for people
+  who may manage security). Choose 1 hour, 24 hours (the default), 7 days or until removed, type
+  your password again, and the rule is published at once. Your own address and this server's cannot
+  be blocked, ranges on the server's own side (LAN, loopback, link-local) are refused, and a finding
+  that is not about a network (an account, the console) offers nothing to block. The finding is
+  acknowledged and the block is audited with the finding it came from.
+- **Blocks can expire.** A block with a time limit lifts itself: the console removes it within five
+  minutes, republishes the rules and records `network_unblock` by the system. The Network page
+  shows an *Until* column; blocks you add by hand there stay until you remove them. An entry whose
+  time is up is never in the published rules, even before the sweep has run.
+- A malformed finding id on the Threats page is now a message instead of an error page.
+- Next phases (each its own release): opt-in automatic blocking with expiry and a tighter cap
+  during a flood; mail-port login guessing (Postfix and Dovecot) in the digest.
+
 ## v0.0.26
 - **Phase 1 of the entry-point firewall: make it true.** The Network page showed a connection cap
   and open ports as if they were enforced, but the rules were written only when someone changed a

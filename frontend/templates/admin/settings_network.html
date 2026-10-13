@@ -102,12 +102,13 @@
         <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Blocklist entries' %}">
             <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Blocklist' %}</h2></div>
             <table class="ifinmail-admin-table">
-                <thead><tr><th>{% trans 'Network' %}</th><th>{% trans 'Note' %}</th><th>{% trans 'Remove' %}</th></tr></thead>
+                <thead><tr><th>{% trans 'Network' %}</th><th>{% trans 'Note' %}</th><th>{% trans 'Until' %}</th><th>{% trans 'Remove' %}</th></tr></thead>
                 <tbody>
                 {% for b in blocklist %}
                 <tr>
                     <td><code class="ifinmail-text--mono">{{ b.cidr }}</code></td>
                     <td>{{ b.note }}</td>
+                    <td>{% if b.until %}<span class="ifinmail-text--mono">{{ b.until|date:'Y-m-d H:i' }}</span> <span class="ifinmail-settings-row__help">UTC</span>{% else %}<span class="ifinmail-settings-row__help">{% trans 'Until you remove it' %}</span>{% endif %}</td>
                     <td>
                         <form method="post" action="{% url 'accounts:network_unblock' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
                             {% csrf_token %}<input type="hidden" name="cidr" value="{{ b.cidr }}">
@@ -116,7 +117,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="3" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'Nothing is blocked.' %}</p></div></td></tr>
+                <tr><td colspan="4" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'Nothing is blocked.' %}</p></div></td></tr>
                 {% endfor %}
                 </tbody>
             </table>

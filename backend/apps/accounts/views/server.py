@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -35,6 +38,30 @@ _SECURITY = require_perm(PermissionCode.SECURITY_MANAGE)
 
 def _actor(request: HttpRequest) -> str | None:
     return request.user.email if request.user.is_authenticated else None
+
+
+def protected_addresses(request: HttpRequest) -> tuple[str, ...]:
+    """Addresses a block must never cover: the person clicking, and this server itself."""
+    return tuple(
+        a
+        for a in (
+            _get_client_ip(request),
+            request.META.get('REMOTE_ADDR', ''),
+            request.META.get('HTTP_X_REAL_IP', ''),
+            DNSServerConfig.server_ipv4(),
+            DNSServerConfig.server_ipv6(),
+        )
+        if a
+    )
+
+
+def blocklist_row(row: dict[str, str]) -> dict[str, Any]:
+    """A blocklist row for the page, with its expiry as a date (``None`` = until removed)."""
+    try:
+        until = datetime.fromisoformat(row['expires']) if row.get('expires') else None
+    except ValueError:
+        until = None
+    return {**row, 'until': until}
 
 
 def _first_error(form: object) -> str:
@@ -140,7 +167,7 @@ def network_page(request: HttpRequest) -> HttpResponse:
             'active_section': 'network',
             'show_settings_icon': True,
             'entries': rows,
-            'blocklist': EntryPointService.blocklist(),
+            'blocklist': [blocklist_row(r) for r in EntryPointService.blocklist()],
             'rate': EntryPointService.rate_per_minute(),
             'agent': EntryPointService.agent_status(),
             'client_ip': _get_client_ip(request),
@@ -186,20 +213,11 @@ def network_block(request: HttpRequest) -> HttpResponse:
     if not form.is_valid():
         messages.error(request, _first_error(form))
         return redirect('accounts:network')
-    protect = tuple(
-        a
-        for a in (
-            _get_client_ip(request),
-            request.META.get('REMOTE_ADDR', ''),
-            request.META.get('HTTP_X_REAL_IP', ''),
-            DNSServerConfig.server_ipv4(),
-            DNSServerConfig.server_ipv6(),
-        )
-        if a
-    )
     try:
         text = EntryPointService.block(
-            form.cleaned_data['cidr'], form.cleaned_data['note'] or '', protect=protect
+            form.cleaned_data['cidr'],
+            form.cleaned_data['note'] or '',
+            protect=protected_addresses(request),
         )
     except NetworkError as exc:
         messages.error(request, str(exc))

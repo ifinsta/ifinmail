@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.0.33
+- **Scanners are cut off within seconds, not after the burst.** The firewall agent now reads nginx's
+  access log (read-only) every few seconds. An address the web server refuses 30 times within
+  about 15 seconds (a tool working through `/.env`, `/.git/config`, `/admin/phpinfo.php` ...) goes
+  straight into the kernel's penalty box: every new connection from it, on every port, is dropped
+  for 10 minutes. Before, the blocks came from the threat digest, which looks every ten minutes,
+  after a 16-second scan had already finished (as on this server today: four bursts of 170-268
+  requests from Google Cloud and DigitalOcean networks, each blocked only afterwards).
+  - Static files are not counted (a stale page can miss several), nor are successful requests;
+    this server, its own side and the allow-list are never banned; the log's past is ignored when
+    the agent starts; log rotation is followed.
+  - The digest still turns the same scanner into a finding and a longer, escalating block.
+  - The Network page and System health show how many scanners were banned since the firewall
+    started. `SCAN_BAN_THRESHOLD` (firewall environment) changes the 30.
+  - Measured against a real kernel and agent: a 40-request /.env burst (IPv4 and IPv6, compact and
+    spaced JSON, and after a log rotation) was banned within two seconds; 40 static-file misses,
+    an allow-listed scanner, 10 mistakes and 40 successful requests were not.
+- Tests no longer depend on the time of day they run at.
+
 ## v0.0.32
 - **Repeat offenders are blocked longer.** An automatic block lasts the chosen time (24 hours by
   default) the first time, then doubles each time the same network is blocked again within a

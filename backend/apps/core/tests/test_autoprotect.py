@@ -26,7 +26,13 @@ from backend.apps.core.telemetry.threats import autoblock
 from backend.apps.core.telemetry.threats.types import Severity
 from backend.apps.core.types import SettingKey
 
-NOW = datetime(2026, 10, 13, 12, 30, tzinfo=UTC)
+
+def _syslog(at: datetime) -> str:
+    """A syslog-style stamp as Postfix and Dovecot write it (day padded with a space)."""
+    return f'{at:%b} {at.day:>2} {at:%H:%M:%S}'
+
+
+NOW = datetime.now(UTC).replace(microsecond=0)  # flood mode is judged by the real clock
 WEB_NORMAL = f'limit rate over {WEB_GUARD_PER_MINUTE}/minute burst'
 WEB_FLOOD = f'limit rate over {FLOOD_WEB_PER_MINUTE}/minute burst'
 
@@ -172,7 +178,7 @@ class AutoBlockTests(AutoBase):
         from pathlib import Path
 
         d = Path(tempfile.mkdtemp(prefix='ifm-mail-'))
-        stamp = (NOW - timedelta(minutes=5)).strftime('%b %d %H:%M:%S').replace(' 0', '  ', 1)
+        stamp = _syslog(NOW - timedelta(minutes=5))
         (d / 'dovecot.log').write_text(
             f'{stamp} imap-login: Info: Login: user=<amy@ifinmail.test>, method=PLAIN, '
             'rip=203.0.113.20, lip=192.0.2.10, TLS, session=<x>\n'
@@ -450,12 +456,15 @@ class DosGuardTests(AutoBase):
                     'sha256': sha,
                     'message': 'Rules applied.',
                     'penalised': 3,
+                    'scan_bans': 7,
                 }
             ),
         )
         self.assertEqual(EntryPointService.agent_status().penalised, 3)
         page = self.client.get(reverse('accounts:network'))
         self.assertContains(page, '3 addresses in the penalty box right now')
+        self.assertContains(page, '7 scanners banned since the firewall started')
+        self.assertEqual(EntryPointService.agent_status().scan_bans, 7)
         from backend.apps.accounts.services import system_health
 
         self.assertIn('3 address(es) are in the penalty box', system_health._firewall().summary)

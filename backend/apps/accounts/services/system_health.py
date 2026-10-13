@@ -804,6 +804,10 @@ def _firewall() -> HealthCheck:
             f' {status.penalised} address(es) are in the penalty box for going over a limit.'
             if status.penalised
             else ''
+        ) + (
+            f' {status.scan_bans} scanner(s) banned since the firewall started.'
+            if status.scan_bans
+            else ''
         )
         return HealthCheck(
             'firewall', GROUP_SECURITY, title, OK,

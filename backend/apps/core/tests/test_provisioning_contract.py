@@ -682,3 +682,16 @@ class MailLogContractTests(SimpleTestCase):
         # keepalive_timeout is set by the image's nginx.conf; a second one stops nginx starting
         self.assertNotIn('keepalive_timeout', conf)
 
+    def test_the_firewall_reads_the_access_log_read_only_to_ban_scanners(self) -> None:
+        compose = _read('docker-compose.yml')
+        firewall = compose[compose.index('\n  firewall:') : compose.index('\n  certbot:')]
+        self.assertIn('nginx_logs:/var/log/ifinmail:ro', firewall)
+        agent = _read('firewall', 'entrypoint.sh')
+        self.assertIn('SCAN_BAN_THRESHOLD:-30', agent)
+        self.assertIn('nft get element inet ifinmail "exempt$family"', agent)  # never the exempt
+        self.assertIn('uri !~ /^\\/static\\//', agent)  # static files do not count
+        self.assertIn('"scan_bans":%s', agent)
+        from backend.apps.core.platform.services.entrypoints import SCAN_BAN_THRESHOLD
+
+        self.assertEqual(SCAN_BAN_THRESHOLD, 30)  # the page quotes the agent's default
+

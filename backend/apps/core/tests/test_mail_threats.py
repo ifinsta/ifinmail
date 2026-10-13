@@ -18,11 +18,17 @@ from backend.apps.core.telemetry.models import ThreatFinding
 from backend.apps.core.telemetry.threats import autoblock, digest, mail_log, mail_rules
 from backend.apps.core.telemetry.threats.types import MailEvent, Severity
 
-NOW = datetime(2026, 10, 13, 12, 30, tzinfo=UTC)
+
+def _syslog(at: datetime) -> str:
+    """A syslog-style stamp as Postfix and Dovecot write it (day padded with a space)."""
+    return f'{at:%b} {at.day:>2} {at:%H:%M:%S}'
+
+
+NOW = datetime.now(UTC).replace(microsecond=0)  # blocks are judged by the real clock
 
 
 def stamp(minutes_ago: int = 3) -> str:
-    return (NOW - timedelta(minutes=minutes_ago)).strftime('%b %d %H:%M:%S').replace(' 0', '  ', 1)
+    return _syslog(NOW - timedelta(minutes=minutes_ago))
 
 
 def sasl(ip: str, minutes: int = 3) -> str:

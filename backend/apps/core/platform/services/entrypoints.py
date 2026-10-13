@@ -55,6 +55,8 @@ WEB_BURST = 120
 MAIL_BURST_MIN = 20  # mail clients open several connections at once; bursts are not floods
 MAIL_CONCURRENT = 50  # open mail connections per address (a phone uses 2-5)
 WEB_CONCURRENT = 100  # open web connections per address
+SCAN_BAN_THRESHOLD = 30  # refused web requests in ~15 s that put an address in the penalty box
+# (enforced by the firewall agent from nginx's access log; SCAN_BAN_THRESHOLD in its environment)
 _OWN_SIDE = (
     '10.0.0.0/8',
     '172.16.0.0/12',
@@ -191,6 +193,7 @@ class AgentStatus:
     in_sync: bool
     message: str
     penalised: int = 0  # addresses in the kernel's penalty box right now (agent-reported)
+    scan_bans: int = 0  # addresses the agent banned for a refused burst since it started
 
 
 def parse_network(text: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
@@ -667,11 +670,16 @@ class EntryPointService:
         message = str(data.get('message', ''))
         if not fresh:
             message = message or _('The firewall agent is not reporting.')
-        try:
-            penalised = max(int(data.get('penalised', 0) or 0), 0)
-        except (TypeError, ValueError):
-            penalised = 0
-        return AgentStatus(fresh, applied, fresh and in_sync, message, penalised if fresh else 0)
+
+        def count(key: str) -> int:
+            try:
+                return max(int(data.get(key, 0) or 0), 0) if fresh else 0
+            except (TypeError, ValueError):
+                return 0
+
+        return AgentStatus(
+            fresh, applied, fresh and in_sync, message, count('penalised'), count('scan_bans')
+        )
 
     # -- probes -------------------------------------------------------------
     @staticmethod

@@ -266,6 +266,7 @@ services:
       TZ: ${TZ:-UTC}
     volumes:
       - runtime_data:/runtime
+      - nginx_logs:/var/log/ifinmail:ro   # scan ban: refused bursts go to the penalty box at once
     restart: unless-stopped
     stop_grace_period: 10s
     mem_limit: 32M

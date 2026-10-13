@@ -19,6 +19,12 @@ from backend.apps.core.telemetry.models import KnownPlace, ThreatDigest, ThreatF
 from backend.apps.core.telemetry.threats import adaptive, digest, geo
 from backend.apps.core.telemetry.threats.types import Finding, MailEvent, Severity, WindowSummary
 
+
+def _syslog(at: datetime) -> str:
+    """A syslog-style stamp as Postfix and Dovecot write it (day padded with a space)."""
+    return f'{at:%b} {at.day:>2} {at:%H:%M:%S}'
+
+
 NOW = datetime(2026, 10, 13, 12, 30, tzinfo=UTC)
 
 COUNTRY = (
@@ -437,7 +443,7 @@ class AdaptivePageTests(base.AssistantBase):
             days=6,
         )
         d = Path(tempfile.mkdtemp(prefix='ifm-mail-'))
-        stamp = (NOW - timedelta(minutes=2)).strftime('%b %d %H:%M:%S').replace(' 0', '  ', 1)
+        stamp = _syslog(NOW - timedelta(minutes=2))
         (d / 'dovecot.log').write_text(
             f'{stamp} imap-login: Info: Login: user=<bob@ifinmail.test>, method=PLAIN, '
             'rip=198.51.100.9, lip=192.0.2.10, TLS, session=<x>\n'

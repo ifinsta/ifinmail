@@ -19,6 +19,16 @@ from .views.marketplace import (
     marketplace_submission_action,
     marketplace_submit,
 )
+from .views.passkeys import (
+    mfa_passkey_options,
+    mfa_passkey_verify,
+    passkey_login_options,
+    passkey_login_verify,
+    passkey_register_options,
+    passkey_register_verify,
+    passkey_remove,
+    passkeys_page,
+)
 from .views.sending import sending, sending_resume
 from .views.server import (
     certificates_action,
@@ -119,6 +129,14 @@ urlpatterns = [
     path('health/updates/', system_health_updates, name='system_health_updates'),
     path('mfa/setup/', mfa_setup, name='mfa_setup'),
     path('mfa/verify/', mfa_verify, name='mfa_verify'),
+    path('mfa/passkey/options/', mfa_passkey_options, name='mfa_passkey_options'),
+    path('mfa/passkey/verify/', mfa_passkey_verify, name='mfa_passkey_verify'),
+    path('login/passkey/options/', passkey_login_options, name='passkey_login_options'),
+    path('login/passkey/verify/', passkey_login_verify, name='passkey_login_verify'),
+    path('passkeys/', passkeys_page, name='passkeys'),
+    path('passkeys/register/options/', passkey_register_options, name='passkey_register_options'),
+    path('passkeys/register/verify/', passkey_register_verify, name='passkey_register_verify'),
+    path('passkeys/remove/', passkey_remove, name='passkey_remove'),
     path(
         'settings/mailboxes/<uuid:mailbox_id>/',
         mailbox_profile,

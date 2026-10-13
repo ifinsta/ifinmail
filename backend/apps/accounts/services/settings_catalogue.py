@@ -121,6 +121,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 {'slug': 'security'},
             ),
             SettingsItem(
+                'passkeys',
+                _('Passkeys'),
+                _('Sign in with a fingerprint, face or security key instead of a password.'),
+                SettingsIcon.SECURITY,
+                'accounts:passkeys',
+                ('passkey', 'webauthn', 'fido', 'biometric', 'security key', 'passwordless', 'mfa'),
+            ),
+            SettingsItem(
                 'api-keys',
                 _('API keys'),
                 _('Keys and secrets for integrations that call the API.'),

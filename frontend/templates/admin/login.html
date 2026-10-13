@@ -83,6 +83,14 @@
       </button>
     </form>
 
+    <div class="ifinmail-login-passkey">
+      <button type="button" class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--full" hidden data-passkey-signin
+              data-options="{% url 'accounts:passkey_login_options' %}"
+              data-verify="{% url 'accounts:passkey_login_verify' %}"
+              data-next="{{ request.GET.next }}" data-status="#passkey-status">{% trans 'Sign in with a passkey' %}</button>
+      <p class="ifinmail-passkey-status" id="passkey-status" role="status" hidden></p>
+    </div>
+
     <p class="ifinmail-login-card__terms">
       {% trans "By signing in, you agree to our" %} <a href="{% url 'terms' %}">{% trans 'Terms of Service' %}</a> {% trans 'and' %} <a href="{% url 'privacy' %}">{% trans 'Privacy Policy' %}</a>.
     </p>
@@ -100,4 +108,5 @@
 
 {% block scripts %}
 <script src="{% static 'js/ifinmail-login.js' %}"></script>
+<script src="{% static 'js/ifinmail-passkeys.js' %}"></script>
 {% endblock %}

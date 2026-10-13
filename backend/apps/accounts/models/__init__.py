@@ -102,6 +102,37 @@ class TOTPDevice(models.Model):
         return f'TOTP for {self.user_id} ({state})'
 
 
+class Passkey(models.Model):
+    """A WebAuthn credential (a passkey) a person can sign in to the console with.
+
+    Only public material is stored: the credential id and the COSE public key. The private key
+    never leaves the person's device or password manager, so there is nothing here to steal that
+    would let anyone sign in. ``sign_count`` is the authenticator's counter (a clone shows up as
+    a counter that does not move forward).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(MailUser, on_delete=models.CASCADE, related_name='passkeys')
+    name = models.CharField(max_length=64, default='Passkey')
+    credential_id = models.CharField(max_length=1400, unique=True)  # base64url
+    public_key = models.TextField()  # base64url of the COSE key
+    algorithm = models.SmallIntegerField(default=-7)
+    sign_count = models.BigIntegerField(default=0)
+    transports = models.JSONField(default=list, blank=True)
+    aaguid = models.CharField(max_length=32, blank=True, default='')
+    backup_eligible = models.BooleanField(default=False)  # a synced passkey
+    backed_up = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'accounts_passkey'
+        ordering = ['created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.user_id})'
+
+
 class MFARecoveryCode(models.Model):
     """Single-use recovery codes (only hashes stored) for MFA bypass."""
 

@@ -140,13 +140,13 @@ class TOTPService:
         running. Under the ``required`` policy only a verified device ends the prompt.
         """
         if TOTPService.enforced():
-            return not TOTPService.has_verified_device(user)
+            return not TOTPService.has_second_factor(user)
         if not getattr(user, 'mfa_required', True):
             return False
         remind_after = getattr(user, 'mfa_remind_after', None)
         if remind_after is not None and timezone.now() < remind_after:
             return False
-        return not TOTPService.has_verified_device(user)
+        return not TOTPService.has_second_factor(user)
 
     @staticmethod
     def snooze(user: object, days: int | None = None) -> None:
@@ -159,6 +159,19 @@ class TOTPService:
     @staticmethod
     def has_verified_device(user: object) -> bool:
         return TOTPDevice.objects.filter(user=user, verified=True).exists()
+
+    @staticmethod
+    def has_second_factor(user: object) -> bool:
+        """An authenticator app **or** a passkey: either one is a second factor."""
+        from backend.apps.accounts.models import Passkey
+
+        return TOTPService.has_verified_device(user) or Passkey.objects.filter(user=user).exists()
+
+    @staticmethod
+    def passkey_count(user: object) -> int:
+        from backend.apps.accounts.models import Passkey
+
+        return Passkey.objects.filter(user=user).count()
 
     @staticmethod
     def pending_device(user: object) -> TOTPDevice | None:
@@ -296,4 +309,5 @@ class TOTPService:
             'recovery_remaining': TOTPService.remaining_recovery_codes(user),
             'pending': TOTPService.pending_device(user) is not None,
             'enforced': TOTPService.enforced(),
+            'passkeys': TOTPService.passkey_count(user),
         }

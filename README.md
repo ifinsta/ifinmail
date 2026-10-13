@@ -345,6 +345,12 @@ the worker) and the sign-in record every ten minutes and keeps only what a decis
   stranger (scanner paths, internal ports, certificate, headers, open relay, VRFY, plain-text
   logins, open resolver). Results appear in System health. Scanner-only paths such as `/.env`
   put an address in the penalty box after two requests.
+- **Passkeys (Settings → Passkeys).** Console sign-in with a fingerprint, face, screen lock or
+  security key: passwordless from the login page, or as the second step after a password. The
+  authenticator must verify the person, so it is two factors in one and satisfies
+  `MFA_ENFORCEMENT=required`. Only the public key is stored; a passkey only works on this server's
+  own domain; a cloned authenticator is detected and refused. Needs the console's https:// domain
+  name (not an IP address).
 - **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
 - **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
   no findings after a week, resolved findings after 30 days. The audit trail is never touched.

@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.0.39
+- **Passkeys: sign in to the console with a fingerprint, face, screen lock or a security key.**
+  Part of core account authentication, with no new dependency (the WebAuthn checks use the
+  `cryptography` package the console already ships).
+  - **Passwordless sign-in.** *Sign in with a passkey* on the login page: the browser offers the
+    passkeys it holds for this site, one unlock signs the person in. The authenticator must verify
+    the person (PIN, fingerprint or face), so a passkey sign-in counts as two factors on its own
+    and satisfies `MFA_ENFORCEMENT=required`.
+  - **Second step.** Someone who has a passkey is not let in by a password alone: after the
+    password they unlock the passkey (or enter an authenticator code, if they have an app too).
+  - **Management (Settings → Passkeys).** Add (name, and the person's password again, so a stolen
+    session cannot plant its own passkey), list (device-only or synced, added, last used) and
+    remove (password again). Up to 10 per login. Every change is audited.
+  - **What the server checks:** the one-time challenge (single use, 5 minutes), the origin and the
+    domain the passkey was made for (a look-alike site cannot use it), that the person was present
+    and verified, the signature (ES256, Ed25519 and RS256), that the passkey belongs to the person
+    named, and that the authenticator's counter moves forward (a clone is refused and audited as
+    `passkey_clone_suspected`). Only the public key is stored. Attestation is not trusted
+    (passkeys are trust-on-first-use, as consumer passkeys are).
+  - **Limits, stated:** needs the console's own https:// domain name (WebAuthn does not work on a
+    bare IP address); only console logins (administrators), since ordinary mailboxes have no
+    console; recovery of a lost device is by another passkey, the authenticator app's recovery
+    codes, or another administrator.
+  - System health counts passkeys as a second factor for administrators.
+  - Verified end to end in a real browser with Chrome's virtual authenticator: registration,
+    passwordless sign-in and the second step, with the real JavaScript and no console errors.
+
 ## v0.0.38
 - **Exposure check: the server looks at itself the way a stranger does.** Weekly (Sunday 03:10
   UTC) and on *Run now* (Settings → Network → Exposure check), from inside the stack, against this

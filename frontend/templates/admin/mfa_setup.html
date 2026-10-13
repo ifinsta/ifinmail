@@ -29,6 +29,8 @@
         <input type="hidden" name="action" value="start">
         <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% if status.enabled %}{% trans 'Replace authenticator' %}{% else %}{% trans 'Begin setup' %}{% endif %}</button>
       </form>
+      <p class="ifinmail-login-card__subtitle">{% if status.passkeys %}{% blocktrans trimmed count n=status.passkeys %}{{ n }} passkey is set up.{% plural %}{{ n }} passkeys are set up.{% endblocktrans %} {% endif %}<a href="{% url 'accounts:passkeys' %}">{% trans 'Manage passkeys' %}</a> {% trans '(fingerprint, face or a security key: no code to type)' %}</p>
+
       {% if status.enforced and not status.enabled %}
       <p class="ifinmail-setup-hint">{% trans 'Your administrator requires two-factor sign-in. Set it up to continue.' %}</p>
       {% elif not status.enabled %}

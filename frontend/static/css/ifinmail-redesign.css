@@ -3249,3 +3249,14 @@ html.ifinmail-shell .ifinmail-trace__step--ok::before { background: var(--ifinma
 html.ifinmail-shell .ifinmail-trace__step--warning::before { background: var(--ifinmail-color-warning); }
 html.ifinmail-shell .ifinmail-trace__step--error::before { background: var(--ifinmail-color-danger); }
 html.ifinmail-shell .ifinmail-trace__time { color: var(--ifinmail-text-secondary); }
+
+/* ---------------------------------------------------------------------------------------------
+   Passkeys: the status line under the buttons, and the sign-in alternative on the login card
+   --------------------------------------------------------------------------------------------- */
+html.ifinmail-shell .ifinmail-passkey-status {
+    margin: var(--ifinmail-space-2) 0 0;
+    font-size: var(--ifinmail-font-size-body);
+    color: var(--ifinmail-text-secondary);
+}
+html.ifinmail-shell .ifinmail-passkey-status--error { color: var(--ifinmail-color-danger); }
+html.ifinmail-shell .ifinmail-login-passkey { margin-top: var(--ifinmail-space-3); }

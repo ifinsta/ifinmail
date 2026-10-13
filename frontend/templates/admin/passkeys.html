@@ -1,0 +1,90 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n static %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Passkeys — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Passkeys' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'A passkey signs you in with your fingerprint, face, screen lock or a security key. There is no password to guess, steal or be tricked into typing on a fake site, and it only works on this server’s own address. A passkey sign-in already counts as two factors.' %}</p>
+            </div>
+        </div>
+
+        {% if enforced and not passkeys and not has_totp %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+            <div><p class="ifinmail-hbanner__headline">{% trans 'Your administrator requires a second factor.' %}</p>
+            <p class="ifinmail-hbanner__next">{% trans 'Add a passkey here, or set up an authenticator app.' %}</p></div>
+        </div>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pk-list">
+            <h2 class="ifinmail-panel-title" id="pk-list">{% trans 'Your passkeys' %}</h2>
+            {% if passkeys %}
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Your passkeys' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th scope="col">{% trans 'Name' %}</th><th scope="col">{% trans 'Kind' %}</th><th scope="col">{% trans 'Added' %}</th><th scope="col">{% trans 'Last used' %}</th><th scope="col">{% trans 'Remove' %}</th></tr></thead>
+                    <tbody>
+                    {% for p in passkeys %}
+                    <tr>
+                        <td><strong>{{ p.name }}</strong></td>
+                        <td>{% if p.backup_eligible %}{% trans 'Synced (follows your account across devices)' %}{% else %}{% trans 'This device only' %}{% endif %}</td>
+                        <td>{{ p.created_at|date:'Y-m-d' }}</td>
+                        <td>{% if p.last_used_at %}{{ p.last_used_at|date:'Y-m-d H:i' }}{% else %}{% trans 'Never' %}{% endif %}</td>
+                        <td>
+                            <form method="post" action="{% url 'accounts:passkey_remove' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                                {% csrf_token %}
+                                <input type="hidden" name="id" value="{{ p.id }}">
+                                <label class="ifinmail-sr-only" for="rm-{{ p.id }}">{% trans 'Your password' %}</label>
+                                <input class="ifinmail-input" id="rm-{{ p.id }}" name="confirm_password" type="password" autocomplete="current-password" placeholder="{% trans 'Your password' %}" required>
+                                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% blocktrans trimmed with name=p.name %}Remove “{{ name }}”? You will no longer be able to sign in with it.{% endblocktrans %}">{% trans 'Remove' %}</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+            {% else %}
+            <div class="ifinmail-empty-state ifinmail-empty-state--compact">
+                <p><strong>{% trans 'No passkeys yet.' %}</strong> {% trans 'Add one below; it takes a few seconds.' %}</p>
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pk-add">
+            <h2 class="ifinmail-panel-title" id="pk-add">{% trans 'Add a passkey' %}</h2>
+            {% if not supported %}
+            <p class="ifinmail-help-text">{% trans 'Passkeys need the console’s own https:// domain name (not an IP address). Open the console at its domain and come back.' %}</p>
+            {% elif passkeys|length >= max_passkeys %}
+            <p class="ifinmail-help-text">{% blocktrans trimmed with n=max_passkeys %}You have {{ n }} passkeys, the most one login may hold. Remove one to add another.{% endblocktrans %}</p>
+            {% else %}
+            <form method="post" class="ifinmail-inline-form" data-passkey-register
+                  data-options="{% url 'accounts:passkey_register_options' %}"
+                  data-verify="{% url 'accounts:passkey_register_verify' %}"
+                  data-status="#passkey-status">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="pk-name">{% trans 'Name (so you can tell them apart)' %}</label>
+                    <input class="ifinmail-input" id="pk-name" name="name" maxlength="64" placeholder="{% trans 'Work laptop, phone, YubiKey…' %}" autocomplete="off">
+                </div>
+                <div class="ifinmail-field">
+                    <label for="pk-password">{% trans 'Your password' %}</label>
+                    <input class="ifinmail-input" id="pk-password" name="confirm_password" type="password" autocomplete="current-password" required>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Add a passkey' %}</button></div>
+            </form>
+            <p class="ifinmail-passkey-status" id="passkey-status" role="status" hidden></p>
+            <p class="ifinmail-help-text">{% trans 'Your browser or password manager will ask you to create the passkey and unlock it. Keep a second way to sign in (another passkey or an authenticator app) in case you lose this device.' %}</p>
+            {% endif %}
+        </section>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/ifinmail-passkeys.js' %}"></script>
+{% endblock %}

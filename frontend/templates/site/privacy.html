@@ -24,6 +24,7 @@
             <li>{% trans 'Your mail, in your mailbox, until you or the operator delete it.' %}</li>
             <li>{% trans 'An audit trail of administrative actions: who did what, and when. It is kept for 365 days unless the operator sets another period.' %}</li>
             <li>{% trans 'Operational logs and error records needed to run and secure the server, including a size-capped web access log (address, time, requested path, browser identifier) that is read to detect scanners and attacks. From it only a summary is kept: counts, the network range an attacker came from (not the full address), and findings.' %}</li>
+            <li>{% trans 'If you add a passkey to sign in to the console, the server keeps its name, its public key and when it was added and last used. The private key never leaves your device or password manager.' %}</li>
             <li>{% trans 'To notice a sign-in that is out of character, the server remembers, for each account, the country and network operator it has signed in from (never the full address, and nothing about what the account did). Country and operator come from a database file on the server, so no visitor address is sent to anyone. These records are dropped after 180 days without use or when the account is closed, and the whole feature can be switched off by the operator.' %}</li>
             <li>{% trans 'Encrypted backups of all of the above, kept as long as the operator’s backup schedule keeps them.' %}</li>
         </ul>

@@ -82,6 +82,12 @@ class ThreatsPageTests(ThreatBase):
         self.assertContains(page, 'Act now')
         self.assertContains(page, 'A sensitive file is being served')
 
+    def test_refused_requests_are_counted_on_the_page(self) -> None:
+        self.scan()
+        digest.run(NOW, summarise=False)
+        page = self.client.get(reverse('accounts:threats')).content.decode()
+        self.assertRegex(page, r'Refused</span>\s*<span class="ifinmail-summary__value">5<')
+
     def test_a_quiet_server_says_so(self) -> None:
         self.log.write_text(row('/accounts/login/', 200, '198.51.100.1') + '\n')
         digest.run(NOW, summarise=False)

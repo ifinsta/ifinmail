@@ -71,6 +71,10 @@
                 <span class="ifinmail-summary__label">{% trans 'Failed mail sign-ins' %}</span>
                 <span class="ifinmail-summary__value">{{ summary.mail_failures|default:0 }}</span>
             </div>
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Refused' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.by_status.4xx|default:0 }}</span>
+            </div>
             <div class="ifinmail-summary__cell{% if summary.server_errors %} ifinmail-summary__cell--error{% endif %}">
                 <span class="ifinmail-summary__label">{% trans 'Server errors' %}</span>
                 <span class="ifinmail-summary__value">{{ summary.server_errors|default:0 }}</span>

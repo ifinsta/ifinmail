@@ -695,3 +695,14 @@ class MailLogContractTests(SimpleTestCase):
 
         self.assertEqual(SCAN_BAN_THRESHOLD, 30)  # the page quotes the agent's default
 
+    def test_nginx_closes_unknown_hosts_without_waking_the_console(self) -> None:
+        conf = _read('nginx', 'conf.d', 'ifinmail.conf')
+        self.assertIn('if ($ifm_refuse) { return 444; }', conf)
+        # the setup names keep working: their real paths are exempt from the Host check
+        for path in ('mta-sts.txt', 'autoconfig/mail/config-v1', 'autodiscover/autodiscover'):
+            self.assertIn(path, conf)
+        compose = _read('docker-compose.yml')
+        nginx = compose[compose.index('\n  nginx:') :]
+        self.assertIn('ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-}', nginx)
+        self.assertIn('sh /allowed-hosts.sh > /etc/nginx/conf.d/00-allowed-hosts.conf', nginx)
+        self.assertLess(nginx.index('allowed-hosts.sh >'), nginx.index('exec nginx'))

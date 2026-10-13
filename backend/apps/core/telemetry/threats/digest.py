@@ -307,6 +307,11 @@ def compact(now: datetime | None = None) -> dict[str, int]:
     noise, _ = ErrorEvent.objects.filter(
         severity__in=['DEBUG', 'INFO', 'WARNING'], created_at__lt=now - NOISE_AGE
     ).delete()
+    # Refusals recorded before they stopped being errors (a rollback, an old release).
+    refused, _ = ErrorEvent.objects.filter(
+        exc_type__in=('DisallowedHost', 'Resolver404', 'Http404')
+    ).delete()
+    noise += refused
     quiet, _ = ThreatDigest.objects.filter(
         findings_count=0, hour__lt=now - KEEP_QUIET_DIGESTS
     ).delete()

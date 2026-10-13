@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.34
+- **The Errors tab shows errors again.** An analysis of the 4,914 `DisallowedHost` events since 11
+  October found all of them to be scanners (92% on this server's own setup names, the rest on
+  made-up Host headers), and 3,793 more were `Resolver404` scanner 404s: 99.9% of the 8,714
+  recorded errors, against 7 real ones. A request for a Host or a page that does not exist is an
+  answer, not a defect, so it is no longer recorded (the access log still has it, and the threat
+  digest counts it). The backlog is purged by the update, and the daily compaction clears any that
+  an older release records.
+- **nginx closes unknown Hosts before the console is involved.** The Host must be one of the
+  console's `ALLOWED_HOSTS`, the mail host or the server address; anything else gets the
+  connection closed (444) with no answer, no Django request and no database write. The setup names
+  (`autoconfig.`, `autodiscover.`, `mta-sts.`) of every hosted domain still serve their real
+  paths (`/.well-known/mta-sts.txt`, `/mail/config-v1.1.xml`, `/autodiscover/autodiscover.xml`)
+  and nothing else. The list is generated from the same environment variable the console reads,
+  so the two cannot disagree; an empty list or `*` allows everything.
+  Tested against a real nginx: known hosts and the setup paths pass through, an unknown host and
+  scanners on the setup names get no answer, the port-80 redirect and ACME challenges are
+  unchanged.
+- **The Threats summary strip has a *Refused* figure** (requests answered 4xx in the last hour,
+  including those nginx closed), so the volume of scanning is visible without the noise.
+
 ## v0.0.33
 - **Scanners are cut off within seconds, not after the burst.** The firewall agent now reads nginx's
   access log (read-only) every few seconds. An address the web server refuses 30 times within

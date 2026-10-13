@@ -21,8 +21,10 @@ from datetime import timedelta
 from typing import Any
 
 from django.core.cache import cache
+from django.core.exceptions import DisallowedHost
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
+from django.http import Http404
 from django.utils import timezone
 
 from backend.apps.core.telemetry.models.error_event import ErrorEvent, ErrorFingerprint
@@ -116,6 +118,10 @@ def cull_traceback(exc: BaseException | None, limit: int = 5) -> str:
     return '|'.join(frames)
 
 
+# Exceptions that mean "no" to a stranger's request. Resolver404 is an Http404.
+REFUSALS = (DisallowedHost, Http404)
+
+
 class TelemetryService:
     """Central error-telemetry service (all methods static — no instantiation)."""
 
@@ -141,7 +147,13 @@ class TelemetryService:
 
         Returns ``{'id': ..., 'fingerprint': ..., 'correlation_id': ...}``
         so handlers can correlate responses with stored rows.
+
+        A request for a page that does not exist or a Host that is not ours is an answer (404 or
+        400), not a defect: scanners made these 99.9% of the error log. They are not recorded
+        here; the access log keeps them and the threat digest counts them.
         """
+        if isinstance(exc_or_message, REFUSALS):
+            return {'id': '', 'fingerprint': '', 'correlation_id': get_correlation_id()}
         try:
             return TelemetryService._capture_inner(
                 exc_or_message,

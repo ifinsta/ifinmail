@@ -1,6 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
+from .views.api_keys import api_key_action, api_key_create, api_keys
 from .views.assistant import (
     assistant,
     assistant_apply,
@@ -10,8 +11,6 @@ from .views.assistant import (
     assistant_status,
     assistant_test,
 )
-from .views.api_keys import api_key_action, api_key_create, api_keys
-from .views.sending import sending, sending_resume
 from .views.marketplace import (
     marketplace,
     marketplace_plugin,
@@ -20,6 +19,7 @@ from .views.marketplace import (
     marketplace_submission_action,
     marketplace_submit,
 )
+from .views.sending import sending, sending_resume
 from .views.server import (
     certificates_action,
     certificates_page,
@@ -30,6 +30,7 @@ from .views.server import (
     network_toggle,
     network_unblock,
 )
+from .views.threats import threats, threats_ack, threats_run
 from .web import (
     account_name,
     account_page,
@@ -47,9 +48,6 @@ from .web import (
     dashboard_rescan,
     dashboard_shell,
     first_password,
-    system_health,
-    system_health_recheck,
-    system_health_updates,
     login_view,
     logout_view,
     logs,
@@ -87,6 +85,9 @@ from .web import (
     step_username,
     step_verify,
     step_verify_confirm,
+    system_health,
+    system_health_recheck,
+    system_health_updates,
     user_management,
     users_export,
     users_kill_sessions,
@@ -195,6 +196,9 @@ urlpatterns = [
     path('users/export/', users_export, name='users_export'),
     path('users/kill-sessions/', users_kill_sessions, name='users_kill_sessions'),
     # Marketplace (plugins)
+    path('threats/', threats, name='threats'),
+    path('threats/run/', threats_run, name='threats_run'),
+    path('threats/ack/', threats_ack, name='threats_ack'),
     path('sending/', sending, name='sending'),
     path('sending/resume/', sending_resume, name='sending_resume'),
     path('assistant/', assistant, name='assistant'),

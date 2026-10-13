@@ -2894,6 +2894,28 @@ html.ifinmail-shell .ifinmail-md .ifinmail-md-right { text-align: right; }
 }
 
 /* ---------------------------------------------------------------------------------------------
+   Threats: the gist, short lists and the folded evidence under a finding
+   --------------------------------------------------------------------------------------------- */
+html.ifinmail-shell .ifinmail-threats__gist {
+    margin: 0 0 var(--ifinmail-space-2);
+    font-size: var(--ifinmail-font-size-base);
+    line-height: 1.6;
+    max-width: 70ch;
+}
+html.ifinmail-shell .ifinmail-threats__list {
+    margin: var(--ifinmail-space-1) 0 0;
+    padding-left: var(--ifinmail-space-5);
+    max-width: 70ch;
+}
+html.ifinmail-shell .ifinmail-threats__list li + li { margin-top: var(--ifinmail-space-1); }
+html.ifinmail-shell .ifinmail-threats__more > summary {
+    cursor: pointer;
+    color: var(--ifinmail-text-secondary);
+    font-size: var(--ifinmail-font-size-body);
+}
+html.ifinmail-shell .ifinmail-threats__more code { overflow-wrap: anywhere; }
+
+/* ---------------------------------------------------------------------------------------------
    Summary strip (System logs, System health): one bordered card split by dividers
    --------------------------------------------------------------------------------------------- */
 html.ifinmail-shell .ifinmail-summary {

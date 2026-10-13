@@ -267,7 +267,7 @@ class AssistantPageTests(AssistantBase):
         # Greeting, composer and suggestions share one empty-state container.
         self.assertIn('ifinmail-assistant-chat--empty', empty)
         self.assertIn('data-assistant-composer', empty)
-        self.assertEqual(empty.count('data-assistant-ask'), 1 + 6)  # composer + 6 suggestions
+        self.assertEqual(empty.count('data-assistant-ask'), 1 + 8)  # composer + 8 suggestions
         self.assertIn('data-assistant-scroll', empty)
         self.assertNotIn('ifinmail-assistant-chat--empty', self._with_conversation())
 

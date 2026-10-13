@@ -69,10 +69,17 @@ def require_perm(code: str):
 
 
 def _get_client_ip(request: HttpRequest) -> str:
-    """Extract client IP from request headers."""
+    """The client address as the reverse proxy saw it.
+
+    nginx *appends* the connecting address to X-Forwarded-For, so the last entry is the one to
+    trust; earlier entries are whatever the client sent, and taking the first would let anyone
+    choose the address recorded in the audit trail (and the threat digest built from it).
+    """
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
     if x_forwarded:
-        return x_forwarded.split(',')[0].strip()
+        last = x_forwarded.split(',')[-1].strip()
+        if last:
+            return last
     return request.META.get('REMOTE_ADDR', '')
 
 

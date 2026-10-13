@@ -4,6 +4,8 @@
 * ``api_overview``: what the integration API offers, read from the live contract (so the
   assistant cannot describe an endpoint that does not exist, or miss one that does).
 * ``api_keys``: which keys exist, who owns them, what they may do and what looks wrong.
+* ``threat_digest``: scanners and attacks of the last hours, reduced to findings and where to
+  tighten (the same facts the Threats page shows; no raw requests, no addresses of people).
 
 Nothing here returns a secret: only key identifiers, which are public by design.
 """
@@ -180,6 +182,66 @@ def _api_keys(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
     }
 
 
+_WHERE_NAMES = {
+    'network': 'Settings > Network & entry points',
+    'security': 'Settings > Security',
+    'api_keys': 'Settings > API keys',
+    'users': 'Settings > Users',
+    'logs': 'Settings > Logs',
+    'health': 'System health',
+}
+
+
+def _mask(subject: str) -> str:
+    local, at, domain = subject.partition('@')
+    return f'{local[:1]}***@{domain}' if at and local else subject
+
+
+def _threat_digest(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
+    from backend.apps.core.telemetry.models import ThreatDigest, ThreatFinding
+    from backend.apps.core.telemetry.threats.types import Severity
+
+    wanted = str(arguments.get('minimum', 'low')).lower()
+    floor = next((s for s in Severity if s.word == wanted), Severity.LOW)
+    latest = ThreatDigest.objects.order_by('-hour').first()
+    rows = (
+        ThreatFinding.objects.exclude(status=ThreatFinding.RESOLVED)
+        .filter(severity__gte=int(floor))
+        .order_by('-severity', '-last_seen')[:15]
+    )
+    findings = [
+        {
+            'severity': Severity(min(r.severity, 4)).word,
+            'what': r.title,
+            'subject': _mask(r.subject),
+            'count': r.count,
+            'summary': r.summary,
+            'where_to_tighten': [
+                f'{a.get("label", "")} ({_WHERE_NAMES.get(a.get("where", ""), "console")})'
+                for a in (r.tighten or [])
+            ],
+            'request_ids': list(r.evidence or [])[:3],
+            'status': r.status,
+        }
+        for r in rows
+    ]
+    summary = (latest.summary if latest else {}) or {}
+    return {
+        'hour': latest.hour.isoformat(timespec='minutes') if latest else None,
+        'gist': latest.gist if latest else 'No digest has been written yet.',
+        'written_by': latest.gist_source if latest else None,
+        'traffic': {
+            key: summary.get(key)
+            for key in ('requests', 'clients', 'peak_per_minute', 'auth_failures', 'server_errors')
+        },
+        'by_class': summary.get('by_class', {}),
+        'findings': findings,
+        'connections': list(latest.correlations or []) if latest else [],
+        'safe_to_ignore': list(latest.ignored or []) if latest else [],
+        'page': 'Settings > Threats',
+    }
+
+
 def register() -> None:
     from backend.apps.core.assistant.services import tools
     from backend.apps.core.assistant.services.tools import Tool
@@ -232,5 +294,23 @@ def register() -> None:
             'day and recent changes made with keys. Never contains a secret. Use it for '
             'questions about which integrations exist or whether they are safe.',
             _api_keys,
+        )
+    )
+    tools.register(
+        Tool(
+            'threat_digest',
+            'Scanners, floods and guessing against this server over the last hours, reduced to '
+            'findings: what, who (as a /24 or /48 network, account names masked), how much, '
+            'which sign-in attempts succeeded after failures, probes that made the server raise '
+            'an error, and where in the console to tighten. Use it for questions about attacks, '
+            'scans, DoS, brute force or whether something looks like a breach.',
+            _threat_digest,
+            parameters={
+                'minimum': {
+                    'type': 'string',
+                    'description': 'lowest severity to list',
+                    'enum': ['info', 'low', 'medium', 'high', 'critical'],
+                },
+            },
         )
     )

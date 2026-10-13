@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.0.24
+- **A threat digest.** The console now reads what scanners and attackers do and keeps only what a
+  decision needs. nginx writes a JSON access log (size-capped, in its own volume, read-only for the
+  worker) and the worker, every ten minutes, joins it with the sign-in record, finds the threats,
+  keeps one slim row per hour and a list of findings, and discards the rest.
+- **Findings that say where to tighten.** Scanner sweeps (refused is *medium*; answered or a flood is
+  *high*), floods from one network or many, password guessing and spraying, one account attacked from
+  many networks, second-factor guessing, API key guessing and a *real* key being attacked, a sensitive
+  file being served (critical), a sign-in that succeeded after repeated failures (critical), and a
+  probe that made the server raise an exception. Each names the network (/24 or /48), a few request
+  ids and the console page that holds the control (Network & entry points, Security, API keys, Users).
+- **Request ids join the layers.** nginx's `$request_id` is now sent to the console as
+  `X-Correlation-ID` (a client can no longer choose it), so one request can be followed from the web
+  log to an error record or the audit trail. That is how "a probe crashed the login view" is found.
+- **The assistant writes the gist when it is connected**, and only from aggregates: networks, probe
+  classes, counts, masked account names, never addresses, user agents or message data. It must
+  answer in a small JSON shape, may only point at findings that exist, spends at most 40% of the
+  day's budget and at most once every 30 minutes, and a model outage or a garbled answer leaves the
+  rule-written summary in place. Without a model the page is written by rules. New assistant tool
+  *Threat digest* and two suggestions: *Is anyone attacking this server?* and *What should I tighten
+  first?*
+- **Discarding.** INFO and WARNING error events after 48 hours, hours with no findings after a week,
+  resolved findings after 30 days; the hash-chained audit trail is never compacted.
+- **Page and alerts.** Settings > Threats (verdict, the last hour, findings, hour by hour). Serious
+  findings are emailed once a day and written to the audit trail (`THREAT_ALERTS=0` for no email,
+  `THREAT_DIGEST_ENABLED=0` to switch the digest off).
+- **Fix:** the address recorded for sign-ins in the audit trail was the *first* entry of
+  `X-Forwarded-For`, which a client can write. It is now the last entry, the one nginx appended, so
+  neither the audit trail nor the digest built from it can be given a chosen address.
+- Checked against this server's real 24 hours of traffic: about 4,400 requests from 194 networks gave
+  21 findings (15 medium, 4 high, one flood, one burst of server errors), not hundreds.
+- 60 tests; strict mypy covers the package.
+
 ## v0.0.23
 - **Send email through an API key.** `POST /api/v1/messages` (scope `mail.send`): `from`, `to`,
   `cc`, `bcc`, `reply_to`, `subject`, `text` and/or `html`. `202` means the server accepted the

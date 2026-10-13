@@ -442,6 +442,8 @@ services:
       # System health reads the queue and plugin acknowledgements here; the assistant runs its
       # checks in this container, so it must see what the console sees.
       - mail_status:/var/lib/ifinmail/status:ro
+      # The threat digest reads nginx's JSON access log (read-only).
+      - nginx_logs:/var/log/ifinmail:ro
     depends_on:
       api:
         condition: service_healthy
@@ -471,6 +473,8 @@ services:
       - ./certs:/etc/letsencrypt:ro
       - ./nginx/www:/var/www/certbot:ro
       - ./nginx/cert-watch.sh:/cert-watch.sh:ro
+      - ./nginx/log-rotate.sh:/log-rotate.sh:ro
+      - nginx_logs:/var/log/ifinmail          # JSON access log for the threat digest
       - static_data:/app/staticfiles:ro
       - media_data:/app/media:ro          # branding uploads served directly
     ports:
@@ -479,7 +483,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    command: "/bin/sh -c 'sed \"s|__SSL_CERT_HOSTNAME__|${MAIL_HOSTNAME}|g\" /etc/nginx/templates/ifinmail.conf.template > /etc/nginx/conf.d/default.conf && (sh /cert-watch.sh /etc/letsencrypt/live/${MAIL_HOSTNAME}/fullchain.pem nginx -s reload &) && exec nginx -g \"daemon off;\"'"
+    command: "/bin/sh -c 'sed \"s|__SSL_CERT_HOSTNAME__|${MAIL_HOSTNAME}|g\" /etc/nginx/templates/ifinmail.conf.template > /etc/nginx/conf.d/default.conf && (sh /cert-watch.sh /etc/letsencrypt/live/${MAIL_HOSTNAME}/fullchain.pem nginx -s reload &) && (sh /log-rotate.sh /var/log/ifinmail/access.json &) && exec nginx -g \"daemon off;\"'"
     restart: unless-stopped
     stop_grace_period: 10s
     mem_limit: 128M
@@ -514,6 +518,7 @@ volumes:
   dns_data:       # DNSSEC keys and zone journals
   dav_data:       # calendars and address books
   mail_status:    # mail queue counts the postfix container publishes for System health
+  nginx_logs:     # nginx's JSON access log, read by the console's threat digest
 
 networks:
   default:

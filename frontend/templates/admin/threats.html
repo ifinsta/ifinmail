@@ -1,0 +1,153 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Threats — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page ifinmail-threats">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Threats' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Scanners, floods and guessing, reduced to what carries a threat and where to tighten. Raw requests are not kept here: only counts, networks and the findings below.' %}</p>
+            </div>
+            {% if can_manage %}
+            <div class="ifinmail-page-actions">
+                <form method="post" action="{% url 'accounts:threats_run' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="ifinmail-btn ifinmail-btn--outline">{% trans 'Check now' %}</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="ifinmail-hbanner ifinmail-hbanner--{{ verdict.tone }}" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                {% if verdict.tone == 'ok' %}<path d="M20 6 9 17l-5-5"/>{% else %}<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/>{% endif %}
+            </svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{{ verdict.headline }}</p>
+                {% if verdict.next %}<p class="ifinmail-hbanner__next">{{ verdict.next }}</p>{% endif %}
+            </div>
+        </div>
+
+        {% if digest %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="th-gist">
+            <h2 class="ifinmail-panel-title" id="th-gist">{% trans 'The last hour' %}</h2>
+            <p class="ifinmail-threats__gist">{{ digest.gist }}</p>
+            <p class="ifinmail-help-text">
+                {% if digest.gist_source == 'assistant' %}{% trans 'Written by the assistant from the figures below; it saw counts and networks, never raw requests.' %}
+                {% elif assistant_connected %}{% trans 'Summary by rules. The assistant adds a written summary when there is something worth reading.' %}
+                {% else %}{% trans 'Summary by rules. Connect a model in the assistant and it writes this summary and ranks what to do first.' %}{% endif %}
+            </p>
+            {% if digest.correlations %}
+            <h3 class="ifinmail-overline">{% trans 'Connections' %}</h3>
+            <ul class="ifinmail-threats__list">{% for line in digest.correlations %}<li>{{ line }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if digest.ignored %}
+            <h3 class="ifinmail-overline">{% trans 'Safe to ignore' %}</h3>
+            <ul class="ifinmail-threats__list">{% for line in digest.ignored %}<li>{{ line }}</li>{% endfor %}</ul>
+            {% endif %}
+        </section>
+
+        <div class="ifinmail-summary">
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Requests' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.requests|default:0 }}</span>
+            </div>
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Networks' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.clients|default:0 }}</span>
+            </div>
+            <div class="ifinmail-summary__cell">
+                <span class="ifinmail-summary__label">{% trans 'Busiest minute' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.peak_per_minute|default:0 }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if summary.auth_failures %} ifinmail-summary__cell--warning{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Failed sign-ins' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.auth_failures|default:0 }}</span>
+            </div>
+            <div class="ifinmail-summary__cell{% if summary.server_errors %} ifinmail-summary__cell--error{% endif %}">
+                <span class="ifinmail-summary__label">{% trans 'Server errors' %}</span>
+                <span class="ifinmail-summary__value">{{ summary.server_errors|default:0 }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="th-findings">
+            <h2 class="ifinmail-panel-title" id="th-findings">{% trans 'Findings' %}</h2>
+            {% if findings %}
+            <ol class="ifinmail-hc-list">
+                {% for f in findings %}
+                <li class="ifinmail-hc ifinmail-hc--{% if f.tone == 'danger' %}error{% elif f.tone == 'warning' %}warning{% else %}ok{% endif %}" id="finding-{{ f.id }}">
+                    <div class="ifinmail-hc__head">
+                        <h3 class="ifinmail-hc__title">{{ f.title }}</h3>
+                        <span class="ifinmail-hc__group ifinmail-text--mono">{{ f.subject }}</span>
+                        <span class="ifinmail-badge ifinmail-badge--{{ f.tone }}">{{ f.severity|capfirst }}</span>
+                        {% if f.status == 'acknowledged' %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Acknowledged' %}</span>{% endif %}
+                    </div>
+                    <p class="ifinmail-hc__summary">{{ f.summary }}</p>
+                    {% if f.why %}<p class="ifinmail-hc__fix"><span class="ifinmail-overline">{% trans 'Why it matters' %}</span>{{ f.why }}</p>{% endif %}
+                    {% if f.tighten %}
+                    <div class="ifinmail-hc__fix">
+                        <span class="ifinmail-overline">{% trans 'Where to tighten' %}</span>
+                        <ul class="ifinmail-threats__list">
+                            {% for a in f.tighten %}
+                            <li>{% if a.url %}<a href="{{ a.url }}">{{ a.label }}</a>{% else %}<strong>{{ a.label }}</strong>{% endif %}: {{ a.detail }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if f.samples or f.evidence %}
+                    <details class="ifinmail-threats__more">
+                        <summary>{% trans 'Evidence' %}</summary>
+                        {% if f.samples %}<p class="ifinmail-help-text">{% trans 'Requested' %}: <code class="ifinmail-text--mono">{{ f.samples|join:'  ' }}</code></p>{% endif %}
+                        {% if f.evidence %}<p class="ifinmail-help-text">{% trans 'Request ids' %} ({% trans 'search Logs for these' %}): <code class="ifinmail-text--mono">{{ f.evidence|join:', ' }}</code></p>{% endif %}
+                        <p class="ifinmail-help-text">{% blocktrans trimmed with n=f.count first=f.first_seen|date:'H:i' last=f.last_seen|date:'H:i' %}{{ n }} events, between {{ first }} and {{ last }} UTC.{% endblocktrans %}</p>
+                    </details>
+                    {% endif %}
+                    {% if can_manage %}
+                    <form method="post" action="{% url 'accounts:threats_ack' %}" class="ifinmail-hc__actions">
+                        {% csrf_token %}
+                        <input type="hidden" name="finding" value="{{ f.id }}">
+                        {% if f.status == 'acknowledged' %}
+                        <button class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--sm" type="submit" name="undo" value="1">{% trans 'Show as open again' %}</button>
+                        {% else %}
+                        <button class="ifinmail-btn ifinmail-btn--ghost ifinmail-btn--sm" type="submit">{% trans 'Acknowledge' %}</button>
+                        {% endif %}
+                    </form>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+            {% else %}
+            <div class="ifinmail-empty-state ifinmail-empty-state--compact">
+                <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <p><strong>{% trans 'Nothing to tighten.' %}</strong> {% if log_available %}{% trans 'No network crossed the thresholds in the last hours.' %}{% else %}{% trans 'The web server’s access log is not available yet; it starts after the next update.' %}{% endif %}</p>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if history %}
+        <details class="ifinmail-panel ifinmail-health-section">
+            <summary class="ifinmail-panel-title">{% trans 'Last 24 hours, hour by hour' %}</summary>
+            <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Hourly summaries' %}">
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th scope="col">{% trans 'Hour (UTC)' %}</th><th scope="col">{% trans 'Requests' %}</th><th scope="col">{% trans 'Networks' %}</th><th scope="col">{% trans 'Findings' %}</th></tr></thead>
+                    <tbody>
+                    {% for row in history %}
+                    <tr>
+                        <td class="ifinmail-text--mono">{{ row.hour|date:'Y-m-d H:00' }}</td>
+                        <td>{{ row.summary.requests|default:0 }}</td>
+                        <td>{{ row.summary.clients|default:0 }}</td>
+                        <td>{% if row.findings_count %}<span class="ifinmail-badge ifinmail-badge--{% if row.top_severity >= 3 %}danger{% elif row.top_severity == 2 %}warning{% else %}info{% endif %}">{{ row.findings_count }}</span>{% else %}0{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+        </details>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

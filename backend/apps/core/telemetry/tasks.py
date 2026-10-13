@@ -31,6 +31,31 @@ def purge_old_errors() -> dict[str, Any]:
         return {'deleted': 0, 'error': str(exc)}
 
 
+@shared_task(name='telemetry.threat_digest')
+def threat_digest() -> dict[str, Any]:
+    """Read the access log and sign-in record, keep the slim version, tell someone if it matters."""
+    from backend.apps.core.telemetry.threats import digest
+
+    if not digest.enabled():
+        return {'enabled': False}
+    result = digest.run()
+    return {
+        'requests': result.summary.requests,
+        'findings': len(result.findings),
+        'log': result.log_available,
+        'alerted': result.alerted,
+        'summarised': result.summarised,
+    }
+
+
+@shared_task(name='telemetry.threat_compact')
+def threat_compact() -> dict[str, int]:
+    """Discard telemetry the digests have already summarised."""
+    from backend.apps.core.telemetry.threats import digest
+
+    return digest.compact()
+
+
 @shared_task(name='telemetry.digest')
 def error_digest() -> dict[str, Any]:
     """Summarise last-24h errors; returns payload (mail hookup is optional)."""

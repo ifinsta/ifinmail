@@ -36,6 +36,8 @@ SUGGESTIONS = (
         'How can a program manage mailboxes through the API?',
         'Authentication, scopes and endpoints.',
     ),
+    ('Is anyone attacking this server?', 'Scans, floods and guessing, and where to tighten.'),
+    ('What should I tighten first?', 'Open findings ranked, with where to act.'),
     ('Are my API keys set up safely?', 'Expiry, scope, networks and failed attempts.'),
 )
 

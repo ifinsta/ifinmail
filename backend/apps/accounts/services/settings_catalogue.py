@@ -202,6 +202,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
         _('System'),
         (
             SettingsItem(
+                'threats',
+                _('Threats'),
+                _('Scanners and attacks, and where to tighten.'),
+                SettingsIcon.SECURITY,
+                'accounts:threats',
+                ('threat', 'scan', 'attack', 'probe', 'ddos', 'dos', 'brute', 'block', 'nginx'),
+            ),
+            SettingsItem(
                 'logs',
                 _('Logs'),
                 _('Live infrastructure and audit telemetry.'),

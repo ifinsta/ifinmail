@@ -261,6 +261,31 @@ you what a key may do and which keys look unsafe. Ask it "how can a program crea
   share one `{"detail": "..."}` shape, and `make typecheck` (strict mypy, also in CI) covers the API
   layer.
 
+## Threats: scanners and attacks, reduced to what needs a decision
+
+A public server is probed all day: `/.env`, `/.git/config`, `/wp-login.php`, raw TLS sent to the
+web port, password guessing. Most of it is harmless noise and a little of it matters, so the
+console reads nginx's JSON access log (a size-capped file in the `nginx_logs` volume, read-only for
+the worker) and the sign-in record every ten minutes and keeps only what a decision needs:
+
+- **Findings**, each with a severity, who (a /24 or /48 network, an account, a key id), how much,
+  a few request ids to look up in Logs, and *where to tighten* (Network & entry points, Security,
+  API keys, Users). Examples: a scanner that was answered rather than refused, a flood, password
+  guessing or spraying, a sign-in that succeeded after repeated failures, a real API key being
+  attacked, a probe that made the server raise an exception (joined by request id), a sensitive file
+  being served.
+- **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
+- **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
+  no findings after a week, resolved findings after 30 days. The audit trail is never touched.
+
+When the assistant is connected it writes the gist and ranks the findings from those aggregates
+(at most 40% of the day's token budget, at most every 30 minutes, only when something changed). It
+receives networks, path *classes*, counts and masked account names: no addresses, user agents or
+message data. Its text is shown as text and can only point at findings that exist. Without a model
+the same page is written by rules. Serious findings are emailed to the administrators once a day;
+`THREAT_ALERTS=0` turns that off and `THREAT_DIGEST_ENABLED=0` turns the whole digest off.
+`ACCESS_LOG_MAX_BYTES` (default 16 MiB) caps the log file.
+
 ## Outbound relay settings
 
 Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. The console publishes them to a file that the postfix container applies with `postconf` and reloads within seconds (only an allow-list of keys is ever applied). The relay hostnames themselves come from `MAIL_SMART_HOST` and `MAIL_SMTP_PROXY` in the environment.

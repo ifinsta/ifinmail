@@ -30,6 +30,8 @@ files = [
     "backend/apps/accounts/views/api_keys.py",
     "backend/apps/mail/api.py",
     "backend/apps/mail/services/messages.py",
+    "backend/apps/core/telemetry/threats",
+    "backend/apps/accounts/views/threats.py",
     "backend/apps/mail/serializers",
     "backend/apps/domains/api.py",
     "backend/apps/domains/serializers",
@@ -53,7 +55,11 @@ warn_return_any = true
 # Django's transaction.atomic and view decorators are untyped (no stubs); the code that uses
 # them is still checked.
 [[tool.mypy.overrides]]
-module = ["backend.apps.accounts.services.tokens", "backend.apps.accounts.views.api_keys"]
+module = [
+    "backend.apps.accounts.services.tokens",
+    "backend.apps.accounts.views.api_keys",
+    "backend.apps.accounts.views.threats",
+]
 disallow_untyped_decorators = false
 
 [tool.pydantic-mypy]

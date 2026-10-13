@@ -23,7 +23,7 @@
             <li>{% trans 'Account details: your address, a hash of your password (never the password), your quota and, for administrators, roles and two-factor settings.' %}</li>
             <li>{% trans 'Your mail, in your mailbox, until you or the operator delete it.' %}</li>
             <li>{% trans 'An audit trail of administrative actions: who did what, and when. It is kept for 365 days unless the operator sets another period.' %}</li>
-            <li>{% trans 'Operational logs and error records needed to run and secure the server.' %}</li>
+            <li>{% trans 'Operational logs and error records needed to run and secure the server, including a size-capped web access log (address, time, requested path, browser identifier) that is read to detect scanners and attacks. From it only a summary is kept: counts, the network range an attacker came from (not the full address), and findings.' %}</li>
             <li>{% trans 'Encrypted backups of all of the above, kept as long as the operator’s backup schedule keeps them.' %}</li>
         </ul>
 
@@ -34,7 +34,7 @@
         <ul>
             <li>{% trans 'Mail you send travels to the recipient’s mail server, as email always does.' %}</li>
             <li>{% trans 'About every six hours the server asks GitHub whether a new release exists, which tells GitHub the server’s address. The operator can switch this off.' %}</li>
-            <li>{% trans 'If the operator connects the assistant, an administrator’s question and the results of server checks are sent to the model service they chose. Message contents, passwords and keys are not sent, and conversations are kept for 30 days.' %}</li>
+            <li>{% trans 'If the operator connects the assistant, an administrator’s question and the results of server checks are sent to the model service they chose. The hourly security summary is also written by it, from counts and network ranges only. Message contents, passwords and keys are not sent, and conversations are kept for 30 days.' %}</li>
             <li>{% trans 'Certificates are requested from Let’s Encrypt, and DNS changes may be sent to a DNS provider the operator connected.' %}</li>
         </ul>
 

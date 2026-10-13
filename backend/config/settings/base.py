@@ -256,6 +256,16 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'telemetry.purge',
         'schedule': crontab(hour=3, minute=30),
     },
+    'threat-digest': {
+        # Scanner and attack signals from nginx's access log and the sign-in record, reduced to
+        # findings and a slim hourly summary (the assistant writes the gist when connected).
+        'task': 'telemetry.threat_digest',
+        'schedule': crontab(minute='1,11,21,31,41,51'),
+    },
+    'threat-compact': {
+        'task': 'telemetry.threat_compact',
+        'schedule': crontab(hour=3, minute=40),
+    },
     'check-for-updates': {
         'task': 'core.check_for_updates',
         'schedule': crontab(minute=40, hour='*/6'),

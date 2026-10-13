@@ -94,6 +94,7 @@ def facts(summary: WindowSummary, findings: list[Finding]) -> dict[str, Any]:
             'mail_failures': summary.mail_failures,
             'top_networks': summary.top_networks,
         },
+        'where_from': {'countries': summary.countries, 'operators': summary.providers[:5]},
         'findings': [
             {
                 'key': _mask(f.key) if '@' in f.key else f.key,

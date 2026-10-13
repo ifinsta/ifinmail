@@ -104,5 +104,7 @@ class WindowSummary:
     top_networks: list[dict[str, object]] = field(default_factory=list)
     auth_failures: int = 0
     mail_failures: int = 0  # failed sign-ins on the mail ports (SMTP submission, IMAP, POP3)
+    countries: dict[str, int] = field(default_factory=dict)  # events by country (adaptive)
+    providers: list[dict[str, object]] = field(default_factory=list)  # top operators (adaptive)
     server_errors: int = 0
     skipped_bytes: int = 0  # log that was not read because the window was too big (a flood)

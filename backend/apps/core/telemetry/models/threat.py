@@ -58,3 +58,33 @@ class ThreatFinding(CoreModel):
 
     def __str__(self) -> str:
         return f'{self.kind} {self.subject} [{self.status}]'
+
+
+class KnownPlace(CoreModel):
+    """Somewhere an account has signed in from: the baseline "a new place" is measured against.
+
+    A place is a country and a network operator (``DE/AS24940``), or the /24 or /48 itself when no
+    location data is installed. Only the account, the channel and the place are kept: no address
+    beyond the network, no user agent, nothing about what the account did.
+    """
+
+    actor = models.CharField(max_length=190, db_index=True)  # account address, lower case
+    channel = models.CharField(max_length=12)  # "console" | "mail"
+    place = models.CharField(max_length=80)  # Place.key, or the network when unlocated
+    country = models.CharField(max_length=2, blank=True, default='')
+    asn = models.PositiveIntegerField(default=0)
+    org = models.CharField(max_length=120, blank=True, default='')
+    net = models.CharField(max_length=64, blank=True, default='')  # the last /24 or /48 seen
+    first_seen = models.DateTimeField()
+    last_seen = models.DateTimeField(db_index=True)
+    days = models.PositiveIntegerField(default=1)  # distinct days it was used on
+    count = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        db_table = 'ifinmail_known_place'
+        constraints = [
+            models.UniqueConstraint(fields=['actor', 'channel', 'place'], name='known_place_unique')
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.actor} {self.channel} {self.place}'

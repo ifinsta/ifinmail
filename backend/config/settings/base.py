@@ -148,6 +148,7 @@ STATIC_URL = os.environ.get('STATIC_URL', '/static/')
 STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'static']
 STATIC_ROOT = Path(os.environ.get('STATIC_ROOT', BASE_DIR / 'staticfiles'))
 
+
 def _css_content_version(css_dir: Path) -> str:
     """Short hash of the stylesheets: changes whenever any CSS file changes.
 
@@ -267,6 +268,11 @@ CELERY_BEAT_SCHEDULE = {
         # findings and a slim hourly summary (the assistant writes the gist when connected).
         'task': 'telemetry.threat_digest',
         'schedule': crontab(minute='1,11,21,31,41,51'),
+    },
+    'geo-refresh': {
+        # Cheap when the location data is current; downloads it when it is missing or a month old.
+        'task': 'telemetry.geo_refresh',
+        'schedule': crontab(minute=17),
     },
     'threat-compact': {
         'task': 'telemetry.threat_compact',

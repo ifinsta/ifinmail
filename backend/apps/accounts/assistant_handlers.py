@@ -242,6 +242,10 @@ def _threat_digest(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
             )
         },
         'by_class': summary.get('by_class', {}),
+        'where_from': {
+            'countries': summary.get('countries', {}),
+            'operators': (summary.get('providers') or [])[:5],
+        },
         'findings': findings,
         'connections': list(latest.correlations or []) if latest else [],
         'safe_to_ignore': list(latest.ignored or []) if latest else [],

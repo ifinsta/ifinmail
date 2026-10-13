@@ -302,6 +302,26 @@ the worker) and the sign-in record every ten minutes and keeps only what a decis
   probing, address guessing, guessing from many networks at once, and a mailbox that signed in right
   after a spray from the same network (critical). `MAIL_LOG_MAX_BYTES` (default 16 MiB) caps each
   file. The one-click block and automatic blocking cover these findings like any other.
+- **Adaptive: it learns what is normal here.** Three things, all from data the server already
+  keeps, and it only *raises findings*; it never changes a limit or block by itself.
+  - *Where traffic comes from.* A free country and network-operator database
+    (DB-IP Lite, CC BY 4.0) is downloaded about monthly into the runtime volume as one SQLite file
+    and read locally: no visitor address leaves the server. Findings show the country and
+    operator beside each network, the page lists top operators and countries, and several
+    networks of one operator with findings become one *campaign* finding that can be blocked
+    together.
+  - *Places.* For each account (console and mailbox sign-ins) it remembers the countries and
+    operators it has signed in from. Once an account has an established history (5 sign-ins over
+    2 days), a sign-in from somewhere new is a finding: medium for a new country, low for a new
+    operator in a known country. Nothing is learned until location data is installed, so the
+    baseline does not change meaning when it arrives. Places unused for 180 days, or belonging to
+    a closed account, are forgotten.
+  - *Traffic.* The hour's requests, failed console sign-ins and failed mail sign-ins are compared
+    with the same hour of the day over the last 14 days (median and spread, so one bad day does not
+    teach it that attacks are normal); far above that is a finding even when no single network
+    crosses a threshold. Quiet hourly rows are now kept 28 days for this.
+
+  `THREAT_ADAPTIVE=0` turns it off; `GEO_DISABLED=1` stops the database download.
 - **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
 - **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
   no findings after a week, resolved findings after 30 days. The audit trail is never touched.

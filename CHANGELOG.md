@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.0.30
+- **The adaptive service: the digest learns what is normal on this server and flags what is not.**
+  It only raises findings; it never changes a limit or a block by itself (that stays with the
+  opt-in Automatic protection). `THREAT_ADAPTIVE=0` turns it off.
+  - **Where traffic comes from.** Country and network operator for every network, from a free
+    offline database (DB-IP Lite, CC BY 4.0; about 60 MB as one SQLite file in the runtime volume,
+    downloaded monthly, refreshed by an hourly check that is a no-op while it is current). Lookups
+    are local: no visitor address leaves the server. Findings show the place beside each network,
+    and the Threats page has a *Where it comes from* panel (operators, countries).
+  - **Campaigns.** Three or more networks of one operator with findings in the same hour become one
+    finding, *Several networks of one operator are attacking at once*, which can be blocked
+    together from the page (the same password, own-address and expiry rules).
+  - **Learned places.** For every account (console and mailbox sign-ins) it remembers the country
+    and operator it signs in from. After an established history (5 sign-ins over 2 days) a
+    sign-in from somewhere new is a finding: medium for a new country, low for a new operator in a
+    known country. Nothing is learned until location data is installed. Places unused for 180
+    days, or of a closed account, are dropped; the privacy page says so.
+  - **Traffic baseline.** The hour's web requests and failed console and mail sign-ins are
+    compared with the same hour of the day over 14 days (median and spread); far above it is a
+    finding even when no single network crosses a threshold. Quiet hourly rows are now kept 28
+    days instead of 7 so there is a baseline.
+- The assistant sees the same aggregates only (countries, operators, masked accounts).
+
 ## v0.0.29
 - **Phase 4 of the entry-point firewall: the mail ports in the threat digest.** Until now the
   digest saw the web server and the console's sign-ins only; password guessing against IMAP, POP3

@@ -7,6 +7,7 @@ links to the console pages that already hold each control.
 
 from __future__ import annotations
 
+import ipaddress
 from datetime import timedelta
 from typing import Any
 
@@ -22,7 +23,7 @@ from django.views.decorators.http import require_GET, require_POST
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.platform.services.entrypoints import EntryPointService, NetworkError
 from backend.apps.core.telemetry.models import ThreatDigest, ThreatFinding
-from backend.apps.core.telemetry.threats import access_log, digest, rules
+from backend.apps.core.telemetry.threats import access_log, adaptive, digest, geo, rules
 from backend.apps.core.telemetry.threats.types import Severity
 
 from ..forms.server import ThreatBlockForm
@@ -101,14 +102,39 @@ def _verdict(findings: list[ThreatFinding], log_available: bool) -> dict[str, An
     return {'tone': 'ok', 'headline': 'Quiet: nothing that needs action.', 'next': ''}
 
 
-def _present(row: ThreatFinding, blocked: dict[str, dict[str, Any]]) -> dict[str, Any]:
+_CAMPAIGN = 'campaign'
+_SAMPLES_LABEL = {'campaign': 'Networks', 'new_place': 'Place'}
+
+
+def _campaign_targets(row: ThreatFinding) -> list[str]:
+    """The networks of a campaign finding that a person may block from here."""
+    found = []
+    for sample in row.samples or []:
+        try:
+            net = str(ipaddress.ip_network(str(sample), strict=False))
+        except ValueError:
+            continue
+        if not rules.is_internal(net):
+            found.append(net)
+    return found
+
+
+def _present(
+    row: ThreatFinding, blocked: dict[str, dict[str, Any]], place: str = ''
+) -> dict[str, Any]:
     severity = Severity(min(max(row.severity, 0), 4))
     is_network = row.kind in rules.NETWORK_KINDS and bool(row.subject)
     held = blocked.get(row.subject) if is_network else None
+    campaign = (
+        [n for n in _campaign_targets(row) if n not in blocked] if row.kind == _CAMPAIGN else []
+    )
     return {
+        'place': place,
         'blocked': held is not None,
         'blocked_until': held.get('until') if held else None,
-        'blockable': is_network and held is None and not rules.is_internal(row.subject),
+        'blockable': (is_network and held is None and not rules.is_internal(row.subject))
+        or bool(campaign),
+        'campaign_count': len(campaign),
         'id': row.pk,
         'key': row.key,
         'title': row.title,
@@ -122,7 +148,11 @@ def _present(row: ThreatFinding, blocked: dict[str, dict[str, Any]]) -> dict[str
         'status': row.status,
         'evidence': row.evidence,
         'samples': row.samples,
-        'samples_label': 'Accounts tried' if row.kind.startswith('mail_') else 'Requested',
+        'samples_label': (
+            'Accounts tried'
+            if row.kind.startswith('mail_')
+            else _SAMPLES_LABEL.get(row.kind, 'Requested')
+        ),
         'tighten': [{**a, 'url': _link(a.get('where', ''))} for a in (row.tighten or [])],
     }
 
@@ -146,7 +176,22 @@ def threats(request: HttpRequest) -> HttpResponse:
     blocked: dict[str, dict[str, Any]] = {
         str(r['cidr']): r for r in map(blocklist_row, EntryPointService.active_blocklist(now))
     }
-    findings = [_present(r, blocked) | {'why': priorities.get(r.key, '')} for r in open_rows]
+    reader = geo.reader()
+    try:
+        findings = [
+            _present(
+                r,
+                blocked,
+                reader.lookup_net(r.subject).text()
+                if reader is not None and r.kind in rules.NETWORK_KINDS
+                else '',
+            )
+            | {'why': priorities.get(r.key, '')}
+            for r in open_rows
+        ]
+    finally:
+        if reader is not None:
+            reader.close()
     from backend.apps.core.assistant.services import config as assistant_config
 
     return render(
@@ -163,6 +208,9 @@ def threats(request: HttpRequest) -> HttpResponse:
             'history': history,
             'assistant_connected': assistant_config.current() is not None,
             'log_available': access_log.log_path().exists(),
+            'countries': sorted((summary.get('countries') or {}).items(), key=lambda kv: -kv[1]),
+            'providers': summary.get('providers') or [],
+            'adaptive': adaptive.status(),
             'can_manage': RoleService.has_perm(request.user, PermissionCode.SYSTEM_MANAGE),
             'can_block': RoleService.has_perm(request.user, PermissionCode.SECURITY_MANAGE),
         },
@@ -214,21 +262,28 @@ def threats_ack(request: HttpRequest) -> HttpResponse:
 @_FIREWALL
 @require_POST
 def threats_block(request: HttpRequest) -> HttpResponse:
-    """Block the network a finding is about: password again, never your own side, lifts itself."""
+    """Block the network (or the networks of a campaign) a finding is about: password again,
+    never your own side, and each block lifts itself."""
     back = redirect('accounts:threats')
     form = ThreatBlockForm(request.POST)
     row = _finding(request.POST.get('finding', '')) if form.is_valid() else None
     if row is None:
         messages.error(request, 'That finding is already gone.')
         return back
-    if row.kind not in rules.NETWORK_KINDS or not row.subject:
+    if row.kind == _CAMPAIGN:
+        targets = _campaign_targets(row)
+    elif row.kind in rules.NETWORK_KINDS and row.subject:
+        targets = [row.subject]
+    else:
+        targets = []
+    if not targets:
         messages.error(
             request, 'This finding is not about a network, so there is nothing to block.'
         )
         return back
-    if rules.is_internal(row.subject):
+    if len(targets) == 1 and rules.is_internal(targets[0]):
         messages.error(
-            request, f'{row.subject} is on this server’s own side, so it is never blocked here.'
+            request, f'{targets[0]} is on this server’s own side, so it is never blocked here.'
         )
         return back
     problem = StepUpService.confirm(request)
@@ -237,23 +292,30 @@ def threats_block(request: HttpRequest) -> HttpResponse:
         return back
     lifetime = _BLOCK_FOR[form.cleaned_data['duration']]
     expires_at = timezone.now() + lifetime if lifetime else None
-    try:
-        text = EntryPointService.block(
-            row.subject,
-            f'Threats: {row.title}',
-            protect=protected_addresses(request),
-            expires_at=expires_at,
-        )
-    except NetworkError as exc:
-        messages.error(request, str(exc))
-        return back
     until = f'until {expires_at:%Y-%m-%d %H:%M} UTC' if expires_at else 'until removed'
+    done: list[str] = []
+    refused: list[str] = []
+    protect = protected_addresses(request)
+    for net in targets:
+        try:
+            text = EntryPointService.block(
+                net, f'Threats: {row.title}', protect=protect, expires_at=expires_at
+            )
+        except NetworkError as exc:
+            refused.append(str(exc))
+            continue
+        done.append(text)
+        AuditService.record(
+            action='network_block',
+            user=request.user.email,
+            detail=f'{text} {until} (finding {row.key})',
+        )
+    if not done:
+        messages.error(request, refused[0])
+        return back
     row.status = ThreatFinding.ACKNOWLEDGED
     row.save(update_fields=['status', 'updated_at'])
-    AuditService.record(
-        action='network_block',
-        user=request.user.email,
-        detail=f'{text} {until} (finding {row.key})',
-    )
-    messages.success(request, f'{text} is blocked {until}.')
+    note = f' ({len(refused)} left alone: already blocked or yours)' if refused else ''
+    verb = 'is' if len(done) == 1 else 'are'
+    messages.success(request, f'{", ".join(done)} {verb} blocked {until}{note}.')
     return back

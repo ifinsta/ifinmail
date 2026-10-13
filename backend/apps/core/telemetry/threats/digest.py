@@ -20,7 +20,7 @@ from django.db import transaction
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.telemetry.models import ErrorEvent, ThreatDigest, ThreatFinding
 
-from . import access_log, collect, mail_log, mail_rules, rules, summarize
+from . import access_log, adaptive, collect, mail_log, mail_rules, rules, summarize
 from .classify import clean, probe_class
 from .types import Action, Finding, Severity, WindowSummary
 
@@ -32,7 +32,7 @@ RESOLVE_AFTER = timedelta(hours=24)  # a finding not seen for this long is resol
 ALERT_AT = Severity.HIGH
 ALERT_EVERY = timedelta(hours=24)  # per finding
 SUMMARY_EVERY = timedelta(minutes=30)  # at most one model call this often
-KEEP_QUIET_DIGESTS = timedelta(days=7)  # an hour with no findings is kept this long
+KEEP_QUIET_DIGESTS = timedelta(days=28)  # a quiet hour is kept this long: it is the baseline
 KEEP_DIGESTS = timedelta(days=90)
 KEEP_RESOLVED = timedelta(days=30)
 NOISE_AGE = timedelta(hours=48)  # INFO and WARNING error events are discarded after this
@@ -277,6 +277,7 @@ def run(now: datetime | None = None, *, summarise: bool = True) -> DigestResult:
     found = rules.analyze(log.requests, auth_all, now)
     found += mail_rules.analyze(mail)
     found += _probe_errors(log.requests)
+    found += adaptive.run(log.requests, auth_window, mail, found, summary, now)
     found.sort(key=lambda f: (-int(f.severity), -f.count, f.key))
 
     with transaction.atomic():
@@ -313,4 +314,10 @@ def compact(now: datetime | None = None) -> dict[str, int]:
     findings, _ = ThreatFinding.objects.filter(
         status=ThreatFinding.RESOLVED, last_seen__lt=now - KEEP_RESOLVED
     ).delete()
-    return {'noise_events': noise, 'quiet_digests': quiet + old, 'findings': findings}
+    places = adaptive.forget(now)
+    return {
+        'noise_events': noise,
+        'quiet_digests': quiet + old,
+        'findings': findings,
+        'places': places,
+    }

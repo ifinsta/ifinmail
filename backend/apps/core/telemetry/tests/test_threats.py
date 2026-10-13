@@ -505,8 +505,8 @@ class DigestRunTests(MailTablesTestCase):
                 fingerprint=fingerprint, severity=severity, message=severity
             )
             ErrorEvent.objects.filter(pk=event.pk).update(created_at=old)
-        quiet = ThreatDigest.objects.create(hour=NOW - timedelta(days=9), findings_count=0)
-        kept = ThreatDigest.objects.create(hour=NOW - timedelta(days=9, hours=1), findings_count=2)
+        quiet = ThreatDigest.objects.create(hour=NOW - timedelta(days=30), findings_count=0)
+        kept = ThreatDigest.objects.create(hour=NOW - timedelta(days=30, hours=1), findings_count=2)
         self.audit('login_failed', 'a@b.test', 'IP: 203.0.113.1', minutes_ago=60 * 24 * 40)
         counts = digest.compact(NOW)
         self.assertEqual(counts['noise_events'], 2)

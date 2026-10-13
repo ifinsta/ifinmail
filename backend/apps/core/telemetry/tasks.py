@@ -51,6 +51,22 @@ def threat_digest() -> dict[str, Any]:
     }
 
 
+@shared_task(name='telemetry.geo_refresh')
+def geo_refresh() -> dict[str, Any]:
+    """Install or renew the country and operator data (about monthly; a no-op while it is fresh)."""
+    from backend.apps.core.platform.services.audit import AuditService
+    from backend.apps.core.telemetry.threats import geo
+
+    result = geo.refresh_if_due()
+    if result.get('ok') and not result.get('skipped'):
+        AuditService.record(
+            action='geo_data_updated',
+            user='system',
+            detail=f'{result.get("version")}: {result.get("rows")} ranges',
+        )
+    return result
+
+
 @shared_task(name='telemetry.threat_compact')
 def threat_compact() -> dict[str, int]:
     """Discard telemetry the digests have already summarised."""

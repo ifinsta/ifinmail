@@ -5,6 +5,7 @@ FROM alpine:3.20
 RUN apk add --no-cache nftables
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY healthcheck.sh /healthcheck.sh
+RUN chmod +x /entrypoint.sh /healthcheck.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

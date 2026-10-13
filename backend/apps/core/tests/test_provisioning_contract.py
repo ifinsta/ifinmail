@@ -123,7 +123,7 @@ class OutboundPolicyWiringTests(SimpleTestCase):
         # One atomic script, and every key gets the same one-hour expiry the console expects.
         self.assertIn("'EVAL'", lua)
         self.assertIn("WINDOW = '3600'", lua)
-        self.assertIn('redis.call(\'EXPIRE\'', lua)
+        self.assertIn("redis.call('EXPIRE'", lua)
         # Only for logged-in users, and only hashes of recipients are kept.
         self.assertIn('task:get_user()', lua)
         self.assertIn('hash.create(', lua)
@@ -585,3 +585,44 @@ class OutboundContainmentContractTests(SimpleTestCase):
         self.assertIn('rcpt_domain', conf)
         # The username only reaches Rspamd when Postfix passes the SASL login to the milter.
         self.assertIn('{auth_authen}', _read('postfix', 'main.cf'))
+
+
+class HealthcheckContractTests(SimpleTestCase):
+    """Every container reports whether it is doing its job; nothing is "up" without evidence."""
+
+    def _services(self) -> dict:
+        import yaml
+
+        return yaml.safe_load(_read('docker-compose.yml'))['services']
+
+    def test_every_service_has_a_healthcheck(self) -> None:
+        missing = [
+            name for name, service in self._services().items() if not service.get('healthcheck')
+        ]
+        self.assertEqual(missing, [], 'every service needs a healthcheck: ' + ', '.join(missing))
+
+    def test_no_healthcheck_is_disabled_or_trivial(self) -> None:
+        for name, service in self._services().items():
+            check = service['healthcheck']
+            with self.subTest(service=name):
+                self.assertFalse(check.get('disable'), 'a disabled healthcheck is no check')
+                test = check.get('test')
+                self.assertTrue(test, 'the check must run something')
+                command = ' '.join(test) if isinstance(test, list) else str(test)
+                for trivial in ('exit 0', ' true', 'echo ok'):
+                    self.assertNotIn(trivial, command)
+                self.assertTrue(check.get('interval'), 'an interval must be set')
+
+    def test_the_firewall_check_reads_the_agents_heartbeat_and_the_kernel_table(self) -> None:
+        script = _read('firewall', 'healthcheck.sh')
+        for needle in ('firewall-status.json', 'nft list table inet ifinmail', 'rejected'):
+            self.assertIn(needle, script)
+        self.assertIn('healthcheck.sh', _read('firewall', 'Dockerfile'))
+        shell = shutil.which('sh')
+        if shell:
+            result = subprocess.run(
+                [shell, '-n', str(DOCKER / 'firewall' / 'healthcheck.sh')],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)

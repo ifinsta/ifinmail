@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.25
+- **Every container now has a healthcheck.** The firewall agent was the only one without: Docker
+  could say it was "Up" while the agent was frozen or the rules it was meant to enforce had been
+  rejected. Its check is real: the agent's heartbeat is fresh, `nft` answers, the `inet ifinmail`
+  table exists when rules were applied, and the last rule set was not rejected. "Waiting for rules
+  from the console" is healthy; a rejected rule set, a silent agent or a vanished table is not.
+  Checked against the real agent in five states (waiting, applied, rejected, recovered, frozen).
+- A test fails the build if any service is added without a healthcheck, or with a disabled or
+  trivial one.
+
 ## v0.0.24
 - **A threat digest.** The console now reads what scanners and attackers do and keeps only what a
   decision needs. nginx writes a JSON access log (size-capped, in its own volume, read-only for the

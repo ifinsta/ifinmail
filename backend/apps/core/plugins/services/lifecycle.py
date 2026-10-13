@@ -271,6 +271,8 @@ class InstallationService:
                 bucket = values.setdefault(target_key, {})
                 for key, value in pairs.items():
                     bucket.setdefault(key, value)  # conflicts are refused earlier; first wins
+        for target_key, pairs in registry.dynamic_values().items():
+            values.setdefault(target_key, {}).update(pairs)  # live state has the last word
         changed: dict[str, bool] = {}
         for target in registry.targets():
             changed[target.key] = target.publish(target.render(values.get(target.key, {})))

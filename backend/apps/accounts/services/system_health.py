@@ -680,6 +680,31 @@ def _plugins() -> list[HealthCheck]:
     )]
 
 
+def _sending() -> list[HealthCheck]:
+    """Mailboxes whose sending containment paused (or reported) as a suspected compromise."""
+    from backend.apps.mail.services import containment
+
+    held = containment.paused()
+    link = _url('accounts:sending')
+    if held:
+        each = '; '.join(
+            f'{login} ({held[login].get("reason", "unusual sending")})' for login in sorted(held)
+        )
+        return [HealthCheck(
+            'sending-paused', GROUP_SECURITY, 'Paused senders', ERROR,
+            f'Sending is paused for {each}.',
+            'Check the mailbox for a compromised password, change it if needed, then resume '
+            'sending.',
+            link=link, link_label='Paused senders',
+        )]
+    if containment.thresholds() is None:
+        return []
+    return [HealthCheck(
+        'sending-watch', GROUP_SECURITY, 'Outbound containment', OK,
+        'Mailboxes are watched for a sudden burst of sending.',
+    )]
+
+
 def _background_jobs() -> HealthCheck:
     from backend.apps.core.services import SystemSettings
     from backend.apps.core.types import SettingKey
@@ -837,6 +862,7 @@ def _collect() -> HealthReport:
     checks += _check(_offsite_backup)
     checks += _check(_backup_key)
     checks += _check(_plugins)
+    checks += _check(_sending)
     checks += _check(_background_jobs)
     checks += _check(_software_version)
     checks += _check(_security)

@@ -242,6 +242,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'plugins.reconcile',
         'schedule': crontab(minute='4,14,24,34,44,54'),
     },
+    'outbound-containment': {
+        # Pauses a mailbox that suddenly sends far more than usual (Outbound policy plugin).
+        'task': 'mail.check_outbound_containment',
+        'schedule': crontab(minute='*'),
+    },
     'audit-maintenance': {
         'task': 'core.audit_maintenance',
         'schedule': crontab(hour=3, minute=50),

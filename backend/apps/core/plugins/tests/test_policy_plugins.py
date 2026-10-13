@@ -236,7 +236,7 @@ class CapabilityContractTests(SimpleTestCase):
             for plugin, m in bundled.items()
         }
         self.assertEqual(services['inbound-protection'], {'rspamd'})
-        self.assertEqual(services['sending-policy'], {'postfix', 'rspamd', 'dovecot'})
+        self.assertEqual(services['outbound-policy'], {'postfix', 'rspamd', 'dovecot', 'api'})
         self.assertEqual(services['mailbox-care'], {'dovecot'})
 
 
@@ -251,7 +251,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'compliance-journal',
                 'inbound-protection',
                 'mailbox-care',
-                'sending-policy',
+                'outbound-policy',
             ],
         )
         self.assertEqual(
@@ -338,21 +338,24 @@ class LifecycleTests(MailTablesTestCase):
             with self.subTest(bad=bad), self.assertRaises(SettingsError):
                 InstallationService.configure('inbound-protection', bad, 'a')
 
-    def test_sending_policy_defaults_follow_the_large_providers(self) -> None:
-        InstallationService.install('sending-policy', {}, 'a')
+    def test_outbound_policy_defaults_follow_the_large_providers(self) -> None:
+        InstallationService.install('outbound-policy', {}, 'a')
         self.assertEqual(
             {k: v for k, v in self.file('rspamd-plugins.conf').items() if v},
             {'send_limit_per_day': '2000', 'send_limit_per_minute': '30'},
         )
         self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '50')
-        self.assertEqual(self.file('postfix-sender-policy.conf'), {'internal_only_logins': ''})
+        self.assertEqual(
+            self.file('postfix-sender-policy.conf'),
+            {'blocked_destinations': '', 'internal_only_logins': '', 'paused_logins': ''},
+        )
         # No partner domains: no TLS map at all (the certificate switch alone does nothing).
         self.assertEqual(self.file('postfix-tls-policy.conf')['domains'], '')
         self.assertEqual(self.file('dovecot-plugins.conf')['max_redirects'], '0')
 
-    def test_sending_policy_partners_and_internal_only(self) -> None:
+    def test_outbound_policy_partners_and_internal_only(self) -> None:
         InstallationService.install(
-            'sending-policy',
+            'outbound-policy',
             {
                 'partner_domains': 'Law.Example, bank.example',
                 'internal_only': 'Intern@ifinmail.test',
@@ -363,7 +366,7 @@ class LifecycleTests(MailTablesTestCase):
             self.file('postfix-tls-policy.conf'),
             {'domains': 'bank.example,law.example', 'level': 'encrypt'},
         )
-        InstallationService.configure('sending-policy', {'verify_certificate': 'on'}, 'a')
+        InstallationService.configure('outbound-policy', {'verify_certificate': 'on'}, 'a')
         self.assertEqual(self.file('postfix-tls-policy.conf')['level'], 'secure')
         self.assertEqual(
             self.file('postfix-sender-policy.conf')['internal_only_logins'], 'intern@ifinmail.test'
@@ -374,8 +377,8 @@ class LifecycleTests(MailTablesTestCase):
             {'internal_only': 'not-an-address'},
         ):
             with self.subTest(bad=bad), self.assertRaises(SettingsError):
-                InstallationService.configure('sending-policy', bad, 'a')
-        InstallationService.uninstall('sending-policy', 'a')
+                InstallationService.configure('outbound-policy', bad, 'a')
+        InstallationService.uninstall('outbound-policy', 'a')
         self.assertEqual(self.file('postfix-plugins.conf')['message_size_limit_mb'], '')
         self.assertEqual(self.file('postfix-tls-policy.conf')['domains'], '')
         self.assertEqual(self.file('dovecot-plugins.conf')['max_redirects'], '')
@@ -397,7 +400,7 @@ class LifecycleTests(MailTablesTestCase):
 
     def test_plugins_sharing_an_engine_file_leave_each_other_alone(self) -> None:
         InstallationService.install('inbound-protection', {}, 'a')
-        InstallationService.install('sending-policy', {}, 'a')
+        InstallationService.install('outbound-policy', {}, 'a')
         InstallationService.install('mailbox-care', {}, 'a')
         values = self.file('rspamd-plugins.conf')
         self.assertEqual(
@@ -414,7 +417,7 @@ class LifecycleTests(MailTablesTestCase):
         Mailbox.objects.create(domain=self.make_domain(), local_part='journal')
         for plugin_id, settings in (
             ('inbound-protection', {}),
-            ('sending-policy', {}),
+            ('outbound-policy', {}),
             ('mailbox-care', {}),
             ('compliance-journal', {'archive_address': 'journal@ifinmail.test'}),
         ):
@@ -820,6 +823,7 @@ class ApplyStatusTests(MailTablesTestCase):
             sorted(statuses),
             [
                 'console.assistant',
+                'console.containment',
                 'dovecot.policy',
                 'postfix.main',
                 'postfix.sender_policy',

@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -26,6 +27,8 @@ SCRIPT = (
 )
 
 RESTORE_SIZE = 'postconf -e message_size_limit=52428800'
+RESTORE_LIMIT = 'postconf -e ifinmail_recipient_limit=100'
+BLOCKED = '554 5.7.1 Your organisation does not allow sending to this destination.'
 
 
 def _bash_works() -> bool:
@@ -44,9 +47,12 @@ class _Harness:
         self.plugins = Path(self.work, 'postfix-plugins.conf')
         self.core = Path(self.work, 'postfix-overrides.conf')
         self.template = Path(self.work, 'main.cf.template')
-        self.template.write_text('message_size_limit = 52428800\r\n')
+        self.template.write_text(
+            'message_size_limit = 52428800\r\nifinmail_recipient_limit = 100\r\n'
+        )
         self.sender = Path(self.work, 'postfix-sender-policy.conf')
         self.sender_map = Path(self.work, 'internal_only')
+        self.dest_map = Path(self.work, 'blocked_destinations')
 
     def run(self) -> list[str]:
         log = Path(self.work, 'calls.log')
@@ -63,6 +69,7 @@ class _Harness:
             'IFINMAIL_SENDER_POLICY_FILE': str(self.sender),
             'IFINMAIL_SENDER_POLICY_STATE': str(Path(self.work, 'sender.state')),
             'IFINMAIL_SENDER_POLICY_MAP': str(self.sender_map),
+            'IFINMAIL_BLOCKED_DESTINATIONS_MAP': str(self.dest_map),
             'POSTCONF_BIN': str(Path(self.work, 'postconf')),
             'POSTFIX_BIN': str(Path(self.work, 'postfix')),
         }
@@ -165,6 +172,96 @@ class WatcherTests(SimpleTestCase):
         )
         self.assertEqual(self.h.sender_map.read_text(), '')
 
+    def restrictions(self) -> str:
+        calls = self.h.run()
+        line = next(c for c in calls if 'ifinmail_submission_restrictions=' in c)
+        return line.split('ifinmail_submission_restrictions=', 1)[1]
+
+    def test_recipient_limit_is_set_for_the_submission_ports_only(self) -> None:
+        self.h.plugins.write_text('recipient_limit = 250\n')
+        # The parameter master.cf hands to the submission services; port 25 is untouched.
+        self.assertEqual(
+            self.h.run(), ['postconf -e ifinmail_recipient_limit=250', 'postfix reload']
+        )
+        for bad in ('0', '1001', '12x', '-5', '1e2'):
+            with self.subTest(bad=bad):
+                self.h.plugins.write_text(f'recipient_limit = {bad}\n')
+                self.assertEqual(self.h.run(), [])
+        self.h.plugins.write_text('recipient_limit = \n')
+        self.assertEqual(
+            self.h.run(), ['postconf -e ifinmail_recipient_limit=100', 'postfix reload']
+        )
+
+    def test_blocked_destinations_come_before_every_other_check(self) -> None:
+        self.h.sender.write_text(
+            'internal_only_logins = intern@x.test\n'
+            'blocked_destinations = rival.example,leak@gmail.com\n'
+        )
+        # Destinations first: a class that permits local delivery would end the checks early.
+        self.assertEqual(
+            self.restrictions(),
+            f'check_recipient_access texthash:{self.h.dest_map}, '
+            f'check_sasl_access texthash:{self.h.sender_map}, permit_sasl_authenticated, reject',
+        )
+        lines = sorted(self.h.dest_map.read_text().splitlines())
+        self.assertEqual(
+            lines,
+            [
+                f'leak@gmail.com {BLOCKED}',
+                f'rival.example {BLOCKED}',
+            ],
+        )
+
+    def test_paused_logins_are_refused_and_outrank_internal_only(self) -> None:
+        self.h.sender.write_text(
+            'internal_only_logins = intern@x.test,boss@x.test\npaused_logins = intern@x.test\n'
+        )
+        self.restrictions()
+        lines = sorted(self.h.sender_map.read_text().splitlines())
+        self.assertEqual(
+            lines,
+            [
+                'boss@x.test ifinmail_internal_only',
+                'intern@x.test 554 5.7.1 Sending from this mailbox is paused. '
+                'Contact your administrator.',
+            ],
+        )
+        # Resuming (the key empties) puts the internal-only rule back.
+        self.h.sender.write_text(
+            'internal_only_logins = intern@x.test,boss@x.test\npaused_logins =\n'
+        )
+        self.restrictions()
+        self.assertNotIn('554', self.h.sender_map.read_text())
+
+    def test_everything_cleared_restores_the_default_and_empty_maps(self) -> None:
+        self.h.sender.write_text('paused_logins = a@x.test\nblocked_destinations = b.test\n')
+        self.restrictions()
+        self.h.sender.write_text(
+            'paused_logins =\nblocked_destinations =\ninternal_only_logins =\n'
+        )
+        self.assertEqual(self.restrictions(), 'permit_sasl_authenticated, reject')
+        self.assertEqual(self.h.sender_map.read_text(), '')
+        self.assertEqual(self.h.dest_map.read_text(), '')
+
+    def test_hundreds_of_paused_logins_are_applied_quickly(self) -> None:
+        # A mass compromise must not fail open (list cap) nor stall the watcher (regex size).
+        logins = ','.join(f'user{i}@x.test' for i in range(450))
+        self.h.sender.write_text(f'paused_logins = {logins}\n')
+        started = time.monotonic()
+        self.restrictions()
+        self.assertLess(time.monotonic() - started, 20)
+        self.assertEqual(len(self.h.sender_map.read_text().splitlines()), 450)
+        self.h.sender.write_text(f'paused_logins = {logins},user1@x.test,,\n')  # malformed list
+        self.assertEqual(self.restrictions(), 'permit_sasl_authenticated, reject')
+
+    def test_unsafe_destinations_and_paused_logins_are_ignored(self) -> None:
+        self.h.sender.write_text(
+            'blocked_destinations = evil.test; reject_unauth\n'
+            'paused_logins = a@x.test, permit\n'
+            'paused_logins = $(touch /tmp/x)@x.test\n'
+        )
+        self.assertEqual(self.restrictions(), 'permit_sasl_authenticated, reject')
+
     def test_unsafe_logins_and_foreign_keys_never_reach_postfix(self) -> None:
         self.h.sender.write_text(
             'internal_only_logins = a@x.test, permit\n'
@@ -209,11 +306,14 @@ class EndToEndTests(MailTablesTestCase):
             [
                 'postconf -e always_bcc=journal@ifinmail.test',
                 RESTORE_SIZE,
+                RESTORE_LIMIT,
                 'postfix reload',
             ],
         )
         self.assertEqual(point.applied_status(), ApplyStatus.APPLIED)
         InstallationService.disable('compliance-journal', 'a')
         self.assertNotEqual(point.applied_status(), ApplyStatus.APPLIED)
-        self.assertEqual(self.sync(), ['postconf -X always_bcc', RESTORE_SIZE, 'postfix reload'])
+        self.assertEqual(
+            self.sync(), ['postconf -X always_bcc', RESTORE_SIZE, RESTORE_LIMIT, 'postfix reload']
+        )
         self.assertEqual(point.applied_status(), ApplyStatus.APPLIED)

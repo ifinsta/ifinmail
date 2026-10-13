@@ -23,3 +23,7 @@ class SettingKey(StrEnum):
     NETWORK_RATE_LIMITS = 'network.rate_limits'
     # Bundled plugins with install_by_default already offered once (installed, or later removed).
     PLUGIN_DEFAULTS_OFFERED = 'plugins.defaults_offered'
+    # Mailboxes whose sending containment paused: {address: {reason, at, usage}}.
+    SENDING_PAUSED = 'mail.sending_paused'
+    # When each mailbox was last reported to administrators (alerts are rate-limited).
+    SENDING_ALERTED = 'mail.sending_alerted'

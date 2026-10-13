@@ -98,5 +98,7 @@ debug_peer_list =
 # The Mail policy plugin may put a per-login check in front ("internal-only" mailboxes may only
 # send to domains hosted here); sync-overrides.sh always writes the complete value back.
 ifinmail_submission_restrictions = permit_sasl_authenticated, reject
+# Recipients per message on the submission ports (the Outbound policy plugin changes it).
+ifinmail_recipient_limit = 100
 smtpd_restriction_classes = ifinmail_internal_only
 ifinmail_internal_only = permit_auth_destination, check_recipient_access static:{REJECT This mailbox may only send to addresses within the organisation}

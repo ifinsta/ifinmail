@@ -79,6 +79,11 @@ comma-separated and normalised (lower-case, sorted, de-duplicated, at most 200 e
 | | `verify_certificate` | yes/no | Also require a valid certificate |
 | `sending.internal_only` | `mailboxes` | address list | May send only to domains hosted here |
 | `sending.rate_limit` | `per_minute`, `per_day` | 1-1000, 1-100000 | Messages one mailbox may send (set both) |
+| `sending.recipient_limits` | `per_message` | 1-1000 | Most recipients of one message from a logged-in user (submission ports only) |
+| `sending.blocked_destinations` | `domains` | address/domain list | Logged-in users cannot send to these (subdomains included) |
+| `sending.containment` | `action` | `pause` / `notify` / `off` | What to do when a mailbox crosses a threshold in an hour |
+| | `max_messages`, `max_recipients`, `max_domains` | integers | Messages, distinct recipients, distinct recipient domains per mailbox per hour |
+| | `notify` | address list | Told besides the administrators |
 | `inbound.senders` | `block`, `allow` | address/domain lists | Refused; never spam (only when SPF or DKIM proves the sender) |
 | `inbound.attachments` | `block_types` | extension list | Attachment types blocked (name and content) |
 | | `action` | `reject` / `quarantine` | Refuse, or deliver to Junk |
@@ -101,7 +106,7 @@ translations) in `_capabilities()`. Manifests, installations and their settings 
 # Adapter (engine side: plugins never see this)
 
 Most targets are files applied by a container. A target with `in_process = True` (only
-`console.assistant` today) has no file and is always "applied": the console reads its values with
+`console.assistant` and `console.containment` today) has no file and is always "applied": the console reads its values with
 `InstallationService.capability_values()`. Secret fields may only be bound to such targets.
 
 Each adapter target is a `key = value` file on the runtime volume, applied by a watcher in the
@@ -116,6 +121,7 @@ Postfix `main.cf` parameters applied by `sync-overrides.sh` from `postfix-plugin
 | Key | Value grammar | Effect | Notes |
 | --- | --- | --- | --- |
 | `always_bcc` | one email address | Postfix sends a copy of every message to it | Kept apart from the core's own overrides file and keys, so plugins can never change relaying |
+| `recipient_limit` | 1-1000 | `ifinmail_recipient_limit`, which `master.cf` passes to the submission and smtps services as `smtpd_recipient_limit` | Port 25 keeps Postfix's own limit; removing it restores the template's 100 |
 | `message_size_limit_mb` | 1-50 | `message_size_limit` in bytes (MB × 1048576), advertised as `SIZE` in EHLO | Capped at 50: Rspamd does not scan (or DKIM-sign) messages over its 50 MiB `max_message`, and `milter_default_action = accept` would pass them on unscanned |
 
 An empty or absent value restores this server's own value from `main.cf.template` (e.g.
@@ -130,6 +136,8 @@ Applied by `sync-overrides.sh` from `postfix-sender-policy.conf`; acknowledged a
 | Key | Value grammar | Effect |
 | --- | --- | --- |
 | `internal_only_logins` | comma-separated email addresses (normalised: lower-case, sorted, de-duplicated; at most 200) | These SASL logins may send only to domains hosted here; anything else is refused with 554 "This mailbox may only send to addresses within the organisation" |
+| `blocked_destinations` | comma-separated addresses and/or domains (at most 200) | `check_recipient_access texthash:` map answering `554 5.7.1`; a domain also covers its subdomains. Evaluated **first**: a class that permits local delivery would end the checks early |
+| `paused_logins` | comma-separated addresses | Same map as the internal-only logins, answering `554 5.7.1 Sending from this mailbox is paused`; outranks internal-only. **Not a plugin setting**: written from live containment state through a *dynamic source* (`registry.register_dynamic_source`), so a pause survives uninstalling the plugin |
 
 The logins become a `texthash:` map of `login ifinmail_internal_only`. `main.cf` defines the
 restriction class (`permit_auth_destination`, then a static reject) and the parameter

@@ -10,6 +10,7 @@ from .views.assistant import (
     assistant_status,
     assistant_test,
 )
+from .views.sending import sending, sending_resume
 from .views.marketplace import (
     marketplace,
     marketplace_plugin,
@@ -190,6 +191,8 @@ urlpatterns = [
     path('users/export/', users_export, name='users_export'),
     path('users/kill-sessions/', users_kill_sessions, name='users_kill_sessions'),
     # Marketplace (plugins)
+    path('sending/', sending, name='sending'),
+    path('sending/resume/', sending_resume, name='sending_resume'),
     path('assistant/', assistant, name='assistant'),
     path('assistant/ask/', assistant_ask, name='assistant_ask'),
     path('assistant/test/', assistant_test, name='assistant_test'),

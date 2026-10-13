@@ -94,6 +94,17 @@ def _address_list(value: str) -> str | None:
     return f'not an email address: {bad[0]}' if bad else None
 
 
+MAX_PAUSED = 1000  # containment must not fail open when many mailboxes are paused at once
+
+
+def _paused_list(value: str) -> str | None:
+    items = value.split(',')
+    if len(items) > MAX_PAUSED:
+        return f'at most {MAX_PAUSED} addresses'
+    bad = [i for i in items if '@' not in i or not _SENDER_RE.match(i)]
+    return f'not an email address: {bad[0]}' if bad else None
+
+
 def _domain_list(value: str) -> str | None:
     items = value.split(',')
     if len(items) > MAX_LIST_ITEMS:
@@ -131,6 +142,10 @@ class PostfixMainTarget(AdapterTarget):
             _int_between(1, 50),
             'Largest message accepted or sent, in MB (attachments included).',
         ),
+        'recipient_limit': TargetKey(
+            _int_between(1, 1000),
+            'Most recipients one message from a logged-in user may have (submission ports).',
+        ),
     }
     runtime_file = 'postfix-plugins.conf'
     ack_file = 'postfix-plugins.applied'
@@ -163,9 +178,39 @@ class PostfixSenderPolicyTarget(AdapterTarget):
             'These logins may only send to domains hosted on this server.',
             _normalize_domains,
         ),
+        'blocked_destinations': TargetKey(
+            _sender_list,
+            'Logged-in users cannot send to these addresses or domains (and their subdomains).',
+            _normalize_domains,
+        ),
+        # Not a plugin setting: filled from live state (containment), see the dynamic source.
+        'paused_logins': TargetKey(
+            _paused_list,
+            'Logins whose sending is paused until an administrator resumes it (containment).',
+            _normalize_domains,
+        ),
     }
     runtime_file = 'postfix-sender-policy.conf'
     ack_file = 'postfix-sender-policy.applied'
+
+
+class ContainmentTarget(AdapterTarget):
+    """Read by the console's own containment job; no file, nothing for a container to apply."""
+
+    key = 'console.containment'
+    service = 'api'
+    in_process = True
+    keys = {
+        'action': TargetKey(
+            _one_of('off', 'notify', 'pause'), 'What to do when a mailbox crosses a threshold.'
+        ),
+        'max_messages': TargetKey(_int_between(1, 100000), 'Messages in an hour.'),
+        'max_recipients': TargetKey(_int_between(1, 1000000), 'Distinct recipients in an hour.'),
+        'max_domains': TargetKey(_int_between(1, 100000), 'Distinct recipient domains in an hour.'),
+        'notify': TargetKey(
+            _address_list, 'Addresses told besides the administrators.', _normalize_domains
+        ),
+    }
 
 
 class RspamdPolicyTarget(AdapterTarget):
@@ -284,10 +329,12 @@ TARGETS: tuple[AdapterTarget, ...] = (
     PostfixSenderPolicyTarget(),
     RspamdPolicyTarget(),
     DovecotPolicyTarget(),
+    ContainmentTarget(),
 )
 
 MAIN, TLS, SENDER = 'postfix.main', 'postfix.tls_policy', 'postfix.sender_policy'
 FILTER, MAILBOX = 'rspamd.policy', 'dovecot.policy'
+CONTAIN = 'console.containment'
 
 
 def _capabilities() -> tuple[Capability, ...]:
@@ -349,6 +396,55 @@ def _capabilities() -> tuple[Capability, ...]:
                 ),
                 'per_day': _field(
                     (FILTER, 'send_limit_per_day'), 'Messages one mailbox may send per day.'
+                ),
+            },
+        ),
+        _Capability(
+            'sending.recipient_limits',
+            'Recipients per message',
+            'Limits how many people one message may be sent to, so one mistake or one stolen '
+            'password cannot reach thousands at once.',
+            {
+                'per_message': _field(
+                    (MAIN, 'recipient_limit'),
+                    'Most recipients (To, Cc and Bcc together) of one message, 1-1000.',
+                )
+            },
+        ),
+        _Capability(
+            'sending.blocked_destinations',
+            'Blocked destinations',
+            'Addresses and domains your people must not send to.',
+            {
+                'domains': _field(
+                    (SENDER, 'blocked_destinations'),
+                    'Addresses or domains (including their subdomains) that are refused.',
+                )
+            },
+        ),
+        _Capability(
+            'sending.containment',
+            'Containment of suspected compromise',
+            'Notices a mailbox sending far more than usual and stops it until someone checks.',
+            {
+                'action': _field(
+                    (CONTAIN, 'action'),
+                    'off: nothing; notify: tell administrators; pause: also stop that '
+                    "mailbox's sending until an administrator resumes it.",
+                ),
+                'max_messages': _field(
+                    (CONTAIN, 'max_messages'), 'Messages one mailbox may send in an hour.'
+                ),
+                'max_recipients': _field(
+                    (CONTAIN, 'max_recipients'),
+                    'Different recipients one mailbox may write to in an hour.',
+                ),
+                'max_domains': _field(
+                    (CONTAIN, 'max_domains'),
+                    'Different recipient domains one mailbox may write to in an hour.',
+                ),
+                'notify': _field(
+                    (CONTAIN, 'notify'), 'Addresses to tell besides the administrators.'
                 ),
             },
         ),
@@ -481,9 +577,16 @@ def _existing_mailbox(address: str) -> str | None:
         return str(exc)
 
 
+def _paused_senders() -> dict[str, dict[str, str]]:
+    from backend.apps.mail.services import containment
+
+    return {SENDER: {'paused_logins': ','.join(sorted(containment.paused()))}}
+
+
 def register() -> None:
     for target in TARGETS:
         registry.register_target(target)
     for capability in _capabilities():
         registry.register_capability(capability)
     registry.register_setting_type('mailbox', 'email', _existing_mailbox)
+    registry.register_dynamic_source('paused-senders', _paused_senders)

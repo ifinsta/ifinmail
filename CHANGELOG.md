@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.0.17
+- **Containment of a suspected stolen password.** Sending limits only slow a flood down; now the
+  server notices it. Rspamd counts, per logged-in mailbox, the messages, the different recipients
+  and the different recipient domains of the last hour (recipients are kept only as short hashes).
+  Every minute the worker compares them with thresholds (defaults 300 messages, 500 recipients,
+  100 domains, in line with Microsoft 365's outbound spam policy). A mailbox over one is **paused**
+  (Postfix refuses its sending with a clear message; it can still receive and be read), the
+  administrators are emailed, and **Paused senders** (linked from System health) has a Resume
+  button. Choose `notify` to be told without pausing, or `off`. A pause survives uninstalling the
+  plugin until someone resumes it.
+- **Recipients per message** (default 100, submission ports only) and **blocked destinations**
+  (addresses or domains, subdomains included, refused with a clear message).
+- The plugin **Sending and delivery policy** is now **Outbound policy**, the counterpart of
+  Inbound protection (its id is `outbound-policy`; no server had it installed).
+- Plugin layer: *dynamic sources* let live system state (the paused mailboxes) reach an adapter
+  target without being a plugin setting.
+- Found while testing against real Rspamd and Redis: separate `INCR` and `EXPIRE` commands raced and
+  could leave a counter that never expired; the counters are now written by one atomic script.
+- Limits you should know: containment reacts within about a minute, so what a mailbox can send in
+  that minute is bounded by the per-minute limit times the recipients-per-message limit; bounce
+  rate is not a signal yet (that needs the delivery log). 331 handled edge cases are documented.
+
 ## v0.0.16
 - **PostgreSQL now uses its tuning file.** Since the first release the database ran on the image's
   defaults: `postgres/custom.conf` was mounted but never read (an include was appended to a file

@@ -237,6 +237,44 @@ def targets_of(capability_keys: Iterable[str]) -> list[AdapterTarget]:
     return [_targets[k] for k in sorted(keys)]
 
 
+# ----------------------------------------------------------------------- dynamic sources
+
+# Values that come from live system state rather than from a plugin's settings (for example the
+# mailboxes whose sending is paused). They are merged into adapter targets when files are
+# rendered, so the same watchers apply them; plugins cannot set or see them.
+DynamicSource = Callable[[], Mapping[str, Mapping[str, str]]]
+_dynamic_sources: dict[str, DynamicSource] = {}
+
+
+def register_dynamic_source(name: str, source: DynamicSource) -> None:
+    _dynamic_sources[name] = source
+
+
+def dynamic_values() -> dict[str, dict[str, str]]:
+    """``{target: {key: value}}`` from every dynamic source; invalid values are dropped."""
+    import logging
+
+    logger = logging.getLogger('backend')
+    merged: dict[str, dict[str, str]] = {}
+    for name, source in sorted(_dynamic_sources.items()):
+        try:
+            produced = source()
+        except Exception:  # a broken source must not stop the files being written
+            logger.exception('Dynamic plugin source %s failed', name)
+            continue
+        for target_key, pairs in produced.items():
+            target = _targets.get(target_key)
+            if target is None:
+                continue
+            for key, value in pairs.items():
+                error = target.validate(key, target.normalize(key, value))
+                if error:
+                    logger.warning('Dynamic source %s: %s.%s %s', name, target_key, key, error)
+                    continue
+                merged.setdefault(target_key, {})[key] = target.normalize(key, value)
+    return merged
+
+
 def register_setting_type(name: str, base: str, live_check: LiveCheck) -> None:
     """Add a setting type that refines a built-in one (``base``) with a live check."""
     _setting_types[name] = (base, live_check)

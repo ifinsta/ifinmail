@@ -102,6 +102,40 @@ class DatabaseContractTests(SimpleTestCase):
                 self.assertIn(f'GRANT SELECT ON {table} TO postfix;', init, msg=path.name)
 
 
+class OutboundPolicyWiringTests(SimpleTestCase):
+    def test_submission_services_take_their_recipient_limit_from_one_parameter(self) -> None:
+        master = _read('postfix', 'master.cf')
+        self.assertEqual(
+            master.count('-o smtpd_recipient_limit=$ifinmail_recipient_limit'), 2
+        )  # submission and smtps, never port 25
+        main = _read('postfix', 'main.cf')
+        self.assertRegex(main, r'(?m)^ifinmail_recipient_limit = \d+\r?$')
+        script = _read('postfix', 'sync-overrides.sh')
+        self.assertIn('ifinmail_recipient_limit', script)
+
+    def test_rspamd_counters_use_the_keys_the_console_reads(self) -> None:
+        from backend.apps.mail.services import containment
+
+        lua = _read('rspamd', 'rspamd.local.lua')
+        self.assertIn(f"'{containment.KEY_PREFIX}'", lua)
+        for suffix in (':m', ':r', ':d'):
+            self.assertIn(f"base .. '{suffix}'", lua)
+        # One atomic script, and every key gets the same one-hour expiry the console expects.
+        self.assertIn("'EVAL'", lua)
+        self.assertIn("WINDOW = '3600'", lua)
+        self.assertIn('redis.call(\'EXPIRE\'', lua)
+        # Only for logged-in users, and only hashes of recipients are kept.
+        self.assertIn('task:get_user()', lua)
+        self.assertIn('hash.create(', lua)
+
+    def test_the_containment_job_is_scheduled_every_minute(self) -> None:
+        from django.conf import settings
+
+        entry = settings.CELERY_BEAT_SCHEDULE['outbound-containment']
+        self.assertEqual(entry['task'], 'mail.check_outbound_containment')
+        self.assertEqual(entry['schedule'].minute, set(range(60)))
+
+
 class PostgresConfigContractTests(SimpleTestCase):
     def test_the_tuning_file_is_the_servers_main_configuration(self) -> None:
         # Regression: the file used to be mounted but never read (an include appended to the

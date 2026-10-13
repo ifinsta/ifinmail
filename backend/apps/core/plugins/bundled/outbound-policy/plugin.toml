@@ -1,0 +1,166 @@
+manifest_version = 2
+
+[plugin]
+id = "outbound-policy"
+name = "Outbound policy"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "operations"
+summary = "Control what leaves: sending limits, containment of a suspected stolen password, recipients per message, blocked destinations, partner TLS."
+requires_core = "0.0.17"
+description = """
+Rules for mail leaving your organisation, with defaults taken from Google Workspace and Microsoft 365, so installing it unchanged is safe. Lists start empty and change nothing until you add to them.
+
+Sending limits default to 30 messages a minute and 2,000 a day per mailbox, the same order as Microsoft 365's per-minute limit and Google Workspace's daily limit. A message may have up to 100 recipients (Microsoft 365 allows 500), and messages up to 50 MB are accepted and sent.
+
+Containment is the part that matters most if a password is stolen. Limits only slow a flood down; containment notices it. The server counts, per mailbox, the messages, the different recipients and the different recipient domains of the last hour. When one passes its threshold (defaults: 300 messages, 500 recipients and 100 domains, in line with Microsoft 365's outbound spam policy) it tells the administrators and, by default, pauses that mailbox's sending until an administrator resumes it under System health. The mailbox can still receive and be read. The reaction takes about a minute; until then the sending limit and the recipients-per-message limit bound the damage. Raise the thresholds for a mailbox that legitimately sends newsletters, or choose notify only.
+
+Blocked destinations are addresses or domains (subdomains included) that nobody may send to, for compliance or to prevent leaks.
+
+Internal-only mailboxes (interns, shared desks, service accounts) can send only to domains hosted on this server.
+
+Partner domains get encrypted delivery or none: mail to them waits and is retried rather than going out in plain text, which contracts and regulators often require. Requiring a valid certificate as well means the partner's server must prove it belongs to the domain; turn it on only for partners whose mail servers are named within their own domain.
+
+Forwarding rules quietly copy incoming mail elsewhere; auditors look for them and attackers set one up first. Like Microsoft 365, the default blocks them (0 addresses). Aliases you set up as an administrator are not affected, and today users have no way to create filter rules of their own, so this is a safeguard for when that changes.
+"""
+
+[[settings]]
+key = "send_per_minute"
+type = "integer"
+label = "Messages per mailbox per minute"
+min = 1
+max = 1000
+default = 30
+
+[[settings]]
+key = "send_per_day"
+type = "integer"
+label = "Messages per mailbox per day"
+min = 1
+max = 100000
+default = 2000
+
+[[settings]]
+key = "message_size_mb"
+type = "integer"
+label = "Largest message (MB)"
+min = 1
+max = 50
+default = 50
+help = "Attachments included. Attachments grow by about a third when sent, so 50 MB fits a 35 MB file. 50 MB is the most the spam filter scans and signs."
+
+[[settings]]
+key = "recipients_per_message"
+type = "integer"
+label = "Recipients per message"
+min = 1
+max = 1000
+default = 100
+help = "Most people one message may be sent to (To, Cc and Bcc together). Use an alias for a larger list."
+
+[[settings]]
+key = "blocked_destinations"
+type = "text"
+label = "Blocked destinations"
+help = "Addresses or domains nobody may send to, separated by commas. Subdomains are included."
+max_length = 500
+
+[[settings]]
+key = "containment"
+type = "choice"
+label = "When a mailbox suddenly sends far more than usual"
+options = ["pause", "notify", "off"]
+default = "pause"
+help = "pause: stop its sending and tell the administrators. notify: only tell them. off: do nothing."
+
+[[settings]]
+key = "max_messages_hour"
+type = "integer"
+label = "Messages per mailbox per hour"
+min = 1
+max = 100000
+default = 300
+
+[[settings]]
+key = "max_recipients_hour"
+type = "integer"
+label = "Different recipients per mailbox per hour"
+min = 1
+max = 1000000
+default = 500
+
+[[settings]]
+key = "max_domains_hour"
+type = "integer"
+label = "Different recipient domains per mailbox per hour"
+min = 1
+max = 100000
+default = 100
+
+[[settings]]
+key = "notify_addresses"
+type = "text"
+label = "Also tell"
+help = "Addresses to tell besides the administrators, separated by commas. Leave empty for none."
+max_length = 500
+
+[[settings]]
+key = "internal_only"
+type = "text"
+label = "Internal-only mailboxes"
+help = "Mailboxes that may send only to domains hosted here, separated by commas."
+max_length = 500
+
+[[settings]]
+key = "partner_domains"
+type = "text"
+label = "Partner domains (encrypted delivery only)"
+help = "Domains separated by commas, for example bank.example, law-firm.example. Leave empty for none."
+max_length = 500
+
+[[settings]]
+key = "verify_certificate"
+type = "boolean"
+label = "Partners must also present a valid certificate"
+default = false
+
+[[settings]]
+key = "max_redirects"
+type = "integer"
+label = "Addresses a forwarding rule may send to"
+min = 0
+max = 20
+default = 0
+help = "0 blocks forwarding rules. A small number allows a few, for example to a deputy."
+
+[[contributes]]
+capability = "sending.rate_limit"
+values = { per_minute = "{send_per_minute}", per_day = "{send_per_day}" }
+
+[[contributes]]
+capability = "mail.limits"
+values = { max_message_mb = "{message_size_mb}" }
+
+[[contributes]]
+capability = "sending.recipient_limits"
+values = { per_message = "{recipients_per_message}" }
+
+[[contributes]]
+capability = "sending.blocked_destinations"
+values = { domains = "{blocked_destinations}" }
+
+[[contributes]]
+capability = "sending.containment"
+values = { action = "{containment}", max_messages = "{max_messages_hour}", max_recipients = "{max_recipients_hour}", max_domains = "{max_domains_hour}", notify = "{notify_addresses}" }
+
+[[contributes]]
+capability = "sending.internal_only"
+values = { mailboxes = "{internal_only}" }
+
+[[contributes]]
+capability = "delivery.require_tls"
+values = { domains = "{partner_domains}", verify_certificate = "{verify_certificate}" }
+
+[[contributes]]
+capability = "mailbox.forwarding"
+values = { max_redirects = "{max_redirects}" }

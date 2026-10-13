@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Paused senders — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block sidebar_wrapper %}{% include "includes/sidebar.html" %}{% endblock %}
+{% block header %}{% include "includes/header.html" %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <p class="ifinmail-help-text"><a class="ifinmail-link-strong" href="{% url 'accounts:system_health' %}">{% trans 'System health' %}</a></p>
+                <h1 class="ifinmail-page-title">{% trans 'Paused senders' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Mailboxes that suddenly sent far more than usual. Their sending is stopped (they can still receive and read mail) until you resume it.' %}</p>
+            </div>
+        </div>
+
+        {% include "includes/flash_messages.html" %}
+
+        {% if rows %}
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Paused senders' %}">
+            <table class="ifinmail-admin-table">
+                <thead><tr><th scope="col">{% trans 'Mailbox' %}</th><th scope="col">{% trans 'Why' %}</th><th scope="col">{% trans 'Since (UTC)' %}</th><th scope="col"><span class="ifinmail-sr-only">{% trans 'Action' %}</span></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td class="ifinmail-text--mono">{{ row.login }}</td>
+                        <td>{{ row.reason }}{% if row.by != 'system' %} <span class="ifinmail-help-text">{% blocktrans trimmed with who=row.by %}paused by {{ who }}{% endblocktrans %}</span>{% endif %}</td>
+                        <td class="ifinmail-text--mono">{{ row.when|date:"Y-m-d H:i"|default:"—" }}</td>
+                        <td>
+                            <form method="post" action="{% url 'accounts:sending_resume' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="login" value="{{ row.login }}">
+                                <button class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm" type="submit">{% trans 'Resume sending' %}</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        <p class="ifinmail-help-text">{% trans 'Before resuming, check the mailbox for a stolen password and change it. Counting starts afresh when you resume.' %}</p>
+        {% else %}
+        <section class="ifinmail-panel ifinmail-settings-section">
+            <div class="ifinmail-empty-state">
+                <svg class="ifinmail-empty-state-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <p><strong>{% trans 'No mailbox is paused.' %}</strong></p>
+                {% if limits %}
+                <p>{% blocktrans trimmed with action=limits.action messages=limits.max_messages recipients=limits.max_recipients domains=limits.max_domains %}Containment is watching every mailbox: more than {{ messages }} messages, {{ recipients }} different recipients or {{ domains }} different domains in an hour ({{ action }}).{% endblocktrans %}</p>
+                {% else %}
+                <p>{% trans 'Containment is off. Install the Outbound policy plugin to watch for a stolen password sending a flood.' %}</p>
+                <p><a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:marketplace_plugin' plugin_id='outbound-policy' %}">{% trans 'Outbound policy' %}</a></p>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

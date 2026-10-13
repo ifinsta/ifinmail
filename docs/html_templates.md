@@ -43,6 +43,7 @@ verify — every row must exist on disk.
 | `admin/marketplace_plugin.html` | (Marketplace extension) | one plugin: about, what it changes, settings, update, manage |
 | `admin/marketplace_submit.html` | (Marketplace extension) | submit a `plugin.toml` for review |
 | `admin/marketplace_submission.html` | (Marketplace extension) | review a submission (approve, reject, withdraw, retire) |
+| `admin/sending_paused.html` | (Outbound policy) | `accounts/views/sending.py` — mailboxes whose sending containment paused, with Resume; empty state says whether containment is watching |
 | `admin/assistant.html` | (Assistant extension) | `accounts/views/assistant.py` — conversation rail, suggested questions, thread with Markdown answers, "What was sent", drafted plugin changes with Apply, sticky composer; empty state until a model is connected |
 | `admin/system_health.html`, `includes/health_check.html` | (System health) | `accounts/views/system_health.py` — verdict banner with the first thing to fix, summary strip, group chips, check cards with how-to-fix and copyable values |
 | `admin/partials/plugin_fields.html` | (Marketplace extension) | setting fields rendered from a plugin manifest |

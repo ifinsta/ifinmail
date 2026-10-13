@@ -6,8 +6,9 @@
 #   postfix-plugins.conf     values from enabled plugins (extension point postfix.main)
 #   postfix-tls-policy.conf  partner domains that must get TLS (extension point postfix.tls_policy),
 #                            rendered into a texthash: map used as smtp_tls_policy_maps
-#   postfix-sender-policy.conf  internal-only logins (extension point postfix.sender_policy), put
-#                            in front of ifinmail_submission_restrictions with check_sasl_access
+#   postfix-sender-policy.conf  who may send where: internal-only logins, paused logins and blocked
+#                            destinations (extension point postfix.sender_policy), put in front of
+#                            ifinmail_submission_restrictions
 # A plugin value that is removed restores the value in main.cf.template, never Postfix's own
 # default (e.g. message_size_limit would otherwise drop from this server's 50 MB to 10 MB).
 # This script watches both and, when one changes, applies its allowed keys with postconf and
@@ -29,15 +30,17 @@ ALLOWED_KEYS=" relayhost default_transport hopcount_limit "
 SAFE_VALUE='^[][A-Za-z0-9.:_-]*$'
 PLUGINS_FILE="${IFINMAIL_PLUGINS_FILE:-/var/lib/ifinmail/runtime/postfix-plugins.conf}"
 PLUGINS_STATE="${IFINMAIL_PLUGINS_STATE:-/var/run/ifinmail-plugins.sha256}"
-PLUGIN_KEYS=" always_bcc message_size_limit_mb "
+PLUGIN_KEYS=" always_bcc message_size_limit_mb recipient_limit "
 declare -A PLUGIN_RULES=(
     [always_bcc]='^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)?$'
     [message_size_limit_mb]='^([1-9]|[1-4][0-9]|50)?$'
+    [recipient_limit]='^([1-9][0-9]{0,2}|1000)?$'
 )
 TEMPLATE="${IFINMAIL_MAIN_CF_TEMPLATE:-/etc/postfix/main.cf.template}"
 SENDER_FILE="${IFINMAIL_SENDER_POLICY_FILE:-/var/lib/ifinmail/runtime/postfix-sender-policy.conf}"
 SENDER_STATE="${IFINMAIL_SENDER_POLICY_STATE:-/var/run/ifinmail-sender-policy.sha256}"
 SENDER_MAP="${IFINMAIL_SENDER_POLICY_MAP:-/etc/postfix/ifinmail_internal_only}"
+DEST_MAP="${IFINMAIL_BLOCKED_DESTINATIONS_MAP:-/etc/postfix/ifinmail_blocked_destinations}"
 SUBMISSION_DEFAULT='permit_sasl_authenticated, reject'
 TLS_FILE="${IFINMAIL_TLS_POLICY_FILE:-/var/lib/ifinmail/runtime/postfix-tls-policy.conf}"
 TLS_STATE="${IFINMAIL_TLS_POLICY_STATE:-/var/run/ifinmail-tls-policy.sha256}"
@@ -80,6 +83,8 @@ apply_file() {
             key=message_size_limit
             [ -n "$value" ] && value=$((value * 1048576))
         fi
+        # master.cf passes this to the submission services only (port 25 keeps Postfix's limit).
+        [ "$key" = recipient_limit ] && key=ifinmail_recipient_limit
         if [ -z "$value" ]; then
             restore_default "$key" && changed=1
         else
@@ -142,9 +147,27 @@ restore_default() {
     if [ -n "$value" ]; then "$POSTCONF" -e "$1=$value"; else "$POSTCONF" -X "$1"; fi
 }
 
-# Internal-only logins: "internal_only_logins = a@x,b@x" puts check_sasl_access in front of the
-# submission restrictions; the matched login gets class ifinmail_internal_only (main.cf), which
-# permits only domains hosted here. The complete value is always written, never removed.
+# valid_list <value> <item regex> <max items>: empty, or comma-separated items that each match.
+# One regex per item instead of one huge repeated pattern, which bash compiles very slowly.
+valid_list() {
+    [ -z "$1" ] && return 0
+    [[ "$1" =~ ^,|,$|,, ]] && return 1
+    local -a items=()
+    IFS=',' read -r -a items <<< "$1"
+    [ "${#items[@]}" -le "$3" ] || return 1
+    local item
+    for item in "${items[@]}"; do [[ "$item" =~ ^($2)$ ]] || return 1; done
+    return 0
+}
+
+# Who may send where, for authenticated submission (extension point postfix.sender_policy):
+#   internal_only_logins  a@x,b@x  may send only to domains hosted here (class in main.cf)
+#   paused_logins         a@x      may not send at all (containment of a suspected compromise)
+#   blocked_destinations  d.test,u@d.test  nobody may send to these (subdomains included)
+# They become two texthash: maps and one parameter, ifinmail_submission_restrictions, that both
+# submission services in master.cf use. The destination check comes first because a class that
+# permits local delivery would otherwise end the checks early. The complete value is always
+# written (never removed), so clearing every list restores the default.
 apply_sender_policy() {
     [ -r "$SENDER_FILE" ] || return 0
     local current previous=""
@@ -152,28 +175,54 @@ apply_sender_policy() {
     [ -r "$SENDER_STATE" ] && previous="$(cat "$SENDER_STATE")"
     [ "$current" = "$previous" ] && return 0
 
-    local line key value logins=""
+    local line key value internal="" paused="" blocked=""
     local address="[a-z0-9._%+-]{1,64}@${DOMAIN}"
+    local target="(${address}|${DOMAIN})"
     while IFS= read -r line || [ -n "$line" ]; do
         [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
         [[ "$line" =~ ^([a-z_]+)[[:space:]]*=[[:space:]]*(.*)$ ]] || { log "ignoring malformed line"; continue; }
         key="${BASH_REMATCH[1]}"; value="${BASH_REMATCH[2]}"
-        if [ "$key" != internal_only_logins ]; then log "ignoring key not on the allow-list: $key"; continue; fi
-        if [[ "$value" =~ ^(${address}(,${address}){0,199})?$ ]]; then logins="$value"
-        else log "ignoring unsafe value for $key"; fi
+        case "$key" in
+            internal_only_logins)
+                if [[ "$value" =~ ^(${address}(,${address}){0,199})?$ ]]; then internal="$value"
+                else log "ignoring unsafe value for $key"; fi ;;
+            paused_logins)  # a higher cap: this must not fail open in a mass compromise
+                if valid_list "$value" "$address" 1000; then paused="$value"
+                else log "ignoring unsafe value for $key"; fi ;;
+            blocked_destinations)
+                if [[ "$value" =~ ^(${target}(,${target}){0,199})?$ ]]; then blocked="$value"
+                else log "ignoring unsafe value for $key"; fi ;;
+            *) log "ignoring key not on the allow-list: $key" ;;
+        esac
     done < "$SENDER_FILE"
 
-    if [ -z "$logins" ]; then
-        : > "$SENDER_MAP"
-        "$POSTCONF" -e "ifinmail_submission_restrictions=$SUBMISSION_DEFAULT"
-    else
-        local login
-        : > "$SENDER_MAP.tmp"
-        IFS=',' read -r -a list <<< "$logins"
-        for login in "${list[@]}"; do printf '%s ifinmail_internal_only\n' "$login" >> "$SENDER_MAP.tmp"; done
-        mv "$SENDER_MAP.tmp" "$SENDER_MAP"
-        "$POSTCONF" -e "ifinmail_submission_restrictions=check_sasl_access texthash:$SENDER_MAP, $SUBMISSION_DEFAULT"
+    local restrictions="$SUBMISSION_DEFAULT" item
+    local -A action=()
+    local -a list=()
+    if [ -n "$internal" ]; then
+        IFS=',' read -r -a list <<< "$internal"
+        for item in "${list[@]}"; do action[$item]='ifinmail_internal_only'; done
     fi
+    if [ -n "$paused" ]; then  # a pause outranks internal-only
+        IFS=',' read -r -a list <<< "$paused"
+        for item in "${list[@]}"; do action[$item]='554 5.7.1 Sending from this mailbox is paused. Contact your administrator.'; done
+    fi
+    : > "$SENDER_MAP.tmp"
+    for item in "${!action[@]}"; do printf '%s %s\n' "$item" "${action[$item]}" >> "$SENDER_MAP.tmp"; done
+    mv "$SENDER_MAP.tmp" "$SENDER_MAP"
+    if [ "${#action[@]}" -gt 0 ]; then
+        restrictions="check_sasl_access texthash:$SENDER_MAP, $restrictions"
+    fi
+    : > "$DEST_MAP.tmp"
+    if [ -n "$blocked" ]; then
+        IFS=',' read -r -a list <<< "$blocked"
+        for item in "${list[@]}"; do
+            printf '%s 554 5.7.1 Your organisation does not allow sending to this destination.\n' "$item" >> "$DEST_MAP.tmp"
+        done
+        restrictions="check_recipient_access texthash:$DEST_MAP, $restrictions"
+    fi
+    mv "$DEST_MAP.tmp" "$DEST_MAP"
+    "$POSTCONF" -e "ifinmail_submission_restrictions=$restrictions"
     "$POSTFIX" reload >/dev/null 2>&1 || log "postfix reload failed (not running yet?)"
     log "applied $(basename "$SENDER_FILE")"
     echo "$current" > "$SENDER_STATE"

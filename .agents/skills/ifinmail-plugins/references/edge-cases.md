@@ -1,4 +1,4 @@
-# Edge cases (318)
+# Edge cases (331)
 
 Every case below is handled. **Proof** says how we know:
 
@@ -8,6 +8,7 @@ Every case below is handled. **Proof** says how we know:
 | `L` | `backend/apps/core/plugins/tests/test_lifecycle.py` |
 | `A` | `backend/apps/core/assistant/tests/test_assistant.py` (a real local OpenAI-compatible server) |
 | `AV` | `backend/apps/accounts/tests/test_assistant_views.py` |
+| `CT` | `backend/apps/mail/tests/test_containment.py` (a fake Redis; the real Rspamd and Redis were exercised in the live column) |
 | `MD` | `backend/apps/core/assistant/tests/test_markdown.py` (renderer, with an HTML whitelist audit of every output) |
 | `S` | `backend/apps/core/plugins/tests/test_submissions.py` |
 | `P` | `backend/apps/core/plugins/tests/test_postfix_sync.py` (the real watcher script, stubbed binaries) |
@@ -18,7 +19,7 @@ Every case below is handled. **Proof** says how we know:
 | code | Enforced in code, reviewed, no dedicated test |
 | decision | A deliberate choice documented in the skill |
 
-Counts: 260 tested, 19 verified live only, 35 code, 4 decision (318 numbered, contiguous). When behaviour changes, change the row and its test together.
+Counts: 270 tested, 21 verified live only, 36 code, 4 decision (331 numbered, contiguous). When behaviour changes, change the row and its test together.
 
 ## A. Manifest format and parsing
 
@@ -425,4 +426,22 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 316 | Huge, deeply nested or pathological Markdown | Capped in length and depth; finishes in milliseconds | MD |
 | 317 | Delete a conversation: someone else's, or one still being answered | Refused; the owner's finished conversation is removed and audited | AV |
 | 318 | Browser refuses clipboard access | Falls back to the older copy route; never an unhandled error | live |
+
+## Q. Outbound policy: containment, recipient limits, blocked destinations
+
+| # | Case | Handling | Proof |
+| --- | --- | --- | --- |
+| 319 | A mailbox passes a messages, recipients or domains threshold in an hour | Paused within about a minute; administrators emailed; reason shown in System health | CT, live |
+| 320 | Exactly at a threshold | Allowed (only "more than" trips) | CT |
+| 321 | Action `notify` | No pause; at most one alert per mailbox per hour | CT |
+| 322 | Paused mailbox | Submission refused with a clear message at RCPT; receiving and reading unaffected | P, live |
+| 323 | Plugin uninstalled while a mailbox is paused | Pause stays until an administrator resumes it | CT |
+| 324 | Resume | Pause lifted, counters cleared (no instant re-trip), audited, published | CT |
+| 325 | More than the recipient limit in one message | `452 4.5.3` at the extra recipient on 587 and 465; port 25 unaffected | P, live |
+| 326 | Blocked destination: address, domain, subdomain | `554 5.7.1` at RCPT; other addresses at the same provider unaffected | P, live |
+| 327 | Internal-only mailbox sending to a blocked destination | Refused: destination checks run before the internal-only class | P |
+| 328 | Counter whose expiry was never set (separate INCR and EXPIRE raced) | One atomic script sets counters and sets together with the same one-hour expiry | live |
+| 329 | What Redis holds about recipients | Short hashes only; counts, never who was written to | CT |
+| 330 | Redis unavailable | A counter is lost, never a message; the job skips that minute | code |
+| 331 | Unsafe or injected values in blocked destinations or paused logins | Ignored by the console grammar and again by the Postfix watcher | P, CT |
 

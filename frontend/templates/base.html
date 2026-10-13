@@ -17,11 +17,13 @@
     <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>
     <script src="{% static 'js/ifinmail-layout-init.js' %}"></script>
     {% if brand.css_overrides %}{{ brand.css_overrides|safe }}{% endif %}
+    {% block webfonts %}
     {% if USE_GOOGLE_FONTS %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
     {% endif %}
+    {% endblock %}
     <link rel="stylesheet" href="{% versioned_css 'css/ifinmail-variables.css' %}">
     <link rel="stylesheet" href="{% versioned_css 'css/ifinmail-reset.css' %}">
     <link rel="stylesheet" href="{% versioned_css 'css/ifinmail-utilities.css' %}">

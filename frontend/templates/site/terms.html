@@ -1,0 +1,46 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Terms of use' %}{% endblock %}
+{% block meta_description %}{% trans 'The terms for using this mail server and its console.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Legal' %}</p>
+        <h1>{% trans 'Terms of use' %}</h1>
+        <p class="ifinmail-site-meta">{% blocktrans trimmed with date=legal_updated|date:'j F Y' %}Last updated {{ date }}{% endblocktrans %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap ifinmail-site-legal">
+    <article class="ifinmail-site-prose">
+        <h2>{% trans 'Who these terms are with' %}</h2>
+        <p>{% blocktrans trimmed with name=brand.name %}{{ name }} is a mail server run by the person or organisation that installed it (the operator). These terms are between you and the operator, and they cover your use of this server’s mail services and its console. The project that publishes the software is not a party to them and does not run, host or have access to this server.{% endblocktrans %}</p>
+
+        <h2>{% trans 'Your account' %}</h2>
+        <p>{% trans 'You are responsible for your login and everything done with it. Choose a strong password, keep it to yourself, and turn on two-factor authentication where it is offered. Tell the operator at once if you think someone else has access.' %}</p>
+
+        <h2>{% trans 'Acceptable use' %}</h2>
+        <p>{% trans 'Do not use the service to send unsolicited bulk mail, to deceive or harass people, to spread malware, to break the law, or to attack this or any other system. The operator may limit sending, pause a mailbox that behaves like a compromised account, and refuse or quarantine mail it considers harmful.' %}</p>
+
+        <h2>{% trans 'Your mail and your data' %}</h2>
+        <p>{% trans 'Your mail belongs to you. The operator administers the server and can technically reach data stored on it, and will use that only to run and secure the service or when the law requires it. Ask the operator if you want your data exported or deleted. What is kept, and for how long, is described in the privacy page.' %}</p>
+
+        <h2>{% trans 'Availability' %}</h2>
+        <p>{% trans 'The service is provided as it is. The operator will try to keep it running, but maintenance, faults and events outside their control can interrupt it, and no uptime or delivery is promised. Keep your own copies of anything you cannot afford to lose.' %}</p>
+
+        <h2>{% trans 'Suspension and ending' %}</h2>
+        <p>{% trans 'The operator may suspend or close an account that breaks these terms or puts the service at risk. You can stop using the service at any time and ask for your account to be closed.' %}</p>
+
+        <h2>{% trans 'Liability' %}</h2>
+        <p>{% trans 'To the extent the law allows, the operator is not liable for indirect or consequential loss, or for loss of data or business, arising from use of the service. Nothing here limits liability that cannot be limited by law.' %}</p>
+
+        <h2>{% trans 'The software' %}</h2>
+        <p>{% trans 'The platform that runs this server is published in a public repository, with the licence stated there. It is provided without warranty, and these terms do not change that licence.' %}</p>
+
+        <h2>{% trans 'Changes and contact' %}</h2>
+        <p>{% trans 'The operator may update these terms. The date at the top shows when they last changed, and continued use means you accept the current version. Questions about these terms go to the operator of this server; questions about the software go to the project.' %} <a href="{% url 'contact' %}">{% trans 'Project contact' %}</a></p>
+    </article>
+</div>
+{% endblock %}

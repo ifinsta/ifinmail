@@ -15,7 +15,7 @@ verify — every row must exist on disk.
 | `includes/admin_table.html` | TablesRows | admin list pages |
 | `includes/setup_table.html` | TablesRows | setup wizard tables |
 | `includes/settings_nav.html` | Settings | `admin/settings_base.html` (`SettingsCatalogue`) |
-| `includes/brand_mark.html` | ShellParts, Landing | nav/footer mark on `landing.html`, `terms.html`, `privacy.html` (uploaded logo only; without one the brand name text carries identity) |
+| `includes/brand_mark.html` | ShellParts, Landing | nav/footer mark on every `site/` page (uploaded logo only; without one the brand name text carries identity) |
 | `includes/card_brand.html` | Login, Registration, Setup, ErrorPages | auth/registration/setup/error cards — uploaded logo, else the system name |
 | `error_base.html` | ErrorPages | `400/403/404/500/502/503/504.html` |
 
@@ -77,8 +77,11 @@ verify — every row must exist on disk.
 
 | Template | Board |
 |---|---|
-| `landing.html` | Landing |
-| `privacy.html`, `terms.html` | Privacy, Terms |
+| `site/base.html`, `site/_nav.html`, `site/_footer.html` | Landing | shell of the public site: 60 px header, `<details>` menu on phone, footer; self-hosted fonts via the `webfonts` block of `base.html`; styles in `ifinmail-site.css` |
+| `site/landing.html` | Landing | `/`: hero with an "Example data" System health window, six capabilities, three steps, security and cost, closing band |
+| `site/features.html`, `site/pricing.html`, `site/security.html`, `site/docs.html`, `site/about.html`, `site/contact.html` | Landing (same pattern) | `/features/`, `/pricing/`, `/security/`, `/docs/`, `/about/`, `/contact/` |
+| `site/changelog.html` | Landing (same pattern) | `/changelog/`: newest releases from `CHANGELOG.md`, rendered with the `markdown` filter |
+| `site/privacy.html`, `site/terms.html` | Privacy, Terms | `/privacy/`, `/terms/`: one reading column, "Last updated" from `public_pages.LEGAL_UPDATED` |
 | `400.html`, `403.html`, `404.html`, `500.html`, `502.html`, `503.html`, `504.html` | ErrorPages |
 | `static/error-pages/40x.html`, `50x.html` | ErrorPages (nginx fallback, self-contained) |
 
@@ -88,10 +91,10 @@ verify — every row must exist on disk.
 |---|---|
 | `clients/android/app/webApp/src/webMain/resources/index.html` | AndroidShell |
 
-## Inventory (69 html on disk, 2026-10-11)
+## Inventory (79 html on disk, 2026-10-13)
 
-Root (8): `base.html`, `error_base.html`, `landing.html`, `privacy.html`,
-`terms.html`, `400/403/404/500/502/503/504.html` (7). `admin/` (22 + 6 partials),
+Root (9): `base.html`, `error_base.html`, `400/403/404/500/502/503/504.html` (7). `site/` (10 pages
++ base, nav, footer). `admin/` (22 + 6 partials),
 `includes/` (7), `registration/` (7), `setup/` (8). Extras beyond the original
 50-board map are intentional extensions tagged above; do not delete without
 updating `SettingsCatalogue` and `test_frontend_contract.py`.

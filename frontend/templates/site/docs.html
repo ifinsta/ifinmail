@@ -1,0 +1,93 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Documentation' %}{% endblock %}
+{% block meta_description %}{% trans 'Requirements, installation, first setup, daily operation, backups, plugins and troubleshooting.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Documentation' %}</p>
+        <h1>{% trans 'Install it, set it up, keep it running.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'The essentials on one page. The repository README holds the full reference.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap ifinmail-site-docs">
+    <nav class="ifinmail-site-toc" aria-label="{% trans 'On this page' %}">
+        <p class="ifinmail-site-overline">{% trans 'On this page' %}</p>
+        <ul>
+            <li><a href="#requirements">{% trans 'Requirements' %}</a></li>
+            <li><a href="#install">{% trans 'Install' %}</a></li>
+            <li><a href="#setup">{% trans 'First setup' %}</a></li>
+            <li><a href="#dns">{% trans 'DNS and delegation' %}</a></li>
+            <li><a href="#operate">{% trans 'Daily operation' %}</a></li>
+            <li><a href="#backups">{% trans 'Backups' %}</a></li>
+            <li><a href="#extend">{% trans 'Plugins and assistant' %}</a></li>
+            <li><a href="#troubleshooting">{% trans 'Troubleshooting' %}</a></li>
+        </ul>
+    </nav>
+
+    <article class="ifinmail-site-prose">
+        <h2 id="requirements">{% trans 'Requirements' %}</h2>
+        <ul>
+            <li>{% trans 'A domain name you control.' %}</li>
+            <li>{% trans 'A server running Ubuntu 22.04 or newer, or Debian 12, with a public IPv4 address and about 2 GB of memory.' %}</li>
+            <li>{% trans 'Outbound and inbound port 25 open. Many providers block it by default; ask them to unblock it.' %}</li>
+        </ul>
+
+        <h2 id="install">{% trans 'Install' %}</h2>
+        <p>{% trans 'On the server, as root or with sudo, run the installer. It installs Docker, fetches the platform, asks for your domain and administrator email, and starts every service.' %}</p>
+        <pre tabindex="0"><code>{{ install_command }}</code></pre>
+        <p>{% trans 'To run it without questions, set the domain and email first:' %}</p>
+        <pre tabindex="0"><code>export DOMAIN=example.com ADMIN_EMAIL=admin@example.com
+{{ install_command }} -s -- --non-interactive</code></pre>
+        <p>{% trans 'Cloud providers that support cloud-init can use the cloud-init file in the repository instead.' %}</p>
+
+        <h2 id="setup">{% trans 'First setup' %}</h2>
+        <p>{% trans 'Open the console at https://mail.your-domain/accounts/login/ and sign in with the administrator email and the password printed by the installer. You are asked to choose a new password, then taken through the setup wizard:' %}</p>
+        <ol>
+            <li>{% trans 'Domain: confirm the domain. Its DKIM key and the postmaster and abuse aliases are created.' %}</li>
+            <li>{% trans 'DNS: connect a DNS provider to publish the records, or copy them to where the domain is hosted.' %}</li>
+            <li>{% trans 'Account: create your own mailbox and administrator login.' %}</li>
+        </ol>
+        <p>{% trans 'System health then shows what is left to do.' %}</p>
+
+        <h2 id="dns">{% trans 'DNS and delegation' %}</h2>
+        <p>{% trans 'By default this server answers DNS for your domains. At your registrar, set the domain’s nameservers to ns1 and ns2 of the mail host and add them as glue records pointing at the server address. The console shows exactly what is missing and re-checks live. Once the zone is delegated, add the DS record it shows to switch DNSSEC on.' %}</p>
+        <p>{% trans 'If you keep DNS elsewhere, connect Cloudflare, Porkbun or DigitalOcean from the domain’s page, or mark it as external and add the listed records by hand.' %}</p>
+        <p>{% trans 'Ask your server provider to set the reverse DNS (PTR) of the address to the mail hostname. Many receivers check it.' %}</p>
+
+        <h2 id="operate">{% trans 'Daily operation' %}</h2>
+        <p>{% trans 'Run these on the server from the install directory.' %}</p>
+        <pre tabindex="0"><code>sudo make version     # installed version and the latest release
+sudo make update      # update to the latest release
+sudo make rollback    # return to the version before the last update
+sudo make health      # run the health checks
+sudo make backup      # run a full backup now</code></pre>
+        <p>{% trans 'An update snapshots the database first and rolls itself back if the new console is not healthy within five minutes. Mail, DNSSEC keys and certificates live in volumes that every version shares.' %}</p>
+
+        <h2 id="backups">{% trans 'Backups' %}</h2>
+        <p>{% trans 'A daily encrypted backup is scheduled by the installer. By default it stays on the same disk, so do two more things:' %}</p>
+        <ul>
+            <li>{% trans 'Set an off-site target (any machine you reach over SSH) and run the offsite check. Every backup is then copied and compared by hash.' %}</li>
+            <li>{% trans 'Export the backup key once, store it away from the server, and delete it from the server. System health confirms the key can open the newest backup.' %}</li>
+        </ul>
+
+        <h2 id="extend">{% trans 'Plugins and assistant' %}</h2>
+        <p>{% trans 'The Marketplace adds capabilities, such as inbound protection, outbound sending policy, mailbox care and a compliance journal, by configuring the server for you. Each plugin page shows what it changes and whether the mail server has applied it.' %}</p>
+        <p>{% trans 'The assistant answers questions about your server from its own checks. It is off until you give it the base URL and model of any OpenAI-compatible service under Marketplace, then Assistant. It can read and draft changes; applying a change is always your click.' %}</p>
+
+        <h2 id="troubleshooting">{% trans 'Troubleshooting' %}</h2>
+        <h3>{% trans 'Port 25 is blocked' %}</h3>
+        <p>{% trans 'Ask your server provider to unblock it. Without it the server cannot receive mail from other servers.' %}</p>
+        <h3>{% trans 'The certificate was not issued' %}</h3>
+        <p>{% trans 'The mail host and every domain’s client-configuration names must resolve to this server, and port 80 must be open. Use Issue now on the certificates page after DNS has propagated.' %}</p>
+        <h3>{% trans 'Mail goes to spam' %}</h3>
+        <p>{% trans 'Fix every failing check in System health, set the reverse DNS, and send small volumes at first: a new address has no reputation yet.' %}</p>
+        <h3>{% trans 'A mail app cannot connect' %}</h3>
+        <p>{% trans 'Use the full email address as the username, the mail hostname as the server, IMAP on port 993 with TLS, and SMTP on port 587 with STARTTLS or 465 with TLS.' %}</p>
+        <p class="ifinmail-site-note"><strong>{% trans 'Still stuck?' %}</strong> {% trans 'Open an issue with what System health shows.' %} <a href="{% url 'contact' %}">{% trans 'Contact' %}</a></p>
+    </article>
+</div>
+{% endblock %}

@@ -581,13 +581,6 @@ html.ifinmail-shell .ifinmail-setup-step--active {
     font-weight: var(--ifinmail-font-weight-semibold);
 }
 
-/* Landing preview window: neutral dots, no traffic-light colours */
-html.ifinmail-shell .ifinmail-landing-hero__dot--red,
-html.ifinmail-shell .ifinmail-landing-hero__dot--yellow,
-html.ifinmail-shell .ifinmail-landing-hero__dot--green {
-    background: var(--ifinmail-color-border);
-}
-
 /* ─── Shared utilities extracted from inline styles ─── */
 html.ifinmail-shell .ifinmail-btn-reset {
     background: transparent;
@@ -1014,17 +1007,12 @@ html.ifinmail-shell .ifinmail-pw-toggle__eye-off[hidden] {
 
 /* Links inside running text are underlined so they are not colour-only */
 html.ifinmail-shell p a:not(.ifinmail-btn),
-html.ifinmail-shell .ifinmail-legal__content a,
 html.ifinmail-shell .ifinmail-login-card__terms a,
 html.ifinmail-shell .ifinmail-login-card__register a,
 html.ifinmail-shell .ifinmail-reg-card__footer-link a,
 html.ifinmail-shell .ifinmail-setup-description a {
     text-decoration: underline;
     text-underline-offset: 2px;
-}
-
-html.ifinmail-shell .ifinmail-landing-hero__mock-status {
-    color: var(--ifinmail-color-success-text);
 }
 
 /* Focusable scroll regions show a clear focus ring */
@@ -1632,13 +1620,7 @@ html.ifinmail-shell .ifinmail-flash--error {
     html.ifinmail-shell .ifinmail-standalone-layout,
     html.ifinmail-shell .ifinmail-login,
     html.ifinmail-shell .ifinmail-reg,
-    html.ifinmail-shell .ifinmail-setup-wizard,
-    html.ifinmail-shell .ifinmail-legal,
-    html.ifinmail-shell .ifinmail-landing,
-    html.ifinmail-shell .ifinmail-landing-hero,
-    html.ifinmail-shell .ifinmail-landing-features,
-    html.ifinmail-shell .ifinmail-landing-pricing,
-    html.ifinmail-shell .ifinmail-landing-security {
+    html.ifinmail-shell .ifinmail-setup-wizard {
         background: var(--ifinmail-surface-container-lowest);
         background-image: none;
     }
@@ -1650,9 +1632,7 @@ html.ifinmail-shell .ifinmail-flash--error {
 
     html.ifinmail-shell .ifinmail-login-card__logo,
     html.ifinmail-shell .ifinmail-login-card__logo-img,
-    html.ifinmail-shell .ifinmail-admin-brand-mark,
-    html.ifinmail-shell .ifinmail-landing-nav__logo,
-    html.ifinmail-shell .ifinmail-landing-footer__logo {
+    html.ifinmail-shell .ifinmail-admin-brand-mark {
         display: none;
     }
 
@@ -1714,11 +1694,7 @@ html.ifinmail-shell .ifinmail-flash--error {
     html.ifinmail-shell .ifinmail-login-card,
     html.ifinmail-shell .ifinmail-reg-card,
     html.ifinmail-shell .ifinmail-setup-card,
-    html.ifinmail-shell .ifinmail-dns-provider-card,
-    html.ifinmail-shell .ifinmail-landing-feature-card,
-    html.ifinmail-shell .ifinmail-landing-pricing-card:not(.ifinmail-landing-pricing-card--featured),
-    html.ifinmail-shell .ifinmail-landing-security-item,
-    html.ifinmail-shell .ifinmail-landing-hero__window {
+    html.ifinmail-shell .ifinmail-dns-provider-card {
         width: 100%;
         max-width: none;
         margin: 0;
@@ -1793,32 +1769,6 @@ html.ifinmail-shell .ifinmail-flash--error {
         padding: var(--ifinmail-space-4);
     }
 
-    /* Landing: wordmark, one primary action, no cards in the preview */
-    html.ifinmail-shell .ifinmail-landing-nav__link,
-    html.ifinmail-shell .ifinmail-landing-nav__cta.ifinmail-btn--ghost,
-    html.ifinmail-shell .ifinmail-landing-hero__mock-sidebar {
-        display: none;
-    }
-
-    html.ifinmail-shell .ifinmail-landing-nav__inner {
-        padding-left: var(--ifinmail-space-4);
-        padding-right: var(--ifinmail-space-4);
-    }
-
-    html.ifinmail-shell .ifinmail-landing-nav__name {
-        font-size: var(--ifinmail-font-size-xl);
-        font-weight: var(--ifinmail-font-weight-bold);
-        color: var(--ifinmail-color-brand);
-        letter-spacing: -0.02em;
-    }
-
-    html.ifinmail-shell .ifinmail-landing-hero__mock-stat {
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        border-bottom: 1px solid var(--ifinmail-color-border-light);
-    }
-
     html.ifinmail-shell .ifinmail-setup-wizard {
         padding: var(--ifinmail-space-4);
         max-width: none;
@@ -1832,12 +1782,6 @@ html.ifinmail-shell .ifinmail-flash--error {
     html.ifinmail-shell .ifinmail-btn,
     html.ifinmail-shell .ifinmail-input,
     html.ifinmail-shell .ifinmail-login-form__input {
-        min-height: 44px;
-    }
-
-    html.ifinmail-shell .ifinmail-landing-footer__links a {
-        display: inline-flex;
-        align-items: center;
         min-height: 44px;
     }
 

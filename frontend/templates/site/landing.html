@@ -1,0 +1,149 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Run your own mail server' %}{% endblock %}
+{% block meta_description %}{% trans 'A self-hosted mail platform: SMTP, IMAP, spam filtering, DKIM, DNS and certificates on one server you control, with a console that checks and explains everything.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-hero" aria-labelledby="hero-title">
+    <div class="ifinmail-site-wrap ifinmail-site-hero__grid">
+        <div>
+            <p class="ifinmail-site-overline">{% trans 'Self-hosted mail platform' %}</p>
+            <h1 id="hero-title">{% trans 'Run your own mail server without the guesswork.' %}</h1>
+            <p class="ifinmail-site-lede">{% blocktrans trimmed with name=brand.name %}{{ name }} installs and looks after a complete mail server on a single machine you control: sending, receiving, spam filtering, DKIM, DNS and certificates, with one console that tells you what is wrong and how to fix it.{% endblocktrans %}</p>
+            <div class="ifinmail-site-actions-row">
+                <a class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>
+                <a class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--lg" href="{{ repo_url }}" rel="noopener">{% trans 'View the source' %}</a>
+            </div>
+            <ul class="ifinmail-site-facts">
+                <li>{% trans 'One server, about 2 GB of memory' %}</li>
+                <li>{% trans 'Free to run' %}</li>
+                <li>{% trans 'Your mail stays on your server' %}</li>
+            </ul>
+        </div>
+
+        <div class="ifinmail-site-window" role="img" aria-label="{% trans 'Example of the System health page' %}">
+            <div class="ifinmail-site-window__bar">
+                <p class="ifinmail-site-window__title">{% trans 'System health' %}</p>
+                <span class="ifinmail-site-pill">{% trans 'Example data' %}</span>
+            </div>
+            <p class="ifinmail-site-window__verdict">
+                {% trans 'One thing needs attention.' %}
+                <span>{% trans 'Ask your server provider to set the reverse DNS of the address.' %}</span>
+            </p>
+            <ul class="ifinmail-site-checks">
+                <li>
+                    <span class="ifinmail-site-checks__name">{% trans 'Port 25 reachable' %}</span>
+                    <span class="ifinmail-site-checks__value">mail.example.com:25</span>
+                    <span class="ifinmail-site-pill ifinmail-site-pill--ok">{% trans 'Pass' %}</span>
+                </li>
+                <li>
+                    <span class="ifinmail-site-checks__name">{% trans 'DKIM record' %}</span>
+                    <span class="ifinmail-site-checks__value">default._domainkey.example.com</span>
+                    <span class="ifinmail-site-pill ifinmail-site-pill--ok">{% trans 'Pass' %}</span>
+                </li>
+                <li>
+                    <span class="ifinmail-site-checks__name">{% trans 'TLS certificate' %}</span>
+                    <span class="ifinmail-site-checks__value">61 days left</span>
+                    <span class="ifinmail-site-pill ifinmail-site-pill--ok">{% trans 'Pass' %}</span>
+                </li>
+                <li>
+                    <span class="ifinmail-site-checks__name">{% trans 'Reverse DNS (PTR)' %}</span>
+                    <span class="ifinmail-site-checks__value">203.0.113.10 &rarr; not set</span>
+                    <span class="ifinmail-site-pill ifinmail-site-pill--warn">{% trans 'Needs attention' %}</span>
+                </li>
+                <li>
+                    <span class="ifinmail-site-checks__name">{% trans 'Encrypted backup' %}</span>
+                    <span class="ifinmail-site-checks__value">3 hours ago</span>
+                    <span class="ifinmail-site-pill ifinmail-site-pill--ok">{% trans 'Pass' %}</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="ifinmail-site-section" aria-labelledby="what-title">
+    <div class="ifinmail-site-wrap">
+        <div class="ifinmail-site-head">
+            <h2 id="what-title">{% trans 'What you get' %}</h2>
+            <p>{% trans 'The parts of a mail server that are hard to get right, set up together and kept in step.' %}</p>
+        </div>
+        <ul class="ifinmail-site-grid">
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'A complete mail stack' %}</h3>
+                <p>{% trans 'SMTP, IMAP, spam filtering and DKIM signing installed and wired together. Any mail app works.' %}</p>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'DNS that keeps itself right' %}</h3>
+                <p>{% trans 'The server answers DNS for your domains and generates MX, SPF, DKIM, DMARC and mail-client records, with DNSSEC.' %}</p>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Certificates handled' %}</h3>
+                <p>{% trans 'One certificate covers the mail host and every domain, and renews itself. You are warned before it expires.' %}</p>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Checks that explain' %}</h3>
+                <p>{% trans 'System health says what is wrong, why it matters and the exact step that fixes it.' %}</p>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Backups you can restore' %}</h3>
+                <p>{% trans 'Nightly encrypted backups, an optional copy on another machine, and a way to prove the key works.' %}</p>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Updates that can be undone' %}</h3>
+                <p>{% trans 'An update takes a snapshot first and rolls back by itself if the new version is not healthy.' %}</p>
+            </li>
+        </ul>
+        <div class="ifinmail-site-meta"><a class="ifinmail-site-more" href="{% url 'features' %}">{% trans 'All features' %}</a></div>
+    </div>
+</section>
+
+<section class="ifinmail-site-section ifinmail-site-section--alt" aria-labelledby="how-title">
+    <div class="ifinmail-site-wrap">
+        <div class="ifinmail-site-head">
+            <h2 id="how-title">{% trans 'From an empty server to working mail' %}</h2>
+        </div>
+        <ol class="ifinmail-site-steps">
+            <li>
+                <h3>{% trans 'Get a server and a domain' %}</h3>
+                <p>{% trans 'A small Linux server with a public address and port 25 open, and a domain name you control.' %}</p>
+            </li>
+            <li>
+                <h3>{% trans 'Run one command' %}</h3>
+                <p>{% trans 'The installer adds Docker, fetches the platform and starts every service. It asks for the domain and an administrator email.' %}</p>
+            </li>
+            <li>
+                <h3>{% trans 'Follow the setup wizard' %}</h3>
+                <p>{% trans 'Confirm the domain, publish its DNS records and create your own mailbox. System health tells you when you are done.' %}</p>
+            </li>
+        </ol>
+    </div>
+</section>
+
+<section class="ifinmail-site-section" aria-label="{% trans 'Security and cost' %}">
+    <div class="ifinmail-site-wrap">
+        <div class="ifinmail-site-grid ifinmail-site-grid--2">
+            <div class="ifinmail-site-item">
+                <h3>{% trans 'Security you can verify' %}</h3>
+                <p>{% trans 'Encrypted connections are required to sign in, administrators can use two-factor authentication, and every change is written to a tamper-evident audit trail. The source is open to read, and we say plainly what we do not claim.' %}</p>
+                <a class="ifinmail-site-more" href="{% url 'security' %}">{% trans 'How it is secured' %}</a>
+            </div>
+            <div class="ifinmail-site-item">
+                <h3>{% trans 'Free to run, you pay for the server' %}</h3>
+                <p>{% trans 'There are no plans, seats or mailbox limits. The only costs are the machine it runs on, your domain, and anything optional you choose to connect.' %}</p>
+                <a class="ifinmail-site-more" href="{% url 'pricing' %}">{% trans 'What it costs' %}</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="ifinmail-site-band" aria-labelledby="cta-title">
+    <div class="ifinmail-site-wrap ifinmail-site-band__inner">
+        <div>
+            <h2 id="cta-title">{% trans 'Ready to run your own mail?' %}</h2>
+            <p>{% trans 'The install guide takes you from a blank server to a working domain.' %}</p>
+        </div>
+        <a class="ifinmail-btn ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>
+    </div>
+</section>
+{% endblock %}

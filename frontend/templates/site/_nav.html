@@ -1,0 +1,41 @@
+{% load i18n %}
+{% with current=request.resolver_match.url_name %}
+<header class="ifinmail-site-header">
+    <div class="ifinmail-site-wrap ifinmail-site-header__inner">
+        <a class="ifinmail-site-brand" href="{% url 'landing' %}">
+            {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
+            <span>{{ brand.name }}</span>
+        </a>
+
+        <nav class="ifinmail-site-nav" aria-label="{% trans 'Main' %}">
+            <a href="{% url 'features' %}"{% if current == 'features' %} aria-current="page"{% endif %}>{% trans 'Features' %}</a>
+            <a href="{% url 'pricing' %}"{% if current == 'pricing' %} aria-current="page"{% endif %}>{% trans 'Pricing' %}</a>
+            <a href="{% url 'security' %}"{% if current == 'security' %} aria-current="page"{% endif %}>{% trans 'Security' %}</a>
+            <a href="{% url 'docs' %}"{% if current == 'docs' %} aria-current="page"{% endif %}>{% trans 'Docs' %}</a>
+            <a href="{% url 'changelog' %}"{% if current == 'changelog' %} aria-current="page"{% endif %}>{% trans 'Changelog' %}</a>
+        </nav>
+
+        <div class="ifinmail-site-actions">
+            <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
+            <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'docs' %}#install">{% trans 'Get started' %}</a>
+        </div>
+
+        <details class="ifinmail-site-menu">
+            <summary>
+                <span>{% trans 'Menu' %}</span>
+                <svg class="ifinmail-site-menu__open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+                <svg class="ifinmail-site-menu__close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </summary>
+            <div class="ifinmail-site-menu__panel">
+                <a href="{% url 'features' %}"{% if current == 'features' %} aria-current="page"{% endif %}>{% trans 'Features' %}</a>
+                <a href="{% url 'pricing' %}"{% if current == 'pricing' %} aria-current="page"{% endif %}>{% trans 'Pricing' %}</a>
+                <a href="{% url 'security' %}"{% if current == 'security' %} aria-current="page"{% endif %}>{% trans 'Security' %}</a>
+                <a href="{% url 'docs' %}"{% if current == 'docs' %} aria-current="page"{% endif %}>{% trans 'Docs' %}</a>
+                <a href="{% url 'changelog' %}"{% if current == 'changelog' %} aria-current="page"{% endif %}>{% trans 'Changelog' %}</a>
+                <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
+                <a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'docs' %}#install">{% trans 'Get started' %}</a>
+            </div>
+        </details>
+    </div>
+</header>
+{% endwith %}

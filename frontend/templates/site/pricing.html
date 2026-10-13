@@ -1,0 +1,64 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Pricing' %}{% endblock %}
+{% block meta_description %}{% trans 'The platform is free to run. You pay for the server it runs on and the domain; optional services are billed by their providers.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Pricing' %}</p>
+        <h1>{% trans 'Free to run. You pay for the server.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'There are no plans, seats, mailbox limits or licence keys. Every feature on this site is in the one version that exists.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap">
+    <section class="ifinmail-site-split" aria-labelledby="p-incl">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="p-incl">{% trans 'Included' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Everything, at no charge.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li>{% trans 'The whole platform: mail, DNS, certificates, protection, backups, updates and the console.' %}</li>
+            <li>{% trans 'As many domains, mailboxes and aliases as the server can hold.' %}</li>
+            <li>{% trans 'The built-in plugins and the assistant (the assistant stays off until you connect a model).' %}</li>
+            <li>{% trans 'Every release, with no feature held back.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="p-bring">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="p-bring">{% trans 'What you bring' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'These are paid to other companies, at their prices.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'A server.' %}</strong> {% trans 'A Linux virtual machine with about 2 GB of memory, a public IPv4 address and outbound port 25 open. Some providers block port 25 until you ask.' %}</li>
+            <li><strong>{% trans 'A domain name.' %}</strong> {% trans 'Bought from any registrar. You will need to set its nameservers, or add its records where it is hosted.' %}</li>
+            <li><strong>{% trans 'Your time.' %}</strong> {% trans 'You run the server. Updates are one command, but you decide when.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="p-opt">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="p-opt">{% trans 'Optional' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Only if you turn them on.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'A model for the assistant.' %}</strong> {% trans 'You choose the provider and pay it directly for the tokens used. A daily token budget keeps the bill bounded.' %}</li>
+            <li><strong>{% trans 'Storage for off-site backups.' %}</strong> {% trans 'Any machine you can reach over SSH.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="p-support">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="p-support">{% trans 'Support' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Community, best effort.' %}</p>
+        </div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'Questions and bugs go to the public issue tracker, and fixes ship as releases. There is no support contract and no service-level agreement. Security reports have stated response targets.' %}</p>
+            <p><a href="{% url 'contact' %}">{% trans 'How to get help' %}</a></p>
+        </div>
+    </section>
+</div>
+{% endblock %}

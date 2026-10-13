@@ -1,0 +1,100 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Features' %}{% endblock %}
+{% block meta_description %}{% trans 'What the platform does: mail, deliverability, DNS and certificates, protection, operations and the assistant.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Features' %}</p>
+        <h1>{% trans 'Everything a mail server needs, and nothing it does not.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'Each part below ships in the box and is managed from one console. Where something is not included, we say so.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap">
+    <section class="ifinmail-site-split" aria-labelledby="f-mail">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="f-mail">{% trans 'Mail' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Standard protocols, so people keep the mail app they already use.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'Send and receive with any client.' %}</strong> {% trans 'IMAP on 993 and submission on 587 or 465. Mail apps configure themselves from the domain.' %}</li>
+            <li><strong>{% trans 'Many domains, many mailboxes.' %}</strong> {% trans 'Quotas per mailbox, aliases and forwarding, and a switch for self-registration that is off by default.' %}</li>
+            <li><strong>{% trans 'Calendars and contacts.' %}</strong> {% trans 'CalDAV and CardDAV are served with the mailbox address and password. Switch them off if you do not need them.' %}</li>
+            <li><strong>{% trans 'No webmail.' %}</strong> {% trans 'People read mail in an email app. The console is for administrators, and people with a plain mailbox see their app settings there.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="f-deliver">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="f-deliver">{% trans 'Deliverability' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Mail that arrives, and a clear reason when it does not.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'Authenticated by default.' %}</strong> {% trans 'Every domain gets its own DKIM key, and SPF, DMARC and MTA-STS records are published for it.' %}</li>
+            <li><strong>{% trans 'Checks for the usual causes.' %}</strong> {% trans 'Port 25, reverse DNS, DNS records and blocklist listings are tested and explained in System health.' %}</li>
+            <li><strong>{% trans 'Spam filtering with Rspamd.' %}</strong> {% trans 'Incoming mail is scored and filtered, and the settings you may change are exposed as plain options.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="f-dns">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="f-dns">{% trans 'DNS and certificates' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'The two things most often wrong on a home-made mail server.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'This server answers DNS.' %}</strong> {% trans 'Records for every domain are generated and kept current, signed with DNSSEC. Prefer another DNS host? Connect Cloudflare, Porkbun or DigitalOcean, or export the records.' %}</li>
+            <li><strong>{% trans 'Certificates from Let’s Encrypt.' %}</strong> {% trans 'Issued and renewed for the mail host and the client-configuration names, or upload your own.' %}</li>
+            <li><strong>{% trans 'Entry points you control.' %}</strong> {% trans 'See every open port with a live check, close the ones you do not use, block networks and cap new connections per address.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="f-protect">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="f-protect">{% trans 'Protection' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Optional policies that follow what large providers do.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'Inbound protection.' %}</strong> {% trans 'Refuse or quarantine dangerous attachments, follow senders’ DMARC policies, trust named forwarders, and keep block and allow lists.' %}</li>
+            <li><strong>{% trans 'Outbound policy.' %}</strong> {% trans 'Per-mailbox sending limits, and an automatic pause with an alert when a mailbox behaves like a stolen password.' %}</li>
+            <li><strong>{% trans 'Mailbox care and a compliance journal.' %}</strong> {% trans 'Tidy Trash and Junk, warn people before a quota fills, and keep a copy of all mail in an archive mailbox.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="f-ops">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="f-ops">{% trans 'Operations' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Looking after the server without living in a terminal.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'System health.' %}</strong> {% trans 'One verdict, grouped checks, and the fix for each one.' %}</li>
+            <li><strong>{% trans 'Logs and audit trail.' %}</strong> {% trans 'Searchable activity and errors. Each audit entry is chained to the one before it, so tampering shows.' %}</li>
+            <li><strong>{% trans 'Backups, updates and rollback.' %}</strong> {% trans 'Encrypted nightly backups with an optional off-site copy; updates snapshot first and undo themselves if the new version is unhealthy.' %}</li>
+            <li><strong>{% trans 'Two-factor sign-in and roles.' %}</strong> {% trans 'Authenticator-app codes for administrators and permission-based roles.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="f-extend">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="f-extend">{% trans 'Plugins and assistant' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Extend it without touching the mail software.' %}</p>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'Marketplace.' %}</strong> {% trans 'A plugin is a declarative file of settings. It cannot run code, and everything it sets is validated twice.' %}</li>
+            <li><strong>{% trans 'Assistant.' %}</strong> {% trans 'Ask why mail is bouncing and get an answer built from your own checks. It stays off until you connect any OpenAI-compatible model, it can only read or draft changes, and applying is always your click.' %}</li>
+        </ul>
+    </section>
+</div>
+
+<section class="ifinmail-site-band" aria-labelledby="cta-title">
+    <div class="ifinmail-site-wrap ifinmail-site-band__inner">
+        <div>
+            <h2 id="cta-title">{% trans 'See how it installs.' %}</h2>
+            <p>{% trans 'One command, then a short setup wizard.' %}</p>
+        </div>
+        <a class="ifinmail-btn ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>
+    </div>
+</section>
+{% endblock %}

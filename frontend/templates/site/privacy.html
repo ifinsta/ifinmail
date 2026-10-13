@@ -1,0 +1,51 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Privacy' %}{% endblock %}
+{% block meta_description %}{% trans 'What this server stores, what leaves it, and for how long.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Legal' %}</p>
+        <h1>{% trans 'Privacy' %}</h1>
+        <p class="ifinmail-site-meta">{% blocktrans trimmed with date=legal_updated|date:'j F Y' %}Last updated {{ date }}{% endblocktrans %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap ifinmail-site-legal">
+    <article class="ifinmail-site-prose">
+        <h2>{% trans 'Who is responsible' %}</h2>
+        <p>{% trans 'This server is run by its operator, who decides what is kept and why. The project that publishes the software does not receive your mail or your account details. The one exception is a release check, described below.' %}</p>
+
+        <h2>{% trans 'What is stored' %}</h2>
+        <ul>
+            <li>{% trans 'Account details: your address, a hash of your password (never the password), your quota and, for administrators, roles and two-factor settings.' %}</li>
+            <li>{% trans 'Your mail, in your mailbox, until you or the operator delete it.' %}</li>
+            <li>{% trans 'An audit trail of administrative actions: who did what, and when. It is kept for 365 days unless the operator sets another period.' %}</li>
+            <li>{% trans 'Operational logs and error records needed to run and secure the server.' %}</li>
+            <li>{% trans 'Encrypted backups of all of the above, kept as long as the operator’s backup schedule keeps them.' %}</li>
+        </ul>
+
+        <h2>{% trans 'Cookies and browser storage' %}</h2>
+        <p>{% trans 'The console sets a session cookie to keep you signed in and a security cookie that protects forms. Your theme and layout choices are kept in your browser. There are no analytics, no advertising and no tracking scripts. These public pages load their typefaces from this server; console pages may load them from Google Fonts, depending on how the operator configured the server.' %}</p>
+
+        <h2>{% trans 'What leaves this server' %}</h2>
+        <ul>
+            <li>{% trans 'Mail you send travels to the recipient’s mail server, as email always does.' %}</li>
+            <li>{% trans 'About every six hours the server asks GitHub whether a new release exists, which tells GitHub the server’s address. The operator can switch this off.' %}</li>
+            <li>{% trans 'If the operator connects the assistant, an administrator’s question and the results of server checks are sent to the model service they chose. Message contents, passwords and keys are not sent, and conversations are kept for 30 days.' %}</li>
+            <li>{% trans 'Certificates are requested from Let’s Encrypt, and DNS changes may be sent to a DNS provider the operator connected.' %}</li>
+        </ul>
+
+        <h2>{% trans 'Your choices' %}</h2>
+        <p>{% trans 'You can ask the operator what is held about you, to correct it, to export your mail, or to delete your account. Closing an account removes its login; mail that was already backed up leaves the backups when they expire.' %}</p>
+
+        <h2>{% trans 'Security' %}</h2>
+        <p>{% trans 'Connections are encrypted, passwords are hashed, secrets are stored encrypted and administrative actions are recorded in a tamper-evident trail. No system is perfectly secure; the security page lists what is and is not covered.' %} <a href="{% url 'security' %}">{% trans 'Security' %}</a></p>
+
+        <h2>{% trans 'Changes and contact' %}</h2>
+        <p>{% trans 'This page may be updated, and the date at the top shows when it last changed. Questions about your data go to the operator of this server.' %}</p>
+    </article>
+</div>
+{% endblock %}

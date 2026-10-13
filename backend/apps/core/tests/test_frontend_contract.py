@@ -114,7 +114,6 @@ def test_phone_rules_use_wordmark_and_continuous_surface() -> None:
     css = _read(CSS / 'ifinmail-redesign.css')
     phone = css[css.index('@media (max-width: 767px)') :]
     assert '.ifinmail-wordmark' in phone
-    assert '.ifinmail-landing-nav__logo' in phone
     assert 'border-radius: 0' in phone and 'border: 0' in phone
 
 

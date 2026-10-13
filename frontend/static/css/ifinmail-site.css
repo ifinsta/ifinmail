@@ -1,0 +1,1047 @@
+/* ══════════════════════════════════════════════════════════════
+   ifinmail public site: landing, features, pricing, security,
+   docs, changelog, about, contact, terms, privacy.
+
+   Loaded after the console stylesheets, only by templates/site/.
+   Flat and typographic: borders, no shadows, no gradients, blue
+   only where something is interactive. Colours, radii and spacing
+   come from the tokens in ifinmail-variables.css, so the dark and
+   contrast themes work without a line of their own.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Fonts are served from this server: reading the site tells no third party who visited. */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('../fonts/inter-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url('../fonts/jetbrains-mono-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.ifinmail-site {
+    --site-measure: 68ch;
+    --site-wrap: 1120px;
+    --site-pad: var(--ifinmail-space-6);
+    --site-section: clamp(2rem, 1.4rem + 2.4vw, 3.5rem);
+    --site-h1: clamp(1.875rem, 1.3rem + 2.2vw, 2.75rem);
+    --site-h2: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--ifinmail-surface-container-lowest);
+    color: var(--ifinmail-color-text-primary);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+}
+
+.ifinmail-site-main {
+    flex: 1;
+}
+
+.ifinmail-site-wrap {
+    width: 100%;
+    max-width: calc(var(--site-wrap) + 2 * var(--site-pad));
+    margin: 0 auto;
+    padding-left: var(--site-pad);
+    padding-right: var(--site-pad);
+}
+
+.ifinmail-site-skip {
+    position: absolute;
+    left: var(--ifinmail-space-4);
+    top: -100px;
+    z-index: 100;
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-primary);
+    color: var(--ifinmail-on-primary);
+    font-weight: var(--ifinmail-font-weight-medium);
+}
+
+.ifinmail-site-skip:focus {
+    top: var(--ifinmail-space-2);
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+
+.ifinmail-site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: 60px;
+    background: var(--ifinmail-surface-container-lowest);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-header__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-6);
+    height: 100%;
+}
+
+.ifinmail-site a.ifinmail-site-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ifinmail-space-2);
+    min-height: 44px;
+    color: var(--ifinmail-color-brand);
+    font-size: 1.125rem;
+    font-weight: var(--ifinmail-font-weight-bold);
+    letter-spacing: -0.02em;
+}
+
+.ifinmail-site-brand__logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.ifinmail-site-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-1);
+    flex: 1;
+}
+
+.ifinmail-site-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 var(--ifinmail-space-3);
+    border-radius: var(--ifinmail-radius);
+    color: var(--ifinmail-color-text-secondary);
+    font-size: var(--ifinmail-font-size-base);
+    font-weight: var(--ifinmail-font-weight-medium);
+    text-decoration: none;
+}
+
+.ifinmail-site-nav a:hover {
+    background: var(--ifinmail-color-surface-2);
+    color: var(--ifinmail-color-text-primary);
+    text-decoration: none;
+}
+
+.ifinmail-site-nav a[aria-current='page'] {
+    color: var(--ifinmail-color-primary);
+    background: var(--ifinmail-color-primary-tint);
+}
+
+.ifinmail-site-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-2);
+}
+
+.ifinmail-site-menu {
+    display: none;
+    margin-left: auto;
+}
+
+.ifinmail-site-menu summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ifinmail-space-2);
+    min-height: 44px;
+    padding: 0 var(--ifinmail-space-2);
+    border-radius: var(--ifinmail-radius);
+    color: var(--ifinmail-color-text-primary);
+    font-weight: var(--ifinmail-font-weight-medium);
+    cursor: pointer;
+    list-style: none;
+}
+
+.ifinmail-site-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.ifinmail-site-menu summary:focus-visible {
+    outline: var(--ifinmail-focus-ring-width) solid var(--ifinmail-focus-ring-color);
+    outline-offset: var(--ifinmail-focus-ring-offset);
+}
+
+.ifinmail-site-menu[open] .ifinmail-site-menu__open,
+.ifinmail-site-menu:not([open]) .ifinmail-site-menu__close {
+    display: none;
+}
+
+.ifinmail-site-menu__panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-4) var(--ifinmail-space-4);
+    background: var(--ifinmail-surface-container-lowest);
+    border-bottom: 1px solid var(--ifinmail-color-border);
+}
+
+.ifinmail-site-menu__panel a:not(.ifinmail-btn) {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+    color: var(--ifinmail-color-text-primary);
+    font-weight: var(--ifinmail-font-weight-medium);
+    text-decoration: none;
+}
+
+.ifinmail-site-menu__panel a[aria-current='page'] {
+    color: var(--ifinmail-color-primary);
+}
+
+.ifinmail-site-menu__panel .ifinmail-btn {
+    margin-top: var(--ifinmail-space-3);
+    min-height: 44px;
+}
+
+/* ── Sections ───────────────────────────────────────────────── */
+
+.ifinmail-site-section {
+    padding: var(--site-section) 0;
+}
+
+.ifinmail-site-section--alt {
+    background: var(--ifinmail-color-surface-1);
+    border-top: 1px solid var(--ifinmail-color-border-light);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-head {
+    max-width: var(--site-measure);
+    margin-bottom: var(--ifinmail-space-6);
+}
+
+.ifinmail-site-head h2,
+.ifinmail-site-split__title {
+    margin: 0;
+    color: var(--ifinmail-color-brand);
+    font-size: var(--site-h2);
+    font-weight: var(--ifinmail-font-weight-bold);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+}
+
+.ifinmail-site-head p {
+    margin: var(--ifinmail-space-2) 0 0;
+    color: var(--ifinmail-color-text-secondary);
+}
+
+.ifinmail-site-overline {
+    margin: 0 0 var(--ifinmail-space-2);
+    color: var(--ifinmail-color-text-muted);
+    font-size: var(--ifinmail-font-size-overline);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.ifinmail-site-pagehead {
+    padding: var(--site-section) 0 var(--ifinmail-space-8);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-pagehead h1,
+.ifinmail-site-hero h1 {
+    margin: 0;
+    max-width: 20ch;
+    color: var(--ifinmail-color-brand);
+    font-size: var(--site-h1);
+    font-weight: var(--ifinmail-font-weight-bold);
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+}
+
+.ifinmail-site-pagehead h1 {
+    max-width: 24ch;
+}
+
+.ifinmail-site-lede {
+    margin: var(--ifinmail-space-4) 0 0;
+    max-width: 60ch;
+    color: var(--ifinmail-color-text-secondary);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+}
+
+.ifinmail-site-more-row {
+    padding: var(--ifinmail-space-6) 0;
+}
+
+.ifinmail-site-meta {
+    margin: var(--ifinmail-space-3) 0 0;
+    color: var(--ifinmail-color-text-muted);
+    font-size: var(--ifinmail-font-size-body);
+}
+
+/* ── Hero (landing) ─────────────────────────────────────────── */
+
+.ifinmail-site-hero {
+    padding: var(--site-section) 0;
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: var(--ifinmail-space-12);
+    align-items: center;
+}
+
+.ifinmail-site-hero h1 {
+    max-width: 16ch;
+}
+
+.ifinmail-site-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ifinmail-space-3);
+    margin-top: var(--ifinmail-space-6);
+}
+
+.ifinmail-site .ifinmail-btn--lg {
+    height: 44px;
+    font-size: var(--ifinmail-font-size-base);
+}
+
+.ifinmail-site-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ifinmail-space-2) var(--ifinmail-space-5);
+    margin: var(--ifinmail-space-5) 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--ifinmail-color-text-muted);
+    font-size: var(--ifinmail-font-size-body);
+}
+
+/* The product window: a drawn example of System health, labelled as one. */
+.ifinmail-site-window {
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius-dialog);
+    background: var(--ifinmail-surface-container-lowest);
+    overflow: hidden;
+}
+
+.ifinmail-site-window__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-3);
+    min-height: 44px;
+    padding: 0 var(--ifinmail-space-4);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+    background: var(--ifinmail-color-surface-1);
+}
+
+.ifinmail-site-window__title {
+    margin: 0;
+    color: var(--ifinmail-color-text-primary);
+    font-size: var(--ifinmail-font-size-body);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+.ifinmail-site-window__verdict {
+    margin: 0;
+    padding: var(--ifinmail-space-4);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+.ifinmail-site-window__verdict span {
+    display: block;
+    margin-top: var(--ifinmail-space-1);
+    color: var(--ifinmail-color-text-secondary);
+    font-size: var(--ifinmail-font-size-body);
+    font-weight: var(--ifinmail-font-weight-normal);
+}
+
+.ifinmail-site-checks {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ifinmail-site-checks li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--ifinmail-space-1) var(--ifinmail-space-3);
+    align-items: center;
+    padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-checks li:last-child {
+    border-bottom: 0;
+}
+
+.ifinmail-site-checks__name {
+    color: var(--ifinmail-color-text-primary);
+    font-size: var(--ifinmail-font-size-body);
+    font-weight: var(--ifinmail-font-weight-medium);
+}
+
+.ifinmail-site-checks__value {
+    grid-column: 1;
+    overflow-wrap: anywhere;
+    color: var(--ifinmail-color-text-muted);
+    font-family: var(--ifinmail-font-mono);
+    font-size: var(--ifinmail-font-size-body-small);
+}
+
+.ifinmail-site-checks .ifinmail-site-pill {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+}
+
+.ifinmail-site-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 var(--ifinmail-space-2);
+    border-radius: var(--ifinmail-radius-badge);
+    background: var(--ifinmail-color-surface-2);
+    color: var(--ifinmail-color-text-secondary);
+    font-size: var(--ifinmail-font-size-body-small);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    white-space: nowrap;
+}
+
+.ifinmail-site-pill--ok {
+    background: var(--ifinmail-color-success-tint);
+    color: var(--ifinmail-color-success-text);
+}
+
+.ifinmail-site-pill--warn {
+    background: var(--ifinmail-color-warning-tint);
+    color: var(--ifinmail-color-warning-text);
+}
+
+.ifinmail-site-pill--info {
+    background: var(--ifinmail-color-primary-tint);
+    color: var(--ifinmail-color-primary);
+}
+
+/* ── Grids of items ─────────────────────────────────────────── */
+
+.ifinmail-site-grid {
+    display: grid;
+    gap: var(--ifinmail-space-4);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ifinmail-site-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ifinmail-site-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ifinmail-site-item {
+    padding: var(--ifinmail-space-5);
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-surface-container-lowest);
+}
+
+.ifinmail-site-item h3 {
+    margin: 0;
+    color: var(--ifinmail-color-text-primary);
+    font-size: 1rem;
+    font-weight: var(--ifinmail-font-weight-semibold);
+    line-height: 1.3;
+}
+
+.ifinmail-site-item p {
+    margin: var(--ifinmail-space-2) 0 0;
+    color: var(--ifinmail-color-text-secondary);
+    font-size: var(--ifinmail-font-size-base);
+}
+
+.ifinmail-site-item p:first-child {
+    margin-top: 0;
+}
+
+.ifinmail-site-item .ifinmail-site-more {
+    display: inline-block;
+    margin-top: var(--ifinmail-space-3);
+}
+
+.ifinmail-site a.ifinmail-site-more {
+    color: var(--ifinmail-color-primary);
+    font-weight: var(--ifinmail-font-weight-medium);
+}
+
+.ifinmail-site a.ifinmail-site-more::after {
+    content: ' \2192';
+}
+
+/* Numbered steps */
+.ifinmail-site-steps {
+    display: grid;
+    gap: var(--ifinmail-space-4);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
+}
+
+.ifinmail-site-steps li {
+    padding-top: var(--ifinmail-space-4);
+    border-top: 2px solid var(--ifinmail-color-brand);
+    counter-increment: step;
+}
+
+.ifinmail-site-steps li::before {
+    content: '0' counter(step);
+    display: block;
+    margin-bottom: var(--ifinmail-space-2);
+    color: var(--ifinmail-color-text-muted);
+    font-family: var(--ifinmail-font-mono);
+    font-size: var(--ifinmail-font-size-body);
+}
+
+.ifinmail-site-steps h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+.ifinmail-site-steps p {
+    margin: var(--ifinmail-space-2) 0 0;
+    color: var(--ifinmail-color-text-secondary);
+}
+
+/* Two columns: a heading on the left, content on the right */
+.ifinmail-site-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--ifinmail-space-8);
+    padding: var(--site-section) 0;
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-split:last-child {
+    border-bottom: 0;
+}
+
+.ifinmail-site-split__title {
+    font-size: 1.125rem;
+}
+
+.ifinmail-site-split__lede {
+    margin: var(--ifinmail-space-2) 0 0;
+    color: var(--ifinmail-color-text-secondary);
+}
+
+/* Lists with check marks */
+.ifinmail-site-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ifinmail-site-list li {
+    position: relative;
+    padding: var(--ifinmail-space-2) 0 var(--ifinmail-space-2) var(--ifinmail-space-6);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+.ifinmail-site-list li:last-child {
+    border-bottom: 0;
+}
+
+.ifinmail-site-list li::before {
+    content: '';
+    position: absolute;
+    left: var(--ifinmail-space-1);
+    top: 0.85em;
+    width: 10px;
+    height: 5px;
+    border-left: 2px solid var(--ifinmail-color-brand);
+    border-bottom: 2px solid var(--ifinmail-color-brand);
+    transform: rotate(-45deg);
+}
+
+.ifinmail-site-list--plain li::before {
+    width: 6px;
+    height: 6px;
+    top: 1.1em;
+    border: 0;
+    border-radius: var(--ifinmail-radius-full);
+    background: var(--ifinmail-color-text-muted);
+    transform: none;
+}
+
+.ifinmail-site-list strong {
+    color: var(--ifinmail-color-text-primary);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+/* ── Code ───────────────────────────────────────────────────── */
+
+.ifinmail-site code {
+    padding: 1px 5px;
+    border: 1px solid var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-xs);
+    background: var(--ifinmail-color-surface-2);
+    font-family: var(--ifinmail-font-mono);
+    font-size: 0.875em;
+    overflow-wrap: anywhere;
+}
+
+.ifinmail-site pre {
+    margin: var(--ifinmail-space-3) 0;
+    padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-surface-1);
+    overflow-x: auto;
+    font-size: var(--ifinmail-font-size-body);
+    line-height: 1.6;
+}
+
+.ifinmail-site pre code {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: inherit;
+    overflow-wrap: normal;
+}
+
+/* ── Prose (docs, legal, about) ─────────────────────────────── */
+
+.ifinmail-site-prose {
+    max-width: var(--site-measure);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+.ifinmail-site-prose > * + * {
+    margin-top: var(--ifinmail-space-3);
+}
+
+.ifinmail-site-prose h2 {
+    margin-top: var(--ifinmail-space-10);
+    padding-top: var(--ifinmail-space-6);
+    border-top: 1px solid var(--ifinmail-color-border-light);
+    color: var(--ifinmail-color-brand);
+    font-size: 1.25rem;
+    font-weight: var(--ifinmail-font-weight-bold);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    scroll-margin-top: 76px;
+}
+
+.ifinmail-site-prose > h2:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.ifinmail-site-prose h3 {
+    margin-top: var(--ifinmail-space-6);
+    color: var(--ifinmail-color-text-primary);
+    font-size: 1rem;
+    font-weight: var(--ifinmail-font-weight-semibold);
+    scroll-margin-top: 76px;
+}
+
+.ifinmail-site-prose h2 + *,
+.ifinmail-site-prose h3 + * {
+    margin-top: var(--ifinmail-space-2);
+}
+
+.ifinmail-site-prose ul,
+.ifinmail-site-prose ol {
+    padding-left: var(--ifinmail-space-6);
+}
+
+.ifinmail-site-prose li + li {
+    margin-top: var(--ifinmail-space-1);
+}
+
+.ifinmail-site-prose strong {
+    color: var(--ifinmail-color-text-primary);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+.ifinmail-site-prose a {
+    color: var(--ifinmail-color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.ifinmail-site-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--ifinmail-font-size-body);
+}
+
+.ifinmail-site-prose th,
+.ifinmail-site-prose td {
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+    text-align: left;
+    vertical-align: top;
+}
+
+.ifinmail-site-prose th {
+    color: var(--ifinmail-color-text-primary);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+.ifinmail-site-scroll {
+    overflow-x: auto;
+}
+
+.ifinmail-site-note {
+    padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-surface-1);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+.ifinmail-site-note strong {
+    color: var(--ifinmail-color-text-primary);
+}
+
+/* Legal pages: one reading column */
+.ifinmail-site-legal {
+    padding-top: var(--site-section);
+    padding-bottom: calc(2 * var(--site-section));
+}
+
+/* ── Docs: contents beside the text ─────────────────────────── */
+
+.ifinmail-site-docs {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--ifinmail-space-12);
+    padding: var(--site-section) 0;
+}
+
+.ifinmail-site-toc {
+    position: sticky;
+    top: 84px;
+    align-self: start;
+}
+
+.ifinmail-site-toc p {
+    margin: 0 0 var(--ifinmail-space-2);
+}
+
+.ifinmail-site-toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ifinmail-site-toc a {
+    display: block;
+    padding: var(--ifinmail-space-1_5) 0;
+    color: var(--ifinmail-color-text-secondary);
+    font-size: var(--ifinmail-font-size-body);
+    text-decoration: none;
+}
+
+.ifinmail-site-toc a:hover {
+    color: var(--ifinmail-color-primary);
+    text-decoration: none;
+}
+
+/* ── Changelog ──────────────────────────────────────────────── */
+
+.ifinmail-site-release {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: var(--ifinmail-space-8);
+    padding: var(--ifinmail-space-8) 0;
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-release__version {
+    margin: 0;
+    font-family: var(--ifinmail-font-mono);
+    font-size: 1rem;
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-color-brand);
+    scroll-margin-top: 76px;
+}
+
+.ifinmail-site-release__version .ifinmail-site-pill {
+    display: flex;
+    width: max-content;
+    margin-top: var(--ifinmail-space-2);
+    font-family: var(--ifinmail-font-ui);
+}
+
+.ifinmail-site-release .ifinmail-md {
+    max-width: var(--site-measure);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+.ifinmail-site-release .ifinmail-md strong {
+    color: var(--ifinmail-color-text-primary);
+}
+
+/* ── Closing band ───────────────────────────────────────────── */
+
+.ifinmail-site-band {
+    padding: var(--site-section) 0;
+    background: var(--ifinmail-band-bg);
+    color: var(--ifinmail-on-band);
+}
+
+.ifinmail-site-band__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-6);
+}
+
+.ifinmail-site-band h2 {
+    margin: 0;
+    font-size: var(--site-h2);
+    font-weight: var(--ifinmail-font-weight-bold);
+    letter-spacing: -0.015em;
+}
+
+.ifinmail-site-band p {
+    margin: var(--ifinmail-space-1) 0 0;
+    color: var(--ifinmail-on-dark-muted);
+}
+
+.ifinmail-site-band .ifinmail-btn {
+    border-color: transparent;
+    background: var(--ifinmail-on-band);
+    color: var(--ifinmail-band-bg);
+}
+
+.ifinmail-site-band .ifinmail-btn:hover {
+    background: var(--ifinmail-on-dark-muted);
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+
+.ifinmail-site-footer {
+    border-top: 1px solid var(--ifinmail-color-border-light);
+    background: var(--ifinmail-color-surface-1);
+}
+
+.ifinmail-site-footer__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
+    gap: var(--ifinmail-space-8);
+    padding: var(--ifinmail-space-10) 0 var(--ifinmail-space-8);
+}
+
+.ifinmail-site-footer__about {
+    margin: var(--ifinmail-space-2) 0 0;
+    max-width: 30ch;
+    color: var(--ifinmail-color-text-muted);
+    font-size: var(--ifinmail-font-size-body);
+}
+
+.ifinmail-site-footer h2 {
+    margin: 0 0 var(--ifinmail-space-2);
+    color: var(--ifinmail-color-text-primary);
+    font-size: var(--ifinmail-font-size-body);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+.ifinmail-site-footer ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ifinmail-site-footer li a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    color: var(--ifinmail-color-text-secondary);
+    font-size: var(--ifinmail-font-size-body);
+    text-decoration: none;
+}
+
+.ifinmail-site-footer li a:hover {
+    color: var(--ifinmail-color-primary);
+    text-decoration: underline;
+}
+
+.ifinmail-site-footer__base {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-2) var(--ifinmail-space-6);
+    padding: var(--ifinmail-space-4) 0;
+    border-top: 1px solid var(--ifinmail-color-border-light);
+    color: var(--ifinmail-color-text-muted);
+    font-size: var(--ifinmail-font-size-body-small);
+}
+
+.ifinmail-site-footer__base p {
+    margin: 0;
+}
+
+/* ── Focus ──────────────────────────────────────────────────── */
+
+.ifinmail-site a:focus-visible {
+    outline: var(--ifinmail-focus-ring-width) solid var(--ifinmail-focus-ring-color);
+    outline-offset: var(--ifinmail-focus-ring-offset);
+    border-radius: var(--ifinmail-radius-xs);
+}
+
+/* ── Tablet and below ───────────────────────────────────────── */
+
+@media (max-width: 959px) {
+    .ifinmail-site-hero__grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--ifinmail-space-8);
+    }
+
+    .ifinmail-site-grid,
+    .ifinmail-site-grid--4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ifinmail-site-footer__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ifinmail-site-footer__grid > :first-child {
+        grid-column: 1 / -1;
+    }
+
+    .ifinmail-site-docs {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--ifinmail-space-6);
+    }
+
+    .ifinmail-site-toc {
+        position: static;
+    }
+
+    .ifinmail-site-toc p {
+        display: none;
+    }
+
+    .ifinmail-site-toc ul {
+        display: flex;
+        gap: var(--ifinmail-space-4);
+        overflow-x: auto;
+        border-bottom: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    .ifinmail-site-toc a {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        white-space: nowrap;
+    }
+
+    .ifinmail-site-split {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--ifinmail-space-4);
+    }
+}
+
+/* ── Phone: one continuous surface, edge to edge ────────────── */
+
+@media (max-width: 767px) {
+    .ifinmail-site {
+        --site-pad: var(--ifinmail-space-4);
+    }
+
+    .ifinmail-site-nav,
+    .ifinmail-site-actions {
+        display: none;
+    }
+
+    .ifinmail-site-menu {
+        display: block;
+    }
+
+    .ifinmail-site-brand__logo {
+        display: none;
+    }
+
+    .ifinmail-site-grid,
+    .ifinmail-site-grid--2,
+    .ifinmail-site-grid--4,
+    .ifinmail-site-steps {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+    }
+
+    .ifinmail-site-item {
+        padding: var(--ifinmail-space-4) 0;
+        border: 0;
+        border-top: 1px solid var(--ifinmail-color-border-light);
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .ifinmail-site-steps li {
+        padding: var(--ifinmail-space-4) 0;
+        border-top: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    .ifinmail-site-window {
+        border-left: 0;
+        border-right: 0;
+        border-radius: 0;
+        margin-left: calc(-1 * var(--site-pad));
+        margin-right: calc(-1 * var(--site-pad));
+    }
+
+    .ifinmail-site-actions-row .ifinmail-btn {
+        flex: 1 1 100%;
+    }
+
+    .ifinmail-site-release {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--ifinmail-space-3);
+    }
+
+    .ifinmail-site-band__inner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ifinmail-site-band .ifinmail-btn {
+        min-height: 44px;
+    }
+
+    .ifinmail-site-footer li a {
+        min-height: 44px;
+    }
+
+    .ifinmail-site-prose table {
+        display: block;
+        overflow-x: auto;
+    }
+}

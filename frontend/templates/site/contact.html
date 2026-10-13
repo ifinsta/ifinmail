@@ -1,0 +1,38 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Contact' %}{% endblock %}
+{% block meta_description %}{% trans 'Where to ask a question, report a bug or report a vulnerability.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Contact' %}</p>
+        <h1>{% trans 'Ask, report, or tell us about a risk.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'Everything goes through the project’s public repository, so answers help the next person too. Please never include passwords, keys or mail contents.' %}</p>
+    </div>
+</section>
+
+<section class="ifinmail-site-section">
+    <div class="ifinmail-site-wrap">
+        <ul class="ifinmail-site-grid">
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Questions and bugs' %}</h3>
+                <p>{% trans 'Open an issue. Say what you expected, what happened, and what System health shows.' %}</p>
+                <a class="ifinmail-site-more" href="{{ issues_url }}" rel="noopener">{% trans 'Open an issue' %}</a>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Security reports' %}</h3>
+                <p>{% trans 'Report privately so a fix can ship before details are public. Targets: acknowledged in three working days, assessed in seven.' %}</p>
+                <a class="ifinmail-site-more" href="{{ security_policy_url }}" rel="noopener">{% trans 'Report privately' %}</a>
+            </li>
+            <li class="ifinmail-site-item">
+                <h3>{% trans 'Read first' %}</h3>
+                <p>{% trans 'Most setup questions are answered in the documentation, and every release is described in the changelog.' %}</p>
+                <a class="ifinmail-site-more" href="{% url 'docs' %}">{% trans 'Documentation' %}</a>
+            </li>
+        </ul>
+        <p class="ifinmail-site-meta">{% trans 'Support is community best effort. There is no service-level agreement.' %}</p>
+    </div>
+</section>
+{% endblock %}

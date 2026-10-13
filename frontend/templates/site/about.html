@@ -1,0 +1,43 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'About' %}{% endblock %}
+{% block meta_description %}{% trans 'Why the project exists, how it is built, and what it is not.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'About' %}</p>
+        <h1>{% trans 'Mail you own, without the usual weekend of work.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'Running your own mail server is possible, but fragile: DNS, certificates, authentication, reputation and backups each fail quietly. This project puts them in one place and checks them continuously.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap">
+    <section class="ifinmail-site-split" aria-labelledby="a-what">
+        <div><h2 class="ifinmail-site-split__title" id="a-what">{% trans 'What it is' %}</h2></div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'A Django console and a set of well-known open-source services, run as containers on a single server: Postfix for SMTP, Dovecot for IMAP, Rspamd for filtering, Knot for DNS, PostgreSQL and Redis. The console configures them, watches them and explains what it sees.' %}</p>
+            <p>{% trans 'We chose established software over inventing our own, and we keep the number of moving parts low so one person can understand and operate the whole system.' %}</p>
+        </div>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="a-principles">
+        <div><h2 class="ifinmail-site-split__title" id="a-principles">{% trans 'How we work' %}</h2></div>
+        <ul class="ifinmail-site-list">
+            <li><strong>{% trans 'Plain language.' %}</strong> {% trans 'Every check says what is wrong and what to do next.' %}</li>
+            <li><strong>{% trans 'Few dependencies.' %}</strong> {% trans 'We avoid adding packages when a small amount of code will do.' %}</li>
+            <li><strong>{% trans 'Reversible changes.' %}</strong> {% trans 'Updates snapshot first. Plugins can be removed and their effects go with them.' %}</li>
+            <li><strong>{% trans 'Honest limits.' %}</strong> {% trans 'We document what is not included, such as webmail and certifications.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="a-not">
+        <div><h2 class="ifinmail-site-split__title" id="a-not">{% trans 'What it is not' %}</h2></div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'It is not a hosted service and not a bulk-mailing tool. It is built for the mail of people and organisations who want to run their own server, and it works best when someone owns the job of looking after it.' %}</p>
+            <p><a href="{{ repo_url }}" rel="noopener">{% trans 'Read the source and the history on GitHub' %}</a></p>
+        </div>
+    </section>
+</div>
+{% endblock %}

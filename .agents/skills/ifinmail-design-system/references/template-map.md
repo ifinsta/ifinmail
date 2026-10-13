@@ -20,8 +20,8 @@ Canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (board = artboard file
 | `admin/password_reset_email.html`, `registration/email_verify.html` | `Emails` | System email layout |
 | `registration/_stepper.html`, `step_profile.html`, `step_username.html`, `step_password.html`, `step_verify.html`, `step_complete.html` | `Registration` | Five steps plus the verify-send-failed variant |
 | `setup/base.html`, `welcome.html`, `dns_provider.html`, `dns_auto.html`, `dns_manual.html`, `create_account.html`, `done.html` | `Setup` | Six wizard screens with the stepper |
-| `landing.html` | `Landing` | Nav, hero with product window, features, pricing, security, CTA, footer |
-| `privacy.html`, `terms.html` | `Privacy`, `Terms` | Reading column with section rules |
+| `site/landing.html` (+ `site/features.html`, `pricing.html`, `security.html`, `docs.html`, `changelog.html`, `about.html`, `contact.html`, shell `site/base.html`, `_nav.html`, `_footer.html`) | `Landing` | Nav, hero with product window, capabilities, steps, security and cost, CTA, footer; inner pages use the page head, split sections and prose pattern |
+| `site/privacy.html`, `site/terms.html` | `Privacy`, `Terms` | Reading column with section rules |
 | `error_base.html`, `400.html`, `403.html`, `404.html`, `500.html`, `502.html`, `503.html`, `504.html`, `static/error-pages/40x.html`, `50x.html` | `ErrorPages` | Eight error cards and the static fallback note |
 | `clients/android/.../webMain/resources/index.html` | `AndroidShell` | Loading splash |
 

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n static_versioning %}
+{% comment %}
+Shell of the public site. Pages fill `page_title`, `meta_description` and `content`.
+Fonts are served from this server (see ifinmail-site.css), so the Google Fonts block is dropped.
+{% endcomment %}
+
+{% block title %}{% block page_title %}{% endblock %} — {{ brand.name }}{% endblock %}
+{% block webfonts %}{% endblock %}
+
+{% block head %}
+    <meta name="description" content="{% block meta_description %}{% endblock %}">
+    <link rel="stylesheet" href="{% versioned_css 'css/ifinmail-site.css' %}">
+{% endblock %}
+
+{% block body_layout %}
+<div class="ifinmail-site">
+    <a class="ifinmail-site-skip" href="#content">{% trans 'Skip to content' %}</a>
+    {% include "site/_nav.html" %}
+    <main class="ifinmail-site-main" id="content">
+        {% block content %}{% endblock %}
+    </main>
+    {% include "site/_footer.html" %}
+</div>
+{% endblock %}
+
+{% block sidebar_script %}{% endblock %}

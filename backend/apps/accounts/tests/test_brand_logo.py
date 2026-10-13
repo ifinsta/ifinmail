@@ -56,7 +56,7 @@ class PublicPageLogoTests(TestCase):
             response = self.client.get(reverse('landing'))
         self.assertContains(response, 'Acme Mail')
         self.assertNotContains(response, 'ifinmail-brand-logo')
-        self.assertNotContains(response, 'ifinmail-landing-nav__logo')
+        self.assertNotContains(response, 'ifinmail-site-brand__logo')
 
     def test_error_page_shows_the_brand_name_without_a_logo(self) -> None:
         with override_settings(BRAND_CONFIG=PLAIN_BRAND):

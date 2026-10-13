@@ -1,0 +1,93 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{% trans 'Security' %}{% endblock %}
+{% block meta_description %}{% trans 'What the platform does to protect your mail and your server, what it asks of you, and what we do not claim.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Security' %}</p>
+        <h1>{% trans 'Specific protections, and honest limits.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'This page lists what is built in and can be checked, not adjectives. You run the server, so some of the work is yours.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap">
+    <section class="ifinmail-site-split" aria-labelledby="s-transport">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-transport">{% trans 'In transit' %}</h2>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li>{% trans 'Signing in to send mail is refused unless the connection is encrypted.' %}</li>
+            <li>{% trans 'TLS 1.2 or newer for sending, receiving and mailbox access.' %}</li>
+            <li>{% trans 'Outgoing mail is signed with a DKIM key per domain, and SPF, DMARC and MTA-STS records are published.' %}</li>
+            <li>{% trans 'The console is served over HTTPS with a Content Security Policy.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="s-access">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-access">{% trans 'Access' %}</h2>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li>{% trans 'Two-factor authentication with authenticator-app codes, and one-time recovery codes.' %}</li>
+            <li>{% trans 'Roles with named permissions. The first administrator must change the printed password at first sign-in.' %}</li>
+            <li>{% trans 'Senders may only use addresses that belong to their own login.' %}</li>
+            <li>{% trans 'Stored secrets, such as a model API key, are encrypted and never shown again.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="s-detect">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-detect">{% trans 'Detection and records' %}</h2>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li>{% trans 'Every administrative change is written to an audit trail, kept 365 days by default.' %}</li>
+            <li>{% trans 'Each entry carries a hash of the one before it, and a command verifies the chain.' %}</li>
+            <li>{% trans 'A mailbox that suddenly sends far more than usual is paused and the administrators are told.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="s-data">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-data">{% trans 'Your data and backups' %}</h2>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li>{% trans 'Your mail lives on your server. Nothing is sent to us.' %}</li>
+            <li>{% trans 'Backups are encrypted. An off-site copy goes over SSH and is checked by hash.' %}</li>
+            <li>{% trans 'The assistant sends only your question and check results to the model host you chose, never message contents, passwords or keys.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="s-supply">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-supply">{% trans 'The software' %}</h2>
+        </div>
+        <ul class="ifinmail-site-list">
+            <li>{% trans 'The source is public, so you can read what runs on your server.' %}</li>
+            <li>{% trans 'Python dependencies are pinned by hash and audited for known vulnerabilities every week.' %}</li>
+            <li>{% trans 'Plugins are declarative settings. They cannot run code.' %}</li>
+        </ul>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="s-limits">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-limits">{% trans 'What we do not claim' %}</h2>
+        </div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'There is no SOC 2, ISO 27001 or similar certification, and no independent security audit has been published. We do not offer a service-level agreement. Because you operate the server, its operating system, firewall, passwords and physical security are your responsibility. Only the latest release receives security fixes.' %}</p>
+        </div>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="s-report">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="s-report">{% trans 'Reporting a vulnerability' %}</h2>
+        </div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'Please report privately, not in a public issue. We acknowledge a report within three working days and assess it within seven. Critical issues are fixed within seven days and high-severity issues within thirty.' %}</p>
+            <p><a href="{{ security_policy_url }}" rel="noopener">{% trans 'Read the policy and report privately' %}</a></p>
+        </div>
+    </section>
+</div>
+{% endblock %}

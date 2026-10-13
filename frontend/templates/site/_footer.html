@@ -1,0 +1,52 @@
+{% load i18n %}
+<footer class="ifinmail-site-footer">
+    <div class="ifinmail-site-wrap">
+        <div class="ifinmail-site-footer__grid">
+            <div>
+                <a class="ifinmail-site-brand" href="{% url 'landing' %}">
+                    {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
+                    <span>{{ brand.name }}</span>
+                </a>
+                <p class="ifinmail-site-footer__about">{% trans 'A mail server you run yourself, with one console to look after it.' %}</p>
+            </div>
+            <nav aria-label="{% trans 'Product' %}">
+                <h2>{% trans 'Product' %}</h2>
+                <ul>
+                    <li><a href="{% url 'features' %}">{% trans 'Features' %}</a></li>
+                    <li><a href="{% url 'pricing' %}">{% trans 'Pricing' %}</a></li>
+                    <li><a href="{% url 'security' %}">{% trans 'Security' %}</a></li>
+                    <li><a href="{% url 'changelog' %}">{% trans 'Changelog' %}</a></li>
+                </ul>
+            </nav>
+            <nav aria-label="{% trans 'Resources' %}">
+                <h2>{% trans 'Resources' %}</h2>
+                <ul>
+                    <li><a href="{% url 'docs' %}">{% trans 'Documentation' %}</a></li>
+                    <li><a href="{% url 'docs' %}#install">{% trans 'Install guide' %}</a></li>
+                    <li><a href="{{ repo_url }}" rel="noopener">{% trans 'Source code' %}</a></li>
+                    <li><a href="{{ releases_url }}" rel="noopener">{% trans 'Releases' %}</a></li>
+                </ul>
+            </nav>
+            <nav aria-label="{% trans 'Company' %}">
+                <h2>{% trans 'Project' %}</h2>
+                <ul>
+                    <li><a href="{% url 'about' %}">{% trans 'About' %}</a></li>
+                    <li><a href="{% url 'contact' %}">{% trans 'Contact' %}</a></li>
+                    <li><a href="{{ issues_url }}" rel="noopener">{% trans 'Report an issue' %}</a></li>
+                </ul>
+            </nav>
+            <nav aria-label="{% trans 'Legal' %}">
+                <h2>{% trans 'Legal' %}</h2>
+                <ul>
+                    <li><a href="{% url 'terms' %}">{% trans 'Terms' %}</a></li>
+                    <li><a href="{% url 'privacy' %}">{% trans 'Privacy' %}</a></li>
+                    <li><a href="{{ security_policy_url }}" rel="noopener">{% trans 'Security policy' %}</a></li>
+                </ul>
+            </nav>
+        </div>
+        <div class="ifinmail-site-footer__base">
+            <p>&copy; {% now 'Y' %} {{ brand.name }}</p>
+            <p>{% trans 'Powered by ifinmail, a self-hosted mail platform.' %}</p>
+        </div>
+    </div>
+</footer>

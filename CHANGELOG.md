@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.18
+- **A real public site.** The landing page, Terms and Privacy are rebuilt, and seven pages that
+  were only links are added: **Features**, **Pricing**, **Security**, **Docs**, **Changelog**,
+  **About** and **Contact**. Compact, flat (no gradients, no shadows), responsive from 360 px, in
+  the light, dark and high-contrast themes, with one heading level one and a skip link on every
+  page. The phone menu needs no script.
+- **Honest copy.** The old pages claimed things the project cannot back: a SOC 2 and GDPR badge,
+  paid tiers ($29, "Enterprise"), a 99.9% figure, PGP, a service level. All removed. Pricing now
+  says what is true (free to run, you pay for the server and domain; community support), and
+  Security lists specific, checkable protections next to a plain "what we do not claim". The
+  product preview is labelled "Example data". Terms and Privacy are rewritten for a self-hosted
+  server (the operator is the service provider; what is stored, kept and sent where).
+- **Nothing is fetched from a third party** on these pages: Inter and JetBrains Mono are served
+  from this server. (Console pages still use Google Fonts unless `USE_GOOGLE_FONTS=0`.)
+- **The Changelog page is this file**, rendered by the existing Markdown renderer: the newest
+  eight releases, with a link to the rest.
+- 800 lines of landing-page and legal CSS that nothing uses any more were deleted.
+- Tests: every page renders without signing in, has one `h1` and a `main`, loads nothing
+  external; the stylesheet has no gradients or literal colours; a list of claims the project
+  cannot make is checked against every page.
+
 ## v0.0.17
 - **Containment of a suspected stolen password.** Sending limits only slow a flood down; now the
   server notices it. Rspamd counts, per logged-in mailbox, the messages, the different recipients

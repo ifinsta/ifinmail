@@ -1,0 +1,35 @@
+{% extends "site/base.html" %}
+{% load i18n assistant_markdown %}
+
+{% block page_title %}{% trans 'Changelog' %}{% endblock %}
+{% block meta_description %}{% trans 'What changed in each release.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Changelog' %}</p>
+        <h1>{% trans 'What changed, release by release.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'The newest releases, as written in the repository. Problems we found and fixed are listed too.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap">
+    {% for release in releases %}
+    <section class="ifinmail-site-release" aria-labelledby="{{ release.anchor }}">
+        <h2 class="ifinmail-site-release__version" id="{{ release.anchor }}">
+            {{ release.version }}
+            {% if forloop.first %}<span class="ifinmail-site-pill ifinmail-site-pill--info">{% trans 'Latest' %}</span>{% endif %}
+        </h2>
+        {{ release.body|markdown }}
+    </section>
+    {% empty %}
+    <section class="ifinmail-site-split">
+        <div><h2 class="ifinmail-site-split__title">{% trans 'No changelog on this server' %}</h2></div>
+        <div class="ifinmail-site-prose"><p>{% trans 'The release notes are published with every release.' %} <a href="{{ releases_url }}" rel="noopener">{% trans 'Open the releases' %}</a></p></div>
+    </section>
+    {% endfor %}
+    {% if releases %}
+    <div class="ifinmail-site-more-row"><a class="ifinmail-site-more" href="{{ releases_url }}" rel="noopener">{% trans 'Older releases on GitHub' %}</a></div>
+    {% endif %}
+</div>
+{% endblock %}

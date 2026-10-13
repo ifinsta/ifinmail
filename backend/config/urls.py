@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.accounts.api import api as api_v1
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
+from backend.config import public_pages
 from backend.config.branding import DEFAULT_BRAND_NAME
 from backend.config.env import primary_domain
 
@@ -136,21 +137,6 @@ def legacy_accounts_redirect(request: HttpRequest, path: str = '') -> HttpRespon
     return redirect(target, permanent=False)
 
 
-def landing_page(request: HttpRequest) -> HttpResponse:
-    """Public landing page — no authentication required."""
-    return render(request, 'landing.html')
-
-
-def terms_page(request: HttpRequest) -> HttpResponse:
-    """Public terms of service page."""
-    return render(request, 'terms.html')
-
-
-def privacy_page(request: HttpRequest) -> HttpResponse:
-    """Public privacy policy page."""
-    return render(request, 'privacy.html')
-
-
 def manifest(request: HttpRequest) -> JsonResponse:
     """Web app manifest, branded from ``BRAND_CONFIG``.
 
@@ -205,9 +191,7 @@ def manifest(request: HttpRequest) -> JsonResponse:
 
 
 urlpatterns = [
-    path('', landing_page, name='landing'),
-    path('terms/', terms_page, name='terms'),
-    path('privacy/', privacy_page, name='privacy'),
+    *public_pages.urlpatterns,
     path('manifest.webmanifest', manifest, name='manifest'),
     path('csp-report/', csp_report, name='csp-report'),
     path('health/', health_check, name='health-check'),

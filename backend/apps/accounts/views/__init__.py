@@ -10,7 +10,7 @@ from .dashboard import (
     dashboard_rescan,
     dashboard_shell,
 )
-from .logs import logs, logs_export, logs_full_history, logs_live_data, logs_report
+from .logs import logs, logs_export, logs_full_history, logs_live_data, logs_report, logs_trace
 from .mailboxes import (
     aliases_create,
     aliases_delete,
@@ -91,6 +91,7 @@ __all__ = [
     'logs_full_history',
     'logs_live_data',
     'logs_report',
+    'logs_trace',
     'password_reset',
     'password_reset_complete',
     'password_reset_confirm',

@@ -286,3 +286,140 @@ class ReportTests(base.AssistantBase):
         )
         self.client.logout()
         self.assertIn(self.client.get(reverse('accounts:logs_report')).status_code, (302, 403))
+
+
+class MailTraceTests(base.AssistantBase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.dir = Path(tempfile.mkdtemp(prefix='ifm-trace-'))
+        env = patch.dict(os.environ, {'IFINMAIL_MAIL_LOG_DIR': str(self.dir), 'ADMIN_EMAIL': ''})
+        env.start()
+        self.addCleanup(env.stop)
+        t = lambda s: syslog(NOW - timedelta(minutes=s))  # noqa: E731
+        stamp = f'{(NOW - timedelta(minutes=5)):%Y-%m-%d %H:%M:%S}'
+        (self.dir / 'postfix.log').write_text(
+            '\n'.join(
+                [
+                    f'{t(6)} mail postfix/smtpd[10]: 4F2A91C7B3: client=unknown[203.0.113.4], '
+                    'sasl_method=PLAIN, sasl_username=alex@ifinmail.test',
+                    f'{t(6)} mail postfix/cleanup[11]: 4F2A91C7B3: '
+                    'message-id=<abc123@ifinmail.test>',
+                    f'{t(6)} mail postfix/qmgr[12]: 4F2A91C7B3: from=<alex@ifinmail.test>, '
+                    'size=1834, nrcpt=1 (queue active)',
+                    f'{t(5)} mail postfix/smtp[13]: 4F2A91C7B3: to=<bob@example.org>, '
+                    'relay=mx.example.org[198.51.100.9]:25, delay=1, dsn=4.2.0, '
+                    'status=deferred (greylisted, try later)',
+                    f'{t(1)} mail postfix/smtp[14]: 4F2A91C7B3: to=<bob@example.org>, '
+                    'relay=mx.example.org[198.51.100.9]:25, delay=300, dsn=2.0.0, '
+                    'status=sent (250 2.0.0 Ok)',
+                    f'{t(1)} mail postfix/qmgr[12]: 4F2A91C7B3: removed',
+                    f'{t(4)} mail postfix/qmgr[12]: 9ZZZZ9ZZZZ: from=<other@example.net>, size=10, '
+                    'nrcpt=1 (queue active)',
+                ]
+            )
+            + '\n'
+        )
+        (self.dir / 'rspamd.log').write_text(
+            f'{stamp} #1(rspamd_proxy) <x>; proxy; rspamd_task_write_log: '
+            'id: <abc123@ifinmail.test>, qid: <4F2A91C7B3>, ip: 203.0.113.4, '
+            'from: <alex@ifinmail.test>, '
+            '(default: F (no action): [0.40/15.00] [S])\n'
+        )
+        (self.dir / 'dovecot.log').write_text(
+            f'{t(3)} lmtp(carol@ifinmail.test)<1><x>: msgid=<abc123@ifinmail.test>: '
+            'saved mail to INBOX\n'
+        )
+
+    def test_one_message_across_postfix_rspamd_and_dovecot(self) -> None:
+        from backend.apps.core.telemetry import mail_trace
+
+        traces = mail_trace.search('bob@example.org', NOW)
+        self.assertEqual([t.qid for t in traces], ['4F2A91C7B3'])
+        trace = traces[0]
+        texts = [s.text for s in trace.steps]
+        self.assertIn('Received from unknown[203.0.113.4], signed in as alex@ifinmail.test', texts)
+        self.assertTrue(
+            any(t.startswith('Spam filter: no action (score 0.40 of 15.00)') for t in texts)
+        )
+        self.assertTrue(any('Deferred to mx.example.org' in t and 'greylisted' in t for t in texts))
+        self.assertTrue(any(t.startswith('Sent to mx.example.org') for t in texts))
+        self.assertIn('Delivered to the mailbox (INBOX)', texts)  # joined by Message-ID
+        self.assertEqual(trace.outcome, 'delivered')
+        self.assertEqual(trace.sender, 'alex@ifinmail.test')
+        self.assertEqual(trace.recipients, ['bob@example.org'])
+        order = [s.at for s in trace.steps]
+        self.assertEqual(order, sorted(order))
+
+    def test_search_by_queue_id_and_short_or_unknown_queries(self) -> None:
+        from backend.apps.core.telemetry import mail_trace
+
+        self.assertEqual([t.qid for t in mail_trace.search('4F2A91C7B3', NOW)], ['4F2A91C7B3'])
+        self.assertEqual(mail_trace.search('ab', NOW), [])
+        self.assertEqual(mail_trace.search('nobody-at-all', NOW), [])
+
+    def test_the_page(self) -> None:
+        page = self.client.get(reverse('accounts:logs_trace') + '?q=bob@example.org')
+        self.assertContains(page, '4F2A91C7B3')
+        self.assertContains(page, 'Delivered')
+        self.assertContains(
+            self.client.get(reverse('accounts:logs_trace') + '?q=zz'), 'at least three'
+        )
+        self.assertContains(
+            self.client.get(reverse('accounts:logs_trace') + '?q=nothingmatches'), 'Nothing found'
+        )
+
+
+class WeeklyReportTests(base.AssistantBase):
+    def test_the_email_goes_to_the_administrators_and_can_be_turned_off(self) -> None:
+        from django.core import mail
+
+        from backend.apps.core.telemetry.tasks import weekly_report
+
+        with patch.dict(
+            os.environ,
+            {'ADMIN_EMAIL': 'owner@ifinmail.test', 'MAIL_HOSTNAME': 'mail.ifinmail.test'},
+        ):
+            result = weekly_report()
+            self.assertGreaterEqual(result['sent'], 1)
+            self.assertIn('owner@ifinmail.test', mail.outbox[0].to)
+            self.assertIn(
+                'https://mail.ifinmail.test/accounts/logs/report/?period=week', mail.outbox[0].body
+            )
+            self.assertIn('MAIL', mail.outbox[0].body)
+        mail.outbox.clear()
+        with patch.dict(os.environ, {'LOG_REPORT_EMAIL': '0'}):
+            self.assertTrue(weekly_report()['disabled'])
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_text_has_the_figures_and_the_top_findings(self) -> None:
+        ThreatFinding.objects.create(
+            key='probe_sweep:203.0.113.0/24',
+            kind='probe_sweep',
+            severity=int(Severity.HIGH),
+            subject='203.0.113.0/24',
+            title='Scanner probing',
+            summary='x',
+            count=9,
+            first_seen=NOW,
+            last_seen=NOW,
+        )
+        text = report.as_text(report.build('week', NOW), 'https://x/report')
+        self.assertIn('Log sources healthy:', text)
+        self.assertIn('[high] Scanner probing (203.0.113.0/24)', text)
+        self.assertIn('Details: https://x/report', text)
+
+
+class AssistantLogToolTests(base.AssistantBase):
+    def test_the_tool_answers_with_counts_and_no_change_details(self) -> None:
+        from backend.apps.core.assistant.services import tools
+
+        AuditEvent.objects.create(
+            action='plugin_install', user='admin@ifinmail.test', detail='secret-detail'
+        )
+        tool = tools.get('log_report')
+        assert tool is not None
+        out = tool.handler({'period': 'week'}, tools.ToolContext(user=self.admin.email))
+        self.assertEqual(out['period'], 'week')
+        self.assertEqual(out['changes'], {'plugin_install': 1})
+        self.assertNotIn('secret-detail', json.dumps(out))
+        self.assertIn('sources', out)

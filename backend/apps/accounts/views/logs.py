@@ -236,6 +236,28 @@ def logs_report(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @require_perm(PermissionCode.AUDIT_VIEW)
+def logs_trace(request: HttpRequest) -> HttpResponse:
+    """Follow one message through Postfix, Rspamd and Dovecot by address or queue id."""
+    from backend.apps.core.telemetry import mail_trace
+
+    query = request.GET.get('q', '').strip()[:120]
+    traces = mail_trace.search(query) if query else []
+    return render(
+        request,
+        'admin/logs_trace.html',
+        {
+            'active_section': 'logs',
+            'tab': 'trace',
+            'query': query,
+            'too_short': bool(query) and len(query) < mail_trace.MIN_QUERY,
+            'traces': traces,
+            'limit': mail_trace.MAX_MESSAGES,
+        },
+    )
+
+
+@login_required
+@require_perm(PermissionCode.AUDIT_VIEW)
 def logs_export(request: HttpRequest) -> HttpResponse:
     """Export the retained audit trail as CSV (default) or JSONL (``?format=jsonl``).
 

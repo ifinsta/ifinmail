@@ -244,3 +244,44 @@ def build(
         + sum(v for k, v in mail.items() if isinstance(v, int))
         + len(changes),
     }
+
+
+def as_text(data: dict[str, Any], link: str = '') -> str:
+    """The report as a plain-text email: what a person needs to read in a minute."""
+    web, mail, sec = data['web'], data['mail'], data['security']
+    lines = [
+        f'ifinmail report: {data["label"].lower()}',
+        '',
+        f'Log sources healthy: {data["sources_ok"]} of {data["sources_total"]}'
+        + (f' (needs attention: {", ".join(data["attention"])})' if data['attention'] else ''),
+        '',
+        'MAIL',
+        f'  received {mail["received"]}, delivered {mail["delivered"]}, sent on {mail["sent"]}, '
+        f'deferred {mail["deferred"]}, bounced {mail["bounced"]}',
+        f'  relay attempts refused {mail["relay_denied"]}, mailbox sign-ins {mail["logins"]}',
+    ]
+    if mail.get('spam'):
+        lines.append('  spam filter: ' + ', '.join(f'{k} {v}' for k, v in mail['spam'].items()))
+    lines += [
+        '',
+        'WEB',
+        f'  {web["requests"]} requests, {web["refused"]} refused, {web["closed"]} closed without '
+        f'an answer, {web["server_errors"]} server errors, busiest minute {web["busiest_minute"]}',
+        '',
+        'SECURITY',
+        f'  {sec["findings"]} findings ({sec["open"]} open), {sec["blocks"]} networks blocked, '
+        f'{sec["failed_console_signins"]} failed console sign-ins, '
+        f'{sec["failed_mail_signins"]} failed mail sign-ins, '
+        f'{sec["new_places"]} new sign-in places',
+    ]
+    for f in sec['top']:
+        lines.append(f'  - [{f["severity"]}] {f["title"]} ({f["subject"]})')
+    if data['errors']['by_type']:
+        lines += [
+            '',
+            'ERRORS',
+            '  ' + ', '.join(f'{k} x{v}' for k, v in data['errors']['by_type'].items()),
+        ]
+    if link:
+        lines += ['', f'Details: {link}']
+    return '\n'.join(lines) + '\n'

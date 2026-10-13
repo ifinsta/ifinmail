@@ -1,0 +1,57 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Mail trace — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page ifinmail-logs ifinmail-report">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'System logs' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Follow one message through the mail server, the spam filter and the mailbox, by address or queue id. Subjects and message text are not in the logs; addresses are, so this page is for administrators.' %}</p>
+            </div>
+        </div>
+
+        <nav class="ifinmail-tabs" aria-label="{% trans 'Log sections' %}">
+            <a class="ifinmail-tab" href="{% url 'accounts:logs_report' %}">{% trans 'Report' %}</a>
+            <a class="ifinmail-tab" href="{% url 'accounts:logs' %}?tab=activity">{% trans 'Activity' %}</a>
+            <a class="ifinmail-tab" href="{% url 'accounts:logs' %}?tab=errors">{% trans 'Errors' %}</a>
+            <a class="ifinmail-tab ifinmail-tab--active" href="{% url 'accounts:logs_trace' %}" aria-current="page">{% trans 'Mail trace' %}</a>
+        </nav>
+
+        <form class="ifinmail-logs-filters" method="get" role="search" aria-label="{% trans 'Find a message' %}">
+            <label class="ifinmail-sr-only" for="trace-q">{% trans 'Address, queue id or domain' %}</label>
+            <input class="ifinmail-input" id="trace-q" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="{% trans 'alex@example.org, 4F2A91C7B3 or example.org' %}" autocomplete="off">
+            <button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Trace' %}</button>
+        </form>
+
+        {% if too_short %}
+        <p class="ifinmail-help-text">{% trans 'Type at least three characters.' %}</p>
+        {% elif query and not traces %}
+        <div class="ifinmail-empty-state ifinmail-empty-state--compact">
+            <p><strong>{% trans 'Nothing found.' %}</strong> {% trans 'The mail logs keep about the last 16 MiB each (a few days on a quiet server). Try the sender or recipient address, or just the domain.' %}</p>
+        </div>
+        {% endif %}
+
+        {% for t in traces %}
+        <section class="ifinmail-panel" aria-labelledby="trace-{{ t.qid }}">
+            <h2 class="ifinmail-panel-title" id="trace-{{ t.qid }}">
+                <span class="ifinmail-text--mono">{{ t.qid }}</span>
+                <span class="ifinmail-badge ifinmail-badge--{% if t.outcome == 'delivered' %}success{% elif t.outcome == 'failed' %}danger{% elif t.outcome == 'delayed' %}warning{% else %}neutral{% endif %}">{{ t.outcome|capfirst }}</span>
+            </h2>
+            <p class="ifinmail-help-text">{% if t.sender %}{% trans 'From' %} <span class="ifinmail-text--mono">{{ t.sender }}</span>{% endif %}{% if t.recipients %} · {% trans 'To' %} <span class="ifinmail-text--mono">{{ t.recipients|join:', ' }}</span>{% endif %}</p>
+            <ol class="ifinmail-trace">
+                {% for s in t.steps %}
+                <li class="ifinmail-trace__step ifinmail-trace__step--{{ s.tone }}">
+                    <span class="ifinmail-text--mono ifinmail-trace__time">{{ s.at|date:'H:i:s' }}</span>
+                    <span class="ifinmail-trace__text">{{ s.text }}</span>
+                    <span class="ifinmail-help-text">{{ s.source }}</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </section>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

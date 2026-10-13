@@ -67,6 +67,38 @@ def geo_refresh() -> dict[str, Any]:
     return result
 
 
+@shared_task(name='telemetry.weekly_report')
+def weekly_report() -> dict[str, Any]:
+    """Email the week's report to the administrators (``LOG_REPORT_EMAIL=0`` turns it off)."""
+    import os
+
+    from django.core.mail import send_mail
+
+    from backend.apps.core.telemetry import report
+
+    if os.environ.get('LOG_REPORT_EMAIL', '1').lower() in ('0', 'false', 'no'):
+        return {'sent': 0, 'disabled': True}
+    from backend.apps.mail.services import containment
+
+    recipients = containment._recipients_of_alerts(())  # noqa: SLF001
+    if not recipients:
+        return {'sent': 0, 'recipients': 0}
+    data = report.build('week')
+    host = os.environ.get('MAIL_HOSTNAME', '')
+    link = f'https://{host}/accounts/logs/report/?period=week' if host else ''
+    subject = 'ifinmail weekly report' + (
+        f': {data["sources_total"] - data["sources_ok"]} log source(s) need attention'
+        if data['attention']
+        else ''
+    )
+    try:
+        send_mail(subject, report.as_text(data, link), None, recipients, fail_silently=False)
+    except Exception:
+        logger.exception('Could not email the weekly report')
+        return {'sent': 0, 'error': True}
+    return {'sent': len(recipients)}
+
+
 @shared_task(name='telemetry.threat_compact')
 def threat_compact() -> dict[str, int]:
     """Discard telemetry the digests have already summarised."""

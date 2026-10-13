@@ -269,6 +269,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'telemetry.threat_digest',
         'schedule': crontab(minute='1,11,21,31,41,51'),
     },
+    'weekly-report': {
+        # The week's logs report by email (Monday morning, UTC); LOG_REPORT_EMAIL=0 turns it off.
+        'task': 'telemetry.weekly_report',
+        'schedule': crontab(hour=7, minute=30, day_of_week=1),
+    },
     'geo-refresh': {
         # Cheap when the location data is current; downloads it when it is missing or a month old.
         'task': 'telemetry.geo_refresh',

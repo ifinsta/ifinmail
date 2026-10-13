@@ -337,6 +337,10 @@ the worker) and the sign-in record every ten minutes and keeps only what a decis
   It shows which sources are reporting (a log that goes quiet is itself a finding), mail flow and
   spam decisions, web status classes, security and changes, and exports as JSON. Container output
   of the console, worker, DNS, calendar, Redis and database is not collected (`make logs`).
+- **Mail trace and the weekly report.** Logs → Mail trace follows one message across Postfix,
+  Rspamd and Dovecot (joined by queue id and Message-ID); the report is emailed to the
+  administrators each Monday (`LOG_REPORT_EMAIL=0` turns that off); the assistant can answer from
+  the same figures.
 - **One slim row per hour**: counts and classes, no individual request, no address, no user agent.
 - **What is discarded**: raw error events of INFO and WARNING level after 48 hours, hours with
   no findings after a week, resolved findings after 30 days. The audit trail is never touched.

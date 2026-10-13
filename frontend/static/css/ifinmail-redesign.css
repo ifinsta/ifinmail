@@ -3217,3 +3217,35 @@ html.ifinmail-shell .ifinmail-report__facts dd { margin: 0; font-variant-numeric
 @media (max-width: 767px) {
     html.ifinmail-shell .ifinmail-report__grid { grid-template-columns: 1fr; }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Mail trace: one message as a vertical timeline
+   --------------------------------------------------------------------------------------------- */
+html.ifinmail-shell .ifinmail-trace {
+    list-style: none;
+    margin: var(--ifinmail-space-3) 0 0;
+    padding: 0 0 0 var(--ifinmail-space-4);
+    border-left: 2px solid var(--ifinmail-border);
+}
+html.ifinmail-shell .ifinmail-trace__step {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ifinmail-space-1) var(--ifinmail-space-3);
+    padding: var(--ifinmail-space-1) 0;
+    font-size: var(--ifinmail-font-size-body);
+}
+html.ifinmail-shell .ifinmail-trace__step::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--ifinmail-space-4) - 5px);
+    top: 0.65em;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ifinmail-primary);
+}
+html.ifinmail-shell .ifinmail-trace__step--ok::before { background: var(--ifinmail-color-success); }
+html.ifinmail-shell .ifinmail-trace__step--warning::before { background: var(--ifinmail-color-warning); }
+html.ifinmail-shell .ifinmail-trace__step--error::before { background: var(--ifinmail-color-danger); }
+html.ifinmail-shell .ifinmail-trace__time { color: var(--ifinmail-text-secondary); }

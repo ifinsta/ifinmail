@@ -27,6 +27,7 @@
             <a class="ifinmail-tab ifinmail-tab--active" href="{% url 'accounts:logs_report' %}" aria-current="page">{% trans 'Report' %}</a>
             <a class="ifinmail-tab" href="{% url 'accounts:logs' %}?tab=activity">{% trans 'Activity' %}</a>
             <a class="ifinmail-tab" href="{% url 'accounts:logs' %}?tab=errors">{% trans 'Errors' %}</a>
+            <a class="ifinmail-tab" href="{% url 'accounts:logs_trace' %}">{% trans 'Mail trace' %}</a>
         </nav>
 
         <div class="ifinmail-hbanner ifinmail-hbanner--{% if report.attention %}warning{% else %}ok{% endif %}" role="status">

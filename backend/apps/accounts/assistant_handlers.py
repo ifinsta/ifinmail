@@ -13,6 +13,7 @@ Nothing here returns a secret: only key identifiers, which are public by design.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from collections import Counter
 from typing import Any
 
 # Scopes that change things; a key holding one without a network list deserves a mention.
@@ -253,6 +254,16 @@ def _threat_digest(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
     }
 
 
+def _log_report(arguments: dict[str, Any], context: Any) -> dict[str, Any]:
+    """The unified logs report for a period (aggregates only; no addresses, no change details)."""
+    from backend.apps.core.telemetry import report
+
+    period = str(arguments.get('period', 'day')).lower()
+    data = report.build(period if period in report.PERIODS else 'day')
+    changes = Counter(c['action'] for c in data.pop('changes'))
+    return {**data, 'changes': dict(changes.most_common(10)), 'page': 'Settings > Logs > Report'}
+
+
 def register() -> None:
     from backend.apps.core.assistant.services import tools
     from backend.apps.core.assistant.services.tools import Tool
@@ -305,6 +316,25 @@ def register() -> None:
             'day and recent changes made with keys. Never contains a secret. Use it for '
             'questions about which integrations exist or whether they are safe.',
             _api_keys,
+        )
+    )
+    tools.register(
+        Tool(
+            'log_report',
+            'One report across every log the server keeps for a day, a week or a month: which '
+            'log sources are reporting or silent, mail flow (received, delivered, sent, deferred, '
+            'bounced, refused relays), spam filter decisions, web status classes, security '
+            'findings and blocks, failed sign-ins, errors and the kinds of changes made. Counts '
+            'only. Use it for questions such as "is everything logging?", "how much mail did we '
+            'handle?", "what happened this week?" or "is anything silent?".',
+            _log_report,
+            parameters={
+                'period': {
+                    'type': 'string',
+                    'description': 'how far back',
+                    'enum': ['day', 'week', 'month'],
+                },
+            },
         )
     )
     tools.register(

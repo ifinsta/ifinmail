@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.37
+- **Mail trace (Logs → Mail trace).** Search by address, domain or queue id and see each matching
+  message as one timeline: received (and who signed in), queued, the spam filter's verdict with its
+  score, every delivery attempt (deferred with the remote server's reason, sent, bounced), and
+  delivery to the mailbox. The three logs are joined by Postfix's queue id and by the Message-ID
+  (which is how Dovecot's line is found). Subjects and message text are not in the logs and are not
+  shown; addresses are, so the page needs the audit-view permission.
+- **The weekly report by email.** Monday 07:30 UTC the administrators get the week's report as
+  plain text: sources needing attention, mail, web, security, errors and the top findings, with a
+  link to the full page. `LOG_REPORT_EMAIL=0` turns it off.
+- **The assistant can answer from the same data** (`log_report`: is everything logging, how much
+  mail was handled, what happened this week). It gets counts and the kinds of changes, never
+  addresses or change details.
+
 ## v0.0.36
 - **Logs → Report: one report across every log the console collects.** A health banner (how many
   sources are reporting, which need attention), a summary strip, a *Log sources* table (status,

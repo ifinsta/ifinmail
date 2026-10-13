@@ -788,6 +788,18 @@ def _firewall() -> HealthCheck:
         )
     if status.in_sync:
         counts = EntryPointService.summary()
+        if counts['flood_mode']:
+            from backend.apps.core.platform.services.entrypoints import FLOOD_WEB_PER_MINUTE
+
+            return HealthCheck(
+                'firewall', GROUP_SECURITY, title, WARNING,
+                f'Flood mode is on: one address is held to {counts["rate_per_minute"]} new '
+                f'connections a minute on the mail ports and {FLOOD_WEB_PER_MINUTE} on the web '
+                'ports.',
+                'It was turned on automatically by a flood from many networks and ends on its own '
+                'a couple of hours after the flood stops. See Threats.',
+                **link,
+            )
         return HealthCheck(
             'firewall', GROUP_SECURITY, title, OK,
             f'In force: {counts["closed"]} port(s) closed, {counts["blocked"]} network(s) '

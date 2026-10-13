@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.0.28
+- **Phase 3 of the entry-point firewall: automatic protection, opt-in.** Settings → Network has a
+  new *Automatic protection* panel with two switches, both **off** until an administrator turns
+  them on (password again), and an allow-list of networks that are never touched.
+  - **Block networks that are attacking.** After each threat pass (every ten minutes) a network with
+    a serious open finding (a scanner that got answers, a flood, password or API-key guessing) is
+    blocked for 1, 6, 24 (default), 72 or 168 hours and then released by itself. It never blocks
+    the server's own address, ranges on the server's own side, the allow-list, a network anyone
+    signed in from in the last week or an API key was used from in the last month, or a finding an
+    administrator has acknowledged. At most 10 per pass and 50 automatic blocks in force; the
+    audit trail records each (`network_auto_block`) and the administrators are emailed.
+  - **Tighten during a flood.** When traffic arrives from many networks at once, each address is
+    held to 30 new connections a minute on the mail ports (never looser than your own cap) and 240
+    on the web ports, which have no per-address limit otherwise. Connections already open are not
+    touched. It ends by itself two hours after the flood stops (`flood_mode_on` / `flood_mode_off`
+    in the audit trail), and System health shows *Flood mode is on* while it lasts.
+- **Measured against a real kernel** with flood mode rules: 300 rapid attempts at a mail port were
+  held to 54 accepted, 300 at the web port to 186 accepted over the same period; the agent applied
+  the rules and its healthcheck stayed healthy.
+- The Network page lists only blocks still in force.
+- Next phase: mail-port login guessing (Postfix and Dovecot) in the digest.
+
 ## v0.0.27
 - **Phase 2 of the entry-point firewall: block a network from the finding that names it.** A
   finding about a scanner, a flood or password guessing now has *Block this network* (for people

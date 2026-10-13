@@ -59,7 +59,10 @@ def reconcile_entrypoints() -> dict[str, object]:
     lapsed = EntryPointService.expire()
     for cidr in lapsed:
         AuditService.record(action='network_unblock', user='system', detail=f'{cidr} (time was up)')
-    wrote = EntryPointService.reconcile() or bool(lapsed)
+    flood_ended = EntryPointService.expire_flood()
+    if flood_ended:
+        AuditService.record(action='flood_mode_off', user='system', detail='flood mode ended')
+    wrote = EntryPointService.reconcile() or bool(lapsed) or flood_ended
     if wrote:
         AuditService.record(
             action='firewall_published',

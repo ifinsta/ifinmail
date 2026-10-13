@@ -15,14 +15,17 @@ from django.views.decorators.http import require_GET, require_POST
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.platform.services.entrypoints import (
     CATALOGUE,
+    FLOOD_WEB_PER_MINUTE,
     EntryPointService,
     NetworkError,
 )
 from backend.apps.core.platform.services.tls import CertificateError, TLSAction, TLSService
+from backend.apps.core.telemetry.threats import autoblock
 from backend.apps.dns.services.server import DNSServerConfig
 from backend.apps.domains.services import DomainService
 
 from ..forms.server import (
+    AutoProtectForm,
     BlockForm,
     CertificateActionForm,
     CertificateUploadForm,
@@ -30,6 +33,7 @@ from ..forms.server import (
     RateForm,
     UnblockForm,
 )
+from ..services.stepup import StepUpService
 from ..types.permissions import PermissionCode
 from .auth import _get_client_ip, require_perm
 
@@ -167,8 +171,15 @@ def network_page(request: HttpRequest) -> HttpResponse:
             'active_section': 'network',
             'show_settings_icon': True,
             'entries': rows,
-            'blocklist': [blocklist_row(r) for r in EntryPointService.blocklist()],
+            'blocklist': [blocklist_row(r) for r in EntryPointService.active_blocklist()],
             'rate': EntryPointService.rate_per_minute(),
+            'auto': autoblock.config(),
+            'auto_hours': autoblock.HOURS,
+            'auto_max': autoblock.MAX_AUTO,
+            'auto_allow_text': '\n'.join(autoblock.config().allow),
+            'flood_until': EntryPointService.flood_until(),
+            'flood_mail': EntryPointService.effective_rate(True),
+            'flood_web': FLOOD_WEB_PER_MINUTE,
             'agent': EntryPointService.agent_status(),
             'client_ip': _get_client_ip(request),
         },
@@ -224,6 +235,41 @@ def network_block(request: HttpRequest) -> HttpResponse:
         return redirect('accounts:network')
     AuditService.record(action='network_block', user=_actor(request), detail=text)
     messages.success(request, _('{net} is blocked.').format(net=text))
+    return redirect('accounts:network')
+
+
+@login_required
+@_SECURITY
+@require_POST
+def network_auto(request: HttpRequest) -> HttpResponse:
+    """Turn automatic blocking and flood mode on or off (password again; both start off)."""
+    form = AutoProtectForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, _first_error(form))
+        return redirect('accounts:network')
+    problem = StepUpService.confirm(request)
+    if problem:
+        messages.error(request, _(problem))
+        return redirect('accounts:network')
+    data = form.cleaned_data
+    try:
+        cfg = autoblock.save(
+            block=data['block'],
+            flood=data['flood'],
+            hours=data['hours'],
+            allow_text=data['allow'] or '',
+        )
+    except NetworkError as exc:
+        messages.error(request, str(exc))
+        return redirect('accounts:network')
+    if not cfg.flood:
+        EntryPointService.end_flood()
+    detail = (
+        f'block={"on" if cfg.block else "off"} flood={"on" if cfg.flood else "off"} '
+        f'hours={cfg.hours} allow={len(cfg.allow)}'
+    )
+    AuditService.record(action='network_auto_config', user=_actor(request), detail=detail)
+    messages.success(request, _('Automatic protection saved.'))
     return redirect('accounts:network')
 
 

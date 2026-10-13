@@ -34,17 +34,20 @@ def purge_old_errors() -> dict[str, Any]:
 @shared_task(name='telemetry.threat_digest')
 def threat_digest() -> dict[str, Any]:
     """Read the access log and sign-in record, keep the slim version, tell someone if it matters."""
-    from backend.apps.core.telemetry.threats import digest
+    from backend.apps.core.telemetry.threats import autoblock, digest
 
     if not digest.enabled():
         return {'enabled': False}
     result = digest.run()
+    acted = autoblock.run()
     return {
         'requests': result.summary.requests,
         'findings': len(result.findings),
         'log': result.log_available,
         'alerted': result.alerted,
         'summarised': result.summarised,
+        'blocked': acted.blocked,
+        'flood_mode': acted.flood_started,
     }
 
 

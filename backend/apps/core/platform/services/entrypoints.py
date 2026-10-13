@@ -38,6 +38,12 @@ RULES_FILE = 'firewall.nft'
 STATUS_FILE = 'firewall-status.json'
 DEFAULT_RATE_PER_MINUTE = 120
 MAX_BLOCKLIST = 500
+# Flood mode (opt-in, temporary): while a distributed flood lasts, the mail-port cap tightens and
+# the web ports get a per-address cap they normally do not have. Established connections are
+# never touched, and a person's browser opens a handful of connections a minute, not hundreds.
+FLOOD_MAIL_PER_MINUTE = 30
+FLOOD_WEB_PER_MINUTE = 240
+FLOOD_WEB_KEYS = ('http', 'https')
 _MIN_PREFIX = {4: 8, 6: 16}
 _PROBE_CACHE_KEY = 'entrypoints:probes'
 _PROBE_CACHE_SECONDS = 20
@@ -347,12 +353,66 @@ class EntryPointService:
         EntryPointService.apply()
         return value
 
+    # -- flood mode ---------------------------------------------------------
+    @staticmethod
+    def flood_until(now: datetime | None = None) -> datetime | None:
+        """When flood mode ends, or ``None`` when it is not in force."""
+        state = SystemSettings.get(SettingKey.NETWORK_FLOOD, None)
+        if not isinstance(state, dict):
+            return None
+        try:
+            until = datetime.fromisoformat(str(state.get('until', '')))
+        except ValueError:
+            return None
+        return until if until > (now or datetime.now(UTC)) else None
+
+    @staticmethod
+    def start_flood(until: datetime, reason: str = '') -> bool:
+        """Turn flood mode on (or extend it). Returns whether it was off before."""
+        was_off = EntryPointService.flood_until() is None
+        SystemSettings.set(
+            SettingKey.NETWORK_FLOOD,
+            {'until': until.astimezone(UTC).isoformat(), 'reason': reason[:200]},
+        )
+        if was_off:
+            EntryPointService.apply()
+        return was_off
+
+    @staticmethod
+    def end_flood() -> bool:
+        """Clear flood mode if it was set (in force or lapsed). Returns whether anything changed."""
+        if SystemSettings.get(SettingKey.NETWORK_FLOOD, None) is None:
+            return False
+        SystemSettings.delete(SettingKey.NETWORK_FLOOD)
+        EntryPointService.apply()
+        return True
+
+    @staticmethod
+    def expire_flood(now: datetime | None = None) -> bool:
+        """Clear flood mode once its time is up (the rules already ignore it before this runs)."""
+        if SystemSettings.get(SettingKey.NETWORK_FLOOD, None) is None:
+            return False
+        if EntryPointService.flood_until(now) is not None:
+            return False
+        return EntryPointService.end_flood()
+
+    @staticmethod
+    def effective_rate(flood: bool | None = None) -> int:
+        """The mail-port cap in force: the configured one, tightened while flood mode is on."""
+        configured = EntryPointService.rate_per_minute()
+        if flood is None:
+            flood = EntryPointService.flood_until() is not None
+        if not flood:
+            return configured
+        return min(configured, FLOOD_MAIL_PER_MINUTE) if configured else FLOOD_MAIL_PER_MINUTE
+
     # -- rules --------------------------------------------------------------
     @staticmethod
     def render(
         disabled: list[tuple[str, int]] | None = None,
         blocked: list[str] | None = None,
         rate: int | None = None,
+        flood: bool | None = None,
     ) -> str:
         """nftables rule set (applied atomically, replacing the previous one)."""
         enabled = EntryPointService.enabled_map()
@@ -365,8 +425,19 @@ class EntryPointService:
             ]
         if blocked is None:
             blocked = [r['cidr'] for r in EntryPointService.active_blocklist()]
+        if flood is None:
+            flood = EntryPointService.flood_until() is not None
         if rate is None:
-            rate = EntryPointService.rate_per_minute()
+            rate = EntryPointService.effective_rate(flood)
+        web = sorted(
+            {
+                port
+                for e in CATALOGUE
+                if flood and e.key in FLOOD_WEB_KEYS and enabled.get(e.key, True)
+                for proto, port in e.ports
+                if proto == Proto.TCP
+            }
+        )
         v4 = sorted(c for c in blocked if ':' not in c)
         v6 = sorted(c for c in blocked if ':' in c)
         limited = sorted(
@@ -409,6 +480,21 @@ class EntryPointService:
             '    timeout 5m',
             '    size 65535',
             '  }',
+            # The web ports keep their own sets: a set's limiter state is per address, so sharing
+            # one with the mail ports would apply whichever rate touched the address first.
+            *(
+                line
+                for name, kind in (('floodweb4', 'ipv4_addr'), ('floodweb6', 'ipv6_addr'))
+                for line in (
+                    f'  set {name} {{',
+                    f'    type {kind}',
+                    '    flags dynamic,timeout',
+                    '    timeout 5m',
+                    '    size 65535',
+                    '  }',
+                )
+                if web
+            ),
         ]
         # The same checks run for traffic Docker forwards to a container (ct original proto-dst is
         # the port as published) and for traffic addressed to the host itself (dport).
@@ -440,6 +526,14 @@ class EntryPointService:
                     f'    meta l4proto tcp {sel} ct state new '
                     f'add @flood6 {{ ip6 saddr limit rate over {rate}/minute }} drop'
                 )
+            if web:
+                sel = f'{match} {{ {", ".join(map(str, web))} }}'
+                for name, saddr in (('floodweb4', 'ip'), ('floodweb6', 'ip6')):
+                    lines.append(
+                        f'    meta l4proto tcp {sel} ct state new '
+                        f'add @{name} {{ {saddr} saddr limit rate over '
+                        f'{FLOOD_WEB_PER_MINUTE}/minute }} drop'
+                    )
             lines.append('  }')
         lines.append('}')
         return '\n'.join(lines) + '\n'
@@ -473,9 +567,10 @@ class EntryPointService:
         limited = sum(1 for e in CATALOGUE if e.rate_limited and enabled.get(e.key, True))
         return {
             'closed': closed,
-            'blocked': len(EntryPointService.blocklist()),
-            'rate_per_minute': EntryPointService.rate_per_minute(),
+            'blocked': len(EntryPointService.active_blocklist()),
+            'rate_per_minute': EntryPointService.effective_rate(),
             'rate_limited_ports': limited,
+            'flood_mode': int(EntryPointService.flood_until() is not None),
         }
 
     @staticmethod

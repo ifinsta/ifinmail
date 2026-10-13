@@ -80,6 +80,46 @@
             </form>
         </section>
 
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-auto">
+            <h2 class="ifinmail-panel-title" id="fw-auto">{% trans 'Automatic protection' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with max=auto_max %}Both are off until you turn them on. Every action is temporary, recorded in the audit trail and emailed to the administrators. Nothing is ever blocked automatically that is this server, an address on its own side, a network someone signed in from in the last week, or on the list below; at most {{ max }} automatic blocks are in force at once.{% endblocktrans %}</p>
+            {% if flood_until %}
+            <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
+                <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+                <div>
+                    <p class="ifinmail-hbanner__headline">{% trans 'Flood mode is on' %}</p>
+                    <p class="ifinmail-hbanner__next">{% blocktrans trimmed with mail=flood_mail web=flood_web until=flood_until|date:'H:i' %}One address is held to {{ mail }} new connections a minute on the mail ports and {{ web }} on the web ports. It ends on its own at {{ until }} UTC unless the flood continues.{% endblocktrans %}</p>
+                </div>
+            </div>
+            {% endif %}
+            <form method="post" action="{% url 'accounts:network_auto' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label class="ifinmail-check"><input type="checkbox" name="block"{% if auto.block %} checked{% endif %}> <span>{% trans 'Block networks that are attacking' %}</span></label>
+                    <p class="ifinmail-help-text">{% trans 'A network with a serious finding on the Threats page (a scanner that got answers, a flood, password guessing) is blocked for the time below, then released.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="fw-auto-hours">{% trans 'Block for' %}</label>
+                    <select class="ifinmail-input" id="fw-auto-hours" name="hours">
+                        {% for h in auto_hours %}<option value="{{ h }}"{% if h == auto.hours %} selected{% endif %}>{% blocktrans trimmed count n=h %}{{ n }} hour{% plural %}{{ n }} hours{% endblocktrans %}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="ifinmail-field">
+                    <label class="ifinmail-check"><input type="checkbox" name="flood"{% if auto.flood %} checked{% endif %}> <span>{% trans 'Tighten the limits during a flood' %}</span></label>
+                    <p class="ifinmail-help-text">{% blocktrans trimmed with mail=flood_mail web=flood_web %}When traffic arrives from many networks at once, each address is held to {{ mail }} new connections a minute on the mail ports and {{ web }} on the web ports (the web ports have no limit otherwise). Connections already open are not touched, and it ends a couple of hours after the flood stops.{% endblocktrans %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="fw-auto-allow">{% trans 'Never block these networks (one per line)' %}</label>
+                    <textarea class="ifinmail-input ifinmail-text--mono" id="fw-auto-allow" name="allow" rows="3" maxlength="4000" placeholder="203.0.113.0/24">{{ auto_allow_text }}</textarea>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="fw-auto-pw">{% trans 'Your password' %}</label>
+                    <input class="ifinmail-input" id="fw-auto-pw" name="confirm_password" type="password" autocomplete="current-password" required>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save' %}</button></div>
+            </form>
+        </section>
+
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="fw-block">
             <h2 class="ifinmail-panel-title" id="fw-block">{% trans 'Blocked networks' %}</h2>
             <p class="ifinmail-settings-section__lede">{% blocktrans trimmed with ip=client_ip %}Blocked addresses cannot reach any service. You are connecting from <code>{{ ip }}</code>, which cannot be blocked from here.{% endblocktrans %}</p>

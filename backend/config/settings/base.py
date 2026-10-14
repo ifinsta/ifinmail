@@ -56,9 +56,9 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = 'accounts.MailUser'
-LOGIN_REDIRECT_URL = '/accounts/dashboard/'
-LOGIN_URL = '/accounts/login/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = 'accounts:dashboard'
+LOGIN_URL = 'accounts:login'
+LOGOUT_REDIRECT_URL = 'accounts:login'
 
 MIDDLEWARE = [
     'backend.apps.core.telemetry.middleware.CorrelationIdMiddleware',

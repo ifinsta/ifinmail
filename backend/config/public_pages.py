@@ -10,6 +10,7 @@ disagree.
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable
 from datetime import date
@@ -23,9 +24,12 @@ from django.urls import path
 
 from backend.apps.core.releases.web import download_context
 
-REPO_URL = 'https://github.com/ifinsta/ifinmail'
+# The project that publishes the software. One setting (UPDATE_REPO, "owner/name") drives the
+# links here, the install command and the release check, so a fork changes it in one place.
+REPO = (os.environ.get('UPDATE_REPO', '') or 'ifinsta/ifinmail').strip().strip('/')
+REPO_URL = f'https://github.com/{REPO}'
 INSTALL_COMMAND = (
-    'curl -sSL https://raw.githubusercontent.com/ifinsta/ifinmail/main/'
+    f'curl -sSL https://raw.githubusercontent.com/{REPO}/main/'
     'provisioning/scripts/bootstrap.sh | sudo bash'
 )
 LEGAL_UPDATED = date(2026, 10, 14)

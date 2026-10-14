@@ -14,6 +14,7 @@ from django.core.mail import send_mail
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from backend.apps.core.platform.services.audit import AuditService
@@ -26,6 +27,7 @@ from backend.apps.mail.services import (
 )
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.quota import DEFAULT_QUOTA_MB, MB, QuotaBudget, human_bytes
+from backend.config import site_url
 from backend.config.branding import email_brand_context
 
 from ..forms.mailboxes import (
@@ -151,9 +153,9 @@ def mailboxes_page(request: HttpRequest) -> HttpResponse:
 def _setup_url(request: HttpRequest, address: str) -> str:
     """Absolute single-use setup link for ``address`` (raises MailboxError if unknown)."""
     uid, token = MailboxInviteService.make_token(address)
-    path = f'/accounts/mailbox-setup/{uid}/{token}/'
+    path = reverse('accounts:mailbox_setup', kwargs={'uidb64': uid, 'token': token})
     try:
-        return request.build_absolute_uri(path)
+        return f'{site_url.origin(request)}{path}'
     except Exception:
         return path
 
@@ -166,7 +168,7 @@ def _send_setup_email(request: HttpRequest, address: str, link: str, send_to: st
         'setup_url': link,
         'valid_days': days,
         'mail_host': os.environ.get('MAIL_HOSTNAME', ''),
-        **email_brand_context(request.build_absolute_uri),
+        **email_brand_context(site_url.builder(request)),
     }
     html_body = render_to_string('admin/email_mailbox_setup.html', context)
     try:

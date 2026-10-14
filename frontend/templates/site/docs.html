@@ -46,7 +46,7 @@
         <p>{% trans 'Cloud providers that support cloud-init can use the cloud-init file in the repository instead.' %}</p>
 
         <h2 id="setup">{% trans 'First setup' %}</h2>
-        <p>{% trans 'Open the console at https://mail.your-domain/accounts/login/ and sign in with the administrator email and the password printed by the installer. You are asked to choose a new password, then taken through the setup wizard:' %}</p>
+        <p>{% url 'accounts:login' as login_path %}{% blocktrans trimmed %}Open the console at {{ site_origin }}{{ login_path }} and sign in with the administrator email and the password printed by the installer. You are asked to choose a new password, then taken through the setup wizard:{% endblocktrans %}</p>
         <ol>
             <li>{% trans 'Domain: confirm the domain. Its DKIM key and the postmaster and abuse aliases are created.' %}</li>
             <li>{% trans 'DNS: connect a DNS provider to publish the records, or copy them to where the domain is hosted.' %}</li>
@@ -77,9 +77,9 @@ sudo make backup      # run a full backup now</code></pre>
 
         <h2 id="api">{% trans 'API' %}</h2>
         <p>{% trans 'Programs can manage mailboxes, aliases and domains over a versioned HTTP API. An administrator creates a key under Settings, then API keys: a key that is safe to log, and a secret that is shown once. Scopes can never exceed what the administrator holds.' %}</p>
-        <pre tabindex="0"><code>curl -u ifm_KEY:ifs_SECRET https://mail.your-domain/api/v1/mailboxes
+        <pre tabindex="0"><code>curl -u ifm_KEY:ifs_SECRET {{ site_origin }}/api/v1/mailboxes
 
-curl -u ifm_KEY:ifs_SECRET -X POST https://mail.your-domain/api/v1/mailboxes \
+curl -u ifm_KEY:ifs_SECRET -X POST {{ site_origin }}/api/v1/mailboxes \
   -H "Content-Type: application/json" \
   -d '{"address": "ana@example.com", "password": "a long passphrase"}'</code></pre>
         <ul>

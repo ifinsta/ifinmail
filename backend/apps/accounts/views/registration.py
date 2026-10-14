@@ -22,6 +22,7 @@ from backend.apps.domains.services import DomainService
 from backend.apps.mail.services import MailboxService
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.reserved import RESERVED_LOCAL_PARTS
+from backend.config import site_url
 from backend.config.branding import email_brand_context
 from backend.config.env import primary_domain
 
@@ -78,14 +79,16 @@ def _send_verification_email(request: HttpRequest, email: str) -> tuple[bool, st
         return False, None
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = token_generator.make_token(user)
-    verify_url = request.build_absolute_uri(f'/accounts/registration/verify/{uid}/{token}/')
+    verify_url = site_url.absolute_url(
+        request, 'accounts:reg_verify_confirm', uidb64=uid, token=token
+    )
     subject = 'Verify your email address'
     html_body = render_to_string(
         'registration/email_verify.html',
         {
             'verify_url': verify_url,
             'email': email,
-            **email_brand_context(request.build_absolute_uri),
+            **email_brand_context(site_url.builder(request)),
         },
     )
     try:

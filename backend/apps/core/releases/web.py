@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET
 
 from backend.apps.core.releases.services import ReleaseService, manifest_for
 from backend.apps.core.releases.types import CHANNEL_VALUES, DEFAULT_CHANNEL, Platform
+from backend.config import site_url
 
 _DEVICE_ID = re.compile(r'^[A-Za-z0-9._-]{8,64}$')
 HISTORY_LIMIT = 6
@@ -47,9 +48,7 @@ def manifest(request: HttpRequest) -> HttpResponse:
     channel = request.GET.get('channel', DEFAULT_CHANNEL)
     if channel not in CHANNEL_VALUES:
         return _no_store(
-            JsonResponse(
-                {'error': 'unknown channel', 'channels': list(CHANNEL_VALUES)}, status=400
-            )
+            JsonResponse({'error': 'unknown channel', 'channels': list(CHANNEL_VALUES)}, status=400)
         )
     version_code = _int(request.GET.get('version_code'))
     sdk_int = _int(request.GET.get('sdk')) or 0
@@ -76,7 +75,7 @@ def manifest(request: HttpRequest) -> HttpResponse:
         decision,
         platform=platform,
         channel=channel,
-        base_url=request.build_absolute_uri('/').rstrip('/'),
+        base_url=site_url.origin(request),
     )
     return _no_store(JsonResponse(body))
 
@@ -134,7 +133,7 @@ def download_context(request: HttpRequest) -> dict[str, Any]:
         ]
         if stable is None or r.pk != stable.pk
     ][:HISTORY_LIMIT]
-    base = request.build_absolute_uri('/').rstrip('/')
+    base = site_url.origin(request)
     permalink = f'{base}/download/android/latest.apk'
     return {
         'release': stable,

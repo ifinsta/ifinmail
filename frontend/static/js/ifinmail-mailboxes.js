@@ -107,8 +107,10 @@
             var profileLink = document.getElementById('mailbox-manage-profile');
             var mailboxId = trigger.getAttribute('data-id') || '';
             if (profileLink) {
-                profileLink.href = mailboxId
-                    ? '/accounts/settings/mailboxes/' + mailboxId + '/'
+                // The page supplies the URL with a nil id in it; swap in this mailbox's id.
+                var template = profileLink.getAttribute('data-url-template') || '';
+                profileLink.href = mailboxId && template
+                    ? template.replace('00000000-0000-0000-0000-000000000000', mailboxId)
                     : '#';
             }
             if (pendingEl) {

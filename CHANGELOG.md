@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.0.50
+- **URLs are variables, and the domain people are on is the authority.** One helper,
+  `backend/config/site_url.py`, answers "what address is this server at?": the domain of the
+  current request when it is a real name, else the configured `MAIL_HOSTNAME` (so a setup link
+  written by an administrator who opened the console by IP address still names the domain), else
+  what the request used. It feeds the `site_origin` / `site_host` template variables.
+  - **Emails:** the registration verification link, the mailbox setup link and the password-reset
+    link are built with `reverse()` and that origin (they were literal paths joined to whatever
+    `Host` header the request carried; the reset email now also carries the reachable domain).
+  - **Pages:** the documentation's console address and API examples show *this* server instead of
+    `mail.your-domain`; the Android manifest and download page use the same origin; the project's
+    repository links and the install command come from `UPDATE_REPO` in one place.
+  - **Defaults that named other people's domains are gone:** `support@ifinmail.io` and
+    `https://ifinmail.dev/docs` (and `support@example.com` in the sidebar). Without `SUPPORT_EMAIL`
+    the Support link opens the troubleshooting section of this server's own docs; the Documentation
+    link is this server's `/docs/`.
+  - **Literal paths removed** from settings (`LOGIN_URL` and friends are URL names), password-reset
+    success URLs, the exposure self-check, and two scripts (the registration username check and the
+    mailbox profile link read the URL from the page).
+  - A test scans templates, scripts and Python for spelled-out paths, hosts and foreign domains,
+    and checks that every middleware exemption names a real route.
+
 ## v0.0.49
 - **Public pages know who is signed in.** The header showed "Sign in" and "Get started" to
   everyone, including an administrator who had just come from the console. A signed-in person now

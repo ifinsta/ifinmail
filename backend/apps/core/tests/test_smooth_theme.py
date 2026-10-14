@@ -91,6 +91,7 @@ class PhoneTablesTests(SimpleTestCase):
         css = (CSS / 'ifinmail-smooth.css').read_text()
         self.assertIn('.ifinmail-admin-table.is-stacked td::before', css)
         self.assertIn('content: attr(data-label)', css)
+        self.assertIn('td:empty::after', css)  # an empty value must not let labels overlap
 
     def test_an_unlabelled_table_scrolls_in_its_card_and_is_never_clipped(self) -> None:
         css = (CSS / 'ifinmail-smooth.css').read_text()

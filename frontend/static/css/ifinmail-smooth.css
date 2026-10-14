@@ -127,6 +127,7 @@ html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
     html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td {
         position: relative;
         display: block;
+        min-height: 1.75rem;
         padding: var(--ifinmail-space-1) 0 var(--ifinmail-space-1) 40%;
         border: 0;
         text-align: left;
@@ -152,6 +153,12 @@ html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
         color: var(--ifinmail-color-text-muted);
         font-size: var(--ifinmail-font-size-body-small);
         line-height: 1.6;
+    }
+
+    /* An empty value shows a dash, so its label never sits on top of the next row's. */
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td:empty::after {
+        content: "\2014";
+        color: var(--ifinmail-color-text-muted);
     }
 
     html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[data-label=""]::before {

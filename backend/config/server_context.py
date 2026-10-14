@@ -14,6 +14,16 @@ from django.urls import reverse
 from backend.config import site_url
 
 
+def _default_theme() -> str:
+    """The server's default look; never lets a settings hiccup break a page."""
+    try:
+        from backend.apps.accounts.services import appearance
+
+        return appearance.default_theme()
+    except Exception:
+        return 'smooth'
+
+
 class _PublicPages:
     """``site_pages.terms`` in a template: is that public page served? Read on first use."""
 
@@ -49,6 +59,7 @@ def server_context(request: HttpRequest) -> dict[str, object]:
         'CSS_VERSION': settings.CSS_VERSION,
         'support_email': support_email,
         'docs_url': docs_url,
+        'default_theme': _default_theme(),
         'site_pages': pages,
         'server_status': server_status,
         'notification_count': 0,

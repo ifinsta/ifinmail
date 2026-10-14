@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="{{ default_apple_url }}">
     {% endif %}
     <title>{% block title %}{{ brand.name }}{% endblock %}</title>
-    <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>
+    <script src="{% static 'js/ifinmail-theme-init.js' %}" data-default="{{ default_theme }}"></script>
     <script src="{% static 'js/ifinmail-layout-init.js' %}"></script>
     {% if brand.css_overrides %}{{ brand.css_overrides|safe }}{% endif %}
     {% block webfonts %}
@@ -38,6 +38,7 @@
     <link rel="stylesheet" href="{% versioned_css 'css/ifinmail-admin.css' %}">
     <link rel="stylesheet" href="{% versioned_css 'css/ifinmail-redesign.css' %}">
     {% block head %}{% endblock %}
+    {% block theme_css %}<link rel="stylesheet" href="{% versioned_css 'css/ifinmail-smooth.css' %}">{% endblock %}
 
 </head>
 <body class="ifinmail-body{% block body_class %}{% endblock %}">

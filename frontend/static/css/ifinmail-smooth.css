@@ -1,0 +1,373 @@
+/* ══════════════════════════════════════════════════════════════
+   ifinmail Smooth theme: the default look.
+
+   Soft edges, quiet depth, calm light surfaces and a technical but
+   friendly feel, for everyday business use. Light only: it never
+   follows the operating system into a dark scheme.
+
+   Everything here is scoped to html[data-scheme="smooth"], so the
+   Light, Dark, Auto and High contrast themes are untouched. Token
+   values (colours, radii, shadows) are in ifinmail-variables.css;
+   this file only refines components that need more than a token.
+   Rules: no gradients, no glow, no decorative motion; depth comes
+   from one soft shadow; focus stays clearly visible.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ─── Page and type ─── */
+html[data-scheme="smooth"] body {
+    background: var(--ifinmail-color-surface-1);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+html[data-scheme="smooth"] h1,
+html[data-scheme="smooth"] h2,
+html[data-scheme="smooth"] h3,
+html[data-scheme="smooth"] .ifinmail-page-title,
+html[data-scheme="smooth"] .ifinmail-panel-title {
+    letter-spacing: -0.012em;
+}
+
+/* Small caps labels shout; keep them as quiet sentence-case labels. */
+html[data-scheme="smooth"] .ifinmail-overline,
+html[data-scheme="smooth"] .ifinmail-site-overline,
+html[data-scheme="smooth"] .ifinmail-settings__group-title,
+html[data-scheme="smooth"] .ifinmail-admin-nav-section {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: var(--ifinmail-font-weight-medium);
+}
+
+/* ─── Surfaces: a hairline and one soft shadow instead of a hard edge ─── */
+html[data-scheme="smooth"] .ifinmail-panel,
+html[data-scheme="smooth"] .ifinmail-stat-panel,
+html[data-scheme="smooth"] .ifinmail-table-panel,
+html[data-scheme="smooth"] .ifinmail-summary,
+html[data-scheme="smooth"] .ifinmail-settings-overview,
+html[data-scheme="smooth"] .ifinmail-assistant-proposal,
+html[data-scheme="smooth"] .ifinmail-dns-provider-card,
+html[data-scheme="smooth"] .ifinmail-setup-card,
+html[data-scheme="smooth"] .ifinmail-health-banner,
+html[data-scheme="smooth"] .ifinmail-hbanner,
+html[data-scheme="smooth"] .ifinmail-theme-card {
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-lg);
+    box-shadow: var(--ifinmail-shadow-1);
+}
+
+html[data-scheme="smooth"] .ifinmail-table-panel {
+    overflow: hidden;
+}
+
+/* Cells inside a card are separated by whitespace and a faint line, not boxed in. */
+html[data-scheme="smooth"] .ifinmail-stat-cell,
+html[data-scheme="smooth"] .ifinmail-summary__cell,
+html[data-scheme="smooth"] .ifinmail-settings-row,
+html[data-scheme="smooth"] .ifinmail-timeline-item,
+html[data-scheme="smooth"] .ifinmail-table-panel-header,
+html[data-scheme="smooth"] .ifinmail-page-header {
+    border-color: var(--ifinmail-color-border-light);
+}
+
+/* ─── Tables ─── */
+html[data-scheme="smooth"] .ifinmail-admin-table th {
+    background: transparent;
+    color: var(--ifinmail-color-text-muted);
+    font-weight: var(--ifinmail-font-weight-medium);
+    text-transform: none;
+    letter-spacing: 0;
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+html[data-scheme="smooth"] .ifinmail-admin-table td {
+    border-color: var(--ifinmail-color-border-light);
+}
+
+html[data-scheme="smooth"] .ifinmail-admin-table tbody tr {
+    transition: background var(--ifinmail-transition);
+}
+
+html[data-scheme="smooth"] .ifinmail-admin-table tbody tr:hover {
+    background: var(--ifinmail-color-primary-subtle);
+}
+
+/* ─── Controls ─── */
+html[data-scheme="smooth"] .ifinmail-btn {
+    border-radius: var(--ifinmail-radius);
+    font-weight: var(--ifinmail-font-weight-medium);
+    transition:
+        background var(--ifinmail-transition),
+        border-color var(--ifinmail-transition),
+        color var(--ifinmail-transition),
+        box-shadow var(--ifinmail-transition);
+}
+
+html[data-scheme="smooth"] .ifinmail-btn--primary {
+    border-color: transparent;
+    box-shadow: var(--ifinmail-shadow-1);
+}
+
+/* The legacy sheets force a primary-coloured edge with !important; here the edge is neutral
+   and the text carries the colour. */
+html[data-scheme="smooth"] .ifinmail-btn--outline {
+    border-color: var(--ifinmail-color-border) !important;
+    background-color: var(--ifinmail-surface-container-lowest);
+}
+
+html[data-scheme="smooth"] .ifinmail-btn--outline:hover {
+    border-color: var(--ifinmail-color-primary) !important;
+    background-color: var(--ifinmail-color-primary-subtle) !important;
+}
+
+html[data-scheme="smooth"] .ifinmail-btn--danger {
+    border-color: var(--ifinmail-color-border);
+}
+
+html[data-scheme="smooth"] .ifinmail-input,
+html[data-scheme="smooth"] input[type="text"],
+html[data-scheme="smooth"] input[type="email"],
+html[data-scheme="smooth"] input[type="password"],
+html[data-scheme="smooth"] input[type="number"],
+html[data-scheme="smooth"] input[type="search"],
+html[data-scheme="smooth"] input[type="url"],
+html[data-scheme="smooth"] select,
+html[data-scheme="smooth"] textarea {
+    border-color: var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background-color: var(--ifinmail-surface-container-lowest);
+    transition:
+        border-color var(--ifinmail-transition),
+        box-shadow var(--ifinmail-transition);
+}
+
+html[data-scheme="smooth"] .ifinmail-input:hover,
+html[data-scheme="smooth"] select:hover,
+html[data-scheme="smooth"] textarea:hover {
+    border-color: var(--ifinmail-color-text-muted);
+}
+
+/* A field inside a bordered wrapper (search) draws no edge of its own. */
+html[data-scheme="smooth"] .ifinmail-global-search input,
+html[data-scheme="smooth"] .ifinmail-settings__search input {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+html[data-scheme="smooth"] .ifinmail-global-search:focus-within,
+html[data-scheme="smooth"] .ifinmail-settings__search:focus-within {
+    border-color: var(--ifinmail-color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--ifinmail-color-primary-rgb), 0.16);
+}
+
+html[data-scheme="smooth"] input[type="checkbox"],
+html[data-scheme="smooth"] input[type="radio"] {
+    border-color: var(--ifinmail-color-border);
+}
+
+html[data-scheme="smooth"] input[type="checkbox"] {
+    border-radius: var(--ifinmail-radius-sm);
+}
+
+/* A soft halo in the brand colour; the keyboard outline below stays the strong signal. */
+html[data-scheme="smooth"] .ifinmail-input:focus,
+html[data-scheme="smooth"] input:focus,
+html[data-scheme="smooth"] select:focus,
+html[data-scheme="smooth"] textarea:focus {
+    border-color: var(--ifinmail-color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--ifinmail-color-primary-rgb), 0.16);
+}
+
+/* ─── Navigation ─── */
+html[data-scheme="smooth"] .ifinmail-header,
+html[data-scheme="smooth"] .ifinmail-admin-brand,
+html[data-scheme="smooth"] .ifinmail-admin-nav,
+html[data-scheme="smooth"] .ifinmail-settings__nav {
+    border-color: var(--ifinmail-color-border-light);
+}
+
+html[data-scheme="smooth"] .ifinmail-admin-nav a,
+html[data-scheme="smooth"] .ifinmail-settings__nav a {
+    border-radius: var(--ifinmail-radius);
+    transition: background var(--ifinmail-transition), color var(--ifinmail-transition);
+}
+
+html[data-scheme="smooth"] .ifinmail-global-search,
+html[data-scheme="smooth"] .ifinmail-settings__search {
+    border-color: var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius-lg);
+    background: var(--ifinmail-color-surface-2);
+}
+
+/* ─── Floating layers ─── */
+html[data-scheme="smooth"] .ifinmail-dropdown-menu {
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-lg);
+    box-shadow: var(--ifinmail-shadow-2);
+}
+
+html[data-scheme="smooth"] .ifinmail-modal,
+html[data-scheme="smooth"] .ifinmail-modal-dialog {
+    border-radius: var(--ifinmail-radius-dialog);
+    box-shadow: var(--ifinmail-shadow-3);
+}
+
+/* ─── Auth, registration, setup ─── */
+html[data-scheme="smooth"] .ifinmail-login,
+html[data-scheme="smooth"] .ifinmail-reg {
+    background: var(--ifinmail-color-surface-1);
+    background-image: none;
+}
+
+html[data-scheme="smooth"] .ifinmail-login-card,
+html[data-scheme="smooth"] .ifinmail-reg-card {
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-dialog);
+    box-shadow: var(--ifinmail-shadow-2);
+}
+
+/* ─── Inner blocks that older pages draw as small square boxes ─── */
+html[data-scheme="smooth"] .ifinmail-quick-action,
+html[data-scheme="smooth"] .ifinmail-role-card,
+html[data-scheme="smooth"] .ifinmail-session-item,
+html[data-scheme="smooth"] .ifinmail-toolbox-record,
+html[data-scheme="smooth"] .ifinmail-engine-row,
+html[data-scheme="smooth"] .ifinmail-codebox,
+html[data-scheme="smooth"] .ifinmail-assistant-composer,
+html[data-scheme="smooth"] .ifinmail-assistant-suggestion {
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-lg);
+}
+
+html[data-scheme="smooth"] .ifinmail-toolbox-record,
+html[data-scheme="smooth"] .ifinmail-codebox {
+    background: var(--ifinmail-color-surface-1);
+}
+
+html[data-scheme="smooth"] .ifinmail-progress,
+html[data-scheme="smooth"] .ifinmail-progress span,
+html[data-scheme="smooth"] .ifinmail-switch,
+html[data-scheme="smooth"] .ifinmail-slider {
+    border-radius: var(--ifinmail-radius-full);
+}
+
+html[data-scheme="smooth"] .ifinmail-tooltip__content {
+    border-radius: var(--ifinmail-radius);
+    box-shadow: var(--ifinmail-shadow-2);
+}
+
+/* ─── Tabs: a soft pill marks the current one ─── */
+html[data-scheme="smooth"] .ifinmail-tab {
+    border-radius: var(--ifinmail-radius);
+    transition: background var(--ifinmail-transition), color var(--ifinmail-transition);
+}
+
+html[data-scheme="smooth"] .ifinmail-tab--active {
+    background: var(--ifinmail-color-primary-tint);
+    border-color: transparent;
+}
+
+/* ─── Status chips and pills ─── */
+html[data-scheme="smooth"] .ifinmail-badge,
+html[data-scheme="smooth"] .ifinmail-pill {
+    border-color: transparent;
+    padding-inline: var(--ifinmail-space-2);
+}
+
+/* ─── Scrollbars: thin and quiet ─── */
+html[data-scheme="smooth"],
+html[data-scheme="smooth"] * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ifinmail-color-border) transparent;
+}
+
+html[data-scheme="smooth"] ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+html[data-scheme="smooth"] ::-webkit-scrollbar-thumb {
+    background: var(--ifinmail-color-border);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: var(--ifinmail-radius-full);
+}
+
+html[data-scheme="smooth"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--ifinmail-color-text-muted);
+    background-clip: content-box;
+}
+
+/* ─── Public site ─── */
+html[data-scheme="smooth"] .ifinmail-site-header {
+    border-bottom-color: var(--ifinmail-color-border-light);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-window,
+html[data-scheme="smooth"] .ifinmail-site-note,
+html[data-scheme="smooth"] .ifinmail-site-download__qr,
+html[data-scheme="smooth"] .ifinmail-site pre {
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-lg);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-window {
+    box-shadow: var(--ifinmail-shadow-2);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-item {
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius-lg);
+    box-shadow: var(--ifinmail-shadow-1);
+}
+
+html[data-scheme="smooth"] .ifinmail-site code {
+    border-color: transparent;
+    border-radius: var(--ifinmail-radius-xs);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-footer {
+    background: var(--ifinmail-surface-container-lowest);
+}
+
+/* The closing call to action is a quiet light band, not a dark block. */
+html[data-scheme="smooth"] .ifinmail-site-band {
+    background: var(--ifinmail-color-primary-subtle);
+    color: var(--ifinmail-color-text-primary);
+    border-block: 1px solid var(--ifinmail-color-border-light);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-band h2 {
+    color: var(--ifinmail-color-brand);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-band p {
+    color: var(--ifinmail-color-text-secondary);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-band .ifinmail-btn {
+    background: var(--ifinmail-color-primary);
+    color: var(--ifinmail-on-primary);
+}
+
+html[data-scheme="smooth"] .ifinmail-site-band .ifinmail-btn:hover {
+    background: var(--ifinmail-color-primary-hover);
+}
+
+/* ─── Messages: the tint carries the meaning, not a hard coloured edge ─── */
+html[data-scheme="smooth"] .ifinmail-login-error,
+html[data-scheme="smooth"] .ifinmail-error-banner,
+html[data-scheme="smooth"] .ifinmail-verify-success,
+html[data-scheme="smooth"] .ifinmail-dns-result--ok,
+html[data-scheme="smooth"] .ifinmail-dns-result--err,
+html[data-scheme="smooth"] .ifinmail-deliverability-fix,
+html[data-scheme="smooth"] .ifinmail-hbanner--danger,
+html[data-scheme="smooth"] .ifinmail-hbanner--warning,
+html[data-scheme="smooth"] .ifinmail-hbanner--ok,
+html[data-scheme="smooth"] .ifinmail-empty-state--danger,
+html[data-scheme="smooth"] .ifinmail-flash {
+    border-color: transparent;
+    border-radius: var(--ifinmail-radius-lg);
+    box-shadow: none;
+}

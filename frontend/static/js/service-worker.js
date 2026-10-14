@@ -13,6 +13,7 @@ const CSS_ASSETS = [
     '/static/css/ifinmail-components.css',
     '/static/css/ifinmail-admin.css',
     '/static/css/ifinmail-redesign.css',
+    '/static/css/ifinmail-smooth.css',
 ];
 const STATIC_ASSETS = CSS_ASSETS.map(
     (path) => `${path}?v=${encodeURIComponent(CSS_VERSION)}`

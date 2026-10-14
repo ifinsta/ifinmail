@@ -1392,6 +1392,13 @@ html.ifinmail-shell .ifinmail-theme-card__preview--light {
     --pv-btn: var(--ifinmail-preview-light-btn);
 }
 
+html.ifinmail-shell .ifinmail-theme-card__preview--smooth {
+    --pv-bg: var(--ifinmail-preview-smooth-bg);
+    --pv-bar: var(--ifinmail-preview-smooth-bar);
+    --pv-btn: var(--ifinmail-preview-smooth-btn);
+    border-radius: var(--ifinmail-radius-lg);
+}
+
 html.ifinmail-shell .ifinmail-theme-card__preview--dark {
     --pv-bg: var(--ifinmail-preview-dark-bg);
     --pv-bar: var(--ifinmail-preview-dark-bar);

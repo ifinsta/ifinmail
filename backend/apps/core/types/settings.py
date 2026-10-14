@@ -40,3 +40,5 @@ class SettingKey(StrEnum):
     SPAM_PROVIDERS = 'spam.providers'
     # Text an administrator wrote for public pages (core.website): {page: {title, body, ...}}.
     WEBSITE_CONTENT = 'website.content'
+    # The look people get until they choose one in Settings > Appearance (smooth by default).
+    DEFAULT_THEME = 'appearance.default_theme'

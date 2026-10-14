@@ -86,6 +86,8 @@ verify — every row must exist on disk.
 | `site/landing.html` | Landing | `/`: hero with an "Example data" System health window, six capabilities, three steps, security and cost, closing band |
 | `site/features.html`, `site/pricing.html`, `site/security.html`, `site/docs.html`, `site/about.html`, `site/contact.html` | Landing (same pattern) | `/features/`, `/pricing/`, `/security/`, `/docs/`, `/about/`, `/contact/` |
 | `site/changelog.html` | Landing (same pattern) | `/changelog/`: newest releases from `CHANGELOG.md`, rendered with the `markdown` filter |
+| `site/download.html` | Landing (same pattern, no board of its own) | `/download/`: the newest published Android build with size, SHA-256, QR code, install steps and earlier versions; context from `backend/apps/core/releases/web.py`; no board, composed from the page head, split sections and prose pattern |
+| `admin/settings_releases.html` | Settings pages (same pattern as API keys) | `/accounts/settings/releases/`: publish a build, release table with withdraw / rollout / mandatory / delete, devices by version; registered in `SettingsCatalogue` as `releases` |
 | `site/privacy.html`, `site/terms.html` | Privacy, Terms | `/privacy/`, `/terms/`: one reading column, "Last updated" from `public_pages.LEGAL_UPDATED` |
 | `400.html`, `403.html`, `404.html`, `500.html`, `502.html`, `503.html`, `504.html` | ErrorPages |
 | `static/error-pages/40x.html`, `50x.html` | ErrorPages (nginx fallback, self-contained) |
@@ -96,10 +98,10 @@ verify — every row must exist on disk.
 |---|---|
 | `clients/android/app/webApp/src/webMain/resources/index.html` | AndroidShell |
 
-## Inventory (79 html on disk, 2026-10-13)
+## Inventory (81 html on disk, 2026-10-14)
 
-Root (9): `base.html`, `error_base.html`, `400/403/404/500/502/503/504.html` (7). `site/` (10 pages
-+ base, nav, footer). `admin/` (22 + 6 partials),
+Root (9): `base.html`, `error_base.html`, `400/403/404/500/502/503/504.html` (7). `site/` (11 pages
++ base, nav, footer). `admin/` (23 + 6 partials),
 `includes/` (7), `registration/` (7), `setup/` (8). Extras beyond the original
 50-board map are intentional extensions tagged above; do not delete without
 updating `SettingsCatalogue` and `test_frontend_contract.py`.

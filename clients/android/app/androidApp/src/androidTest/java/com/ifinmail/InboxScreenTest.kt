@@ -34,6 +34,8 @@ class InboxScreenTest {
 
     @Before
     fun setUp() {
+        // The catalogue is localised; these assertions are written against the English strings.
+        java.util.Locale.setDefault(java.util.Locale.ENGLISH)
         controller = FakeMailController()
     }
 

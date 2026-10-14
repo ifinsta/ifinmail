@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -36,7 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.ifinmail.app.shared.mail.MailController
 import com.ifinmail.core.domain.error.MailError
@@ -48,7 +53,58 @@ import com.ifinmail.app.shared.ui.components.GhostButton
 import com.ifinmail.app.shared.ui.components.InlineError
 import com.ifinmail.app.shared.ui.components.LabeledField
 import com.ifinmail.app.shared.ui.components.PrimaryButton
+import com.ifinmail.app.shared.ui.components.SelectableChip
 import kotlinx.coroutines.launch
+import com.ifinmail.app.shared.resources.Res
+import com.ifinmail.app.shared.resources.access_token
+import com.ifinmail.app.shared.resources.access_token_helper
+import com.ifinmail.app.shared.resources.account_added
+import com.ifinmail.app.shared.resources.action_back
+import com.ifinmail.app.shared.resources.action_cancel
+import com.ifinmail.app.shared.resources.action_continue
+import com.ifinmail.app.shared.resources.add_account
+import com.ifinmail.app.shared.resources.add_account_subtitle
+import com.ifinmail.app.shared.resources.cert_message
+import com.ifinmail.app.shared.resources.cert_not_trusted
+import com.ifinmail.app.shared.resources.cert_title
+import com.ifinmail.app.shared.resources.cert_trust
+import com.ifinmail.app.shared.resources.choose_connection
+import com.ifinmail.app.shared.resources.connecting_to
+import com.ifinmail.app.shared.resources.credential_app_password
+import com.ifinmail.app.shared.resources.credential_oauth_token
+import com.ifinmail.app.shared.resources.detected_configuration
+import com.ifinmail.app.shared.resources.email_address
+import com.ifinmail.app.shared.resources.email_helper
+import com.ifinmail.app.shared.resources.invalid_email
+import com.ifinmail.app.shared.resources.looking_up
+import com.ifinmail.app.shared.resources.manual_host_hint
+import com.ifinmail.app.shared.resources.manual_incoming_header
+import com.ifinmail.app.shared.resources.manual_incoming_host
+import com.ifinmail.app.shared.resources.manual_incoming_port
+import com.ifinmail.app.shared.resources.manual_outgoing_header
+import com.ifinmail.app.shared.resources.manual_profile_label
+import com.ifinmail.app.shared.resources.manual_profile_note
+import com.ifinmail.app.shared.resources.manual_smtp_host
+import com.ifinmail.app.shared.resources.manual_smtp_port
+import com.ifinmail.app.shared.resources.manual_title
+import com.ifinmail.app.shared.resources.manual_use_settings
+import com.ifinmail.app.shared.resources.no_autoconfig
+import com.ifinmail.app.shared.resources.password_helper
+import com.ifinmail.app.shared.resources.password_label
+import com.ifinmail.app.shared.resources.security_none
+import com.ifinmail.app.shared.resources.server_summary
+import com.ifinmail.app.shared.resources.sign_in_title
+import com.ifinmail.app.shared.resources.step_email
+import com.ifinmail.app.shared.resources.step_progress
+import com.ifinmail.app.shared.resources.step_server
+import com.ifinmail.app.shared.resources.step_sign_in
+import com.ifinmail.app.shared.resources.step_verify
+import com.ifinmail.app.shared.resources.use_manual
+import com.ifinmail.app.shared.resources.verification_failed
+import com.ifinmail.app.shared.resources.verify_and_add
+import com.ifinmail.app.shared.resources.verifying
+import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.getString
 
 private enum class SetupStep { Email, Profile, Credentials, Verifying }
 
@@ -81,12 +137,19 @@ fun AddAccountScreen(
     var manualOutPort by remember { mutableStateOf("465") }
     var manualOutSecurity by remember { mutableStateOf(UiSecurity.SSL_TLS) }
 
+    // Strings needed inside plain (non-composable) callbacks are resolved here.
+    val invalidEmailText = stringResource(Res.string.invalid_email)
+    val certNotTrustedText = stringResource(Res.string.cert_not_trusted)
+    val manualProfileLabel = stringResource(Res.string.manual_profile_label, manualProtocol.name)
+    val manualProfileNote = stringResource(Res.string.manual_profile_note)
+
     fun submit(trustedCertificateSha256: String?) {
         val profile = selectedProfile ?: return
         formError = null
         step = SetupStep.Verifying
-        verifyLog = listOf("Connecting to ${profile.incomingHost}\u2026")
+        verifyLog = emptyList()
         scope.launch {
+            verifyLog = listOf(getString(Res.string.connecting_to, profile.incomingHost))
             val result = controller.addAccount(
                 email = email.trim(),
                 displayName = email.trim().substringBefore('@'),
@@ -97,7 +160,7 @@ fun AddAccountScreen(
             )
             result.fold(
                 onSuccess = {
-                    verifyLog = verifyLog + "Account added"
+                    verifyLog = verifyLog + getString(Res.string.account_added)
                     onDone()
                 },
                 onFailure = { failure ->
@@ -106,7 +169,7 @@ fun AddAccountScreen(
                     if (untrusted != null && trustedCertificateSha256 == null) {
                         untrustedCertificate = untrusted
                     } else {
-                        formError = failure.message ?: "Verification failed"
+                        formError = failure.message ?: getString(Res.string.verification_failed)
                     }
                 }
             )
@@ -116,14 +179,10 @@ fun AddAccountScreen(
     untrustedCertificate?.let { cert ->
         AlertDialog(
             onDismissRequest = { untrustedCertificate = null },
-            title = { Text("Trust this server's certificate?") },
+            title = { Text(stringResource(Res.string.cert_title)) },
             text = {
                 Column {
-                    Text(
-                        "${cert.host} is using a certificate that no public authority has signed. " +
-                            "A new ifinmail server does this until it obtains a real one. " +
-                            "Compare the fingerprint with the one on your server (Settings \u2192 TLS certificates) before continuing."
-                    )
+                    Text(stringResource(Res.string.cert_message, cert.host))
                     Text(
                         cert.sha256.uppercase().chunked(2).joinToString(":"),
                         style = MaterialTheme.typography.bodySmall,
@@ -135,13 +194,13 @@ fun AddAccountScreen(
                 TextButton(onClick = {
                     untrustedCertificate = null
                     submit(cert.sha256)
-                }) { Text("Trust and continue") }
+                }) { Text(stringResource(Res.string.cert_trust)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     untrustedCertificate = null
-                    formError = "The server's certificate was not trusted."
-                }) { Text("Cancel") }
+                    formError = certNotTrustedText
+                }) { Text(stringResource(Res.string.action_cancel)) }
             }
         )
     }
@@ -151,27 +210,28 @@ fun AddAccountScreen(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
+            .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onCancel) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Spacer(Modifier.width(8.dp))
-            Text("Add account", style = MaterialTheme.typography.displayLarge)
+        IconButton(onClick = onCancel) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
         }
         Text(
-            "Connect an existing mailbox via IMAP, POP3 or SMTP.",
+            stringResource(Res.string.add_account),
+            style = MaterialTheme.typography.displayLarge
+        )
+        Text(
+            stringResource(Res.string.add_account_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
         )
 
         if (manualOpen) {
-            Text("Manual server configuration", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(Res.string.manual_title), style = MaterialTheme.typography.headlineMedium)
             Text(
-                "INCOMING",
+                stringResource(Res.string.manual_incoming_header),
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.outline
             )
@@ -180,37 +240,68 @@ fun AddAccountScreen(
                 FilterPill("POP3", manualProtocol == UiProtocol.POP3) { manualProtocol = UiProtocol.POP3 }
             }
             Spacer(Modifier.height(8.dp))
-            LabeledField(label = "Incoming host", value = manualInHost, onValueChange = { manualInHost = it }, helperText = "e.g. mail.example.com")
-            LabeledField(label = "Incoming port", value = manualInPort, onValueChange = { manualInPort = it })
+            LabeledField(
+                label = stringResource(Res.string.manual_incoming_host),
+                testTag = "field-incoming-host",
+                value = manualInHost,
+                onValueChange = { manualInHost = it },
+                helperText = stringResource(Res.string.manual_host_hint),
+                keyboardType = KeyboardType.Uri
+            )
+            Spacer(Modifier.height(8.dp))
+            LabeledField(
+                label = stringResource(Res.string.manual_incoming_port),
+                testTag = "field-incoming-port",
+                value = manualInPort,
+                onValueChange = { manualInPort = it.filter(Char::isDigit).take(5) },
+                keyboardType = KeyboardType.Number
+            )
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterPill("SSL/TLS", manualInSecurity == UiSecurity.SSL_TLS) { manualInSecurity = UiSecurity.SSL_TLS }
                 FilterPill("STARTTLS", manualInSecurity == UiSecurity.STARTTLS) { manualInSecurity = UiSecurity.STARTTLS }
-                FilterPill("None", manualInSecurity == UiSecurity.NONE) { manualInSecurity = UiSecurity.NONE }
+                FilterPill(stringResource(Res.string.security_none), manualInSecurity == UiSecurity.NONE) { manualInSecurity = UiSecurity.NONE }
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                "OUTGOING",
+                stringResource(Res.string.manual_outgoing_header),
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.outline
             )
-            LabeledField(label = "SMTP host", value = manualOutHost, onValueChange = { manualOutHost = it })
-            LabeledField(label = "SMTP port", value = manualOutPort, onValueChange = { manualOutPort = it })
+            Spacer(Modifier.height(8.dp))
+            LabeledField(
+                label = stringResource(Res.string.manual_smtp_host),
+                testTag = "field-smtp-host",
+                value = manualOutHost,
+                onValueChange = { manualOutHost = it },
+                keyboardType = KeyboardType.Uri
+            )
+            Spacer(Modifier.height(8.dp))
+            LabeledField(
+                label = stringResource(Res.string.manual_smtp_port),
+                testTag = "field-smtp-port",
+                value = manualOutPort,
+                onValueChange = { manualOutPort = it.filter(Char::isDigit).take(5) },
+                keyboardType = KeyboardType.Number
+            )
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterPill("SSL/TLS", manualOutSecurity == UiSecurity.SSL_TLS) { manualOutSecurity = UiSecurity.SSL_TLS }
                 FilterPill("STARTTLS", manualOutSecurity == UiSecurity.STARTTLS) { manualOutSecurity = UiSecurity.STARTTLS }
-                FilterPill("None", manualOutSecurity == UiSecurity.NONE) { manualOutSecurity = UiSecurity.NONE }
+                FilterPill(stringResource(Res.string.security_none), manualOutSecurity == UiSecurity.NONE) { manualOutSecurity = UiSecurity.NONE }
             }
             Spacer(Modifier.height(16.dp))
             InlineError(formError)
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                GhostButton(text = "Cancel", onClick = { manualOpen = false })
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                GhostButton(modifier = Modifier.weight(1f), text = stringResource(Res.string.action_cancel), onClick = { manualOpen = false })
                 PrimaryButton(
-                    text = "Use settings",
+                    modifier = Modifier.weight(1.5f),
+                    text = stringResource(Res.string.manual_use_settings),
                     enabled = manualInHost.isNotBlank() && manualOutHost.isNotBlank(),
                     onClick = {
                         val manualProfile = UiProviderProfile(
-                            label = "Custom \u00b7 ${manualProtocol.name}",
+                            label = manualProfileLabel,
                             protocol = manualProtocol,
                             incomingHost = manualInHost.trim(),
                             incomingPort = manualInPort.trim().toIntOrNull() ?: 993,
@@ -218,7 +309,7 @@ fun AddAccountScreen(
                             outgoingHost = manualOutHost.trim(),
                             outgoingPort = manualOutPort.trim().toIntOrNull() ?: 465,
                             outgoingSecurity = manualOutSecurity,
-                            note = "Manually configured"
+                            note = manualProfileNote
                         )
                         profiles = listOf(manualProfile)
                         selectedProfile = manualProfile
@@ -233,12 +324,15 @@ fun AddAccountScreen(
             when (step) {
                 SetupStep.Email -> {
                     LabeledField(
-                        label = "Email address *",
+                        label = stringResource(Res.string.email_address),
+                        testTag = "field-email-address",
                         value = email,
                         onValueChange = { email = it; emailError = null },
                         isError = emailError != null,
                         errorText = emailError,
-                        helperText = "Providers like Gmail, Outlook, Yahoo and iCloud are detected automatically"
+                        helperText = stringResource(Res.string.email_helper),
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Go
                     )
                     Spacer(Modifier.height(20.dp))
                     InlineError(formError)
@@ -249,19 +343,20 @@ fun AddAccountScreen(
                         ) {
                             CircularProgressIndicator(Modifier.width(20.dp).height(20.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(12.dp))
-                            Text("Looking up server configuration\u2026", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(Res.string.looking_up), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        GhostButton(text = "Cancel", onClick = onCancel, enabled = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        GhostButton(modifier = Modifier.weight(1f), text = stringResource(Res.string.action_cancel), onClick = onCancel, enabled = true)
                         PrimaryButton(
-                            text = "Continue",
+                            modifier = Modifier.weight(1.5f),
+                            text = stringResource(Res.string.action_continue),
                             enabled = email.isNotBlank(),
                             onClick = {
                                 val trimmed = email.trim()
                                 if (!trimmed.contains('@') || trimmed.endsWith("@") || trimmed.startsWith("@")) {
-                                    emailError = "Enter a valid email address"
+                                    emailError = invalidEmailText
                                 } else {
                                     formError = null
                                     discovering = true
@@ -269,7 +364,7 @@ fun AddAccountScreen(
                                         val found = controller.autoConfigure(trimmed)
                                         discovering = false
                                         if (found.isEmpty()) {
-                                            formError = "No automatic configuration found for this domain. Proton Mail requires their Bridge app; other custom servers must be entered manually."
+                                            formError = getString(Res.string.no_autoconfig)
                                         } else {
                                             profiles = found
                                             selectedProfile = found.first()
@@ -281,20 +376,15 @@ fun AddAccountScreen(
                         )
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Use manual configuration for custom servers",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clickable { manualOpen = true }
-                            .padding(vertical = 4.dp)
-                    )
+                    TextButton(onClick = { manualOpen = true }) {
+                        Text(stringResource(Res.string.use_manual), style = MaterialTheme.typography.labelLarge)
+                    }
                 }
 
                 SetupStep.Profile -> {
-                    Text("Detected configuration", style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(Res.string.detected_configuration), style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        "Choose how ifinmail should connect to ${email.trim()}.",
+                        stringResource(Res.string.choose_connection, email.trim()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -306,11 +396,23 @@ fun AddAccountScreen(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { selectedProfile = profile }
+                                .clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { selectedProfile = profile }
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
                             Text(profile.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text(profile.summaryLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                stringResource(
+                                    Res.string.server_summary,
+                                    profile.incomingHost,
+                                    profile.incomingPort,
+                                    securityLabel(profile.incomingSecurity),
+                                    profile.outgoingHost,
+                                    profile.outgoingPort,
+                                    securityLabel(profile.outgoingSecurity)
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             profile.note?.let {
                                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(top = 4.dp))
                             }
@@ -318,14 +420,14 @@ fun AddAccountScreen(
                         Spacer(Modifier.height(8.dp))
                     }
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        GhostButton(text = "Back", onClick = { step = SetupStep.Email })
-                        PrimaryButton(text = "Continue", enabled = selectedProfile != null, onClick = { step = SetupStep.Credentials })
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        GhostButton(modifier = Modifier.weight(1f), text = stringResource(Res.string.action_back), onClick = { step = SetupStep.Email })
+                        PrimaryButton(modifier = Modifier.weight(1.5f), text = stringResource(Res.string.action_continue), enabled = selectedProfile != null, onClick = { step = SetupStep.Credentials })
                     }
                 }
 
                 SetupStep.Credentials -> {
-                    Text("Sign in", style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(Res.string.sign_in_title), style = MaterialTheme.typography.headlineMedium)
                     Text(
                         email.trim(),
                         style = MaterialTheme.typography.bodyMedium,
@@ -333,32 +435,39 @@ fun AddAccountScreen(
                         modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                     )
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterPill("App password", !useOAuth) { useOAuth = false }
-                        FilterPill("OAuth2 token (XOAUTH2)", useOAuth) { useOAuth = true }
+                        FilterPill(stringResource(Res.string.credential_app_password), !useOAuth) { useOAuth = false }
+                        FilterPill(stringResource(Res.string.credential_oauth_token), useOAuth) { useOAuth = true }
                     }
                     Spacer(Modifier.height(16.dp))
                     if (useOAuth) {
                         LabeledField(
-                            label = "Access token *",
+                            label = stringResource(Res.string.access_token),
+                            testTag = "field-access-token",
                             value = oauthToken,
                             onValueChange = { oauthToken = it },
-                            helperText = "Token needs the https://mail.google.com/ scope for Gmail (XOAUTH2)"
+                            helperText = stringResource(Res.string.access_token_helper),
+                            isPassword = true,
+                            imeAction = ImeAction.Done
                         )
                     } else {
                         LabeledField(
-                            label = "Password / app password *",
+                            label = stringResource(Res.string.password_label),
+                            testTag = "field-password-app-password",
                             value = password,
                             onValueChange = { password = it },
-                            helperText = selectedProfile?.note ?: "Use your regular password, or an app password if your provider requires one"
+                            helperText = selectedProfile?.note ?: stringResource(Res.string.password_helper),
+                            isPassword = true,
+                            imeAction = ImeAction.Done
                         )
                     }
                     Spacer(Modifier.height(20.dp))
                     InlineError(formError)
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        GhostButton(text = "Back", onClick = { step = SetupStep.Profile })
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        GhostButton(modifier = Modifier.weight(1f), text = stringResource(Res.string.action_back), onClick = { step = SetupStep.Profile })
                         PrimaryButton(
-                            text = "Verify & add account",
+                            modifier = Modifier.weight(1.5f),
+                            text = stringResource(Res.string.verify_and_add),
                             enabled = (!useOAuth && password.isNotBlank()) || (useOAuth && oauthToken.isNotBlank()),
                             onClick = { submit(null) }
                         )
@@ -369,7 +478,7 @@ fun AddAccountScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.width(24.dp).height(24.dp), strokeWidth = 3.dp)
                         Spacer(Modifier.width(16.dp))
-                        Text("Verifying connection\u2026", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(Res.string.verifying), style = MaterialTheme.typography.titleMedium)
                     }
                     verifyLog.forEach {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(top = 6.dp))
@@ -383,16 +492,25 @@ fun AddAccountScreen(
 @Composable
 private fun StepIndicator(current: SetupStep) {
     val labels = listOf(
-        SetupStep.Email to "Email",
-        SetupStep.Profile to "Server",
-        SetupStep.Credentials to "Sign in",
-        SetupStep.Verifying to "Verify"
+        SetupStep.Email to stringResource(Res.string.step_email),
+        SetupStep.Profile to stringResource(Res.string.step_server),
+        SetupStep.Credentials to stringResource(Res.string.step_sign_in),
+        SetupStep.Verifying to stringResource(Res.string.step_verify)
     )
     val currentIndex = labels.indexOfFirst { it.first == current }.coerceAtLeast(0)
+    // The chevrons are decoration; assistive tech gets one sentence for the whole indicator.
+    val progressDescription = stringResource(
+        Res.string.step_progress,
+        currentIndex + 1,
+        labels.size,
+        labels[currentIndex].second
+    )
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(bottom = 16.dp)
+        modifier = Modifier
+            .padding(bottom = 16.dp)
+            .clearAndSetSemantics { contentDescription = progressDescription }
     ) {
         labels.forEachIndexed { index, (_, label) ->
             if (index > 0) {
@@ -411,14 +529,13 @@ private fun StepIndicator(current: SetupStep) {
 
 @Composable
 private fun FilterPill(label: String, active: Boolean, onClick: () -> Unit) {
-    Text(
-        label,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-    )
+    SelectableChip(label = label, selected = active, onClick = onClick)
+}
+
+/** SSL/TLS and STARTTLS are protocol names and stay as they are; only "None" is translated. */
+@Composable
+private fun securityLabel(security: UiSecurity): String = when (security) {
+    UiSecurity.SSL_TLS -> "SSL/TLS"
+    UiSecurity.STARTTLS -> "STARTTLS"
+    UiSecurity.NONE -> stringResource(Res.string.security_none)
 }

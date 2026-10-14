@@ -56,6 +56,10 @@ INFRASTRUCTURE: dict[str, str] = {
     'health/': 'liveness probe for Docker, nginx and the updater; same body as GET /api/v1/health',
     'csp-report/': 'receiver of browser CSP reports; the format is defined by browsers',
     'manifest.webmanifest': 'web app manifest; the format is defined by browsers',
+    'updates/v1/android/latest.json': (
+        'update manifest the Android app polls; public and read-only like the download page, '
+        'because a phone holds no API key (release management is POST /api/v1/releases/android)'
+    ),
 }
 # Console pages and the calls their own scripts make (signed-in session + CSRF). They change with
 # the UI and are not a contract; anything an integration needs is a v1 operation instead.

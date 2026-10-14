@@ -34,6 +34,15 @@ object ProviderDirectory : com.ifinmail.core.domain.port.AutoConfigSource {
             smtpSecurity = ConnectionSecurity.SSL_TLS
         ),
         ProviderEntry(
+            name = "ifinsta Mail",
+            domains = setOf("ifinsta.online"),
+            imapHost = "mail.ifinsta.online",
+            popHost = "mail.ifinsta.online",
+            smtpHost = "mail.ifinsta.online",
+            smtpPort = 465,
+            smtpSecurity = ConnectionSecurity.SSL_TLS
+        ),
+        ProviderEntry(
             name = "Gmail",
             domains = setOf("gmail.com", "googlemail.com"),
             imapHost = "imap.gmail.com",

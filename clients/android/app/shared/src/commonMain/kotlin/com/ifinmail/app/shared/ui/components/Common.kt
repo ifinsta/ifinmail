@@ -13,10 +13,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,7 +28,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,9 +43,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ifinmail.app.shared.resources.Res
+import com.ifinmail.app.shared.resources.hide_password
+import com.ifinmail.app.shared.resources.show_password
+import com.ifinmail.app.shared.resources.star_star
+import com.ifinmail.app.shared.resources.star_starred
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun PrimaryButton(
@@ -92,45 +111,53 @@ fun LabeledField(
     errorText: String? = null,
     helperText: String? = null,
     singleLine: Boolean = true,
-    minLines: Int = 1
+    minLines: Int = 1,
+    isPassword: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Next,
+    /** Stable identifier for UI tests; labels are translated, so it must not be derived from them. */
+    testTag: String? = null
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            isError = isError,
-            singleLine = singleLine,
-            minLines = minLines,
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                errorBorderColor = MaterialTheme.colorScheme.error,
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-            ),
-            modifier = Modifier.fillMaxWidth().testTag(fieldTestTag(label))
-        )
-        val caption = when {
-            isError && errorText != null -> errorText to MaterialTheme.colorScheme.error
-            helperText != null -> helperText to MaterialTheme.colorScheme.outline
-            else -> null
-        }
-        if (caption != null) {
-            Text(
-                caption.first,
-                style = MaterialTheme.typography.bodySmall,
-                color = caption.second,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
+    var revealed by remember { mutableStateOf(false) }
+    val caption = when {
+        isError && errorText != null -> errorText
+        else -> helperText
     }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        isError = isError,
+        singleLine = singleLine,
+        minLines = minLines,
+        shape = RoundedCornerShape(8.dp),
+        visualTransformation = if (isPassword && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions.Default.copy(
+            keyboardType = if (isPassword) KeyboardType.Password else keyboardType,
+            imeAction = imeAction
+        ),
+        trailingIcon = if (isPassword) {
+            {
+                IconButton(onClick = { revealed = !revealed }) {
+                    Icon(
+                        imageVector = if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = stringResource(if (revealed) Res.string.hide_password else Res.string.show_password)
+                    )
+                }
+            }
+        } else {
+            null
+        },
+        supportingText = caption?.let { text -> { Text(text) } },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            errorBorderColor = MaterialTheme.colorScheme.error,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+        ),
+        modifier = modifier.fillMaxWidth().testTag(testTag ?: fieldTestTag(label))
+    )
 }
 
 fun fieldTestTag(label: String): String =
@@ -161,9 +188,10 @@ fun AvatarCircle(
     }
 }
 
-private val avatarPalette = listOf(
-    Color(0xFF1A73E8), Color(0xFFD93025), Color(0xFF188038), Color(0xFFF29900),
-    Color(0xFF9334E6), Color(0xFF12B5CB), Color(0xFFE37400)
+/** Backgrounds for white initials; every entry clears 4.5:1 against white (see ThemeContrastTest). */
+internal val avatarPalette = listOf(
+    Color(0xFF1D4ED8), Color(0xFFB91C1C), Color(0xFF047857), Color(0xFFB45309),
+    Color(0xFF7E22CE), Color(0xFF0E7490), Color(0xFFBE185D)
 )
 
 fun avatarColorFor(source: String): Color {
@@ -177,11 +205,12 @@ fun StarToggle(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val description = stringResource(if (starred) Res.string.star_starred else Res.string.star_star)
     IconButton(
         onClick = onToggle,
         modifier = modifier
-            .size(40.dp)
-            .semantics { contentDescription = if (starred) "Starred" else "Star" }
+            .size(48.dp)
+            .semantics { contentDescription = description }
     ) {
         Icon(
             imageVector = if (starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
@@ -264,13 +293,25 @@ fun StatusBadge(text: String, tint: Color, background: Color) {
 }
 
 @Composable
-fun EmptyState(iconText: String, title: String, subtitle: String, modifier: Modifier = Modifier) {
+fun EmptyState(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp)
     ) {
-        Text(iconText, style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.outline)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(56.dp)
+        )
         Text(
             title,
             style = MaterialTheme.typography.headlineMedium,
@@ -280,11 +321,42 @@ fun EmptyState(iconText: String, title: String, subtitle: String, modifier: Modi
         Text(
             subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.outline,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp)
         )
+        if (actionLabel != null && onAction != null) {
+            PrimaryButton(
+                text = actionLabel,
+                onClick = onAction,
+                modifier = Modifier.padding(top = 24.dp)
+            )
+        }
     }
+}
+
+/**
+ * Filter chip that does not rely on colour alone to show selection: the selected state also
+ * carries a check mark.
+ */
+@Composable
+fun SelectableChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+        leadingIcon = if (selected) {
+            { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+        } else {
+            null
+        },
+        modifier = modifier
+    )
 }
 
 @Composable

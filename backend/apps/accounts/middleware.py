@@ -76,6 +76,7 @@ class SetupRequiredMiddleware(MiddlewareMixin):
         '/api/',
         '/csp-report/',
         '/telemetry/',
+        '/updates/',  # devices poll for app updates (machine path, no session)
         '/manifest.webmanifest',
         '/.well-known/',
         '/mail/config-v1.1.xml',

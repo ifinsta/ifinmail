@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches IfinmailColors.Gray050 / the dark scheme background so the window never flashes a
+         different colour before Compose draws its first frame. -->
+    <color name="ifinmail_window_background">#FFF9FAFB</color>
+</resources>

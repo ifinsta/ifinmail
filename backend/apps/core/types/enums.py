@@ -8,6 +8,7 @@ class EntityType(StrEnum):
     USER = 'USER'
     MESSAGE = 'MESSAGE'
     DOCUMENT = 'DOCUMENT'
+    APP_RELEASE = 'APP_RELEASE'
 
 
 class StorageVisibility(StrEnum):

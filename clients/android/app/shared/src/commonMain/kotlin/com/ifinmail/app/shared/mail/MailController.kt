@@ -59,7 +59,7 @@ data class UiProviderProfile(
     val note: String?
 ) {
     val summaryLine: String
-        get() = "$incomingHost:$incomingPort (${incomingSecurity.label}) Â· $outgoingHost:$outgoingPort (${outgoingSecurity.label})"
+        get() = "Incoming  $incomingHost:$incomingPort \u00b7 ${incomingSecurity.label}\nOutgoing  $outgoingHost:$outgoingPort \u00b7 ${outgoingSecurity.label}"
 }
 
 interface MailController {

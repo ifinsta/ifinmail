@@ -1,0 +1,142 @@
+{% extends "site/base.html" %}
+{% load i18n assistant_markdown %}
+{% comment %}
+Public download page for the in-house Android build. Context comes from
+backend.apps.core.releases.web.download_context: release (newest stable), beta, history,
+download_path, permalink, qr_data_uri, manifest_url, android_version.
+{% endcomment %}
+
+{% block page_title %}{% trans 'Download the Android app' %}{% endblock %}
+{% block meta_description %}{% trans 'Install the ifinmail Android app directly from this server. The app keeps itself up to date from here.' %}{% endblock %}
+
+{% block content %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap">
+        <p class="ifinmail-site-overline">{% trans 'Android app' %}</p>
+        <h1>{% trans 'Your mail on your phone.' %}</h1>
+        <p class="ifinmail-site-lede">{% trans 'Install the app straight from this server. It checks here for new versions and installs them when you agree, so every device stays current without an app store.' %}</p>
+    </div>
+</section>
+
+<div class="ifinmail-site-wrap">
+    {% if release %}
+    <section class="ifinmail-site-download" aria-labelledby="download-version">
+        <div class="ifinmail-site-download__main">
+            <h2 class="ifinmail-site-download__title" id="download-version">
+                {% blocktrans trimmed with version=release.version_name %}Version {{ version }}{% endblocktrans %}
+                <span class="ifinmail-site-pill ifinmail-site-pill--ok">{% trans 'Latest' %}</span>
+            </h2>
+            <p class="ifinmail-site-meta">
+                {% if release.published_at %}{% blocktrans trimmed with date=release.published_at|date:"j M Y" %}Released {{ date }}{% endblocktrans %} · {% endif %}{{ release.size_bytes|filesizeformat }}{% if android_version %} · {% blocktrans trimmed with version=android_version %}Android {{ version }} or newer{% endblocktrans %}{% endif %}
+            </p>
+            <div class="ifinmail-site-actions-row">
+                <a class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--lg" href="{{ download_path }}" download>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                    {% trans 'Download APK' %}
+                </a>
+            </div>
+            <dl class="ifinmail-site-download__facts">
+                <dt>{% trans 'Package' %}</dt>
+                <dd>{{ release.package_name }}</dd>
+                <dt>{% trans 'Build' %}</dt>
+                <dd>{{ release.version_code }}</dd>
+                <dt>SHA-256</dt>
+                <dd>{{ release.sha256 }}</dd>
+                {% if release.signing_cert_sha256 %}
+                <dt>{% trans 'Signed by' %}</dt>
+                <dd>{{ release.signing_cert_sha256 }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+        {% if qr_data_uri %}
+        <figure class="ifinmail-site-download__qr">
+            <img src="{{ qr_data_uri }}" width="176" height="176" alt="{% trans 'QR code that opens the download link' %}">
+            <figcaption>{% trans 'Scan with your phone camera' %}</figcaption>
+        </figure>
+        {% endif %}
+    </section>
+
+    {% if release.notes %}
+    <section class="ifinmail-site-split" aria-labelledby="whats-new">
+        <div><h2 class="ifinmail-site-split__title" id="whats-new">{% trans 'What is new' %}</h2></div>
+        <div class="ifinmail-site-prose">{{ release.notes|markdown }}</div>
+    </section>
+    {% endif %}
+
+    <section class="ifinmail-site-split" aria-labelledby="install-steps">
+        <div>
+            <h2 class="ifinmail-site-split__title" id="install-steps">{% trans 'Install it' %}</h2>
+            <p class="ifinmail-site-split__lede">{% trans 'Android asks once before it installs an app from outside a store.' %}</p>
+        </div>
+        <ol class="ifinmail-site-prose ifinmail-site-download__steps">
+            <li>{% trans 'Open this page on the phone and tap Download APK, or scan the code above.' %}</li>
+            <li>{% trans 'Open the downloaded file. When Android asks, allow your browser to install apps, then go back and tap Install.' %}</li>
+            <li>{% trans 'Open ifinmail and add your mailbox. Servers on this domain are found automatically.' %}</li>
+        </ol>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="updates">
+        <div><h2 class="ifinmail-site-split__title" id="updates">{% trans 'Updates' %}</h2></div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'The app asks this server about once a day whether a newer version exists and offers it on the inbox screen. Settings has a Check now button. An update is only installed after you agree, and only if it is signed with the same key as the app you already have.' %}</p>
+            <p>{% trans 'The check sends the app version, the Android version and a random install identifier. No account, address or message content is sent.' %}</p>
+            <p><a href="{{ permalink }}">{% trans 'Link that always points to the newest build' %}</a></p>
+        </div>
+    </section>
+
+    <section class="ifinmail-site-split" aria-labelledby="verify">
+        <div><h2 class="ifinmail-site-split__title" id="verify">{% trans 'Check the file' %}</h2></div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'To confirm the file is the one listed here, compare its SHA-256 with the value above:' %}</p>
+            <pre tabindex="0"><code>sha256sum ifinmail-{{ release.version_code }}.apk</code></pre>
+        </div>
+    </section>
+
+    {% if beta %}
+    <section class="ifinmail-site-split" aria-labelledby="beta">
+        <div><h2 class="ifinmail-site-split__title" id="beta">{% trans 'Beta' %}</h2></div>
+        <div class="ifinmail-site-prose">
+            <p>{% blocktrans trimmed with version=beta.version_name %}Version {{ version }} is available for testing. It may be less stable than the build above.{% endblocktrans %}
+                <a href="{{ beta_path }}" download>{% trans 'Download the beta' %}</a></p>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if history %}
+    <section class="ifinmail-site-split" aria-labelledby="earlier">
+        <div><h2 class="ifinmail-site-split__title" id="earlier">{% trans 'Earlier versions' %}</h2></div>
+        <div class="ifinmail-site-prose ifinmail-site-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">{% trans 'Version' %}</th>
+                        <th scope="col">{% trans 'Released' %}</th>
+                        <th scope="col">{% trans 'Size' %}</th>
+                        <th scope="col"><span class="ifinmail-sr-only">{% trans 'Download' %}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for old in history %}
+                    <tr>
+                        <td>{{ old.version_name }}</td>
+                        <td>{% if old.published_at %}{{ old.published_at|date:"j M Y" }}{% endif %}</td>
+                        <td>{{ old.size_bytes|filesizeformat }}</td>
+                        <td><a href="{{ old.stored_file.file.url }}" download>{% trans 'Download' %}</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+    {% else %}
+    <section class="ifinmail-site-split" aria-labelledby="none-yet">
+        <div><h2 class="ifinmail-site-split__title" id="none-yet">{% trans 'No Android build yet' %}</h2></div>
+        <div class="ifinmail-site-prose">
+            <p>{% trans 'An administrator has not published the Android app on this server yet. Check back soon, or ask whoever runs this server.' %}</p>
+            <p><a href="{% url 'accounts:login' %}">{% trans 'Administrators: sign in to publish a build' %}</a></p>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

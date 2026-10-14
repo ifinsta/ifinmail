@@ -244,6 +244,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 {'slug': 'storage'},
             ),
             SettingsItem(
+                'releases',
+                _('App releases'),
+                _('Publish Android builds and update every device over the air.'),
+                SettingsIcon.DEVICE,
+                'releases:console',
+                ('android', 'apk', 'app', 'release', 'update', 'ota', 'download', 'mobile', 'device'),
+            ),
+            SettingsItem(
                 'file-storage',
                 _('File storage'),
                 _('Where media and backups are kept: this server or object storage.'),

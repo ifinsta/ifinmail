@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.43
+- **Android app: download page and over-the-air updates for in-house releases.**
+  - **Server** (`backend/apps/core/releases/`): publish signed APKs from *Settings → App releases*, the v1 API
+    (`/api/v1/releases/android`, scope `system.manage`) or `manage.py publish_release`. The APK is read
+    server-side (package, version, `minSdk`, signing certificate), repeated version codes and a changed signing
+    key are refused. `stable` and `beta` channels, staged rollout, mandatory floor, withdraw/restore, and
+    adoption per version from anonymous device check-ins (pruned after 180 days).
+  - **Public surfaces:** `/download/` page (SHA-256, QR code, steps, history), the permalink
+    `/updates/v1/android/latest.apk` and the manifest `/updates/v1/android/latest.json`.
+  - **App:** background and foreground checks, inbox banner, Settings → Updates, a blocking "Update required"
+    screen for mandatory builds, resumable verified download, on-device identity check, `PackageInstaller`
+    install. French and English strings.
+  - **Operations:** `clients/android/scripts/release.py` (keygen, bump, notes, build, verify, publish, tag), an
+    *Android release* GitHub workflow, `docs/android-releases.md`; nginx serves
+    `.apk` files as attachments; `releases.prune_checkins` runs daily.
+
 ## v0.0.42
 - **Profile photos, and a contact directory that puts them in people's mail apps.**
   - **Photo:** **Account → Profile photo** takes a JPEG, PNG, WebP or GIF (up to 5 MB), lets you

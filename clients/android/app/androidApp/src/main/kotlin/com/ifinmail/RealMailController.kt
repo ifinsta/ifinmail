@@ -277,6 +277,10 @@ class RealMailController(
         try {
             busy.value = true
             Result.success(block())
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            // Cancellation is not a failure: it must propagate so structured concurrency works and
+            // the UI never reports "scope left the composition" as an error.
+            throw cancelled
         } catch (t: Throwable) {
             Result.failure(t)
         } finally {

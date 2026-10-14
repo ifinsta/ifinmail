@@ -164,6 +164,7 @@
     // ── Step 4: Username ──
     function initUsernameStep() {
         var input = document.getElementById('username');
+        var checkUrl = input ? input.getAttribute('data-check-url') || '' : '';
         if (!input) return;
 
         var preview = document.getElementById('preview-local');
@@ -183,9 +184,10 @@
                 clearTimeout(window._availTimer);
 
                 window._availTimer = setTimeout(function () {
+                    if (!checkUrl) return;
                     var xhr = new XMLHttpRequest();
                     currentRequest = xhr;
-                    xhr.open('GET', '/accounts/registration/check-username/?username=' + encodeURIComponent(val), true);
+                    xhr.open('GET', checkUrl + '?username=' + encodeURIComponent(val), true);
                     xhr.onreadystatechange = function () {
                         if (xhr.readyState === 4 && xhr.status === 200) {
                             if (xhr === currentRequest || !currentRequest) {

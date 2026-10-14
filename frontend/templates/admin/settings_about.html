@@ -16,8 +16,8 @@
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="about-help">
             <h2 class="ifinmail-panel-title" id="about-help">{% trans 'Help' %}</h2>
             <dl class="ifinmail-settings-rows">
-                <div class="ifinmail-settings-row"><dt>{% trans 'Documentation' %}</dt><dd><a class="ifinmail-link-strong" href="{{ docs_url }}" rel="noopener noreferrer" target="_blank">{{ docs_url }}</a></dd></div>
-                <div class="ifinmail-settings-row"><dt>{% trans 'Support' %}</dt><dd><a class="ifinmail-link-strong" href="mailto:{{ support_email }}">{{ support_email }}</a></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Documentation' %}</dt><dd><a class="ifinmail-link-strong" href="{{ docs_url }}">{{ site_origin }}{{ docs_url }}</a></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Support' %}</dt><dd>{% if support_email %}<a class="ifinmail-link-strong" href="mailto:{{ support_email }}">{{ support_email }}</a>{% else %}<a class="ifinmail-link-strong" href="{% url 'docs' %}#troubleshooting">{% trans 'Troubleshooting guide' %}</a>{% endif %}</dd></div>
             </dl>
         </section>
     </div>

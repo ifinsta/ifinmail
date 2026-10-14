@@ -32,7 +32,7 @@
       <div class="ifinmail-login-form__group">
         <label class="ifinmail-login-form__label" for="username">{% trans 'Username' %}</label>
         <div class="ifinmail-reg-username-input">
-          <input type="text" name="username" id="username" class="ifinmail-login-form__input" required autofocus autocomplete="off" placeholder="{% trans 'Enter username' %}" value="{{ chosen }}" pattern="^[a-z0-9][a-z0-9._-]{1,30}[a-z0-9]$" maxlength="32">
+          <input type="text" name="username" id="username" data-check-url="{% url 'accounts:reg_check_username' %}" class="ifinmail-login-form__input" required autofocus autocomplete="off" placeholder="{% trans 'Enter username' %}" value="{{ chosen }}" pattern="^[a-z0-9][a-z0-9._-]{1,30}[a-z0-9]$" maxlength="32">
           <span class="ifinmail-reg-username-input__domain">@{{ domain|default:_('domain') }}</span>
         </div>
         <div class="ifinmail-reg-availability" id="avail-indicator"></div>

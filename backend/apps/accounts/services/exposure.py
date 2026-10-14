@@ -23,6 +23,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from django.urls import reverse
+
 OK, WARNING, ERROR = 'ok', 'warning', 'error'
 
 # What scanners ask for. A 2xx for any of them is a file or page that should not be served.
@@ -174,7 +176,7 @@ def check_headers(ip: str, host: str) -> list[Check]:
     context.verify_mode = ssl.CERT_NONE
     connection = http.client.HTTPSConnection(ip, HTTPS_PORT, timeout=6, context=context)
     try:
-        connection.putrequest('GET', '/accounts/login/', skip_host=True)
+        connection.putrequest('GET', reverse('accounts:login'), skip_host=True)
         connection.putheader('Host', host)
         connection.endheaders()
         response = connection.getresponse()

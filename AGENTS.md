@@ -134,6 +134,13 @@ contract and rules: `docs/storage-contract.md`.
 uploaded original) and served only through `accounts:photo`. The contact directory built from
 photos is `accounts.services.directory`; the `dav` container mirrors it with `directory-sync.py`.
 
+**URLs.** Never write a path or a domain into a template, script or view. In templates use
+`{% url %}` / `{% static %}`, and `{{ site_origin }}` / `{{ site_host }}` when text must show this
+server's address. In Python use `reverse()`; for a link that leaves the page (email, QR code,
+manifest) use `backend.config.site_url` (`origin(request)`, `absolute_url(...)`, `builder(request)`).
+Scripts get URLs from `data-*` attributes rendered with `{% url %}`. `test_url_contract.py`
+enforces this.
+
 # ifinmail - Frontend Design Guide (Remediation)
 - Please refer to [DESIGN.md] for any new design or remediation of existing design when checking against compliance requirements for frontend designs.
 - Agent skills in `.agents/skills/` encode the approved template redesign. Load `ifinmail-design-system` before any UI work, follow `ifinmail-template-builder` when touching `frontend/templates` or `frontend/static`, and finish with `ifinmail-design-audit`. The template-to-board map is in `docs/html_templates.md`.

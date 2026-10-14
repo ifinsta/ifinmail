@@ -22,6 +22,27 @@ This file is the short form. The full guide, tokens, patterns and per-template b
 - Sidebar becomes a drawer; header is hamburger, wordmark, actions.
 - 44 px touch targets.
 
+## Logo
+
+An open envelope whose flap is a roof: your mail, on your own server. White glyph on the primary-blue rounded tile, set beside the wordmark **ifin**mail ("ifin" Inter 700 in the brand colour, "mail" Inter 400 in the primary colour, tracking −2%).
+
+| Use | File (`frontend/static/icons/`) |
+| --- | --- |
+| App tile, in-page mark | `mark.svg` (inline `includes/brand_house.html` in pages, so it follows theme and primary colour) |
+| Favicon, 16–48 px | `favicon.ico`, `favicon.svg` (heavier stroke so the flap survives at 16 px) |
+| Installed app | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (80 % safe zone), `apple-touch-icon.png` |
+| One colour, any ground | `mark-glyph.svg` (`currentColor`) |
+| Wordmark / lockup | `wordmark-light|dark.svg`, `lockup-light|dark.svg` (letters outlined, no font needed); `lockup-email.png` for mail clients |
+
+Rules:
+
+1. The mark and wordmark belong to the unrenamed product. `brand.uses_default_mark` is true only when no logo is uploaded **and** the name is still "ifinmail"; a renamed brand without a logo shows its name as text, never the house. An uploaded logo always wins.
+2. Never recolour, outline, stretch or add effects. On a coloured ground use `mark-glyph.svg`; the tile is always the primary colour and the glyph always `--ifinmail-on-primary`.
+3. Clear space around the lockup: half the tile height. Minimum: 16 px mark, 80 px lockup. Below 24 px use the heavier `favicon.svg`.
+4. In HTML the name is live text (`includes/brand_name.html`), not an image, so it scales, translates and passes contrast in every theme.
+5. Small screens show the wordmark only (see above); the rail and favicon carry the mark.
+6. Emails use `lockup-email.png` (a PNG, 2× of 222×56): most mail clients drop SVG.
+
 ## Settings hub
 
 All configuration lives under **Settings** (`/accounts/settings/`), grouped as Workspace, Access, Personalization and System. The catalogue is one typed list in `backend/apps/accounts/services/settings_catalogue.py`; the left list, the hub overview and the sidebar highlight are all generated from it.

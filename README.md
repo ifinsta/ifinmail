@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="frontend/static/icons/lockup-dark.svg">
+    <img src="frontend/static/icons/lockup-light.svg" alt="ifinmail" height="56">
+  </picture>
+</p>
+
 # ifinmail
 
 Self-hosted email platform — run your own mail server on a single VPS. Handles SMTP, IMAP, spam filtering, TLS, DKIM signing, and backups. Built on Django, Postfix, Dovecot, Rspamd, PostgreSQL, and Redis, all containerized with Docker Compose.

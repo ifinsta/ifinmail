@@ -1,10 +1,14 @@
 {% comment %}
 Brand block for standalone cards (auth, registration, setup, error pages):
-the uploaded logo when one is set, otherwise the system name as text — the
-system never draws a placeholder mark.
+the uploaded logo when one is set; the house mark and two-weight wordmark for
+the unrenamed product; otherwise the brand name as text — the system never
+draws a placeholder mark for another brand.
 {% endcomment %}
-<div class="ifinmail-login-card__brand{% if not brand.logo_url %} ifinmail-login-card__brand--name{% endif %}">
-    <span class="ifinmail-wordmark">{{ brand.name }}</span>
+<div class="ifinmail-login-card__brand{% if brand.logo_url %}{% elif brand.uses_default_mark %} ifinmail-login-card__brand--lockup{% else %} ifinmail-login-card__brand--name{% endif %}">
+    {% if brand.uses_default_mark %}
+    {% include "includes/brand_house.html" with mark_class="ifinmail-login-card__logo" size="44" %}
+    {% endif %}
+    <span class="ifinmail-wordmark">{% include "includes/brand_name.html" %}</span>
     {% if brand.logo_url %}
     <img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="ifinmail-login-card__logo-img">
     {% endif %}

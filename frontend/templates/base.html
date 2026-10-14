@@ -1,6 +1,6 @@
 {% load i18n %}{% load static %}{% load static_versioning %}
 {% get_current_language as LANGUAGE_CODE %}
-{% static 'icons/icon-192.svg' as default_icon_url %}
+{% static 'icons/favicon.svg' as default_icon_url %}{% static 'icons/favicon.ico' as default_ico_url %}{% static 'icons/apple-touch-icon.png' as default_apple_url %}
 <!DOCTYPE html>
 <html lang="{{ LANGUAGE_CODE }}" class="ifinmail-shell">
 <head>
@@ -11,8 +11,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ brand.name }}">
     <link rel="manifest" href="{% url 'manifest' %}">
-    <link rel="icon" href="{{ brand.favicon_url|default:default_icon_url }}">
-    <link rel="apple-touch-icon" href="{{ brand.favicon_url|default:default_icon_url }}">
+    {% if brand.favicon_url and brand.favicon_url != default_ico_url %}
+    <link rel="icon" href="{{ brand.favicon_url }}">
+    <link rel="apple-touch-icon" href="{{ brand.favicon_url }}">
+    {% else %}
+    <link rel="icon" href="{{ default_ico_url }}" sizes="48x48">
+    <link rel="icon" href="{{ default_icon_url }}" type="image/svg+xml" sizes="any">
+    <link rel="apple-touch-icon" href="{{ default_apple_url }}">
+    {% endif %}
     <title>{% block title %}{{ brand.name }}{% endblock %}</title>
     <script src="{% static 'js/ifinmail-theme-init.js' %}"></script>
     <script src="{% static 'js/ifinmail-layout-init.js' %}"></script>

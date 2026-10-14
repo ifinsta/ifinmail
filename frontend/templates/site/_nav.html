@@ -4,7 +4,7 @@
     <div class="ifinmail-site-wrap ifinmail-site-header__inner">
         <a class="ifinmail-site-brand" href="{% url 'landing' %}">
             {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
-            <span>{{ brand.name }}</span>
+            {% include "includes/brand_name.html" %}
         </a>
 
         <nav class="ifinmail-site-nav" aria-label="{% trans 'Main' %}">

@@ -91,6 +91,10 @@ def manifest(request: HttpRequest) -> JsonResponse:
     brand = getattr(settings, 'BRAND_CONFIG', None)
     name = (getattr(brand, 'name', '') or DEFAULT_BRAND_NAME).strip()
     favicon = (getattr(brand, 'favicon_url', '') or '').strip()
+    if favicon == static_url('icons/favicon.ico'):
+        # The shipped default written into branding_overrides.json, not an upload: list the
+        # whole icon set (PNG, maskable, SVG) instead of the one 48 px .ico.
+        favicon = ''
     theme_color = getattr(brand, 'secondary_color', '') or '#0f2b5b'
     if favicon:
         ext = favicon.rsplit('.', 1)[-1].lower()
@@ -102,18 +106,32 @@ def manifest(request: HttpRequest) -> JsonResponse:
         }.get(ext, 'image/png')
         icons = [{'src': favicon, 'sizes': 'any', 'type': mime, 'purpose': 'any'}]
     else:
+        # PNG for installers that need raster icons (Android, Chrome), a separate maskable
+        # icon with the safe-zone padding, and the SVG for everything that scales.
         icons = [
             {
-                'src': static_url('icons/icon-192.svg'),
+                'src': static_url('icons/icon-192.png'),
                 'sizes': '192x192',
-                'type': 'image/svg+xml',
-                'purpose': 'any maskable',
+                'type': 'image/png',
+                'purpose': 'any',
             },
             {
-                'src': static_url('icons/icon-512.svg'),
+                'src': static_url('icons/icon-512.png'),
                 'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'any',
+            },
+            {
+                'src': static_url('icons/icon-maskable-512.png'),
+                'sizes': '512x512',
+                'type': 'image/png',
+                'purpose': 'maskable',
+            },
+            {
+                'src': static_url('icons/mark.svg'),
+                'sizes': 'any',
                 'type': 'image/svg+xml',
-                'purpose': 'any maskable',
+                'purpose': 'any',
             },
         ]
     return JsonResponse(

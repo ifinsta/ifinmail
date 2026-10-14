@@ -101,8 +101,8 @@ def branding_identity(request: HttpRequest) -> HttpResponse:
     logo_url = overrides.get('logo_url') or (brand.logo_url if brand else '') or ''
     if not logo_url:
         logo_url = os.environ.get('BRAND_LOGO_URL', '')
-    current_logo = logo_url or os.environ.get('BRAND_LOGO_FILENAME', 'header_logo_v2.png')
-    logo_filename = current_logo.rsplit('/', 1)[-1] if current_logo else 'header_logo_v2.png'
+    current_logo = logo_url or os.environ.get('BRAND_LOGO_FILENAME', '')
+    logo_filename = current_logo.rsplit('/', 1)[-1] if current_logo else ''
 
     return render(
         request,

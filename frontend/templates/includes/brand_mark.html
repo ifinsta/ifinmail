@@ -1,10 +1,13 @@
 {% comment %}
-Brand mark: the uploaded logo only. Without a logo the brand name text next to
-this spot carries the identity — the system never draws a placeholder mark.
+Brand mark: the uploaded logo, or the product's own house mark while the brand
+is still "ifinmail" with no logo. A renamed brand without a logo shows its name
+text next to this spot only — the system never draws a placeholder mark.
 
 Usage: {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" %}
 Optional: ``size`` sets the img width/height attributes (px, default 32).
 {% endcomment %}
 {% if brand.logo_url %}
 <img src="{{ brand.logo_url }}" alt="" width="{{ size|default:'32' }}" height="{{ size|default:'32' }}" class="{{ mark_class }} ifinmail-brand-logo">
+{% elif brand.uses_default_mark %}
+{% include "includes/brand_house.html" with mark_class=mark_class size=size %}
 {% endif %}

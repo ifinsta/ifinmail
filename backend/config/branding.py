@@ -17,6 +17,12 @@ DEFAULT_ACCENT = '#059669'
 # The product name shown wherever no brand name (and no logo) is configured. Templates only ever
 # read ``brand.name``, which falls back to this; nothing else spells the default out.
 DEFAULT_BRAND_NAME = 'ifinmail'
+# The product wordmark is set in two weights, ``ifin`` bold and ``mail`` regular (DESIGN.md → Logo).
+DEFAULT_NAME_LEAD = 'ifin'
+DEFAULT_NAME_TAIL = 'mail'
+# Shipped with the static files: the wordmark lockup PNG that system emails show when the product
+# has no logo of its own (mail clients do not render SVG).
+DEFAULT_EMAIL_LOGO = 'icons/lockup-email.png'
 
 
 def branding_overrides_path(
@@ -112,7 +118,7 @@ class BrandingConfig:
     name: str = DEFAULT_BRAND_NAME
     tagline: str = 'mail infrastructure'
     color: str = DEFAULT_PRIMARY  # primary accent (hex, no spaces)
-    logo_url: str = ''  # if empty, use inline SVG default
+    logo_url: str = ''  # uploaded logo; empty -> see uses_default_mark
     favicon_url: str = ''  # if empty, use default icon
     secondary_color: str = DEFAULT_SECONDARY
     accent_color: str = DEFAULT_ACCENT
@@ -155,6 +161,23 @@ class BrandingConfig:
     @property
     def is_custom(self) -> bool:
         return self.name != DEFAULT_BRAND_NAME
+
+    @property
+    def uses_default_mark(self) -> bool:
+        """True when pages draw the product's own house mark: no logo uploaded and the name is
+        still the product's. A renamed brand without a logo shows its name only — the system
+        never puts the ifinmail mark on someone else's brand."""
+        return not self.logo_url and not self.is_custom
+
+    @property
+    def name_lead(self) -> str:
+        """The bold part of the brand name: ``ifin`` of the product name, else the whole name."""
+        return DEFAULT_NAME_LEAD if self.name == DEFAULT_BRAND_NAME else self.name
+
+    @property
+    def name_tail(self) -> str:
+        """The light part of the brand name (``mail``); empty for any other name."""
+        return DEFAULT_NAME_TAIL if self.name == DEFAULT_BRAND_NAME else ''
 
     @property
     def css_overrides(self) -> str:
@@ -290,6 +313,10 @@ def email_brand_context(
     if brand is None:
         brand = BrandingConfig()
     logo = brand.logo_url
+    if not logo and brand.uses_default_mark:
+        from django.templatetags.static import static
+
+        logo = static(DEFAULT_EMAIL_LOGO)
     if logo and not logo.startswith(('http://', 'https://')) and build_absolute_uri:
         logo = build_absolute_uri(logo)
     return {'brand': brand, 'brand_logo_url': logo}

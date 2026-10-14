@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.41
+- **A logo and a design for it.** ifinmail now has its own identity: an open envelope whose flap
+  is a roof, with the wordmark set in two weights (**ifin**mail).
+  - **Where it shows:** the console sidebar, sign-in / registration / setup / error cards, the
+    public site header and footer, the browser tab and home-screen icon, the web-app manifest
+    (PNG, maskable and SVG icons), the Branding settings preview, and the system emails
+    (a PNG lockup, since mail clients drop SVG). The README carries the lockup too.
+  - **Branding rules unchanged:** an uploaded logo always wins, and a renamed brand without a
+    logo still shows its name as text — the mark appears only for the unrenamed product. The
+    mark is drawn inline, so it follows the light, dark and high-contrast themes and a custom
+    primary colour.
+  - **Assets** (`frontend/static/icons/`): `mark.svg`, `mark-glyph.svg`, `favicon.ico/.svg`,
+    `icon-192/512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, wordmark and lockup in
+    light and dark (letters outlined), `lockup-email.png`. Usage rules: DESIGN.md → Logo.
+  - **Fix:** Branding settings no longer shows a made-up `header_logo_v2.png` as the current
+    logo file when none is uploaded.
+
 ## v0.0.40
 - **External file storage: a neutral storage contract, with S3-compatible object storage as the
   first plugin.** No new dependency: the S3 driver signs requests itself (AWS Signature V4 with the

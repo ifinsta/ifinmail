@@ -22,6 +22,9 @@
                         <label class="ifinmail-dropzone" for="logo-file">
                             {% if current_logo_url %}
                             <img class="ifinmail-logo-preview" src="{{ current_logo_url }}" alt="{% trans 'Current logo' %}">
+                            {% elif brand.uses_default_mark %}
+                            {% include "includes/brand_house.html" with mark_class="ifinmail-logo-preview" size="48" %}
+                            <strong class="ifinmail-wordmark ifinmail-wordmark--static">{% include "includes/brand_name.html" %}</strong>
                             {% else %}
                             <strong class="ifinmail-wordmark ifinmail-wordmark--static">{{ brand.name }}</strong>
                             {% endif %}
@@ -29,7 +32,7 @@
                             <span class="ifinmail-text--muted">{% trans 'SVG, PNG, JPG (max 400x120px)' %}</span>
                         </label>
                         <input class="ifinmail-sr-only" type="file" id="logo-file" name="logo" accept=".png,.svg,.jpg,.jpeg,.webp">
-                        <p class="ifinmail-file-note"><strong>{% trans 'Current:' %}</strong> {{ current_logo_filename|default:'—' }}</p>
+                        <p class="ifinmail-file-note"><strong>{% trans 'Current:' %}</strong> {% if brand.uses_default_mark and not current_logo_url %}{% trans 'ifinmail house mark (default)' %}{% else %}{{ current_logo_filename|default:'—' }}{% endif %}</p>
                     </div>
                     <div class="ifinmail-span-6">
                         <span class="ifinmail-overline">{% trans 'Favicon' %}</span>

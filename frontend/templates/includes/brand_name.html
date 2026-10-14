@@ -1,0 +1,6 @@
+{% comment %}
+The brand name as text. The product's own name is set in two weights, "ifin"
+bold and "mail" regular in the primary colour; any other name is plain text.
+Written on one line so screen readers and copy/paste read one word.
+{% endcomment %}
+<span class="ifinmail-brand-name">{{ brand.name_lead }}{% if brand.name_tail %}<span class="ifinmail-brand-name__tail">{{ brand.name_tail }}</span>{% endif %}</span>

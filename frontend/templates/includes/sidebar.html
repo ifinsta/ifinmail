@@ -3,13 +3,17 @@
 <nav class="ifinmail-admin-nav" id="ifinmail-app-sidebar" role="navigation" aria-label="{% trans 'Admin navigation' %}">
     <div class="ifinmail-admin-brand">
         <div class="ifinmail-admin-brand-top">
-            {% if brand.logo_url %}
+            {% if brand.logo_url or brand.uses_default_mark %}
             <a href="{% url 'accounts:dashboard' %}" class="ifinmail-admin-brand-mark" aria-label="{{ brand.name }} dashboard">
+                {% if brand.logo_url %}
                 <img src="{{ brand.logo_url }}" alt="" width="32" height="32" class="ifinmail-admin-brand-icon">
+                {% else %}
+                {% include "includes/brand_house.html" with mark_class="ifinmail-admin-brand-icon" size="32" %}
+                {% endif %}
             </a>
             {% endif %}
             <div>
-                <span class="ifinmail-admin-brand-name">{{ brand.name }}</span>
+                <span class="ifinmail-admin-brand-name">{% include "includes/brand_name.html" %}</span>
                 <span class="ifinmail-admin-brand-tagline">{{ brand.tagline|default:_('Mail Admin') }}</span>
             </div>
             <button type="button" class="ifinmail-icon-button ifinmail-collapse-toggle"

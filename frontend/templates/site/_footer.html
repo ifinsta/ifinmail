@@ -5,7 +5,7 @@
             <div>
                 <a class="ifinmail-site-brand" href="{% url 'landing' %}">
                     {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
-                    <span>{{ brand.name }}</span>
+                    {% include "includes/brand_name.html" %}
                 </a>
                 <p class="ifinmail-site-footer__about">{% trans 'A mail server you run yourself, with one console to look after it.' %}</p>
             </div>

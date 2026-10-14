@@ -1,0 +1,11 @@
+{% comment %}
+The ifinmail mark: an open envelope whose flap is a roof, drawn inline so it takes the primary colour and the
+on-primary ink of the active theme (light, dark, contrast) and of a custom
+primary colour. Shown only for the unrenamed product without an uploaded logo
+(``brand.uses_default_mark``); the system never draws it for another brand.
+Colours live in ifinmail-redesign.css (.ifinmail-house__*), not here, so the
+Content Security Policy needs no inline styles.
+
+Usage: {% include "includes/brand_house.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
+{% endcomment %}
+<svg class="ifinmail-house {{ mark_class }}" width="{{ size|default:'32' }}" height="{{ size|default:'32' }}" viewBox="0 0 192 192" aria-hidden="true" focusable="false"><rect class="ifinmail-house__tile" width="192" height="192" rx="40"/><g class="ifinmail-house__glyph"><path d="M44 86 96 44l52 42v62H44z"/><path d="m52 98 44 32 44-32"/></g></svg>

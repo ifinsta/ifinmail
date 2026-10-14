@@ -1421,6 +1421,48 @@ html.ifinmail-shell .ifinmail-wordmark {
     text-decoration: none;
 }
 
+/* ─── Logo: house mark + two-weight wordmark (DESIGN.md → Logo) ───
+   The mark is drawn inline so it follows the theme and a custom primary colour;
+   the name is "ifin" bold + "mail" regular. Brand marks are the one place the
+   primary colour is not an interaction cue. */
+html.ifinmail-shell .ifinmail-house {
+    display: block;
+    flex: none;
+}
+
+html.ifinmail-shell .ifinmail-house__tile {
+    fill: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-house__glyph {
+    fill: none;
+    stroke: var(--ifinmail-on-primary);
+    stroke-width: 12;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+html.ifinmail-shell .ifinmail-brand-name__tail {
+    font-weight: var(--ifinmail-font-weight-normal);
+    color: var(--ifinmail-color-primary);
+}
+
+/* The static wordmark (Branding preview) is declared before the generic one above, which would
+   otherwise hide it. */
+html.ifinmail-shell .ifinmail-wordmark.ifinmail-wordmark--static {
+    display: block;
+}
+
+/* Unrenamed product on an auth card: house mark + wordmark side by side. */
+html.ifinmail-shell .ifinmail-login-card__brand--lockup {
+    gap: var(--ifinmail-space-3);
+}
+
+html.ifinmail-shell .ifinmail-login-card__brand--lockup .ifinmail-wordmark {
+    display: inline-block;
+    font-size: var(--ifinmail-font-size-3xl);
+}
+
 /* No logo uploaded: the system name is the brand on auth cards at every width. */
 html.ifinmail-shell .ifinmail-login-card__brand--name .ifinmail-wordmark {
     display: inline-block;
@@ -1733,6 +1775,11 @@ html.ifinmail-shell .ifinmail-flash--error {
 
     html.ifinmail-shell .ifinmail-login-card__brand .ifinmail-wordmark {
         font-size: var(--ifinmail-font-size-4xl);
+    }
+
+    /* Small screens show the wordmark alone (the mark is hidden above), left-aligned. */
+    html.ifinmail-shell .ifinmail-login-card__brand--lockup {
+        justify-content: flex-start;
     }
 
     html.ifinmail-shell .ifinmail-stat-cell {

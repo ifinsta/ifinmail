@@ -196,7 +196,7 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
             SettingsItem(
                 'appearance',
                 _('Appearance'),
-                _('Light, dark, auto and high contrast.'),
+                _('Smooth, light, dark, auto and high contrast.'),
                 SettingsIcon.APPEARANCE,
                 _PAGE,
                 ('theme', 'dark', 'light', 'contrast', 'mode'),

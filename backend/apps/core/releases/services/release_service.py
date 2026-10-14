@@ -39,6 +39,11 @@ from backend.apps.core.types.enums import EntityType, StorageVisibility
 
 logger = logging.getLogger('backend')
 
+# The update manifest is public and a check-in needs no credentials, so anyone can invent device
+# ids. Past this many tracked devices new ones are not recorded (known devices still update), so
+# the table cannot grow without bound between the daily prunes.
+MAX_TRACKED_DEVICES = 100_000
+
 
 @dataclass(frozen=True)
 class UpdateDecision:
@@ -345,6 +350,9 @@ class ReleaseService:
         if not device_id:
             return
         try:
+            known = DeviceCheckin.objects.filter(platform=platform, device_id=device_id).exists()
+            if not known and DeviceCheckin.objects.count() >= MAX_TRACKED_DEVICES:
+                return
             row, created = DeviceCheckin.objects.get_or_create(
                 platform=platform,
                 device_id=device_id,

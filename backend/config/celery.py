@@ -12,6 +12,7 @@ app = Celery('ifinmail')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks(
     [
+        'backend.apps.accounts',
         'backend.apps.core',
         'backend.apps.core.plugins',
         'backend.apps.core.storage',

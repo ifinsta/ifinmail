@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.47
+- **Phone sign-in, registration and error pages: the header block is centred as one unit.** v0.0.46
+  moved the title under the wordmark to the left; the intended look is the reverse, so the wordmark,
+  title, subtitle, terms line, step counter, status icons and the links under the card are all
+  centred on one axis on phones. Labels, fields and buttons still fill the width. Error pages
+  match.
+
 ## v0.0.46
 - **Phone sign-in and registration cards share one left edge.** The wordmark, labels, fields and
   links were left-aligned while the title, subtitle, terms line and step counter stayed centred,

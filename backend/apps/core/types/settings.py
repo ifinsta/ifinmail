@@ -34,3 +34,7 @@ class SettingKey(StrEnum):
     SENDING_PAUSED = 'mail.sending_paused'
     # When each mailbox was last reported to administrators (alerts are rate-limited).
     SENDING_ALERTED = 'mail.sending_alerted'
+    # Spam filtering (mail.services.spam_policy): how strict, from 1 to 10, and the extra DNS
+    # lists as [{host, type, enabled, tested: {state, ms, at}}].
+    SPAM_SENSITIVITY = 'spam.sensitivity'
+    SPAM_PROVIDERS = 'spam.providers'

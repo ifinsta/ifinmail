@@ -120,6 +120,27 @@ def _one_of(*options: str):
     return check
 
 
+_SCORE_RE = re.compile(r'^(?:[1-9][0-9]?(?:\.[0-9])?|0\.[5-9])$')
+MAX_DNS_LISTS = 20
+_DNS_LIST_KINDS = ('dnsbl', 'dnswl', 'uribl')
+
+
+def _score(value: str) -> str | None:
+    return None if _SCORE_RE.match(value) else 'must be a number from 0.5 to 99.9'
+
+
+def _dns_lists(value: str) -> str | None:
+    """``host/kind`` items: a DNS name and what the list is (sender, link or allow list)."""
+    items = value.split(',')
+    if len(items) > MAX_DNS_LISTS:
+        return f'at most {MAX_DNS_LISTS} DNS lists'
+    for item in items:
+        host, _, kind = item.rpartition('/')
+        if kind not in _DNS_LIST_KINDS or not _DOMAIN_RE.match(host) or host[-1:].isdigit():
+            return f'not a DNS list (name/{"|".join(_DNS_LIST_KINDS)}): {item}'
+    return None
+
+
 def _int_between(low: int, high: int):
     def check(value: str) -> str | None:
         if not value.isdigit() or not low <= int(value) <= high:
@@ -260,6 +281,18 @@ class RspamdPolicyTarget(AdapterTarget):
         'arc_sealing': TargetKey(
             _one_of('yes', 'no'),
             "Add an ARC seal, signed with the domain's DKIM key, to mail passing through.",
+        ),
+        # Not plugin settings: filled from the console's Spam Filtering page (spam_policy), see
+        # the dynamic source. All four are written together or not at all.
+        'spam_greylist_score': TargetKey(_score, 'Score at which a sender is asked to retry.'),
+        'spam_junk_score': TargetKey(_score, 'Score at which a message goes to Junk.'),
+        'spam_rewrite_score': TargetKey(
+            _score, 'Score at which the subject is also marked as spam.'
+        ),
+        'spam_reject_score': TargetKey(_score, 'Score at which a message is refused.'),
+        'dnsbl_providers': TargetKey(
+            _dns_lists,
+            'Extra DNS lists asked about every message, as name/kind (dnsbl, uribl or dnswl).',
         ),
     }
     runtime_file = 'rspamd-plugins.conf'
@@ -583,6 +616,12 @@ def _paused_senders() -> dict[str, dict[str, str]]:
     return {SENDER: {'paused_logins': ','.join(sorted(containment.paused()))}}
 
 
+def _spam_policy() -> dict[str, dict[str, str]]:
+    from backend.apps.mail.services import spam_policy
+
+    return spam_policy.rspamd_values()
+
+
 def register() -> None:
     for target in TARGETS:
         registry.register_target(target)
@@ -590,3 +629,4 @@ def register() -> None:
         registry.register_capability(capability)
     registry.register_setting_type('mailbox', 'email', _existing_mailbox)
     registry.register_dynamic_source('paused-senders', _paused_senders)
+    registry.register_dynamic_source('spam-policy', _spam_policy)

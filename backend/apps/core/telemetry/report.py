@@ -149,6 +149,32 @@ def delivery_section(period: str = 'day', now: datetime | None = None) -> dict[s
     }
 
 
+def spam_section(period: str = 'day', now: datetime | None = None) -> dict[str, Any]:
+    """What the spam filter did over a period, plus an hourly chart of the last 24 hours."""
+    from backend.apps.core.telemetry.threats import spam
+
+    period = period if period in PERIODS else 'day'
+    now = now or timezone.now()
+    label, span = PERIODS[period]
+    chart_from = (now - timedelta(hours=23)).replace(minute=0, second=0, microsecond=0)
+    floor = min((now - span).replace(minute=0, second=0, microsecond=0), chart_from)
+    digests = [
+        (d['hour'], d['summary'] or {})
+        for d in ThreatDigest.objects.filter(hour__gte=floor).order_by('hour').values('hour', 'summary')
+    ]
+    period_start = (now - span).replace(minute=0, second=0, microsecond=0)
+    counts = spam.totals([row for hour, row in digests if hour >= period_start])
+    buckets = spam.hourly([(h, r) for h, r in digests if h >= chart_from], now)
+    return {
+        'period': period,
+        'label': label,
+        **counts,
+        'caught': counts['junked'] + counts['refused'],
+        'bars': spam.bars(buckets),
+        'has_data': counts['scanned'] > 0,
+    }
+
+
 def build(
     period: str = 'day', now: datetime | None = None, chain: dict[str, Any] | None = None
 ) -> dict[str, Any]:

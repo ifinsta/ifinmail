@@ -7,94 +7,173 @@
 <section class="ifinmail-admin-content">
     <div class="ifinmail-admin-page">
         <div class="ifinmail-page-header">
-            <h1 class="ifinmail-page-title">{% trans 'Spam Filtering' %}</h1>
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Spam Filtering' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Every incoming message gets a score from many checks (who sent it, whether the sender proves who it is, what the message looks like). This page sets the scores at which the filter acts, and which extra DNS lists it asks.' %}</p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <form method="get" class="ifinmail-inline-form--row">
+                    <label class="ifinmail-sr-only" for="spam-period">{% trans 'Period' %}</label>
+                    <select class="ifinmail-input" id="spam-period" name="period" data-autosubmit>
+                        <option value="day"{% if period == 'day' %} selected{% endif %}>{% trans 'Last 24 hours' %}</option>
+                        <option value="week"{% if period == 'week' %} selected{% endif %}>{% trans 'Last 7 days' %}</option>
+                    </select>
+                    <noscript><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Apply' %}</button></noscript>
+                </form>
+            </div>
         </div>
 
         <div class="ifinmail-admin-grid">
             <article class="ifinmail-stat-panel ifinmail-span-3">
-                <span class="ifinmail-overline">{% trans 'Blocked Spam' %}</span>
-                <span class="ifinmail-stat-big">{{ blocked_spam|default:'0' }}</span>
-                <p class="ifinmail-trend">{{ blocked_spam_trend|default:'' }}</p>
+                <span class="ifinmail-overline">{% trans 'Scanned' %}</span>
+                <span class="ifinmail-stat-big">{{ stats.scanned }}</span>
+                <p class="ifinmail-trend">{{ stats.label }}</p>
             </article>
             <article class="ifinmail-stat-panel ifinmail-span-3">
-                <span class="ifinmail-overline">{% trans 'False Positives' %}</span>
-                <span class="ifinmail-stat-big">{{ false_positive_pct|default:'0%' }}</span>
-                <p class="ifinmail-trend">{{ fp_trend|default:'' }}</p>
+                <span class="ifinmail-overline">{% trans 'Delivered normally' %}</span>
+                <span class="ifinmail-stat-big">{{ stats.delivered }}</span>
+                <p class="ifinmail-trend">{% trans 'Reached the inbox' %}</p>
             </article>
-            <article class="ifinmail-panel ifinmail-span-6">
-                <span class="ifinmail-overline">{% trans 'Filtering Activity (24h)' %}</span>
-                <div class="ifinmail-chart-bars">
-                    {% for h in filter_activity_bars %}<span style="height:{{ h }}%"></span>{% empty %}<span style="height:0%"></span>{% endfor %}
-                </div>
+            <article class="ifinmail-stat-panel ifinmail-span-3">
+                <span class="ifinmail-overline">{% trans 'Sent to Junk' %}</span>
+                <span class="ifinmail-stat-big">{{ stats.junked }}</span>
+                <p class="ifinmail-trend">{% trans 'Look here when someone misses a message' %}</p>
+            </article>
+            <article class="ifinmail-stat-panel ifinmail-span-3">
+                <span class="ifinmail-overline">{% trans 'Refused' %}</span>
+                <span class="ifinmail-stat-big">{{ stats.refused }}</span>
+                <p class="ifinmail-trend">{% blocktrans trimmed count n=stats.delayed %}{{ n }} more asked to retry later{% plural %}{{ n }} more asked to retry later{% endblocktrans %}</p>
             </article>
 
-            <article class="ifinmail-panel ifinmail-span-8">
-                <h2 class="ifinmail-panel-title">{% trans 'Global Sensitivity Control' %}</h2>
-                <div class="ifinmail-action-row ifinmail-sensitivity-header">
-                    <span>{% trans 'Heuristic Aggression Level' %}</span><strong id="sensitivity-label" class="ifinmail-sensitivity-value">{{ heuristic_level|default:'5.0' }}</strong>
+            <article class="ifinmail-panel ifinmail-span-12">
+                <span class="ifinmail-overline">{% trans 'Messages scanned, hour by hour (last 24 hours)' %}</span>
+                {% if stats.has_data %}
+                <div class="ifinmail-chart-bars ifinmail-chart-bars--share" role="img" aria-label="{% blocktrans trimmed with n=stats.scanned %}{{ n }} messages scanned; the busiest hour is the tallest bar.{% endblocktrans %}">
+                    {% for bar in stats.bars %}<span style="height:{{ bar.height }}%;--caught:{{ bar.share }}%" title="{{ bar.label }}"><i></i></span>{% endfor %}
                 </div>
-                <input type="range" id="sensitivity-slider" aria-label="{% trans 'Heuristic Aggression Level' %}" min="1" max="10" step="0.5" value="{{ heuristic_level|default:'5.0' }}" data-action="set-sensitivity" data-url="{% url 'accounts:spam_sensitivity' %}" class="ifinmail-sensitivity-slider">
-                <div class="ifinmail-action-row ifinmail-sensitivity-labels">
-                    <span>{% trans 'Permissive' %}</span><span>{% trans 'Standard' %}</span><span>{% trans 'Strict' %}</span><span>{% trans 'Zero-Tolerance' %}</span>
-                </div>
-                <div class="ifinmail-quote">{% trans 'Higher values increase the likelihood of catching sophisticated spam but may elevate false positive risks for encrypted attachments.' %}</div>
+                <p class="ifinmail-help-text">{% trans 'The red part of a bar is the share sent to Junk or refused. The filter does not know which Junk messages were wanted: only the person who finds one there does.' %}</p>
+                {% else %}
+                <p class="ifinmail-help-text">{% trans 'Nothing has been scanned in this period yet. Figures come from the filter’s log, summarised every hour.' %}</p>
+                {% endif %}
             </article>
-            <section class="ifinmail-panel ifinmail-span-4">
-                <h2 class="ifinmail-panel-title">{% trans 'Engines' %}</h2>
+
+            <section class="ifinmail-panel ifinmail-span-8" aria-labelledby="spam-sens">
+                <h2 class="ifinmail-panel-title" id="spam-sens">{% trans 'Sensitivity' %}</h2>
+                <form method="post" action="{% url 'accounts:spam_sensitivity' %}" class="ifinmail-inline-form" data-spam-form>
+                    {% csrf_token %}
+                    <div class="ifinmail-action-row ifinmail-sensitivity-header">
+                        <label for="sensitivity-slider">{% trans 'How strict the filter is' %}</label>
+                        <strong id="sensitivity-label" class="ifinmail-sensitivity-value">{{ level }}</strong>
+                    </div>
+                    <input type="range" id="sensitivity-slider" name="level" min="{{ min_level }}" max="{{ max_level }}" step="1" value="{{ level }}" class="ifinmail-sensitivity-slider" aria-describedby="sens-help">
+                    <div class="ifinmail-action-row ifinmail-sensitivity-labels" aria-hidden="true">
+                        <span>{% trans 'Permissive' %}</span><span>{% trans 'Standard' %}</span><span>{% trans 'Strict' %}</span>
+                    </div>
+                    <p class="ifinmail-help-text" id="sens-help">{% blocktrans trimmed with default=default_level %}{{ default }} is the standard setting. A stricter setting catches more spam and also more wanted mail: after raising it, watch the Junk folder and the Refused count for a few days.{% endblocktrans %}</p>
+
+                    <dl class="ifinmail-settings-rows" aria-label="{% trans 'What happens at this setting' %}">
+                        <div class="ifinmail-settings-row"><dt>{% trans 'From score' %} <code class="ifinmail-text--mono" data-score="greylist">{{ now_thresholds.greylist }}</code></dt><dd>{% trans 'Asks an unknown sender to try again later (real servers do, spam tools rarely do).' %}</dd></div>
+                        <div class="ifinmail-settings-row"><dt>{% trans 'From score' %} <code class="ifinmail-text--mono" data-score="junk">{{ now_thresholds.junk }}</code></dt><dd>{% trans 'Puts the message in Junk.' %}</dd></div>
+                        <div class="ifinmail-settings-row"><dt>{% trans 'From score' %} <code class="ifinmail-text--mono" data-score="rewrite">{{ now_thresholds.rewrite }}</code></dt><dd>{% trans 'Also marks the subject as spam.' %}</dd></div>
+                        <div class="ifinmail-settings-row"><dt>{% trans 'From score' %} <code class="ifinmail-text--mono" data-score="reject">{{ now_thresholds.reject }}</code></dt><dd>{% trans 'Refuses it (the sender is told).' %}</dd></div>
+                    </dl>
+                    <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save sensitivity' %}</button></div>
+                </form>
+                {{ levels|json_script:"spam-levels" }}
+            </section>
+
+            <section class="ifinmail-panel ifinmail-span-4" aria-labelledby="spam-engine">
+                <h2 class="ifinmail-panel-title" id="spam-engine">{% trans 'Filter' %}</h2>
                 <div class="ifinmail-engine-list">
-                    {% for engine in filter_engines %}
-                    <div class="ifinmail-engine-row{% if not engine.enabled %} ifinmail-engine-row--disabled{% endif %}"><span><strong>{{ engine.name|default:'' }}</strong><br><small>{{ engine.detail|default:'' }}</small></span>{% if engine.enabled %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Active' %}</span>{% else %}<span class="ifinmail-badge">{% trans 'Off' %}</span>{% endif %}</div>
-                    {% empty %}
-                    <p class="ifinmail-text--muted">{% trans 'No filter engines configured.' %}</p>
-                    {% endfor %}
+                    <div class="ifinmail-engine-row">
+                        <span><strong>Rspamd</strong><br><small>{% trans 'Your settings in the running filter' %}</small></span>
+                        <span class="ifinmail-badge ifinmail-badge--{{ apply_tone }}">{{ apply_word }}</span>
+                    </div>
                 </div>
+                <p class="ifinmail-help-text">{% trans 'Changes reach the filter within seconds. “Not applied yet” for more than a minute means the filter container is not reading its settings: see System health.' %}</p>
             </section>
 
             <article class="ifinmail-table-panel ifinmail-span-12" tabindex="0" role="region" aria-labelledby="spam-table-title">
                 <div class="ifinmail-table-panel-header">
-                    <div><h2 class="ifinmail-panel-title" id="spam-table-title">{% trans 'DNSBL Blacklist Settings' %}</h2><p>{% trans 'Real-time domain reputation checking across global providers.' %}</p></div>
-                    <button class="ifinmail-btn ifinmail-btn--primary" type="button" data-action="toggle-add-provider">{% trans 'Add Provider' %}</button>
+                    <div>
+                        <h2 class="ifinmail-panel-title" id="spam-table-title">{% trans 'DNS lists you added' %}</h2>
+                        <p>{% blocktrans trimmed with names=built_in|join:', ' %}The filter already asks {{ names }} and others. Add lists here to ask more; each hit adds to the score, an allow list subtracts from it.{% endblocktrans %}</p>
+                    </div>
                 </div>
-                {% include "includes/admin_table.html" with span=None title=None headers=provider_headers|default:'' rows=providers|default:'' row_template="admin/partials/provider_row.html" %}
+                <table class="ifinmail-admin-table">
+                    <thead><tr><th>{% trans 'List' %}</th><th>{% trans 'Kind' %}</th><th>{% trans 'Last test' %}</th><th>{% trans 'Used' %}</th><th><span class="ifinmail-sr-only">{% trans 'Actions' %}</span></th></tr></thead>
+                    <tbody>
+                    {% for item in lists %}
+                        <tr>
+                            <td><code class="ifinmail-text--mono">{{ item.host }}</code></td>
+                            <td><span class="ifinmail-badge ifinmail-badge--neutral">{{ item.kind_label }}</span></td>
+                            <td>
+                                <span class="ifinmail-badge ifinmail-badge--{{ item.tone }}">{{ item.word }}</span>
+                                {% if item.ms is not None %}<span class="ifinmail-settings-row__help ifinmail-text--mono">{{ item.ms }}&nbsp;ms</span>{% endif %}
+                                {% if item.detail %}<br><span class="ifinmail-settings-row__help">{{ item.detail }}</span>{% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'accounts:spam_toggle_provider' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="host" value="{{ item.host }}">
+                                    {% if item.enabled %}
+                                    <span class="ifinmail-badge ifinmail-badge--success">{% trans 'On' %}</span>
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit"><span class="ifinmail-sr-only">{{ item.host }} </span>{% trans 'Turn off' %}</button>
+                                    {% else %}
+                                    <span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Off' %}</span>
+                                    <input type="hidden" name="enabled" value="on">
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit"><span class="ifinmail-sr-only">{{ item.host }} </span>{% trans 'Turn on' %}</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                            <td>
+                                <div class="ifinmail-inline-form ifinmail-inline-form--row">
+                                    <form method="post" action="{% url 'accounts:spam_test_provider' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="host" value="{{ item.host }}">
+                                        <button class="ifinmail-btn ifinmail-btn--outline" type="submit"><span class="ifinmail-sr-only">{{ item.host }} </span>{% trans 'Test' %}</button>
+                                    </form>
+                                    <form method="post" action="{% url 'accounts:spam_remove_provider' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="host" value="{{ item.host }}">
+                                        <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% blocktrans trimmed with host=item.host %}Remove {{ host }}?{% endblocktrans %}"><span class="ifinmail-sr-only">{{ item.host }} </span>{% trans 'Remove' %}</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="ifinmail-admin-table-empty">
+                            <div class="ifinmail-empty-state"><p>{% trans 'No lists added. The filter uses the lists it already has.' %}</p></div>
+                        </td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
             </article>
+
+            <section class="ifinmail-panel ifinmail-span-12" aria-labelledby="spam-add">
+                <h2 class="ifinmail-panel-title" id="spam-add">{% trans 'Add a DNS list' %}</h2>
+                <form method="post" action="{% url 'accounts:spam_add_provider' %}" class="ifinmail-inline-form">
+                    {% csrf_token %}
+                    <div class="ifinmail-field">
+                        <label for="provider-host">{% trans 'DNS name of the list' %}</label>
+                        <input id="provider-host" name="host" type="text" class="ifinmail-input ifinmail-input--full ifinmail-text--mono" placeholder="dnsbl.example.org" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="253" required aria-describedby="provider-help">
+                    </div>
+                    <div class="ifinmail-field">
+                        <label for="provider-kind">{% trans 'Kind' %}</label>
+                        <select id="provider-kind" name="kind" class="ifinmail-input">
+                            {% for key, label, help, score in list_kinds %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+                        </select>
+                        <ul class="ifinmail-help-text">
+                            {% for key, label, help, score in list_kinds %}<li><strong>{{ label }}:</strong> {{ help }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                    <p class="ifinmail-help-text" id="provider-help">{% blocktrans trimmed with max=max_lists %}Each message makes the filter ask the list a question, so the list’s operator sees the addresses of the servers that mail you (and the sites linked from messages, for a link list). Use lists you trust, and at most {{ max }}. A blocklist hit adds 3 to the score, an allow list subtracts 2.{% endblocktrans %}</p>
+                    <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Add list' %}</button></div>
+                </form>
+            </section>
         </div>
     </div>
 </section>
-
-<!-- Add Provider Modal -->
-<div class="ifinmail-modal-overlay" id="add-provider-modal">
-    <div class="ifinmail-modal ifinmail-modal-dialog">
-        <div class="ifinmail-modal-header">
-            <h3 class="ifinmail-modal-title">{% trans 'Add DNSBL Provider' %}</h3>
-            <button class="ifinmail-modal-close" id="add-provider-modal-close" aria-label="{% trans 'Close' %}">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </div>
-        <div class="ifinmail-modal-body">
-            <form id="add-provider-form-inner">
-                {% csrf_token %}
-                <div class="ifinmail-form-group">
-                    <label class="ifinmail-label">{% trans 'Provider Host' %}</label>
-                    <input id="provider-host" type="text" placeholder="dnsbl.example.com" class="ifinmail-input ifinmail-input--full" autocomplete="off" required>
-                </div>
-                <div class="ifinmail-form-group">
-                    <label class="ifinmail-label">{% trans 'Type' %}</label>
-                    <select id="provider-type" class="ifinmail-input ifinmail-input--full">
-                        <option value="CUSTOM">CUSTOM</option>
-                        <option value="REPUTATION">REPUTATION</option>
-                        <option value="AGGREGATE">AGGREGATE</option>
-                        <option value="PASSIVE">PASSIVE</option>
-                    </select>
-                </div>
-            </form>
-        </div>
-        <div class="ifinmail-modal-footer">
-            <button type="button" class="ifinmail-btn ifinmail-btn--ghost" data-action="close-add-provider">{% trans 'Cancel' %}</button>
-            <button type="button" class="ifinmail-btn ifinmail-btn--primary" data-action="add-provider" data-url="{% url 'accounts:spam_add_provider' %}">{% trans 'Add' %}</button>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}

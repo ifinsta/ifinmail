@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.59
+- **Smooth, the new default look.** A calm, light, technical look for everyday business: soft
+  edges instead of hard ones, quiet surfaces, no gradients, glow or decorative motion, and no dark
+  mode in it (it never follows the operating system into a dark scheme).
+  - **What changes:** cards and panels get a pale hairline and one soft shadow, controls and
+    cards have rounder corners (10, 14 and 18 px), badges are pills, tables lose their heavy
+    header rows and gain a gentle hover, outline buttons have a neutral edge, inputs get a soft
+    focus halo (keyboard focus keeps its strong outline), tabs mark the current one with a soft
+    pill, banners lose their coloured edges, scrollbars are thin, and the page background is a
+    flat cool grey instead of a grid. The closing call to action on the public home page is a
+    light band, not a dark block. Your brand colours are untouched.
+  - **Everywhere:** the console, sign-in and registration, setup, error pages and every public
+    page were reviewed at desktop and phone widths in this look.
+  - **Choice:** Settings → Appearance now lists Smooth first. Administrators can also set the
+    default for everyone who has not chosen a look in their browser (Smooth, Light, Dark, Auto
+    or High contrast). People who already picked a theme keep it. Dark, Auto and High contrast
+    are unchanged.
+
 ## v0.0.58
 - **The assistant can brand the website for you.** Ask it, with context ("we are Contoso, a
   law firm; formal tone; support is it@contoso.example"), and it drafts the pages.

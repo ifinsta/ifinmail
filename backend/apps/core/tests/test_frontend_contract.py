@@ -68,7 +68,8 @@ def test_template_has_no_inline_script_style_block_or_handler(path: Path) -> Non
 def test_base_template_loads_redesign_layer_last_and_registers_it_for_offline_use() -> None:
     base = _read(FRONTEND / 'templates' / 'base.html')
     links = re.findall(r"versioned_css 'css/(ifinmail-[a-z]+\.css)'", base)
-    assert links[-1] == 'ifinmail-redesign.css'
+    # The Smooth theme's refinements follow the redesign layer and every page's own sheet.
+    assert links[-2:] == ['ifinmail-redesign.css', 'ifinmail-smooth.css']
     worker = _read(FRONTEND / 'static' / 'js' / 'service-worker.js')
     for name in links:
         assert f'/static/css/{name}' in worker, f'{name} missing from the service worker precache'
@@ -177,7 +178,7 @@ def test_theme_bootstrap_runs_before_styles_and_is_csp_safe() -> None:
     before = base[script - 40 : script]
     assert '<script src=' in before, 'theme bootstrap must be an external script'
     source = _read(FRONTEND / 'static' / 'js' / 'ifinmail-theme-init.js')
-    for choice in ('light', 'dark', 'auto', 'contrast'):
+    for choice in ('smooth', 'light', 'dark', 'auto', 'contrast'):
         assert f"'{choice}'" in source
 
 

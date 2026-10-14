@@ -9,7 +9,7 @@
         <div class="ifinmail-page-header">
             <div>
                 <h1 class="ifinmail-page-title">{{ settings_item.title }}</h1>
-                <p class="ifinmail-page-subtitle">{% trans 'Light, dark, auto, high contrast.' %}</p>
+                <p class="ifinmail-page-subtitle">{% trans 'Smooth is the default: soft edges and a calm light look for everyday work. Light, dark, auto and high contrast are there if you prefer them.' %}</p>
             </div>
         </div>
 
@@ -17,6 +17,11 @@
             <fieldset class="ifinmail-theme-picker" data-theme-picker data-help-auto="{% trans 'Auto follows your system setting' %}" data-help-manual="{% trans 'Set manually for this browser' %}">
                 <legend class="ifinmail-panel-title" id="theme-title">{% trans 'Theme' %}</legend>
                 <div class="ifinmail-theme-picker__grid">
+                    <label class="ifinmail-theme-card">
+                        <input class="ifinmail-sr-only" type="radio" name="ifinmail-theme" value="smooth">
+                        <span class="ifinmail-theme-card__preview ifinmail-theme-card__preview--smooth" aria-hidden="true"><i></i><b></b></span>
+                        <span class="ifinmail-theme-card__label">{% trans 'Smooth' %}</span>
+                    </label>
                     <label class="ifinmail-theme-card">
                         <input class="ifinmail-sr-only" type="radio" name="ifinmail-theme" value="light">
                         <span class="ifinmail-theme-card__preview ifinmail-theme-card__preview--light" aria-hidden="true"><i></i><b></b></span>
@@ -41,6 +46,25 @@
             </fieldset>
         </section>
 
+        {% if can_set_default_theme %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="theme-default">
+            <h2 class="ifinmail-panel-title" id="theme-default">{% trans 'Default for everyone' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'The look people get on a browser where they have not chosen one, in the console and on the public pages.' %}</p>
+            <form method="post" action="{% url 'accounts:appearance_default' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <label class="ifinmail-sr-only" for="theme-default-choice">{% trans 'Default theme' %}</label>
+                <select class="ifinmail-input" id="theme-default-choice" name="theme">
+                    <option value="smooth"{% if default_theme == 'smooth' %} selected{% endif %}>{% trans 'Smooth' %}</option>
+                    <option value="light"{% if default_theme == 'light' %} selected{% endif %}>{% trans 'Light' %}</option>
+                    <option value="dark"{% if default_theme == 'dark' %} selected{% endif %}>{% trans 'Dark' %}</option>
+                    <option value="auto"{% if default_theme == 'auto' %} selected{% endif %}>{% trans 'Auto' %}</option>
+                    <option value="contrast"{% if default_theme == 'contrast' %} selected{% endif %}>{% trans 'High contrast' %}</option>
+                </select>
+                <button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save default' %}</button>
+            </form>
+        </section>
+        {% endif %}
+
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="theme-current">
             <h2 class="ifinmail-panel-title" id="theme-current">{% trans 'Current' %}</h2>
             <dl class="ifinmail-settings-rows">
@@ -49,7 +73,7 @@
                         {% trans 'Active look' %}
                         <small class="ifinmail-settings-row__help" data-theme-help>{% trans 'Auto follows your system setting' %}</small>
                     </dt>
-                    <dd><span class="ifinmail-badge ifinmail-badge--info" data-theme-active aria-live="polite">{% trans 'Light' %}</span></dd>
+                    <dd><span class="ifinmail-badge ifinmail-badge--info" data-theme-active aria-live="polite">{% trans 'Smooth' %}</span></dd>
                 </div>
                 <div class="ifinmail-settings-row">
                     <dt>

@@ -2,26 +2,31 @@
  * ifinmail theme bootstrap. Loaded synchronously in <head> so the right theme
  * is on <html> before first paint (no flash).
  *
- * data-theme  = the person's choice: light | dark | auto | contrast
- * data-scheme = what is actually rendered: light | dark | contrast
+ * data-theme  = the person's choice: smooth | light | dark | auto | contrast
+ * data-scheme = what is actually rendered: smooth | light | dark | contrast
  *
- * The choice lives in localStorage on this browser. Default is light, so
- * existing installs keep their current look until someone picks another theme.
+ * The choice lives in localStorage on this browser. Until someone chooses, the
+ * server's default applies (data-default on this script's own tag, set under
+ * Settings > Appearance); without one it is "smooth". Smooth is a light-only
+ * look and never follows the operating system into a dark scheme.
  */
 (function () {
     'use strict';
 
     var KEY = 'ifinmail-theme';
-    var CHOICES = ['light', 'dark', 'auto', 'contrast'];
+    var CHOICES = ['smooth', 'light', 'dark', 'auto', 'contrast'];
     var root = document.documentElement;
+    var tag = document.currentScript;
+    var configured = tag && tag.getAttribute('data-default');
+    var DEFAULT = CHOICES.indexOf(configured) === -1 ? 'smooth' : configured;
     var media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
     function read() {
         try {
             var value = window.localStorage.getItem(KEY);
-            return CHOICES.indexOf(value) === -1 ? 'light' : value;
+            return CHOICES.indexOf(value) === -1 ? DEFAULT : value;
         } catch (e) {
-            return 'light';
+            return DEFAULT;
         }
     }
 
@@ -45,7 +50,9 @@
                theme blocks (this runs before the stylesheets load). */
             meta.setAttribute(
                 'content',
-                scheme === 'light' ? meta.getAttribute('data-default') : (scheme === 'dark' ? '#0B1220' : '#000000')
+                (scheme === 'light' || scheme === 'smooth')
+                    ? meta.getAttribute('data-default')
+                    : (scheme === 'dark' ? '#0B1220' : '#000000')
             );
         }
         try {
@@ -62,7 +69,8 @@
     window.IfinmailTheme = {
         get: read,
         set: set,
-        scheme: function () { return root.getAttribute('data-scheme') || 'light'; },
+        scheme: function () { return root.getAttribute('data-scheme') || DEFAULT; },
+        fallback: DEFAULT,
         choices: CHOICES.slice()
     };
 

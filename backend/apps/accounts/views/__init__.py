@@ -46,7 +46,7 @@ from .registration import (
     step_verify,
     step_verify_confirm,
 )
-from .settings_hub import settings_hub, settings_page
+from .settings_hub import appearance_default, settings_hub, settings_page
 from .setup import setup_advance, setup_step, setup_wizard
 from .website import website_page, website_pages
 from .spam import (
@@ -104,6 +104,7 @@ __all__ = [
     'password_reset_complete',
     'password_reset_confirm',
     'password_reset_done',
+    'appearance_default',
     'settings_hub',
     'settings_page',
     'setup_advance',

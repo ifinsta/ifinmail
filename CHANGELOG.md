@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.0.45
+- **Phone and tablet layout review.** Every public page, the sign-in/registration/setup/error
+  pages and the console were rendered at 360, 390 and 768 px and measured for text on the screen
+  edge, horizontal scroll and page height. Fixed:
+  - **Docs page had no side padding** (also on tablets): `.ifinmail-site-docs` is also the page
+    wrap and a `padding: x 0` shorthand removed its gutter.
+  - **Auth pages did not fit the viewport.** The page and the card were both forced to `100dvh`
+    with `!important`, so the card filled the screen and the "Back to sign in" / footer link fell
+    below it: a 29 px scroll on a page with room to spare, and that link on the screen edge. The
+    page is now exactly one viewport, the card as tall as its content, centred with its link.
+  - **Error pages** were 64 px taller than the screen at every width (the class sat on `<body>`
+    and on the block inside, each adding padding and a minimum height) and their content hung
+    near the top; they are now one viewport and centred.
+  - **Site header on tablets:** between 768 and about 860 px the links and buttons ran past the
+    screen (horizontal scrollbar). The Menu button now takes over below 880 px.
+  - **Console:** the help line under *API keys* and the update-check line on *System health* had
+    no side margin; empty-table messages were clipped on phones ("No keys yet. Create one above
+    for the first integrati"); a session row on *User management* had text on its border.
+  - Tests keep the wrap-gutter rule, the header breakpoint and the auth-page height rule in place.
+
 ## v0.0.44
 - **Fix: the contact-directory job was not registered in the worker.** v0.0.42 added
   `accounts.publish_directory`, but the worker only imports tasks from the apps listed in

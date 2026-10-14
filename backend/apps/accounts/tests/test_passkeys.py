@@ -12,7 +12,7 @@ from django.urls import reverse
 from backend.apps.accounts.models import MailUser, Passkey, TOTPDevice
 from backend.apps.accounts.services import passkeys
 from backend.apps.accounts.services.mfa import TOTPService
-from backend.apps.accounts.services.webauthn import EDDSA, b64url_decode, b64url_encode
+from backend.apps.accounts.services.webauthn import EDDSA, b64url_decode
 from backend.apps.accounts.tests import test_assistant_views as base
 from backend.apps.accounts.tests.virtual_authenticator import VirtualAuthenticator
 from backend.apps.core.platform.models import AuditEvent
@@ -132,10 +132,9 @@ class RegistrationTests(PasskeyBase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('secure', response.json()['error'])
 
-    def test_marks_the_session_as_having_proved_a_second_factor(self) -> None:
+    def test_registering_does_not_mark_the_session_as_second_factor_proof(self) -> None:
         self.register(VirtualAuthenticator())
-        self.assertEqual(self.client.session.get('mfa_method'), 'passkey')
-        self.assertTrue(self.client.session.get('mfa_verified_at'))
+        self.assertNotEqual(self.client.session.get('mfa_method'), 'passkey')
 
 
 class PasswordlessSignInTests(PasskeyBase):
@@ -226,7 +225,9 @@ class PasswordlessSignInTests(PasskeyBase):
             cache.clear()
 
 
-class SecondStepTests(PasskeyBase):
+class PasskeyIsASignInNotASecondStepTests(PasskeyBase):
+    """A passkey replaces the email and password. It is never a step after them."""
+
     def setUp(self) -> None:
         super().setUp()
         self.authenticator = VirtualAuthenticator(EDDSA)
@@ -238,48 +239,14 @@ class SecondStepTests(PasskeyBase):
             reverse('accounts:login'), {'email': self.admin.email, 'password': base.GOOD}, **S
         )
 
-    def test_a_password_alone_is_not_enough_for_someone_with_a_passkey(self) -> None:
+    def test_a_password_sign_in_is_not_followed_by_a_passkey_step(self) -> None:
         response = self.password_step()
-        self.assertRedirects(
-            response, reverse('accounts:mfa_verify'), fetch_redirect_response=False
-        )
-        self.assertNotIn('_auth_user_id', self.client.session)
-        page = self.client.get(reverse('accounts:mfa_verify'), **S)
-        self.assertContains(page, 'Use a passkey')
-        self.assertNotContains(
-            page, 'Verify &amp; sign in'
-        )  # no authenticator app to type a code for
+        # No second step: the password alone signs a passkey holder in (an authenticator app, if
+        # they had one, is the only thing that adds a step).
+        self.assertNotEqual(response.url, reverse('accounts:mfa_verify'))
+        self.assertIn('_auth_user_id', self.client.session)
 
-    def test_the_passkey_completes_the_sign_in(self) -> None:
-        self.password_step()
-        options = self.post_json('accounts:mfa_passkey_options').json()['options']
-        self.assertEqual(len(options['allowCredentials']), 1)  # only this person's
-        payload = self.authenticator.get(options)
-        response = self.post_json('accounts:mfa_passkey_verify', payload)
-        self.assertTrue(response.json()['ok'])
-        self.assertEqual(self.client.session['_auth_user_id'], str(self.admin.pk))
-        self.assertTrue(AuditEvent.objects.filter(action='mfa_verified').exists())
-
-    def test_someone_elses_passkey_cannot_finish_this_persons_sign_in(self) -> None:
-        other = MailUser.objects.create_user('other@ifinmail.test', base.GOOD, is_staff=True)
-        stranger = VirtualAuthenticator()
-        Passkey.objects.create(
-            user=other,
-            name='theirs',
-            credential_id=b64url_encode(stranger.credential_id),
-            public_key=b64url_encode(stranger.cose_key()),
-        )
-        self.password_step()
-        options = self.post_json('accounts:mfa_passkey_options').json()['options']
-        payload = stranger.get(options)
-        self.assertEqual(self.post_json('accounts:mfa_passkey_verify', payload).status_code, 401)
-        self.assertNotIn('_auth_user_id', self.client.session)
-
-    def test_without_the_password_step_there_is_nothing_to_finish(self) -> None:
-        self.assertEqual(self.post_json('accounts:mfa_passkey_options').status_code, 401)
-
-    def test_a_totp_user_is_unchanged(self) -> None:
-        Passkey.objects.all().delete()
+    def test_the_second_step_page_has_no_passkey_button(self) -> None:
         TOTPDevice.objects.create(user=self.admin, secret_encrypted='x', verified=True)
         response = self.password_step()
         self.assertRedirects(
@@ -288,15 +255,57 @@ class SecondStepTests(PasskeyBase):
         page = self.client.get(reverse('accounts:mfa_verify'), **S)
         self.assertContains(page, 'Verify')
         self.assertNotContains(page, 'Use a passkey')
+        self.assertNotContains(page, 'data-passkey-signin')
+
+    def test_the_passkey_second_step_endpoints_are_gone(self) -> None:
+        from django.urls import NoReverseMatch
+
+        for name in ('mfa_passkey_options', 'mfa_passkey_verify'):
+            with self.subTest(name=name), self.assertRaises(NoReverseMatch):
+                reverse(f'accounts:{name}')
+
+    def test_signing_in_with_the_passkey_needs_no_email_password_or_code(self) -> None:
+        TOTPDevice.objects.create(user=self.admin, secret_encrypted='x', verified=True)
+        options = self.post_json('accounts:passkey_login_options').json()['options']
+        self.assertEqual(options.get('allowCredentials', []), [])  # usernameless
+        response = self.post_json('accounts:passkey_login_verify', self.authenticator.get(options))
+        self.assertTrue(response.json()['ok'])
+        self.assertEqual(self.client.session['_auth_user_id'], str(self.admin.pk))
+        self.assertTrue(self.client.session.get('mfa_verified_at'))  # no authenticator prompt
+        console = self.client.get(reverse('accounts:dashboard'), **S)
+        self.assertEqual(console.status_code, 200)
+
+    def test_a_passkey_does_not_make_a_password_sign_in_two_factor(self) -> None:
+        self.assertFalse(TOTPService.has_second_factor(self.admin))
+        TOTPDevice.objects.create(user=self.admin, secret_encrypted='x', verified=True)
+        self.assertTrue(TOTPService.has_second_factor(self.admin))
+
+    def test_registering_a_passkey_does_not_unlock_the_current_session(self) -> None:
+        self.client.logout()
+        # a session that has only been through the password
+        self.client.force_login(self.admin, backend='django.contrib.auth.backends.ModelBackend')
+        self.register(VirtualAuthenticator(), 'Second key')
+        self.assertFalse(self.client.session.get('mfa_verified_at'))
 
 
 class PolicyAndManagementTests(PasskeyBase):
-    def test_a_passkey_satisfies_the_required_policy(self) -> None:
+    def test_a_passkey_does_not_end_the_authenticator_prompt(self) -> None:
+        # Under the required policy a password sign-in still needs an authenticator app: a
+        # passkey is another way in, not a second step after the password.
         with override_settings(MFA_ENFORCEMENT='required'):
             self.assertTrue(TOTPService.prompt_due(self.admin))
             self.register(VirtualAuthenticator())
-            self.assertFalse(TOTPService.prompt_due(self.admin))
-            self.assertTrue(TOTPService.has_second_factor(self.admin))
+            self.assertTrue(TOTPService.prompt_due(self.admin))
+            self.assertFalse(TOTPService.has_second_factor(self.admin))
+
+    def test_signing_in_with_a_passkey_satisfies_the_required_policy(self) -> None:
+        authenticator = VirtualAuthenticator(EDDSA)
+        self.register(authenticator, 'Laptop')
+        self.client.logout()
+        with override_settings(MFA_ENFORCEMENT='required'):
+            options = self.post_json('accounts:passkey_login_options').json()['options']
+            self.post_json('accounts:passkey_login_verify', authenticator.get(options))
+            self.assertEqual(self.client.get(reverse('accounts:dashboard'), **S).status_code, 200)
 
     def test_removing_one_needs_the_password_and_is_audited(self) -> None:
         self.register(VirtualAuthenticator(), 'Old laptop')

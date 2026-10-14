@@ -250,17 +250,10 @@ def mfa_verify(request: HttpRequest) -> HttpResponse:
                 if not SetupState.is_complete():
                     return redirect('accounts:setup_wizard')
                 return redirect('accounts:dashboard')
-    from backend.apps.accounts.services import passkeys
-
     return render(
         request,
         'admin/mfa_verify.html',
-        {
-            'error': error,
-            'email': user.email,
-            'has_totp': TOTPService.has_verified_device(user),
-            'has_passkey': passkeys.has_passkey(user) and passkeys.available(request),
-        },
+        {'error': error, 'email': user.email},
     )
 
 

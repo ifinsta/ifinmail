@@ -145,7 +145,7 @@ class MFAEnforcementMiddleware(MiddlewareMixin):
     exempt_prefixes = (
         FIRST_PASSWORD_PATH,  # the new password comes first, enrollment right after
         '/accounts/mfa/',
-        '/accounts/passkeys/',  # a passkey is a way to satisfy the check, so it must be reachable
+        '/accounts/passkeys/',  # reachable while enrolling: signing in with a passkey satisfies it
         '/accounts/setup/',
         '/accounts/logout/',
         '/accounts/login/',

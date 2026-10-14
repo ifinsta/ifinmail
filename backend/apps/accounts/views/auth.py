@@ -191,7 +191,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
             from backend.apps.accounts.services.mfa import TOTPService
 
             if TOTPService.has_second_factor(user):
-                # Password done, code (or passkey) still required: hold the user id in the
+                # Password done, authenticator code still required: hold the user id in the
                 # (freshly cycled) session and verify before login() is called.
                 request.session['mfa_pending_user_id'] = str(user.pk)
                 return redirect('accounts:mfa_verify')

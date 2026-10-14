@@ -162,10 +162,13 @@ class TOTPService:
 
     @staticmethod
     def has_second_factor(user: object) -> bool:
-        """An authenticator app **or** a passkey: either one is a second factor."""
-        from backend.apps.accounts.models import Passkey
+        """True when a password sign-in is followed by a second step: a verified authenticator.
 
-        return TOTPService.has_verified_device(user) or Passkey.objects.filter(user=user).exists()
+        A passkey is deliberately not counted. It is an alternative to the email and password
+        (it replaces them, and a passkey sign-in is already two factors in one gesture), so
+        holding one does not make a *password* sign-in any stronger and must not add a step to it.
+        """
+        return TOTPService.has_verified_device(user)
 
     @staticmethod
     def passkey_count(user: object) -> int:

@@ -342,8 +342,20 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             'header_search_placeholder': 'Search mail server logs...',
             'is_mock': is_mock,
             'update_status': update_status,
+            'delivery': _delivery_summary(),
         },
     )
+
+
+def _delivery_summary() -> dict[str, Any] | None:
+    """Last day's outgoing delivery figures; ``None`` (no panel) if they cannot be read."""
+    try:
+        from backend.apps.core.telemetry import report
+
+        return report.delivery_section('day')
+    except Exception:  # the dashboard must still open
+        logger.exception('Delivery figures unavailable')
+        return None
 
 
 def _get_tls_info() -> dict[str, Any]:

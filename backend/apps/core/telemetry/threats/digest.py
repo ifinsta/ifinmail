@@ -20,7 +20,17 @@ from django.db import transaction
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.telemetry.models import ErrorEvent, ThreatDigest, ThreatFinding
 
-from . import access_log, adaptive, collect, mail_log, mail_rules, rollup, rules, summarize
+from . import (
+    access_log,
+    adaptive,
+    collect,
+    delivery,
+    mail_log,
+    mail_rules,
+    rollup,
+    rules,
+    summarize,
+)
 from .classify import clean, probe_class
 from .types import Action, Finding, Severity, WindowSummary
 
@@ -265,6 +275,18 @@ def _word(severity: int) -> str:
     return Severity(severity).word
 
 
+def _delivery_findings(summary: WindowSummary, now: datetime) -> list[Finding]:
+    """Delivery problems over the last day: earlier hours from the digests, plus this window."""
+    hour = now.replace(minute=0, second=0, microsecond=0)
+    rows = list(
+        ThreatDigest.objects.filter(hour__gte=now - timedelta(hours=24), hour__lt=hour).values_list(
+            'summary', flat=True
+        )
+    )
+    rows.append({'sources': summary.sources})
+    return delivery.findings([r or {} for r in rows], now)
+
+
 def run(now: datetime | None = None, *, summarise: bool = True) -> DigestResult:
     now = now or datetime.now(UTC)
     start = access_log.window_start(now, WINDOW_MINUTES)
@@ -280,6 +302,7 @@ def run(now: datetime | None = None, *, summarise: bool = True) -> DigestResult:
     found += _probe_errors(log.requests)
     found += adaptive.run(log.requests, auth_window, mail, found, summary, now)
     found += rollup.findings(summary.sources, now)
+    found += _delivery_findings(summary, now)
     found.sort(key=lambda f: (-int(f.severity), -f.count, f.key))
 
     with transaction.atomic():

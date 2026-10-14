@@ -1,0 +1,88 @@
+{% load i18n %}
+{# Outgoing mail delivery. `delivery` is telemetry.report.delivery_section(); `full` shows the breakdown. #}
+<section class="ifinmail-panel ifinmail-delivery ifinmail-delivery--{{ delivery.verdict.tone }}" aria-labelledby="dl-title">
+    <div class="ifinmail-delivery__head">
+        <h2 class="ifinmail-panel-title" id="dl-title">{% trans 'Outgoing mail delivery' %}</h2>
+        {% if not full %}<a class="ifinmail-link-strong" href="{% url 'accounts:logs_report' %}?period=week#rp-delivery">{% trans 'Delivery report' %}</a>{% endif %}
+    </div>
+    <p class="ifinmail-delivery__verdict"><strong>{{ delivery.verdict.headline }}</strong> {{ delivery.verdict.next }}</p>
+    <div class="ifinmail-summary ifinmail-delivery__figures">
+        <div class="ifinmail-summary__cell">
+            <span class="ifinmail-summary__label">{% trans 'Accepted' %}</span>
+            <span class="ifinmail-summary__value">{{ delivery.sent }}</span>
+        </div>
+        <div class="ifinmail-summary__cell{% if delivery.deferred %} ifinmail-summary__cell--warning{% endif %}">
+            <span class="ifinmail-summary__label">{% trans 'Retried attempts' %}</span>
+            <span class="ifinmail-summary__value">{{ delivery.deferred }}</span>
+        </div>
+        <div class="ifinmail-summary__cell{% if delivery.bounced %} ifinmail-summary__cell--error{% endif %}">
+            <span class="ifinmail-summary__label">{% trans 'Failed for good' %}</span>
+            <span class="ifinmail-summary__value">{{ delivery.bounced }}</span>
+        </div>
+        <div class="ifinmail-summary__cell">
+            <span class="ifinmail-summary__label">{% trans 'Bounce rate' %}</span>
+            <span class="ifinmail-summary__value">{% if delivery.bounce_rate is None %}&mdash;{% else %}{{ delivery.bounce_rate }}%{% endif %}</span>
+            {% if full and delivery.change and delivery.change.bounce_rate_points is not None %}
+            <span class="ifinmail-summary__label">{% blocktrans trimmed with n=delivery.change.bounce_rate_points %}{{ n }} points vs. the period before{% endblocktrans %}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if delivery.reasons %}
+    {% if full %}
+    <h3 class="ifinmail-delivery__sub">{% trans 'Why they failed' %}</h3>
+    <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Why they failed' %}">
+        <table class="ifinmail-admin-table">
+            <thead><tr><th scope="col">{% trans 'Reason' %}</th><th scope="col">{% trans 'Outcome' %}</th><th scope="col">{% trans 'Count' %}</th><th scope="col">{% trans 'What to do' %}</th></tr></thead>
+            <tbody>
+            {% for r in delivery.reasons %}
+            <tr>
+                <td><strong>{{ r.label }}</strong>{% if r.example %}<br><span class="ifinmail-text--muted ifinmail-text--mono">{{ r.example }}</span>{% endif %}</td>
+                <td>{% if r.kind == 'bounced' %}{% trans 'Failed for good' %}{% else %}{% trans 'Retried' %}{% endif %}</td>
+                <td>{{ r.count }}</td>
+                <td>{{ r.hint }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    {% else %}
+    {% with top=delivery.reasons.0 %}
+    <p class="ifinmail-delivery__top"><strong>{{ top.label }}</strong> &middot; {{ top.count }} {% if top.kind == 'bounced' %}{% trans 'failed' %}{% else %}{% trans 'retried' %}{% endif %}. {{ top.hint }}</p>
+    {% endwith %}
+    {% endif %}
+    {% endif %}
+
+    {% if full and delivery.destinations %}
+    <h3 class="ifinmail-delivery__sub">{% trans 'Where it went' %}</h3>
+    <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Where it went' %}">
+        <table class="ifinmail-admin-table">
+            <thead><tr><th scope="col">{% trans 'Destination' %}</th><th scope="col">{% trans 'Accepted' %}</th><th scope="col">{% trans 'Retried' %}</th><th scope="col">{% trans 'Failed' %}</th><th scope="col">{% trans 'Bounce rate' %}</th></tr></thead>
+            <tbody>
+            {% for d in delivery.destinations %}
+            <tr><td><strong>{{ d.domain }}</strong>{% if d.provider != d.domain %} <span class="ifinmail-text--muted">{{ d.provider }}</span>{% endif %}</td><td>{{ d.sent }}</td><td>{{ d.deferred }}</td><td>{{ d.bounced }}</td><td>{% if d.bounce_rate is None %}&mdash;{% else %}{{ d.bounce_rate }}%{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    {% endif %}
+
+    {% if full and delivery.senders %}
+    <h3 class="ifinmail-delivery__sub">{% trans 'Who sent it' %}</h3>
+    <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Who sent it' %}">
+        <table class="ifinmail-admin-table">
+            <thead><tr><th scope="col">{% trans 'Mailbox' %}</th><th scope="col">{% trans 'Accepted' %}</th><th scope="col">{% trans 'Retried' %}</th><th scope="col">{% trans 'Failed' %}</th><th scope="col">{% trans 'Bounce rate' %}</th></tr></thead>
+            <tbody>
+            {% for s in delivery.senders %}
+            <tr><td><span class="ifinmail-text--mono">{{ s.address }}</span></td><td>{{ s.sent }}</td><td>{{ s.deferred }}</td><td>{{ s.bounced }}</td><td>{% if s.bounce_rate is None %}&mdash;{% else %}{{ s.bounce_rate }}%{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    {% endif %}
+
+    {% if delivery.local_failed %}
+    <p class="ifinmail-help-text">{% blocktrans trimmed with n=delivery.local_failed %}{{ n }} delivery attempt(s) into this server's own mailboxes failed or were retried: see System health.{% endblocktrans %}</p>
+    {% endif %}
+    <p class="ifinmail-help-text">{% trans '“Accepted” means the receiving server took the message. It does not say whether it landed in the inbox or the spam folder: that is only visible from the receiver’s side (for Gmail, Google Postmaster Tools). A message that is retried several times counts one retried attempt each time.' %}</p>
+</section>

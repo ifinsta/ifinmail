@@ -51,6 +51,7 @@ _WHERE = {
     'api_keys': ('accounts:api_keys', {}),
     'users': ('accounts:user_management', {}),
     'logs': ('accounts:logs', {}),
+    'report': ('accounts:logs_report', {}),
     'health': ('accounts:system_health', {}),
 }
 _TONE = {

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from backend.apps.core.serializers.health import FingerprintV1, TelemetryStatsV1
 from backend.apps.core.telemetry.serializers import (
+    DeliveryV1,
     ErrorEventV1,
     ErrorPageV1,
     FingerprintListV1,
@@ -32,6 +33,13 @@ def list_errors(*, severity: str, source: str, query: str, page: int) -> ErrorPa
         num_pages=int(found['num_pages']),
         total=int(found['total']),
     )
+
+
+def delivery(period: str) -> DeliveryV1:
+    """Outgoing delivery figures for ``day``, ``week`` or ``month`` (see threats.delivery)."""
+    from backend.apps.core.telemetry import report
+
+    return DeliveryV1(**report.delivery_section(period))
 
 
 def stats() -> TelemetryStatsV1:

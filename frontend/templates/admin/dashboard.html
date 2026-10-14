@@ -53,6 +53,8 @@
             {% endfor %}
         </div>
 
+        {% if delivery %}{% include "admin/partials/delivery_panel.html" with delivery=delivery %}{% endif %}
+
         <!-- ROW C & D: Main Content Grid -->
         <div class="ifinmail-admin-grid">
             <!-- ROW C: Domain Directory & Health (8 columns) -->

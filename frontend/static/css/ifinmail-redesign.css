@@ -3567,3 +3567,38 @@ html.ifinmail-shell .ifinmail-recovery-codes li {
     font-size: var(--ifinmail-font-size-body);
     user-select: all;
 }
+
+/* ─── Outgoing mail delivery panel (dashboard and report) ─── */
+html.ifinmail-shell .ifinmail-delivery__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--ifinmail-space-3);
+}
+
+html.ifinmail-shell .ifinmail-delivery__verdict {
+    margin: var(--ifinmail-space-1) 0 var(--ifinmail-space-3);
+    color: var(--ifinmail-color-text-secondary);
+}
+
+html.ifinmail-shell .ifinmail-delivery--bad {
+    border-left: 3px solid var(--ifinmail-color-danger);
+}
+
+html.ifinmail-shell .ifinmail-delivery--watch {
+    border-left: 3px solid var(--ifinmail-color-warning, var(--ifinmail-color-primary));
+}
+
+html.ifinmail-shell .ifinmail-delivery__sub {
+    margin: var(--ifinmail-space-5) 0 var(--ifinmail-space-2);
+    font-size: var(--ifinmail-font-size-body);
+    font-weight: var(--ifinmail-font-weight-semibold);
+}
+
+html.ifinmail-shell .ifinmail-delivery__top {
+    margin: var(--ifinmail-space-3) 0 0;
+}
+
+html.ifinmail-shell .ifinmail-delivery .ifinmail-help-text {
+    margin-top: var(--ifinmail-space-3);
+}

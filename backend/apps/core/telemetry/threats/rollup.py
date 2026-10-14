@@ -12,7 +12,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from . import access_log
+from . import access_log, delivery
 from .access_log import ReadResult
 from .mail_log import SourceStats
 from .types import Action, Finding, MailEvent, Severity
@@ -81,6 +81,7 @@ def build(
             k: sum(e.weight for e in mail if e.service == 'postfix' and e.kind == k)
             for k in postfix_kinds
         },
+        'delivery': delivery.aggregate(mail),
     }
     out['dovecot'] = {
         **_file(stats.get('dovecot')),

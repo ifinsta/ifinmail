@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.62
+- **Smooth: every page checked, including the ones behind a state.** Error pages (400 to 504),
+  the setup wizard, registration steps, password reset, two-factor, plugin submission, mail
+  trace, an installed plugin's page, an assistant conversation with a draft, and the website
+  editor and a custom page were all rendered and reviewed, on desktop and phone. One fix came
+  out of it: on a phone, a table cell with no value (an empty "Now" in an assistant draft) showed
+  its label on top of the next row's; it now shows a dash.
+
 ## v0.0.61
 - **Smooth on phones: no more sideways swiping tables.** On a phone, every table that has a
   heading row is shown as a list of cards, one per row, each value beside its column heading

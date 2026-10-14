@@ -3441,13 +3441,59 @@ html.ifinmail-shell .ifinmail-photo__hint--error {
         padding: var(--ifinmail-space-6) var(--ifinmail-space-4) !important;
     }
 
-    html.ifinmail-shell .ifinmail-login-card__register,
-    html.ifinmail-shell .ifinmail-reg-card__footer-link {
+    /* Outside the card (sign-in): the link brings its own gutter. */
+    html.ifinmail-shell .ifinmail-login-card__register {
         width: auto !important;
         max-width: none !important;
         margin: 0 !important;
         padding: 0 var(--ifinmail-space-4) var(--ifinmail-space-6) !important;
         text-align: left;
+    }
+
+    /* Registration: the same link sits inside the card on some steps (the card's padding is
+       the gutter) and under it on others (it needs its own). */
+    html.ifinmail-shell .ifinmail-reg-card__footer-link {
+        width: auto !important;
+        max-width: none !important;
+        margin: var(--ifinmail-space-4) 0 0 !important;
+        padding: 0 !important;
+        text-align: left;
+    }
+
+    html.ifinmail-shell .ifinmail-reg > .ifinmail-reg-card__footer-link {
+        margin: 0 !important;
+        padding: 0 var(--ifinmail-space-4) var(--ifinmail-space-6) !important;
+    }
+
+    /* Status icons and notes follow the same left edge as the heading under them. */
+    html.ifinmail-shell .ifinmail-reg-icon {
+        justify-content: flex-start;
+        align-self: flex-start;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    html.ifinmail-shell .ifinmail-reg-complete-note,
+    html.ifinmail-shell .ifinmail-verify-tip,
+    html.ifinmail-shell .ifinmail-verify-success {
+        justify-content: flex-start;
+        text-align: left;
+    }
+
+    html.ifinmail-shell .ifinmail-reg-stepper {
+        align-items: flex-start;
+    }
+
+    /* One left edge for the whole card. The wordmark, labels, fields and links are left-aligned
+       on a phone; the title, subtitle, terms line and step counter were still centred, so the
+       logo looked misplaced against the heading under it. */
+    html.ifinmail-shell .ifinmail-login-card__title,
+    html.ifinmail-shell .ifinmail-login-card__subtitle,
+    html.ifinmail-shell .ifinmail-login-card__terms,
+    html.ifinmail-shell .ifinmail-reg-card__title,
+    html.ifinmail-shell .ifinmail-reg-card__subtitle,
+    html.ifinmail-shell .ifinmail-reg-stepper__counter {
+        text-align: left !important;
     }
 
     html.ifinmail-shell .ifinmail-error-page .ifinmail-error-page {

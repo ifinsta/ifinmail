@@ -79,3 +79,17 @@ class AuthPageHeightTests(SimpleTestCase):
         card_rule = r'ifinmail-login-card,\s*html\.ifinmail-shell \.ifinmail-reg-card\s*\{[^}]*'
         self.assertRegex(block, card_rule + r'min-height:\s*0\s*!important')
         self.assertIn('min-height: 100dvh !important', block)
+
+    def test_phone_auth_cards_share_one_left_edge(self) -> None:
+        css = (STATIC / 'ifinmail-redesign.css').read_text()
+        block = css[
+            css.index('Phone: auth, registration, setup and error pages fit the viewport') :
+        ]
+        for selector in (
+            '.ifinmail-login-card__title',
+            '.ifinmail-login-card__subtitle',
+            '.ifinmail-reg-card__title',
+            '.ifinmail-reg-card__subtitle',
+        ):
+            self.assertIn(f'html.ifinmail-shell {selector}', block)
+        self.assertIn('text-align: left !important', block)

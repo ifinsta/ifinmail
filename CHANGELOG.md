@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.46
+- **Phone sign-in and registration cards share one left edge.** The wordmark, labels, fields and
+  links were left-aligned while the title, subtitle, terms line and step counter stayed centred,
+  so the logo looked misplaced against the heading under it. On phones everything in the card now
+  starts at the same edge, including the step counter, the status icons and notes, and the
+  "Sign in" / "Use a different email" links (which had no side padding on some steps).
+
 ## v0.0.45
 - **Phone and tablet layout review.** Every public page, the sign-in/registration/setup/error
   pages and the console were rendered at 360, 390 and 768 px and measured for text on the screen

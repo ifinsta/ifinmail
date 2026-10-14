@@ -94,7 +94,7 @@
             <h2 id="cta-title">{% trans 'See how it installs.' %}</h2>
             <p>{% trans 'One command, then a short setup wizard.' %}</p>
         </div>
-        <a class="ifinmail-btn ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>
+        {% if site.on.docs %}<a class="ifinmail-btn ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>{% endif %}
     </div>
 </section>
 {% endblock %}

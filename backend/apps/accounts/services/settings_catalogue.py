@@ -29,6 +29,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 ('branding', 'identity', 'logo', 'favicon', 'colour', 'color', 'font'),
             ),
             SettingsItem(
+                'website',
+                _('Website'),
+                _('Which public pages are shown, and the words on them.'),
+                SettingsIcon.GENERAL,
+                'accounts:website_pages',
+                ('website', 'page', 'pages', 'landing', 'marketing', 'footer', 'powered by', 'content'),
+            ),
+            SettingsItem(
                 'dns',
                 _('Domains & DNS'),
                 _('Add domains, DNS provider and record export.'),

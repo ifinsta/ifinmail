@@ -38,3 +38,5 @@ class SettingKey(StrEnum):
     # lists as [{host, type, enabled, tested: {state, ms, at}}].
     SPAM_SENSITIVITY = 'spam.sensitivity'
     SPAM_PROVIDERS = 'spam.providers'
+    # Text an administrator wrote for public pages (core.website): {page: {title, body, ...}}.
+    WEBSITE_CONTENT = 'website.content'

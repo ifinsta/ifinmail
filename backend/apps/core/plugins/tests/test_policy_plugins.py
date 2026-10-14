@@ -253,6 +253,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'mailbox-care',
                 'object-storage',
                 'outbound-policy',
+                'website-pages',
             ],
         )
         self.assertEqual(
@@ -881,6 +882,7 @@ class ApplyStatusTests(MailTablesTestCase):
                 'console.assistant',
                 'console.containment',
                 'console.storage',
+                'console.website',
                 'dovecot.policy',
                 'postfix.main',
                 'postfix.sender_policy',

@@ -1,0 +1,28 @@
+{% extends "site/base.html" %}
+{% load i18n %}
+
+{% block page_title %}{{ text.title|default:text.heading|default:page.label }}{% endblock %}
+{% block meta_description %}{{ text.description|default:text.lede }}{% endblock %}
+
+{% block content %}
+{% if previewing %}
+<div class="ifinmail-site-wrap ifinmail-site-wrap--page">
+    <p class="ifinmail-site-note" role="status">{% trans 'Preview: this page is not shown to visitors until its mode is set to Custom in the Website pages plugin.' %}</p>
+</div>
+{% endif %}
+<section class="ifinmail-site-pagehead">
+    <div class="ifinmail-site-wrap ifinmail-site-wrap--page">
+        {% if text.heading %}<h1>{{ text.heading }}</h1>{% else %}<h1>{{ page.label }}</h1>{% endif %}
+        {% if text.lede %}<p class="ifinmail-site-lede">{{ text.lede }}</p>{% endif %}
+        {% if text.cta_label and text.cta_url %}
+        <div class="ifinmail-site-actions-row"><a class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--lg" href="{{ text.cta_url }}"{% if text.cta_url|slice:':4' == 'http' %} rel="noopener noreferrer"{% endif %}>{{ text.cta_label }}</a></div>
+        {% endif %}
+    </div>
+</section>
+
+{% if text.body %}
+<div class="ifinmail-site-wrap ifinmail-site-wrap--page">
+    <article class="ifinmail-site-prose">{{ text.body_html }}</article>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Website — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Website' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'The public pages of this server (home, features, pricing, documentation and the rest). Choose which ones exist, write your own text for them, and decide whether the footer and links mention the platform and its open-source project.' %}</p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <a class="ifinmail-btn ifinmail-btn--primary" href="{{ plugin.url }}">{% if plugin.installed %}{% trans 'Choose which pages are shown' %}{% else %}{% trans 'Install the Website pages plugin' %}{% endif %}</a>
+            </div>
+        </div>
+
+        {% if not plugin.installed %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--info" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{% trans 'Every page shows its standard text' %}</p>
+                <p class="ifinmail-hbanner__next">{% trans 'The Website pages plugin is what switches pages off or to your own text, and hides the project links. You can write your text here first; nothing changes for visitors until the plugin is installed and a page is set to Custom.' %}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Public pages' %}">
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Page' %}</th><th>{% trans 'Address' %}</th><th>{% trans 'Visitors see' %}</th><th><span class="ifinmail-sr-only">{% trans 'Actions' %}</span></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td><strong>{{ row.page.label }}</strong><br><span class="ifinmail-settings-row__help">{{ row.page.summary }}</span></td>
+                        <td><code class="ifinmail-text--mono">{{ row.url }}</code></td>
+                        <td>
+                            <span class="ifinmail-badge ifinmail-badge--{{ row.tone }}">{{ row.word }}</span>
+                            {% if row.empty_custom %}<br><span class="ifinmail-settings-row__help">{% trans 'No text written yet: the standard text is shown.' %}</span>{% endif %}
+                            {% if row.written and row.mode != 'custom' %}<br><span class="ifinmail-settings-row__help">{% trans 'Your text is saved but not in use.' %}</span>{% endif %}
+                        </td>
+                        <td><a class="ifinmail-btn ifinmail-btn--outline" href="{{ row.edit_url }}"><span class="ifinmail-sr-only">{{ row.page.label }}: </span>{% if row.written %}{% trans 'Edit text' %}{% else %}{% trans 'Write text' %}{% endif %}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="web-chrome">
+            <h2 class="ifinmail-panel-title" id="web-chrome">{% trans 'Header and footer' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans '"Powered by" line' %}</dt><dd>{% if policy.footer_note %}{% trans 'Replaced by your line' %}: <em>{{ policy.footer_note }}</em>{% elif policy.powered_by %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Shown' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Hidden' %}</span>{% endif %}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Links to the open-source project' %}</dt><dd>{% if policy.project_links %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Shown' %}</span>{% else %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Hidden' %}</span>{% endif %}</dd></div>
+            </dl>
+            <p class="ifinmail-help-text">{% trans 'These are settings of the plugin. The name and logo in the header come from Settings → General.' %}</p>
+        </section>
+    </div>
+</section>
+{% endblock %}

@@ -12,8 +12,8 @@
             <h1 id="hero-title">{% trans 'Run your own mail server without the guesswork.' %}</h1>
             <p class="ifinmail-site-lede">{% blocktrans trimmed with name=brand.name %}{{ name }} installs and looks after a complete mail server on a single machine you control: sending, receiving, spam filtering, DKIM, DNS and certificates, with one console that tells you what is wrong and how to fix it.{% endblocktrans %}</p>
             <div class="ifinmail-site-actions-row">
-                <a class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>
-                <a class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--lg" href="{{ repo_url }}" rel="noopener">{% trans 'View the source' %}</a>
+                {% if site.on.docs %}<a class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>{% endif %}
+                {% if site.project_links %}<a class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--lg" href="{{ repo_url }}" rel="noopener">{% trans 'View the source' %}</a>{% endif %}
             </div>
             <ul class="ifinmail-site-facts">
                 <li>{% trans 'One server, about 2 GB of memory' %}</li>
@@ -94,7 +94,7 @@
                 <p>{% trans 'An update takes a snapshot first and rolls back by itself if the new version is not healthy.' %}</p>
             </li>
         </ul>
-        <div class="ifinmail-site-meta"><a class="ifinmail-site-more" href="{% url 'features' %}">{% trans 'All features' %}</a></div>
+        <div class="ifinmail-site-meta">{% if site.on.features %}<a class="ifinmail-site-more" href="{% url 'features' %}">{% trans 'All features' %}</a>{% endif %}</div>
     </div>
 </section>
 
@@ -126,12 +126,12 @@
             <div class="ifinmail-site-item">
                 <h3>{% trans 'Security you can verify' %}</h3>
                 <p>{% trans 'Encrypted connections are required to sign in, administrators can use two-factor authentication, and every change is written to a tamper-evident audit trail. The source is open to read, and we say plainly what we do not claim.' %}</p>
-                <a class="ifinmail-site-more" href="{% url 'security' %}">{% trans 'How it is secured' %}</a>
+                {% if site.on.security %}<a class="ifinmail-site-more" href="{% url 'security' %}">{% trans 'How it is secured' %}</a>{% endif %}
             </div>
             <div class="ifinmail-site-item">
                 <h3>{% trans 'Free to run, you pay for the server' %}</h3>
                 <p>{% trans 'There are no plans, seats or mailbox limits. The only costs are the machine it runs on, your domain, and anything optional you choose to connect.' %}</p>
-                <a class="ifinmail-site-more" href="{% url 'pricing' %}">{% trans 'What it costs' %}</a>
+                {% if site.on.pricing %}<a class="ifinmail-site-more" href="{% url 'pricing' %}">{% trans 'What it costs' %}</a>{% endif %}
             </div>
         </div>
     </div>
@@ -143,7 +143,7 @@
             <h2 id="cta-title">{% trans 'Ready to run your own mail?' %}</h2>
             <p>{% trans 'The install guide takes you from a blank server to a working domain.' %}</p>
         </div>
-        <a class="ifinmail-btn ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>
+        {% if site.on.docs %}<a class="ifinmail-btn ifinmail-btn--lg" href="{% url 'docs' %}#install">{% trans 'Read the install guide' %}</a>{% endif %}
     </div>
 </section>
 {% endblock %}

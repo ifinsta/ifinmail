@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'backend.apps.core.plugins.apps.PluginsConfig',
     'backend.apps.core.releases.apps.ReleasesConfig',
     'backend.apps.core.assistant.apps.AssistantConfig',
+    'backend.apps.core.website.apps.WebsiteConfig',
     # ifinmail apps
     'backend.apps.accounts.apps.AccountsConfig',
     'backend.apps.devices.apps.DevicesConfig',

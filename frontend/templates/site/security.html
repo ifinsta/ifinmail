@@ -86,7 +86,7 @@
         </div>
         <div class="ifinmail-site-prose">
             <p>{% trans 'Please report privately, not in a public issue. We acknowledge a report within three working days and assess it within seven. Critical issues are fixed within seven days and high-severity issues within thirty.' %}</p>
-            <p><a href="{{ security_policy_url }}" rel="noopener">{% trans 'Read the policy and report privately' %}</a></p>
+            <p>{% if site.project_links %}<a href="{{ security_policy_url }}" rel="noopener">{% trans 'Read the policy and report privately' %}</a>{% endif %}</p>
         </div>
     </section>
 </div>

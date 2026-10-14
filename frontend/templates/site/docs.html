@@ -106,7 +106,7 @@ curl -u ifm_KEY:ifs_SECRET -X POST {{ site_origin }}/api/v1/mailboxes \
         <p>{% trans 'Fix every failing check in System health, set the reverse DNS, and send small volumes at first: a new address has no reputation yet.' %}</p>
         <h3>{% trans 'A mail app cannot connect' %}</h3>
         <p>{% trans 'Use the full email address as the username, the mail hostname as the server, IMAP on port 993 with TLS, and SMTP on port 587 with STARTTLS or 465 with TLS.' %}</p>
-        <p class="ifinmail-site-note"><strong>{% trans 'Still stuck?' %}</strong> {% trans 'Open an issue with what System health shows.' %} <a href="{% url 'contact' %}">{% trans 'Contact' %}</a></p>
+        <p class="ifinmail-site-note"><strong>{% trans 'Still stuck?' %}</strong> {% trans 'Open an issue with what System health shows.' %} {% if site.on.contact %}<a href="{% url 'contact' %}">{% trans 'Contact' %}</a>{% endif %}</p>
     </article>
 </div>
 {% endblock %}

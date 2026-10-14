@@ -70,6 +70,21 @@ class Tool:
 
 _tools: dict[str, Tool] = {}
 
+# What happens when a person clicks Apply on a drafted change that is not plugin settings. An app
+# that drafts such changes registers a function for its proposal ``kind``; it receives the stored
+# proposal and the administrator's address, re-checks everything, applies it and returns a summary
+# (or raises AssistantError). Plugin settings (no ``kind``) are applied by the service itself.
+Applier = Callable[[dict, str], str]
+_appliers: dict[str, Applier] = {}
+
+
+def register_applier(kind: str, applier: Applier) -> None:
+    _appliers[kind] = applier
+
+
+def applier_for(kind: str) -> Applier | None:
+    return _appliers.get(kind)
+
 
 def register(tool: Tool) -> None:
     if not tool.name.replace('_', '').isalnum() or len(tool.name) > 60:

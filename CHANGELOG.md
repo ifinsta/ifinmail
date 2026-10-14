@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.58
+- **The assistant can brand the website for you.** Ask it, with context ("we are Contoso, a
+  law firm; formal tone; support is it@contoso.example"), and it drafts the pages.
+  - **It knows each page.** For every public page it has the job, the audience, the standard
+    layout, the rules of a custom page, and what is at stake in what the page says: pricing,
+    security, contact, terms, privacy and the app download are marked high risk (a false
+    certification, price, address or legal term is a real liability), and it is told to ask for
+    a fact it lacks rather than invent one, and to say what must be verified or reviewed by legal
+    counsel before applying.
+  - **It reads before it writes.** `website_overview` (pages, modes, footer) and
+    `website_page_text` (the page's standard text and outline, and any text already written),
+    then `propose_website_page`, one page per draft, validated with the editor's own rules.
+  - **You apply.** Each draft shows a before/after table and an Apply button; nothing changes
+    until then. Applying saves the text and, if asked, switches the page to Custom (installing
+    the Website pages plugin if needed). A page edited by a person since the draft is never
+    overwritten, and the draft is checked again on Apply. The footer, project links and turning
+    pages off go through the existing plugin settings draft.
+
 ## v0.0.57
 - **Website pages plugin: make the public site your own, or switch it off.** The public pages
   (home, features, pricing, security, documentation, changelog, Android app, about, contact, terms,

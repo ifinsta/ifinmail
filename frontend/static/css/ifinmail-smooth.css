@@ -51,12 +51,47 @@ html[data-scheme="smooth"] .ifinmail-health-banner,
 html[data-scheme="smooth"] .ifinmail-hbanner,
 html[data-scheme="smooth"] .ifinmail-theme-card {
     border-color: var(--ifinmail-color-border-light);
-    border-radius: var(--ifinmail-radius-lg);
-    box-shadow: var(--ifinmail-shadow-1);
 }
 
+/* Phones keep the flat, full-width list the layout uses there. From tablet up, cards are
+   rounded and lifted by one soft shadow (the older sheets force "none !important"). */
+@media (min-width: 768px) {
+    html[data-scheme="smooth"] .ifinmail-panel,
+    html[data-scheme="smooth"] .ifinmail-stat-panel,
+    html[data-scheme="smooth"] .ifinmail-table-panel,
+    html[data-scheme="smooth"] .ifinmail-summary,
+    html[data-scheme="smooth"] .ifinmail-settings-overview,
+    html[data-scheme="smooth"] .ifinmail-assistant-proposal,
+    html[data-scheme="smooth"] .ifinmail-dns-provider-card,
+    html[data-scheme="smooth"] .ifinmail-setup-card,
+    html[data-scheme="smooth"] .ifinmail-health-banner,
+    html[data-scheme="smooth"] .ifinmail-hbanner,
+    html[data-scheme="smooth"] .ifinmail-theme-card {
+        border-radius: var(--ifinmail-radius-lg);
+        box-shadow: var(--ifinmail-shadow-1) !important;
+    }
+}
+
+/* A table wider than the screen scrolls inside its card (never clipped, never the page). */
 html[data-scheme="smooth"] .ifinmail-table-panel {
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+html[data-scheme="smooth"] .ifinmail-table-panel > table,
+html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
+    min-width: 100%;
+}
+
+@media (max-width: 767px) {
+    html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
+        min-width: 32rem;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table th,
+    html[data-scheme="smooth"] .ifinmail-admin-table td {
+        white-space: nowrap;
+    }
 }
 
 /* Cells inside a card are separated by whitespace and a faint line, not boxed in. */
@@ -370,4 +405,16 @@ html[data-scheme="smooth"] .ifinmail-flash {
     border-color: transparent;
     border-radius: var(--ifinmail-radius-lg);
     box-shadow: none;
+}
+
+/* Tiles in one row are one height, whatever the tallest one holds. */
+html[data-scheme="smooth"] .ifinmail-stat-panel {
+    align-self: stretch;
+}
+
+/* Theme previews are thumbnails, not features: keep the dark ones small and soft. */
+html[data-scheme="smooth"] .ifinmail-theme-card__preview {
+    height: 3.5rem;
+    border-color: var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius);
 }

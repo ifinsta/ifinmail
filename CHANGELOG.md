@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.60
+- **Smooth, polished on phones and tablets.** A second review of every page at phone width.
+  - Cards now really lift off the page with one soft shadow from tablet width up (the older
+    sheets had been forcing "no shadow"); phones keep the flat full-width list.
+  - A table wider than the screen scrolls inside its card instead of being clipped, with the
+    page itself never scrolling sideways.
+  - Tiles in one row share a height, and the theme previews in Appearance are small and soft.
+  - The Settings overview names Smooth in the Appearance entry.
+
 ## v0.0.59
 - **Smooth, the new default look.** A calm, light, technical look for everyday business: soft
   edges instead of hard ones, quiet surfaces, no gradients, glow or decorative motion, and no dark

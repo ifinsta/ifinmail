@@ -165,6 +165,19 @@ def login_view(request: HttpRequest) -> HttpResponse:
 
         user = authenticate(request, username=email, password=password)
         if user is not None:
+            from backend.apps.accounts.services.passwordless import PasswordlessService
+
+            if PasswordlessService.is_passwordless(user):
+                # Passkeys-only login: a correct password is not a way into the console. It is
+                # answered exactly like a wrong one, so this does not confirm the password.
+                AuditService.record(
+                    'login_password_refused',
+                    user=user.email,
+                    detail=f'IP: {client_ip}; passkeys-only sign-in is on',
+                    severity='warning',
+                )
+                user = None
+        if user is not None:
             # Clear rate-limit on success
             cache.delete(rate_key)
 
@@ -253,7 +266,9 @@ def login_view(request: HttpRequest) -> HttpResponse:
             detail=f'IP: {client_ip}',
             severity='warn',
         )
-        error = 'Invalid email or password.'
+        error = (
+            'Invalid email or password. If this login uses a passkey, choose "Sign in with a passkey".'
+        )
     from backend.apps.accounts.services.initial_admin import InitialAdminService
 
     # First sign-in after install: say which address to use and where the password is kept.

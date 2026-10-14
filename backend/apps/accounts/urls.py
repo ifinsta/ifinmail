@@ -28,6 +28,13 @@ from .views.passkeys import (
     passkey_remove,
     passkeys_page,
 )
+from .views.passwordless import (
+    mailbox_allow_password_login,
+    passkeys_only_disable,
+    passkeys_only_enable,
+    passkeys_only_new_codes,
+    recovery_login,
+)
 from .views.photos import (
     account_directory_visibility,
     account_photo_remove,
@@ -144,6 +151,15 @@ urlpatterns = [
     path('passkeys/register/options/', passkey_register_options, name='passkey_register_options'),
     path('passkeys/register/verify/', passkey_register_verify, name='passkey_register_verify'),
     path('passkeys/remove/', passkey_remove, name='passkey_remove'),
+    path('passkeys/only/enable/', passkeys_only_enable, name='passkeys_only_enable'),
+    path('passkeys/only/disable/', passkeys_only_disable, name='passkeys_only_disable'),
+    path('passkeys/only/codes/', passkeys_only_new_codes, name='passkeys_only_new_codes'),
+    path('login/recovery/', recovery_login, name='recovery_login'),
+    path(
+        'settings/mailboxes/<uuid:mailbox_id>/allow-password-login/',
+        mailbox_allow_password_login,
+        name='mailbox_allow_password_login',
+    ),
     path(
         'settings/mailboxes/<uuid:mailbox_id>/',
         mailbox_profile,

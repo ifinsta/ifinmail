@@ -89,6 +89,7 @@
               data-verify="{% url 'accounts:passkey_login_verify' %}"
               data-next="{{ request.GET.next }}" data-status="#passkey-status">{% trans 'Sign in with a passkey' %}</button>
       <p class="ifinmail-passkey-status" id="passkey-status" role="status" hidden></p>
+      <p class="ifinmail-login-card__subtitle"><a href="{% url 'accounts:recovery_login' %}">{% trans 'Lost your passkey? Use a recovery code' %}</a></p>
     </div>
 
     <p class="ifinmail-login-card__terms">

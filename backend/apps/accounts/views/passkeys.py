@@ -63,23 +63,30 @@ def _limited(request: HttpRequest) -> bool:
 # -- the page ------------------------------------------------------------------------------------
 
 
+def passkeys_context(request: HttpRequest) -> dict[str, Any]:
+    from ..services.passwordless import PasswordlessService
+
+    user = request.user
+    return {
+        'active_section': 'passkeys',
+        'show_settings_icon': True,
+        'passkeys': passkeys.for_user(user),
+        'supported': passkeys.available(request),
+        'max_passkeys': passkeys.MAX_PER_USER,
+        'has_totp': TOTPService.has_verified_device(user),
+        'enforced': TOTPService.enforced(),
+        'passwordless': PasswordlessService.is_passwordless(user),
+        'passwordless_check': PasswordlessService.eligibility(user),
+        'recovery_remaining': PasswordlessService.remaining_codes(user),
+        'recovery_signin': bool(request.session.get('mfa_method') == 'recovery'),
+    }
+
+
 @login_required
 @_CONSOLE
 @require_GET
 def passkeys_page(request: HttpRequest) -> HttpResponse:
-    return render(
-        request,
-        'admin/passkeys.html',
-        {
-            'active_section': 'passkeys',
-            'show_settings_icon': True,
-            'passkeys': passkeys.for_user(request.user),
-            'supported': passkeys.available(request),
-            'max_passkeys': passkeys.MAX_PER_USER,
-            'has_totp': TOTPService.has_verified_device(request.user),
-            'enforced': TOTPService.enforced(),
-        },
-    )
+    return render(request, 'admin/passkeys.html', passkeys_context(request))
 
 
 # -- registering ---------------------------------------------------------------------------------
@@ -137,6 +144,12 @@ def passkey_remove(request: HttpRequest) -> HttpResponse:
     row = Passkey.objects.filter(pk=target, user=request.user).first()
     if row is None:
         messages.error(request, 'That passkey could not be found.')
+        return redirect('accounts:passkeys')
+    from ..services.passwordless import PasswordlessService
+
+    verdict = PasswordlessService.can_remove_passkey(request.user, row.pk)
+    if not verdict.ok:
+        messages.error(request, verdict.reason)
         return redirect('accounts:passkeys')
     name = row.name
     row.delete()

@@ -242,9 +242,35 @@ class UserProfile(models.Model):
     photo_sha256 = models.CharField(max_length=64, blank=True, default='')
     photo_updated_at = models.DateTimeField(null=True, blank=True)
     directory_hidden = models.BooleanField(default=False)
+    # Console sign-in with the password is off for this login: it signs in with a passkey (or a
+    # recovery code). The mailbox password still exists: mail apps use it over IMAP and SMTP.
+    password_login_disabled = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'accounts_user_profile'
 
     def __str__(self) -> str:
         return f'profile of {self.user_id}'
+
+
+class PasskeyRecoveryCode(models.Model):
+    """A single-use code that signs in a login whose password sign-in is switched off.
+
+    These exist only while ``UserProfile.password_login_disabled`` is true: they are the way back
+    in when every passkey is lost. Only hashes are stored; a code is shown once.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        MailUser, on_delete=models.CASCADE, related_name='passkey_recovery_codes'
+    )
+    code_hash = models.CharField(max_length=128)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_passkey_recovery_code'
+        ordering = ['created_at']
+
+    def __str__(self) -> str:
+        return f'{self.user_id} ({"used" if self.used_at else "active"})'

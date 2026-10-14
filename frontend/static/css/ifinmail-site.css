@@ -228,14 +228,24 @@
     display: block;
 }
 
-/* ── Reading pages: heading and text share one centred column ── */
+/* ── Explanatory pages: heading and content share one centred column ──
+   Features, pricing, security, about, contact, docs, download, changelog, terms and privacy all
+   sit in the same column, so moving between them never shifts the page, and a title/label column
+   on the left with the text beside it reads the way the changelog does. */
 
-.ifinmail-site-wrap--reading {
-    max-width: calc(var(--site-measure) + 2 * var(--site-pad));
+.ifinmail-site {
+    --site-column: 56rem;
 }
 
-.ifinmail-site-wrap--changelog {
-    max-width: calc(140px + var(--ifinmail-space-8) + var(--site-measure) + 2 * var(--site-pad));
+.ifinmail-site-wrap--page {
+    max-width: calc(var(--site-column) + 2 * var(--site-pad));
+}
+
+/* Heading to first content: one tight step, not a banner and a section of padding. */
+.ifinmail-site-pagehead + .ifinmail-site-wrap--page > :first-child,
+.ifinmail-site-pagehead + .ifinmail-site-docs,
+.ifinmail-site-pagehead + .ifinmail-site-section {
+    padding-top: var(--ifinmail-space-5);
 }
 
 .ifinmail-site-menu summary {
@@ -339,7 +349,7 @@
 }
 
 .ifinmail-site-pagehead {
-    padding: var(--site-section) 0 var(--ifinmail-space-8);
+    padding: var(--ifinmail-space-8) 0 var(--ifinmail-space-5);
     border-bottom: 1px solid var(--ifinmail-color-border-light);
 }
 
@@ -624,8 +634,13 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     gap: var(--ifinmail-space-8);
-    padding: var(--site-section) 0;
+    padding: var(--ifinmail-space-8) 0;
     border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+/* Inside the page column the title is a label beside the text, as a version is in the changelog. */
+.ifinmail-site-wrap--page .ifinmail-site-split {
+    grid-template-columns: minmax(7rem, 10rem) minmax(0, 1fr);
 }
 
 .ifinmail-site-split:last-child {
@@ -816,16 +831,23 @@
 
 /* Legal pages: one reading column */
 .ifinmail-site-legal {
-    padding-top: var(--site-section);
+    padding-top: var(--ifinmail-space-5);
     padding-bottom: calc(2 * var(--site-section));
+}
+
+/* The first heading of a text page starts the page: no rule above it, no extra space. */
+.ifinmail-site-prose > h2:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
 }
 
 /* ── Docs: contents beside the text ─────────────────────────── */
 
 .ifinmail-site-docs {
     display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
-    gap: var(--ifinmail-space-12);
+    grid-template-columns: 11rem minmax(0, 1fr);
+    gap: var(--ifinmail-space-8);
     /* Vertical only: this element is also .ifinmail-site-wrap, whose side padding is the page
        gutter. A "padding: x 0" shorthand here removed it and put the text on the screen edge. */
     padding-top: var(--site-section);
@@ -1113,7 +1135,8 @@
         white-space: nowrap;
     }
 
-    .ifinmail-site-split {
+    .ifinmail-site-split,
+    .ifinmail-site-wrap--page .ifinmail-site-split {
         grid-template-columns: minmax(0, 1fr);
         gap: var(--ifinmail-space-4);
     }

@@ -120,3 +120,26 @@ class ViewportUnitTests(SimpleTestCase):
                             f'{path.name}: {selector.splitlines()[-1].strip()} {{ {decl} }}'
                         )
         self.assertEqual(missing, [], 'add the 100dvh partner right after each 100vh height')
+
+
+class PageColumnTests(SimpleTestCase):
+    PAGES = (
+        'features', 'pricing', 'security', 'about', 'contact', 'docs', 'download',
+        'changelog', 'terms', 'privacy',
+    )  # fmt: skip
+
+    def test_every_explanatory_page_uses_the_one_page_column(self) -> None:
+        for name in self.PAGES:
+            with self.subTest(page=name):
+                html = (TEMPLATES / f'{name}.html').read_text(encoding='utf-8')
+                # the heading's wrap and the content's wrap
+                self.assertGreaterEqual(html.count('ifinmail-site-wrap--page'), 2)
+                self.assertNotIn('ifinmail-site-wrap--reading', html)
+                self.assertNotIn('ifinmail-site-wrap--changelog', html)
+
+    def test_the_step_from_heading_to_content_is_tight(self) -> None:
+        css = (STATIC / 'ifinmail-site.css').read_text()
+        head = re.search(r'\.ifinmail-site-pagehead \{([^}]*)\}', css)
+        assert head is not None
+        self.assertIn('padding: var(--ifinmail-space-8) 0 var(--ifinmail-space-5)', head.group(1))
+        self.assertIn('.ifinmail-site-pagehead + .ifinmail-site-wrap--page > :first-child', css)

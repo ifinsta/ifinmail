@@ -1777,7 +1777,7 @@ html.ifinmail-shell .ifinmail-flash--error {
         font-size: var(--ifinmail-font-size-4xl);
     }
 
-    /* Small screens show the wordmark alone (the mark is hidden above), left-aligned. */
+    /* Small screens show the wordmark alone (the mark is hidden above); it is centred with the title below by the auth block at the end of this file. */
     html.ifinmail-shell .ifinmail-login-card__brand--lockup {
         justify-content: flex-start;
     }
@@ -3447,7 +3447,7 @@ html.ifinmail-shell .ifinmail-photo__hint--error {
         max-width: none !important;
         margin: 0 !important;
         padding: 0 var(--ifinmail-space-4) var(--ifinmail-space-6) !important;
-        text-align: left;
+        text-align: center;
     }
 
     /* Registration: the same link sits inside the card on some steps (the card's padding is
@@ -3457,7 +3457,7 @@ html.ifinmail-shell .ifinmail-photo__hint--error {
         max-width: none !important;
         margin: var(--ifinmail-space-4) 0 0 !important;
         padding: 0 !important;
-        text-align: left;
+        text-align: center;
     }
 
     html.ifinmail-shell .ifinmail-reg > .ifinmail-reg-card__footer-link {
@@ -3465,39 +3465,27 @@ html.ifinmail-shell .ifinmail-photo__hint--error {
         padding: 0 var(--ifinmail-space-4) var(--ifinmail-space-6) !important;
     }
 
-    /* Status icons and notes follow the same left edge as the heading under them. */
-    html.ifinmail-shell .ifinmail-reg-icon {
-        justify-content: flex-start;
-        align-self: flex-start;
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    html.ifinmail-shell .ifinmail-reg-complete-note,
-    html.ifinmail-shell .ifinmail-verify-tip,
-    html.ifinmail-shell .ifinmail-verify-success {
-        justify-content: flex-start;
-        text-align: left;
-    }
-
-    html.ifinmail-shell .ifinmail-reg-stepper {
-        align-items: flex-start;
-    }
-
-    /* One left edge for the whole card. The wordmark, labels, fields and links are left-aligned
-       on a phone; the title, subtitle, terms line and step counter were still centred, so the
-       logo looked misplaced against the heading under it. */
+    /* The header block of an auth card is centred: wordmark, title, subtitle, terms line and
+       step counter share one axis; labels, fields and buttons below it fill the width. */
+    html.ifinmail-shell .ifinmail-login-card__brand,
     html.ifinmail-shell .ifinmail-login-card__title,
     html.ifinmail-shell .ifinmail-login-card__subtitle,
     html.ifinmail-shell .ifinmail-login-card__terms,
     html.ifinmail-shell .ifinmail-reg-card__title,
     html.ifinmail-shell .ifinmail-reg-card__subtitle,
     html.ifinmail-shell .ifinmail-reg-stepper__counter {
-        text-align: left !important;
+        text-align: center !important;
+    }
+
+    html.ifinmail-shell .ifinmail-login-card__brand,
+    html.ifinmail-shell .ifinmail-login-card__brand--lockup,
+    html.ifinmail-shell .ifinmail-login-card__brand--name {
+        justify-content: center;
     }
 
     html.ifinmail-shell .ifinmail-error-page .ifinmail-error-page {
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
         padding: var(--ifinmail-space-6) var(--ifinmail-space-4);
     }
 

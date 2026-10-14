@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.61
+- **Smooth on phones: no more sideways swiping tables.** On a phone, every table that has a
+  heading row is shown as a list of cards, one per row, each value beside its column heading
+  (a script labels the cells, so any table, including ones filled in later, follows). The
+  mailbox, alias, API key, certificate, domain, user, entry-point and log tables all read
+  top to bottom. Tables without headings still scroll inside their card.
+  - Long explanations in a settings row (the firewall page) stack under their title instead of
+    sitting in a squeezed right-hand column.
+  - Things you tap are about 40 px tall on phones: the header wordmark, text links, "Copy"
+    buttons, check boxes and sliders.
+
 ## v0.0.60
 - **Smooth, polished on phones and tablets.** A second review of every page at phone width.
   - Cards now really lift off the page with one soft shadow from tablet width up (the older

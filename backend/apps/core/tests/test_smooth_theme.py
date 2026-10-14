@@ -78,3 +78,27 @@ class ThemeBootstrapTests(SimpleTestCase):
         html = (Path(settings.BASE_DIR) / 'frontend' / 'templates' / 'admin' / 'settings_appearance.html').read_text()
         values = re.findall(r'name="ifinmail-theme" value="(\w+)"', html)
         self.assertEqual(values, ['smooth', 'light', 'dark', 'auto', 'contrast'])
+
+
+class PhoneTablesTests(SimpleTestCase):
+    def test_tables_become_labelled_cards_on_a_phone(self) -> None:
+        script = (JS / 'ifinmail-tables.js').read_text()
+        self.assertIn("'data-label'", script)
+        self.assertIn("classList.add('is-stacked')", script)
+        self.assertIn('MutationObserver', script)  # tables filled in by other scripts
+        base = (Path(settings.BASE_DIR) / 'frontend' / 'templates' / 'base.html').read_text()
+        self.assertIn("js/ifinmail-tables.js", base)
+        css = (CSS / 'ifinmail-smooth.css').read_text()
+        self.assertIn('.ifinmail-admin-table.is-stacked td::before', css)
+        self.assertIn('content: attr(data-label)', css)
+
+    def test_an_unlabelled_table_scrolls_in_its_card_and_is_never_clipped(self) -> None:
+        css = (CSS / 'ifinmail-smooth.css').read_text()
+        self.assertIn('.ifinmail-admin-table:not(.is-stacked)', css)
+        panel = [
+            body
+            for sel, body in rules(css)
+            if sel.strip() == 'html[data-scheme="smooth"] .ifinmail-table-panel'
+        ]
+        self.assertTrue(any('overflow-x: auto' in b for b in panel))
+        self.assertFalse(any('overflow: hidden' in b for b in panel))

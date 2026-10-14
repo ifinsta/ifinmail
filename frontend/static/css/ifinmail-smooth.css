@@ -83,14 +83,92 @@ html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
     min-width: 100%;
 }
 
+/* Phones: a table without labels scrolls in its card; one that ifinmail-tables.js has labelled
+   (.is-stacked) becomes a list of cards, one per row, each value beside its column heading. */
 @media (max-width: 767px) {
-    html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
+    html[data-scheme="smooth"] .ifinmail-admin-table:not(.is-stacked) {
         min-width: 32rem;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table th,
-    html[data-scheme="smooth"] .ifinmail-admin-table td {
+    html[data-scheme="smooth"] .ifinmail-admin-table:not(.is-stacked) th,
+    html[data-scheme="smooth"] .ifinmail-admin-table:not(.is-stacked) td {
         white-space: nowrap;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked,
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tbody,
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tr,
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tr {
+        padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
+        border-bottom: 1px solid var(--ifinmail-color-border-light);
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tr:last-child {
+        border-bottom: 0;
+    }
+
+    /* A cell can hold several things (avatar, name, address): the label sits in a left column
+       and everything the cell holds stays in the column beside it, wrapping inside it. */
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td {
+        position: relative;
+        display: block;
+        padding: var(--ifinmail-space-1) 0 var(--ifinmail-space-1) 40%;
+        border: 0;
+        text-align: left;
+        white-space: normal;
+        overflow-wrap: break-word;
+    }
+
+    /* Things that are one value (a status dot with its word, a badge) keep their natural size. */
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td > .ifinmail-status-dot,
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td > .ifinmail-badge,
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td .ifinmail-btn {
+        width: auto;
+        min-width: 0;
+        flex: none;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td::before {
+        content: attr(data-label);
+        position: absolute;
+        top: var(--ifinmail-space-1);
+        left: 0;
+        width: 36%;
+        color: var(--ifinmail-color-text-muted);
+        font-size: var(--ifinmail-font-size-body-small);
+        line-height: 1.6;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[data-label=""]::before {
+        display: none;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[data-label=""],
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[colspan] {
+        padding-left: 0;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[colspan] {
+        text-align: center;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[colspan]::before {
+        display: none;
     }
 }
 
@@ -417,4 +495,42 @@ html[data-scheme="smooth"] .ifinmail-theme-card__preview {
     height: 3.5rem;
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius);
+}
+
+/* Phones: a settings row with a long explanation reads top to bottom, not as two squeezed columns. */
+@media (max-width: 767px) {
+    html[data-scheme="smooth"] .ifinmail-settings-row:has(dd .ifinmail-settings-row__help) {
+        display: block;
+    }
+
+    html[data-scheme="smooth"] .ifinmail-settings-row:has(dd .ifinmail-settings-row__help) dd {
+        margin-top: var(--ifinmail-space-1);
+        text-align: left;
+        justify-content: flex-start;
+    }
+}
+
+/* Phones: things you tap are big enough to tap (about 40 px), not only to see. */
+@media (max-width: 767px) {
+    html[data-scheme="smooth"] .ifinmail-wordmark--header,
+    html[data-scheme="smooth"] a.ifinmail-link-strong,
+    html[data-scheme="smooth"] button.ifinmail-link-strong,
+    html[data-scheme="smooth"] .ifinmail-site-more,
+    html[data-scheme="smooth"] .ifinmail-login-form__forgot,
+    html[data-scheme="smooth"] .ifinmail-hc__copy {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+    }
+
+    html[data-scheme="smooth"] input[type="checkbox"],
+    html[data-scheme="smooth"] input[type="radio"],
+    html[data-scheme="smooth"] .ifinmail-login-form__checkbox {
+        width: 20px;
+        height: 20px;
+    }
+
+    html[data-scheme="smooth"] input[type="range"] {
+        height: 32px;
+    }
 }

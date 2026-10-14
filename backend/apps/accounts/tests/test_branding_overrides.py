@@ -1,4 +1,4 @@
-"""The shared overrides file: branding settings and spam settings live together.
+"""The shared overrides file: branding settings live there, and spam settings used to.
 
 Regression coverage for a resolution bug: ``BrandingConfig.from_env()`` ran while
 the settings module was imported, where ``django.conf.settings`` is unusable, and
@@ -102,16 +102,23 @@ class SpamSettingsShareTheOverridesFileTests(MailTablesTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'rbl.example.net')
 
-    def test_sensitivity_save_keeps_branding_keys_in_the_same_file(self) -> None:
+    def test_sensitivity_is_saved_in_the_database_and_leaves_the_overrides_file_alone(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'branding_overrides.json'
             _write_json(path, {'primary_color': '#112233'})
             with (
                 patch.object(django_settings, 'BASE_DIR', Path(tmp)),
                 patch.dict(os.environ, {'BRANDING_OVERRIDES_PATH': ''}),
+                patch('backend.apps.mail.services.spam_policy._publish'),
             ):
-                response = self.client.post(reverse('accounts:spam_sensitivity'), {'value': '3.0'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(path.read_text(encoding='utf-8'))
-        self.assertEqual(data['spam']['sensitivity'], '3.0')
-        self.assertEqual(data['primary_color'], '#112233')
+                response = self.client.post(reverse('accounts:spam_sensitivity'), {'level': '3'})
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(
+                json.loads(path.read_text(encoding='utf-8')), {'primary_color': '#112233'}
+            )
+        from backend.apps.core.services import SystemSettings
+        from backend.apps.core.types import SettingKey
+
+        self.assertEqual(SystemSettings.get(SettingKey.SPAM_SENSITIVITY), 3)

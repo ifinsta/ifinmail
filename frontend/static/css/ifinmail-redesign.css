@@ -3618,3 +3618,17 @@ html.ifinmail-shell .ifinmail-delivery__top {
 html.ifinmail-shell .ifinmail-delivery .ifinmail-help-text {
     margin-top: var(--ifinmail-space-3);
 }
+
+/* Spam Filtering chart: each bar is the hour's volume, its red part the share caught */
+html.ifinmail-shell .ifinmail-chart-bars--share span {
+    position: relative;
+    background: var(--ifinmail-color-primary);
+}
+html.ifinmail-shell .ifinmail-chart-bars--share span i {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: var(--caught, 0%);
+    background: var(--ifinmail-color-danger);
+}

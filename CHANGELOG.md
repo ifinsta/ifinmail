@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.56
+- **Spam Filtering does what it says.** The page used to look like a control panel but changed
+  nothing: the slider never saved (the script and the view disagreed on the field name), the
+  setting never reached Rspamd, the DNS list was only a list, and the figures were fixed zeros.
+  - **Sensitivity (1 to 10, 5 is the standard).** Saved in the database and turned into Rspamd's
+    four thresholds (retry later, Junk, subject marked, refused): 5 is exactly what shipped before,
+    each step stricter lowers them by a tenth. The page shows the four scores for the level before
+    you save, and whether Rspamd has taken the change up (Applied, Applying, Not applied yet).
+  - **DNS lists.** Add a sender blocklist, a link blocklist or an allow list by DNS name (checked:
+    a real name, no URL, no address, at most 20, no duplicates), turn one off without losing it,
+    remove it, or press Test: the server asks the list its own test entry and shows whether it
+    answers, refuses this server, or does not exist, with the time it took. Each hit adds 3 to the
+    score (an allow list subtracts 2) and shows as its own symbol in the log. The page says that
+    each list's operator sees the addresses of the servers that mail you.
+  - **Figures from the filter's own log.** Scanned, delivered normally, sent to Junk, refused and
+    asked to retry, for 24 hours or 7 days, with an hourly chart. "False positives" is gone: the
+    filter cannot know which Junk messages were wanted, and a made-up percentage was worse than
+    none.
+  - Errors appear on the page next to what you did, not in a browser alert. Settings written by
+    earlier versions are read until you save once.
+
 ## v0.0.55
 - **Assistant page no longer clips its composer.** On a short screen (a phone, a phone turned
   sideways, a split window) the empty "new chat" view was taller than the page and the question box

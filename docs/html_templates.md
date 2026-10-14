@@ -25,7 +25,7 @@ verify — every row must exist on disk.
 |---|---|---|
 | `admin/dashboard.html` | Dashboard | `accounts/views/dashboard.py` |
 | `admin/user_management.html` | Users | `accounts/views/users.py` |
-| `admin/spam_filtering.html` | Spam | rspamd settings view |
+| `admin/spam_filtering.html` | Spam | `accounts/views/spam.py` — filter figures from the hourly digest, sensitivity form (1–10 → the four Rspamd thresholds), DNS lists table with Test / Turn off / Remove and an add form; all plain forms with redirect + flash message |
 | `admin/dns_config.html` | DomainConfig | `dns/views/web.py` |
 | `admin/branding_identity.html` | Branding | branding view |
 | `admin/logs.html` | Logs | `accounts/views/logs.py` — Activity (audit trail) and Application errors tabs, summary strip with audit-chain integrity, level/period/text filters, pagination, live view |
@@ -35,7 +35,6 @@ verify — every row must exist on disk.
 | `admin/partials/admin_row.html` | TablesRows | user rows |
 | `admin/partials/dns_row.html` | TablesRows | DNS rows |
 | `admin/partials/log_row.html` | TablesRows | one log row (activity or application error) |
-| `admin/partials/provider_row.html` | TablesRows | provider rows |
 | `admin/partials/queue_row.html` | TablesRows | queue rows |
 | `admin/partials/mailbox_row.html` | (Mailbox extension) | mailbox rows |
 | `includes/flash_messages.html` | ShellParts | flash messages on admin pages outside the Settings layout |

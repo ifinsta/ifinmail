@@ -4,7 +4,7 @@
 # The console writes <runtime>/rspamd-plugins.conf ("key = value" lines). When it changes this
 # script re-validates every key and value, renders Rspamd fragments into $OUT (included with
 # .include(try=true) from local.d/multimap.conf, dmarc.conf, arc.conf, composites.conf,
-# greylist.conf and ratelimit.conf), checks the whole
+# greylist.conf, ratelimit.conf, actions.conf, rbl.conf and groups.conf), checks the whole
 # configuration with `rspamadm configtest`, and only then reloads Rspamd. A configuration that
 # fails the test is rolled back and not acknowledged. The SHA-256 of an applied file is written to
 # <status>/rspamd-plugins.applied so the console can show "Applied".
@@ -36,6 +36,11 @@ DOMAIN='[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)
 DKIM_PATH='/etc/dkim/$domain.$selector.key'
 DKIM_SELECTOR='default'
 SENDER="([a-z0-9._%+-]{1,64}@)?${DOMAIN}"
+# A score is a number from 0.5 to 99.5 in steps of a tenth ("4", "6.5"), never negative.
+SCORE='^([1-9][0-9]?(\.[0-9])?|0\.[5-9])?$'
+# A DNS list: "host/type" (type dnsbl: sender address lists, dnswl: allow lists, uribl: lists of
+# the domains in links).
+PROVIDER="${DOMAIN}/(dnsbl|dnswl|uribl)"
 # Per-login limit applied by ratelimit.conf alone (the plugin replaces it with its own buckets).
 DOMAIN_RATE='40 / 1h'
 
@@ -50,6 +55,11 @@ declare -A RULES=(
     [greylisting]='^(on|off)?$'
     [send_limit_per_minute]='^([1-9][0-9]{0,3})?$'
     [send_limit_per_day]='^([1-9][0-9]{0,5})?$'
+    [spam_greylist_score]="$SCORE"
+    [spam_junk_score]="$SCORE"
+    [spam_rewrite_score]="$SCORE"
+    [spam_reject_score]="$SCORE"
+    [dnsbl_providers]="^(${PROVIDER}(,${PROVIDER}){0,19})?\$"
 )
 
 render() { # $1 = directory to write the fragments into
@@ -62,6 +72,9 @@ render() { # $1 = directory to write the fragments into
     : > "$dir/composites.conf"
     : > "$dir/greylist.conf"
     : > "$dir/ratelimit.conf"
+    : > "$dir/actions.conf"
+    : > "$dir/rbl.conf"
+    : > "$dir/groups.conf"
     local kind
     for kind in block allow; do : > "$dir/sender_${kind}_addr.map"; : > "$dir/sender_${kind}_domain.map"; done
     if [ -n "$types" ]; then
@@ -108,6 +121,8 @@ EOF
         printf 'whitelist_symbols = ["IFINMAIL_SENDER_ALLOWED"];\n' >> "$dir/greylist.conf"
     fi
     [ "${VALUES[greylisting]:-}" = "off" ] && printf 'enabled = false;\n' >> "$dir/greylist.conf"
+    spam_thresholds "$dir"
+    dnsbl_rules "$dir" "${VALUES[dnsbl_providers]:-}"
     local per_minute="${VALUES[send_limit_per_minute]:-}" per_day="${VALUES[send_limit_per_day]:-}"
     if [ -n "$per_minute" ] && [ -n "$per_day" ]; then
         # Separate rates with different selector values: Rspamd keys a bucket by the hash of the
@@ -172,6 +187,76 @@ sender_rules() {
             } >> "$dir/multimap.conf"
         done
     done
+}
+
+# Spam thresholds (the console computes all four from its sensitivity setting). They are used
+# only when all four are present and in order, so a half-written file never leaves a gap that
+# would send mail straight to the next action: greylist <= junk <= rewrite <= reject.
+spam_thresholds() { # $1 = directory
+    local dir="$1" g="${VALUES[spam_greylist_score]:-}" j="${VALUES[spam_junk_score]:-}"
+    local w="${VALUES[spam_rewrite_score]:-}" r="${VALUES[spam_reject_score]:-}"
+    [ -n "$g" ] && [ -n "$j" ] && [ -n "$w" ] && [ -n "$r" ] || return 0
+    local x
+    for x in "$g" "$j" "$w" "$r"; do [ "${#x}" -le 6 ] || return 0; done
+    # tenths as integers so the comparison needs no floating point
+    local gt jt wt rt
+    gt="$(tenths "$g")"; jt="$(tenths "$j")"; wt="$(tenths "$w")"; rt="$(tenths "$r")"
+    if [ "$gt" -le "$jt" ] && [ "$jt" -le "$wt" ] && [ "$wt" -le "$rt" ]; then
+        printf 'greylist = %s;\nadd_header = %s;\nrewrite_subject = %s;\nreject = %s;\n' \
+            "$g" "$j" "$w" "$r" > "$dir/actions.conf"
+    else
+        log "ignoring spam thresholds that are not in order"
+    fi
+}
+
+tenths() { # "6.5" -> 65, "4" -> 40
+    local whole="${1%%.*}" frac=""
+    [[ "$1" == *.* ]] && frac="${1#*.}"
+    echo $(( 10#$whole * 10 + 10#${frac:-0} ))
+}
+
+# Extra DNS lists from the console: "host/type,host/type". Each becomes one Rspamd rule and one
+# symbol with a fixed score, so what a list does to a message is visible in the log.
+dnsbl_rules() { # $1 = directory, $2 = list
+    local dir="$1" list="$2" item host kind symbol weight checks extra
+    local -a items=()
+    [ -n "$list" ] || return 0
+    local -A seen=()
+    {
+        echo 'rbls {'
+        IFS=',' read -r -a items <<< "$list"
+        for item in "${items[@]}"; do
+            host="${item%/*}"; kind="${item##*/}"
+            symbol="IFINMAIL_$(tr '[:lower:].-' '[:upper:]__' <<< "${kind}_${host}")"
+            [ -z "${seen[$symbol]+set}" ] || continue
+            seen[$symbol]=1
+            case "$kind" in
+                dnsbl) checks="['from', 'received']"; extra=''; weight='3.0' ;;
+                dnswl) checks="['from']"; extra='    is_whitelist = true;'; weight='-2.0' ;;
+                uribl) checks="['urls']"; extra=''; weight='3.0' ;;
+            esac
+            echo "  $symbol {"
+            echo "    symbol = \"$symbol\";"
+            echo "    rbl = \"$host\";"
+            echo "    checks = $checks;"
+            [ -n "$extra" ] && echo "$extra"
+            echo '  }'
+            printf '%s %s\n' "$symbol" "$weight" >> "$dir/.weights"
+        done
+        echo '}'
+    } > "$dir/rbl.conf"
+    {
+        echo 'group "ifinmail_dns_lists" {'
+        echo '  max_score = 12.0;'
+        echo '  description = "DNS lists added in the console";'
+        echo '  symbols = {'
+        while read -r symbol weight; do
+            echo "    \"$symbol\" { weight = $weight; description = \"Listed by a DNS list added in the console\"; }"
+        done < "$dir/.weights"
+        echo '  }'
+        echo '}'
+    } > "$dir/groups.conf"
+    rm -f "$dir/.weights"
 }
 
 # Check the configuration as the user Rspamd runs as: a root run leaves root-owned cache files

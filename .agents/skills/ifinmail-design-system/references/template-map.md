@@ -8,7 +8,7 @@ Canvas: https://claude.ai/artifact/D9asdXKM7QCbXmDFgkjCCE (board = artboard file
 | `includes/admin_table.html`, `includes/setup_table.html`, `admin/partials/admin_row.html`, `dns_row.html`, `log_row.html`, `provider_row.html`, `queue_row.html` | `TablesRows` | Every row partial in the new table style, empty state, table rules |
 | `admin/dashboard.html` | `Dashboard` | Status banner, stat strip, domain health table, quick actions, activity, disk and TLS |
 | `admin/user_management.html` | `Users` | Stat cards, admin directory, RBAC, live sessions, governance |
-| `admin/spam_filtering.html` | `Spam` | Stats, sensitivity slider, engines, DNSBL table, add-provider dialog |
+| `admin/spam_filtering.html` | `Spam` | Stats, hourly chart, sensitivity form with live score preview, engine apply status, DNS lists table, add-list form |
 | `admin/dns_config.html` | `DomainConfig` | Zone health strip, registry, empty cluster, toolbox, routing toggles, register-domain dialog |
 | `admin/branding_identity.html` | `Branding` | Logo upload, typography, palette with live preview, brand application toggles |
 | `admin/settings_hub.html`, `includes/settings_nav.html` | `Settings` | Grouped category list (Workspace, Access, Personalization, System) plus overview; the nav is generated from `SettingsCatalogue` |

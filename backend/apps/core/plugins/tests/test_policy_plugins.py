@@ -273,6 +273,8 @@ class LifecycleTests(MailTablesTestCase):
         for line in path.read_text().splitlines():
             if line and not line.startswith('#'):
                 key, _, value = line.partition('=')
+                if key.strip().startswith('spam_') or key.strip() == 'dnsbl_providers':
+                    continue  # the Spam Filtering page's keys (core), not a plugin's
                 out[key.strip()] = value.strip()
         return out
 
@@ -601,6 +603,59 @@ class RspamdWatcherTests(_ScriptHarness):
         self.assertIn('ignoring unsafe value', self.run_script())
         self.assertEqual((self.out / 'ratelimit.conf').read_text(), '')  # built-in rates apply
 
+    def test_spam_thresholds_are_rendered_together(self) -> None:
+        self.file.write_text(
+            'spam_greylist_score = 3.0\nspam_junk_score = 5.0\n'
+            'spam_rewrite_score = 7.0\nspam_reject_score = 12.5\n'
+        )
+        self.run_script()
+        self.assertEqual(
+            (self.out / 'actions.conf').read_text(),
+            'greylist = 3.0;\nadd_header = 5.0;\nrewrite_subject = 7.0;\nreject = 12.5;\n',
+        )
+
+    def test_spam_thresholds_are_all_or_nothing_and_in_order(self) -> None:
+        self.file.write_text('spam_junk_score = 5.0\nspam_reject_score = 12.5\n')
+        self.run_script()
+        self.assertEqual((self.out / 'actions.conf').read_text(), '')  # keeps the defaults
+        self.file.write_text(
+            'spam_greylist_score = 9.0\nspam_junk_score = 5.0\n'
+            'spam_rewrite_score = 7.0\nspam_reject_score = 12.5\n'
+        )
+        self.assertIn('not in order', self.run_script())
+        self.assertEqual((self.out / 'actions.conf').read_text(), '')
+
+    def test_unsafe_spam_values_are_refused(self) -> None:
+        self.file.write_text(
+            'spam_greylist_score = 4;evil\nspam_junk_score = -1\nspam_rewrite_score = 0\n'
+            'spam_reject_score = 1000\n'
+            'dnsbl_providers = bl.example.org";}x{/dnsbl\n'
+        )
+        self.assertEqual(self.run_script().count('ignoring unsafe value'), 5)
+        for name in ('actions.conf', 'rbl.conf', 'groups.conf'):
+            self.assertEqual((self.out / name).read_text(), '', name)
+
+    def test_dns_lists_become_rules_with_fixed_scores(self) -> None:
+        self.file.write_text(
+            'dnsbl_providers = bl.example.org/dnsbl,wl.example.org/dnswl,uri.example.net/uribl\n'
+        )
+        self.run_script()
+        rbl = (self.out / 'rbl.conf').read_text()
+        self.assertIn('IFINMAIL_DNSBL_BL_EXAMPLE_ORG {', rbl)
+        self.assertIn('rbl = "bl.example.org";', rbl)
+        self.assertIn("checks = ['from', 'received'];", rbl)
+        self.assertIn('is_whitelist = true;', rbl)
+        self.assertIn("checks = ['urls'];", rbl)
+        groups = (self.out / 'groups.conf').read_text()
+        self.assertIn('"IFINMAIL_DNSBL_BL_EXAMPLE_ORG" { weight = 3.0;', groups)
+        self.assertIn('"IFINMAIL_DNSWL_WL_EXAMPLE_ORG" { weight = -2.0;', groups)
+        self.assertIn('"IFINMAIL_URIBL_URI_EXAMPLE_NET" { weight = 3.0;', groups)
+        self.assertEqual(self.ack(), self.file_hash())
+        self.file.write_text('dnsbl_providers = \n')
+        self.run_script()
+        self.assertEqual((self.out / 'rbl.conf').read_text(), '')
+        self.assertEqual((self.out / 'groups.conf').read_text(), '')
+
     def test_empty_values_remove_the_rules(self) -> None:
         self.file.write_text('blocked_attachment_types = \ndmarc_enforcement = \n')
         self.run_script()
@@ -833,3 +888,29 @@ class ApplyStatusTests(MailTablesTestCase):
                 'rspamd.policy',
             ],
         )
+
+
+class SpamKeyGrammarTests(SimpleTestCase):
+    def test_scores(self) -> None:
+        p = point('rspamd.policy')
+        for good in ('0.5', '4', '6.5', '15.0', '99.9'):
+            with self.subTest(good=good):
+                self.assertIsNone(p.validate('spam_junk_score', good))
+        for bad in ('0', '0.4', '-1', '100', '1.25', '4;x', 'a', '1e3', ' 4'):
+            with self.subTest(bad=bad):
+                self.assertIsNotNone(p.validate('spam_junk_score', bad))
+
+    def test_dns_lists(self) -> None:
+        p = point('rspamd.policy')
+        self.assertIsNone(p.validate('dnsbl_providers', 'bl.example.org/dnsbl,wl.example.org/dnswl'))
+        for bad in (
+            'bl.example.org',
+            'bl.example.org/other',
+            'localhost/dnsbl',
+            'bl.example.org/dnsbl;rm',
+            '1.2.3.4/dnsbl',
+            '"/dnsbl',
+            ','.join(f'l{i}.example.org/dnsbl' for i in range(21)),
+        ):
+            with self.subTest(bad=bad):
+                self.assertIsNotNone(p.validate('dnsbl_providers', bad))

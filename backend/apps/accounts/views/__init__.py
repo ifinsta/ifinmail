@@ -48,7 +48,14 @@ from .registration import (
 )
 from .settings_hub import settings_hub, settings_page
 from .setup import setup_advance, setup_step, setup_wizard
-from .spam import spam_add_provider, spam_filtering, spam_set_sensitivity
+from .spam import (
+    spam_add_provider,
+    spam_filtering,
+    spam_remove_provider,
+    spam_set_sensitivity,
+    spam_test_provider,
+    spam_toggle_provider,
+)
 from .users import user_management, users_export, users_kill_sessions
 
 __all__ = [
@@ -103,7 +110,10 @@ __all__ = [
     'setup_wizard',
     'spam_add_provider',
     'spam_filtering',
+    'spam_remove_provider',
     'spam_set_sensitivity',
+    'spam_test_provider',
+    'spam_toggle_provider',
     'step_complete',
     'step_password',
     'step_profile',

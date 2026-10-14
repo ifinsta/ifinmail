@@ -88,6 +88,18 @@ def login_view(request: HttpRequest) -> HttpResponse:
     """Admin login view."""
     error = None
 
+    # Already signed in: the sign-in form is a dead end. Go where they were headed, or to the
+    # console. (``?switch=1`` keeps the form for someone who wants another account.)
+    if (
+        request.method == 'GET'
+        and request.user.is_authenticated
+        and request.GET.get('switch') != '1'
+    ):
+        target = request.GET.get('next', '')
+        if not target.startswith('/') or target.startswith('//'):
+            target = ''
+        return redirect(target or 'accounts:dashboard')
+
     if request.method == 'GET' and request.GET.get('timeout_minutes', '').isdigit():
         minutes = max(1, min(1440, int(request.GET['timeout_minutes'])))
         error = f'You were signed out after {minutes} minutes of inactivity.'

@@ -6,14 +6,14 @@
 
 {% block content %}
 <section class="ifinmail-site-pagehead">
-    <div class="ifinmail-site-wrap">
+    <div class="ifinmail-site-wrap ifinmail-site-wrap--reading">
         <p class="ifinmail-site-overline">{% trans 'Legal' %}</p>
         <h1>{% trans 'Privacy' %}</h1>
         <p class="ifinmail-site-meta">{% blocktrans trimmed with date=legal_updated|date:'j F Y' %}Last updated {{ date }}{% endblocktrans %}</p>
     </div>
 </section>
 
-<div class="ifinmail-site-wrap ifinmail-site-legal">
+<div class="ifinmail-site-wrap ifinmail-site-wrap--reading ifinmail-site-legal">
     <article class="ifinmail-site-prose">
         <h2>{% trans 'Who is responsible' %}</h2>
         <p>{% trans 'This server is run by its operator, who decides what is kept and why. The project that publishes the software does not receive your mail or your account details. The one exception is a release check, described below.' %}</p>

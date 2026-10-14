@@ -1,0 +1,16 @@
+{% load i18n %}
+{% comment %}
+What the public header shows for a signed-in person, in place of "Sign in" / "Get started":
+who they are, a way into the console (only when their login may open it) and a way out.
+{% endcomment %}
+<span class="ifinmail-site-account{% if in_menu %} ifinmail-site-account--menu{% endif %}">
+    {% include "includes/avatar.html" %}
+    <span class="ifinmail-site-account__text">
+        <strong>{{ user_display_name }}</strong>
+        <small>{{ user.email }}</small>
+    </span>
+</span>
+{% if can_use_console %}
+<a class="ifinmail-btn {% if in_menu %}ifinmail-btn--primary{% else %}ifinmail-btn--outline{% endif %}" href="{% url 'accounts:dashboard' %}">{% trans 'Open console' %}</a>
+{% endif %}
+<a class="ifinmail-btn {% if in_menu %}ifinmail-btn--outline{% else %}ifinmail-btn--ghost{% endif %}" href="{% url 'accounts:logout' %}">{% trans 'Sign out' %}</a>

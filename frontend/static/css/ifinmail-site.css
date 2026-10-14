@@ -121,6 +121,7 @@
 .ifinmail-site-nav a {
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
     min-height: 36px;
     padding: 0 var(--ifinmail-space-3);
     border-radius: var(--ifinmail-radius);
@@ -150,6 +151,91 @@
 .ifinmail-site-menu {
     display: none;
     margin-left: auto;
+}
+
+/* ── Signed-in person in the public header ──────────────────── */
+
+.ifinmail-site-account {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ifinmail-space-2);
+    min-width: 0;
+    margin-right: var(--ifinmail-space-1);
+}
+
+.ifinmail-site-account__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.ifinmail-site-account__text strong,
+.ifinmail-site-account__text small {
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ifinmail-site-account__text strong {
+    font-size: var(--ifinmail-font-size-body-small);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-color-text-primary);
+}
+
+.ifinmail-site-account__text small {
+    font-size: var(--ifinmail-font-size-caption);
+    color: var(--ifinmail-color-text-muted);
+}
+
+/* In the desktop header the person is an avatar and a name; the address is shown in the menu. */
+.ifinmail-site-actions .ifinmail-site-account__text small {
+    display: none;
+}
+
+.ifinmail-site-actions .ifinmail-site-account__text strong {
+    max-width: 10rem;
+}
+
+/* Name, "Open console" and "Sign out" take about 300px more than "Sign in" + "Get started": the
+   links get a little less padding, and below 1200px the Menu button takes over (the page column
+   is 1120px, so a wider window does not give a signed-in header more room). */
+.ifinmail-site-header--session .ifinmail-site-nav a {
+    padding-left: var(--ifinmail-space-2);
+    padding-right: var(--ifinmail-space-2);
+}
+
+@media (max-width: 1199px) {
+    .ifinmail-site-header--session .ifinmail-site-nav,
+    .ifinmail-site-header--session .ifinmail-site-actions {
+        display: none;
+    }
+
+    .ifinmail-site-header--session .ifinmail-site-menu {
+        display: block;
+    }
+}
+
+/* Inside the Menu panel the account is a row above its two buttons. */
+.ifinmail-site-account--menu {
+    padding: var(--ifinmail-space-3) 0;
+    margin: var(--ifinmail-space-2) 0 0;
+    border-top: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-account--menu .ifinmail-site-account__text small {
+    display: block;
+}
+
+/* ── Reading pages: heading and text share one centred column ── */
+
+.ifinmail-site-wrap--reading {
+    max-width: calc(var(--site-measure) + 2 * var(--site-pad));
+}
+
+.ifinmail-site-wrap--changelog {
+    max-width: calc(140px + var(--ifinmail-space-8) + var(--site-measure) + 2 * var(--site-pad));
 }
 
 .ifinmail-site-menu summary {

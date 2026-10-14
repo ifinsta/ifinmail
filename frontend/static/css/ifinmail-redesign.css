@@ -3409,3 +3409,108 @@ html.ifinmail-shell .ifinmail-photo__zoom input[type="range"] {
 html.ifinmail-shell .ifinmail-photo__hint--error {
     color: var(--ifinmail-color-danger);
 }
+
+/* ─── Phone: auth, registration, setup and error pages fit the viewport ───
+   Older rules (ifinmail-admin.css, ifinmail-components.css) forced both the page and the card to
+   100dvh with !important, so the card filled the screen and whatever followed it (the "Back to
+   sign in" link, a footer link) landed below the fold: a scrollbar on a page with room to spare,
+   and that link without any side padding. Here the page is exactly one viewport tall, the card is
+   only as tall as its content, and the pair is centred; a longer page simply scrolls. */
+@media (max-width: 767px) {
+    html.ifinmail-shell .ifinmail-login,
+    html.ifinmail-shell .ifinmail-reg {
+        min-height: 100vh !important;
+        min-height: 100dvh !important;
+        height: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+        padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
+            env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0) !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+    }
+
+    html.ifinmail-shell .ifinmail-login-card,
+    html.ifinmail-shell .ifinmail-reg-card {
+        min-height: 0 !important;
+        flex: 0 0 auto !important;
+        justify-content: flex-start !important;
+        padding: var(--ifinmail-space-6) var(--ifinmail-space-4) !important;
+    }
+
+    html.ifinmail-shell .ifinmail-login-card__register,
+    html.ifinmail-shell .ifinmail-reg-card__footer-link {
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 var(--ifinmail-space-4) var(--ifinmail-space-6) !important;
+        text-align: left;
+    }
+
+    html.ifinmail-shell .ifinmail-error-page .ifinmail-error-page {
+        align-items: flex-start;
+        padding: var(--ifinmail-space-6) var(--ifinmail-space-4);
+    }
+
+    html.ifinmail-shell .ifinmail-error-page .ifinmail-error-actions {
+        align-self: stretch;
+    }
+}
+
+/* Error pages, every width: the class sits on <body> and on the block inside it, and both used
+   to add their own padding and min-height, so the page was 64px taller than the screen and its
+   content hung near the top. The body is plain; the inner block is exactly one viewport and
+   centres its content. */
+html.ifinmail-shell body.ifinmail-error-page {
+    min-height: 0;
+    padding: 0;
+    display: block;
+}
+
+html.ifinmail-shell .ifinmail-error-page .ifinmail-error-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+    justify-content: center;
+}
+
+/* ─── Boxes that carried text with no inner padding ─── */
+/* A session row is a bordered, tinted box; its base rule only had vertical padding, so
+   "This device" sat on the border (User management → Real-time sessions). */
+html.ifinmail-shell .ifinmail-session-item {
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+}
+
+/* Phone: panels run edge to edge and bring their own padding, so text placed straight in the
+   page (a note under a table, the update-check line on System health) needs its own gutter. */
+@media (max-width: 767px) {
+    html.ifinmail-shell .ifinmail-admin-page > p,
+    html.ifinmail-shell .ifinmail-admin-page > .ifinmail-help-text,
+    html.ifinmail-shell .ifinmail-admin-page > small {
+        margin-left: var(--ifinmail-space-4);
+        margin-right: var(--ifinmail-space-4);
+    }
+
+    html.ifinmail-shell .ifinmail-health-updates {
+        padding-left: var(--ifinmail-space-4);
+        padding-right: var(--ifinmail-space-4);
+    }
+}
+
+/* Phone: an empty-table message lives in a cell that spans the whole (wider than the screen)
+   table, so it was centred off screen and clipped ("No keys yet. Create one above for the first
+   integrati"). Pin it to the visible width of the scrolling container instead. */
+@media (max-width: 767px) {
+    html.ifinmail-shell td.ifinmail-admin-table-empty > .ifinmail-empty-state {
+        position: sticky;
+        left: var(--ifinmail-space-4);
+        box-sizing: border-box;
+        /* the cell already has its own side padding */
+        width: calc(100vw - 2 * var(--ifinmail-space-4));
+        max-width: 100%;
+        white-space: normal;
+    }
+}

@@ -18,7 +18,10 @@ This file is the short form. The full guide, tokens, patterns and per-template b
 
 - One continuous white surface, edge to edge, no bordered cards; hairline dividers between sections.
 - Brand is the wordmark "ifinmail". No logo icon on small screens.
-- Pages shorter than the viewport are vertically centred; long pages start at the top.
+- Pages shorter than the viewport are vertically centred; long pages start at the top. Sign-in, registration, setup and error pages are exactly one viewport tall (`100dvh`): the card is only as tall as its content and is centred together with the link under it, so a short page never scrolls and a long one scrolls naturally. Never give both the page and the card `min-height: 100dvh`.
+- Panels run edge to edge and bring their own padding, so text placed directly in `.ifinmail-admin-page` (a note, a help line) takes a 16 px side margin from the phone rules; do not rely on the page for a gutter.
+- An element that is also `.ifinmail-site-wrap` must not use a `padding: x 0` shorthand (it removes the gutter); use `padding-top` / `padding-bottom`. A test enforces this.
+- The public header switches to the **Menu** button below 880 px, not 768 px: its links need about 860 px.
 - Sidebar becomes a drawer; header is hamburger, wordmark, actions.
 - 44 px touch targets.
 

@@ -740,7 +740,10 @@
     display: grid;
     grid-template-columns: 200px minmax(0, 1fr);
     gap: var(--ifinmail-space-12);
-    padding: var(--site-section) 0;
+    /* Vertical only: this element is also .ifinmail-site-wrap, whose side padding is the page
+       gutter. A "padding: x 0" shorthand here removed it and put the text on the screen edge. */
+    padding-top: var(--site-section);
+    padding-bottom: var(--site-section);
 }
 
 .ifinmail-site-toc {
@@ -1031,6 +1034,21 @@
 
     .ifinmail-site-download {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ── Header: switch to the Menu button before the links run out of room ──
+   The five links and two buttons need about 860px; the phone block below only collapsed them
+   under 768px, so a tablet got a header that ran past the screen edge (horizontal scrollbar). */
+
+@media (max-width: 879px) {
+    .ifinmail-site-nav,
+    .ifinmail-site-actions {
+        display: none;
+    }
+
+    .ifinmail-site-menu {
+        display: block;
     }
 }
 

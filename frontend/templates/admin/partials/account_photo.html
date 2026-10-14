@@ -1,0 +1,49 @@
+{% load i18n static %}
+<section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="acct-photo">
+    <h2 class="ifinmail-panel-title" id="acct-photo">{% trans 'Profile photo' %}</h2>
+    <p class="ifinmail-settings-section__lede">{% trans 'Shown next to your name in this console and, when your administrator shares the contact directory, in the contacts and mail apps of everyone on this server. We keep a small square copy and remove everything else from the file.' %}</p>
+
+    <form method="post" action="{% url 'accounts:account_photo' %}" enctype="multipart/form-data" class="ifinmail-photo" data-photo-form>
+        {% csrf_token %}
+        <div class="ifinmail-photo__stage">
+            <div class="ifinmail-photo__frame" data-photo-frame>
+                {% if photo_large_url %}
+                <img class="ifinmail-photo__current" src="{{ photo_large_url }}" alt="{% trans 'Your current photo' %}" width="96" height="96" data-photo-current>
+                {% else %}
+                <span class="ifinmail-photo__initial" aria-hidden="true" data-photo-current>{{ user_initials|default:'?' }}</span>
+                {% endif %}
+                <canvas class="ifinmail-photo__canvas" width="240" height="240" hidden data-photo-canvas aria-label="{% trans 'Drag to position your photo' %}"></canvas>
+            </div>
+            <div class="ifinmail-photo__controls">
+                <label class="ifinmail-btn ifinmail-btn--outline ifinmail-photo__choose" for="acct-photo-file">{% if photo_large_url %}{% trans 'Choose another picture' %}{% else %}{% trans 'Choose a picture' %}{% endif %}</label>
+                <input class="ifinmail-sr-only" id="acct-photo-file" type="file" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" data-photo-file>
+                <div class="ifinmail-photo__zoom" hidden data-photo-zoom-wrap>
+                    <label for="acct-photo-zoom">{% trans 'Zoom' %}</label>
+                    <input id="acct-photo-zoom" type="range" min="100" max="300" value="100" step="1" data-photo-zoom>
+                </div>
+                <p class="ifinmail-text--muted ifinmail-photo__hint" data-photo-hint>{% trans 'JPEG, PNG, WebP or GIF, up to 5 MB, at least 64 px on each side. You can drag and zoom before saving.' %}</p>
+            </div>
+        </div>
+        <input type="hidden" name="crop_x" value="" data-photo-x>
+        <input type="hidden" name="crop_y" value="" data-photo-y>
+        <input type="hidden" name="crop_size" value="" data-photo-size>
+        <div class="ifinmail-photo__actions">
+            <button class="ifinmail-btn ifinmail-btn--primary" type="submit" data-photo-save disabled>{% trans 'Save photo' %}</button>
+        </div>
+    </form>
+
+    {% if photo_large_url %}
+    <form method="post" action="{% url 'accounts:account_photo_remove' %}" class="ifinmail-inline-form">
+        {% csrf_token %}
+        <div><button class="ifinmail-btn ifinmail-btn--ghost" type="submit">{% trans 'Remove photo' %}</button></div>
+    </form>
+    {% endif %}
+
+    <form method="post" action="{% url 'accounts:account_directory_visibility' %}" class="ifinmail-inline-form">
+        {% csrf_token %}
+        <label class="ifinmail-check"><input type="checkbox" name="visible"{% if not directory_hidden %} checked{% endif %}> <span>{% trans 'List me in the contact directory' %}</span></label>
+        <p class="ifinmail-text--muted">{% if directory_shared %}{% trans 'The directory is shared on this server.' %}{% else %}{% trans 'The directory is not shared on this server yet; this applies once your administrator turns it on.' %}{% endif %}</p>
+        <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Save' %}</button></div>
+    </form>
+</section>
+<script src="{% static 'js/ifinmail-photo.js' %}" defer></script>

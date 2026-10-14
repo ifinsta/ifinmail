@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.0.42
+- **Profile photos, and a contact directory that puts them in people's mail apps.**
+  - **Photo:** **Account → Profile photo** takes a JPEG, PNG, WebP or GIF (up to 5 MB), lets you
+    drag and zoom a square, and keeps two small JPEGs (256 and 96 px) in the database. The
+    original file is never stored: it is decoded and re-encoded, so metadata (location, camera,
+    embedded profiles) and anything hidden in the file are dropped. Pictures over 25 megapixels
+    are refused before they are decoded. The photo appears in the console header; it is served
+    only to its owner and to people who manage mailboxes, with a content-hash URL so a change
+    shows at once.
+  - **Contact directory (off by default):** **Settings → Mailboxes → Contact directory**
+    publishes every active mailbox (name, address, photo) as a vCard in a read-only address book
+    named after the brand. The `dav` container mirrors it into each mailbox's CardDAV home as
+    `directory`, so it appears in the contacts of iOS, macOS, Android (DAVx5) and Thunderbird
+    with no import. People can hide themselves (Account). It is withdrawn again when switched off.
+    Gmail, Outlook and other apps that keep their own contacts do not use CardDAV and will not
+    show it.
+  - **API:** `GET`, `POST` (multipart `photo`, optional `crop_x`/`crop_y`/`crop_size`) and
+    `DELETE /api/v1/mailboxes/{address}/photo`, scope `mail.manage`. A console login cannot be
+    changed through a key, as with the other mailbox operations.
+  - **Dav container:** Radicale now uses a rights file (`from_file`: the three `owner_only`
+    rules plus a read-only `{user}/directory`), `lc_username` so one home exists per address,
+    and runs `directory-sync.py` beside it; its heartbeat is part of the healthcheck. Verified
+    against Radicale 3.8.3: the book is listed and readable in every home, writes to it are
+    refused (403), other people's homes stay private, and switching off removes it.
+  - **Dependency:** Pillow 12.3.0 (hashed in `prod.lock`), used only to re-encode uploads.
+  - Migration `accounts 0012` adds `accounts_user_profile`. Privacy page and README updated.
+
 ## v0.0.41
 - **A logo and a design for it.** ifinmail now has its own identity: an open envelope whose flap
   is a roof, with the wordmark set in two weights (**ifin**mail).

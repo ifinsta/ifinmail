@@ -3,6 +3,21 @@
 from django.http import HttpRequest
 
 
+def _photo_url(user: object) -> str:
+    """URL of the signed-in person's small photo, or ``''`` when they have none."""
+    from django.urls import reverse
+
+    from backend.apps.accounts.services.photos import PhotoService
+
+    try:
+        version = PhotoService.photo_version(user)  # type: ignore[arg-type]
+    except Exception:  # a page must still render if the profile table is unavailable
+        return ''
+    if not version:
+        return ''
+    return reverse('accounts:photo', args=[user.pk, 'small']) + f'?v={version}'  # type: ignore[attr-defined]
+
+
 def user_context(request: HttpRequest) -> dict[str, object]:
     """Provide user_initials, user_display_name, and user_role_label."""
     user = request.user
@@ -38,6 +53,7 @@ def user_context(request: HttpRequest) -> dict[str, object]:
 
         assistant_ready = assistant_config.current() is not None
     return {
+        'user_photo_url': _photo_url(user),
         'user_initials': initials,
         'user_display_name': full_name,
         'user_role_label': role,

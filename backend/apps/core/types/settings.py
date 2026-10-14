@@ -27,6 +27,9 @@ class SettingKey(StrEnum):
     NETWORK_FLOOD = 'network.flood'  # flood mode while it lasts: {'until': iso, 'reason': text}
     # Bundled plugins with install_by_default already offered once (installed, or later removed).
     PLUGIN_DEFAULTS_OFFERED = 'plugins.defaults_offered'
+    # Publish every mailbox (name, address, photo) as a read-only CardDAV address book that each
+    # mailbox's contacts app picks up (accounts.services.directory).
+    DIRECTORY_ENABLED = 'contacts.directory_enabled'
     # Mailboxes whose sending containment paused: {address: {reason, at, usage}}.
     SENDING_PAUSED = 'mail.sending_paused'
     # When each mailbox was last reported to administrators (alerts are rate-limited).

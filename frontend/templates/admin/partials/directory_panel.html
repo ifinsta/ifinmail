@@ -1,0 +1,13 @@
+{% load i18n %}
+<section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="mb-directory">
+    <h2 class="ifinmail-panel-title" id="mb-directory">{% trans 'Contact directory' %}</h2>
+    <p class="ifinmail-settings-section__lede">{% trans 'Publishes every mailbox, with its name and photo, as a read-only address book in each mailbox\'s contacts. Mail apps then show a sender\'s photo and fill in names while typing. Everyone on this server can see everyone listed, so use it for a team or a family, not for unrelated customers. People can hide themselves from their Account page.' %}</p>
+    <form method="post" action="{% url 'accounts:directory_toggle' %}" class="ifinmail-inline-form">
+        {% csrf_token %}
+        <label class="ifinmail-check"><input type="checkbox" name="enabled"{% if directory_enabled %} checked{% endif %}> <span>{% trans 'Share the contact directory' %}</span></label>
+        <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Save' %}</button></div>
+    </form>
+    {% if directory_enabled %}
+    <p class="ifinmail-text--muted">{% blocktrans count n=directory_people %}{{ n }} person is listed.{% plural %}{{ n }} people are listed.{% endblocktrans %}{% if directory_hidden %} {% blocktrans count n=directory_hidden %}{{ n }} chose to be hidden.{% plural %}{{ n }} chose to be hidden.{% endblocktrans %}{% endif %}</p>
+    {% endif %}
+</section>

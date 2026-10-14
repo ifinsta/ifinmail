@@ -1,0 +1,27 @@
+# Radicale access rules (rights type = from_file).
+#
+# The first three rules are exactly what "owner_only" does: each person discovers their own
+# home, may create calendars and address books there, and can read and write what is in them.
+# The fourth is ifinmail's: the shared contact directory appears in every person's home as
+# "directory" and is read-only. The console publishes it (see directory-sync.py); nobody can
+# change it through CardDAV. Rules are evaluated top to bottom; the first match wins.
+
+[root]
+user: .+
+collection:
+permissions: R
+
+[principal]
+user: .+
+collection: {user}
+permissions: RW
+
+[directory]
+user: .+
+collection: {user}/directory
+permissions: r
+
+[collections]
+user: .+
+collection: {user}/[^/]+
+permissions: rw

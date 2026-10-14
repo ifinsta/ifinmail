@@ -261,6 +261,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.reconcile_entrypoints',
         'schedule': crontab(minute='*/5'),
     },
+    'publish-directory': {
+        # The contact directory (names, addresses, photos) for the CardDAV server; rewrites only
+        # what changed, and clears it when the directory is switched off.
+        'task': 'accounts.publish_directory',
+        'schedule': crontab(minute='*/5'),
+    },
     'audit-maintenance': {
         'task': 'core.audit_maintenance',
         'schedule': crontab(hour=3, minute=50),

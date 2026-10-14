@@ -467,8 +467,39 @@ class DavContractTests(SimpleTestCase):
         config = _read('dav', 'config')
         self.assertRegex(config, r'(?m)^type = dovecot$')
         self.assertIn('dovecot_socket = /var/run/dovecot/auth', config)
-        self.assertRegex(config, r'(?m)^type = owner_only$')  # people see only their own data
+        # People see only their own data, plus the read-only contact directory (rights file).
+        self.assertRegex(config, r'(?m)^type = from_file$')
+        self.assertIn('file = /etc/radicale/rights', config)
+        self.assertRegex(config, r'(?m)^lc_username = True$')  # one home per address
         self.assertIn('radicale==', _read('dav', 'Dockerfile'))  # pinned
+
+    def test_the_dav_rights_are_owner_only_plus_a_read_only_directory(self) -> None:
+        import configparser
+
+        rights = configparser.ConfigParser(interpolation=None)
+        rights.read_string(_read('dav', 'rights'))
+        self.assertEqual(
+            list(rights.sections()), ['root', 'principal', 'directory', 'collections']
+        )  # order matters: the first matching rule wins, so the directory precedes collections
+        rule = {name: dict(rights[name]) for name in rights.sections()}
+        self.assertEqual(rule['principal']['collection'], '{user}')
+        self.assertEqual(rule['directory']['collection'], '{user}/directory')
+        self.assertEqual(rule['directory']['permissions'], 'r')  # no write letters
+        self.assertEqual(rule['collections']['collection'], '{user}/[^/]+')
+        for name in rule:  # nothing is ever granted outside the person's own home
+            self.assertIn('{user}', rule[name]['collection'] or '{user}')
+
+    def test_the_directory_mirror_runs_beside_radicale_and_is_health_checked(self) -> None:
+        import yaml
+
+        dav = yaml.safe_load(_read('docker-compose.yml'))['services']['dav']
+        self.assertIn('runtime_data:/var/lib/ifinmail/runtime:ro', dav['volumes'])  # read-only
+        self.assertIn('directory-sync.heartbeat', ' '.join(dav['healthcheck']['test']))
+        entry = _read('dav', 'entrypoint.sh')
+        self.assertIn('directory-sync.py &', entry)
+        self.assertIn('exec python -m radicale', entry)
+        self.assertIn('directory-sync.py', _read('dav', 'Dockerfile'))
+        self.assertIn('/var/lib/ifinmail/runtime/directory', _read('dav', 'directory-sync.py'))
 
     def test_the_socket_radicale_uses_is_the_one_dovecot_creates(self) -> None:
         master = _read('dovecot', 'conf.d', '10-master.conf')

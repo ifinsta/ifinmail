@@ -129,6 +129,11 @@ protocols are drivers registered with `storage.drivers.register(name, factory)` 
 Never build a file path from `MEDIA_ROOT` for media: the file may not be on this disk. Full
 contract and rules: `docs/storage-contract.md`.
 
+**Profile photos are not `StoredFile`s.** A person's photo is two re-encoded JPEGs in
+`accounts.UserProfile`, written only through `PhotoService.set_photo` (never store or link an
+uploaded original) and served only through `accounts:photo`. The contact directory built from
+photos is `accounts.services.directory`; the `dav` container mirrors it with `directory-sync.py`.
+
 # ifinmail - Frontend Design Guide (Remediation)
 - Please refer to [DESIGN.md] for any new design or remediation of existing design when checking against compliance requirements for frontend designs.
 - Agent skills in `.agents/skills/` encode the approved template redesign. Load `ifinmail-design-system` before any UI work, follow `ifinmail-template-builder` when touching `frontend/templates` or `frontend/static`, and finish with `ifinmail-design-audit`. The template-to-board map is in `docs/html_templates.md`.

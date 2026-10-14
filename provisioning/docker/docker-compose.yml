@@ -241,6 +241,7 @@ services:
     volumes:
       - dav_data:/var/lib/radicale
       - rundir:/var/run/dovecot          # Dovecot's auth socket
+      - runtime_data:/var/lib/ifinmail/runtime:ro   # the contact directory the console publishes
     depends_on:
       dovecot:
         condition: service_healthy
@@ -253,8 +254,9 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      # A bare connection to the port: a full request would be logged every 30 s.
-      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 5232), timeout=5).close()\""]
+      # A bare connection to the port (a full request would be logged every 30 s), and the
+      # directory mirror's heartbeat: it must have run within the last two minutes.
+      test: ["CMD-SHELL", "python -c \"import os, socket, time; socket.create_connection(('127.0.0.1', 5232), timeout=5).close(); assert time.time() - os.path.getmtime('/tmp/directory-sync.heartbeat') < 120\""]
       interval: 30s
       retries: 3
       start_period: 15s

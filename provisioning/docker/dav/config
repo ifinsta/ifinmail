@@ -11,12 +11,16 @@ type = dovecot
 dovecot_connection_type = AF_UNIX
 dovecot_socket = /var/run/dovecot/auth
 delay = 1
+# Mailbox addresses are case-insensitive: one home per address, however it was typed.
+lc_username = True
 # The real client address comes from nginx; it is used for Radicale's brute-force protection.
 remote_ip_source = X-Forwarded-For
 
 [rights]
-# Each person sees only their own calendars and address books.
-type = owner_only
+# Each person sees only their own calendars and address books, plus the shared contact
+# directory (read-only) when the administrator publishes it. See the rights file.
+type = from_file
+file = /etc/radicale/rights
 
 [storage]
 filesystem_folder = /var/lib/radicale/collections

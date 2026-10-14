@@ -1,5 +1,5 @@
 {% extends "admin/settings_base.html" %}
-{% load i18n %}
+{% load i18n %}{% load directory_tags %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name %}Account — {{ name }}{% endblocktrans %}{% endblock %}
 
@@ -30,6 +30,8 @@
                 <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Save' %}</button></div>
             </form>
         </section>
+
+        {% account_photo_panel %}
 
         <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="acct-password">
             <h2 class="ifinmail-panel-title" id="acct-password">{% trans 'Password' %}</h2>

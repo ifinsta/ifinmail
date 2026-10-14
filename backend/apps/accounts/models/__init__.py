@@ -223,3 +223,28 @@ class APIToken(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name} ({self.prefix}…)'
+
+
+class UserProfile(models.Model):
+    """What a login adds beyond the mail server's ``users`` table: a profile photo and whether the
+    person appears in the contact directory.
+
+    The photo is stored already processed (square JPEG at two sizes, no metadata), in the
+    database, so it is covered by the normal backups and needs no file storage. It is created
+    on first use; a login without a row has no photo and is listed in the directory.
+    """
+
+    user = models.OneToOneField(
+        MailUser, primary_key=True, on_delete=models.CASCADE, related_name='profile'
+    )
+    photo_large = models.BinaryField(null=True, blank=True)  # 256 x 256 JPEG
+    photo_small = models.BinaryField(null=True, blank=True)  # 96 x 96 JPEG, for lists and headers
+    photo_sha256 = models.CharField(max_length=64, blank=True, default='')
+    photo_updated_at = models.DateTimeField(null=True, blank=True)
+    directory_hidden = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'accounts_user_profile'
+
+    def __str__(self) -> str:
+        return f'profile of {self.user_id}'

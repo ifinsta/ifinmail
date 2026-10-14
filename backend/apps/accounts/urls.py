@@ -30,6 +30,13 @@ from .views.passkeys import (
     passkey_remove,
     passkeys_page,
 )
+from .views.photos import (
+    account_directory_visibility,
+    account_photo_remove,
+    account_photo_set,
+    directory_toggle,
+    photo_image,
+)
 from .views.sending import sending, sending_resume
 from .views.server import (
     certificates_action,
@@ -193,6 +200,15 @@ urlpatterns = [
     path('settings/account/', account_page, name='account'),
     path('settings/account/name/', account_name, name='account_name'),
     path('settings/account/password/', account_password, name='account_password'),
+    path('settings/account/photo/', account_photo_set, name='account_photo'),
+    path('settings/account/photo/remove/', account_photo_remove, name='account_photo_remove'),
+    path(
+        'settings/account/directory/',
+        account_directory_visibility,
+        name='account_directory_visibility',
+    ),
+    path('settings/mailboxes/directory/', directory_toggle, name='directory_toggle'),
+    path('photo/<uuid:user_id>/<str:size>/', photo_image, name='photo'),
     path('settings/api-keys/', api_keys, name='api_keys'),
     path('settings/api-keys/create/', api_key_create, name='api_key_create'),
     path('settings/api-keys/action/', api_key_action, name='api_key_action'),

@@ -8,10 +8,13 @@ stay for in-process callers and tests.
 from typing import Annotated
 
 from django.core.cache import cache
+from django.http import HttpResponse
 from ninja import Header, Router, Status
 from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
 
+from backend.apps.accounts.models import MailUser
+from backend.apps.accounts.services.photos import Crop, PhotoError, PhotoService
 from backend.apps.accounts.services.tokens import key_id
 from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
@@ -155,6 +158,112 @@ def api_delete_mailbox(request: ApiRequest, address: str) -> Status[None]:
     except MailboxError as exc:
         raise problem(exc) from exc
     AuditService.record(action='api_mailbox_deleted', user=actor(request), detail=target)
+    return Status(204, None)
+
+
+def _login(address: str) -> MailUser:
+    user: MailUser | None = MailUser.objects.filter(email=address).first()
+    if user is None:
+        raise problem(MailboxError(f'{address} does not exist.'))
+    return user
+
+
+@router.get(
+    '/mailboxes/{address}/photo',
+    response={200: bytes, **errors(404)},
+    summary="Get a mailbox's profile photo",
+)
+@require_scope('mail.manage')
+def api_get_mailbox_photo(request: ApiRequest, address: str) -> HttpResponse:
+    """The photo as a 256 x 256 JPEG; 404 when the mailbox has none."""
+    found = PhotoService.get(_login(_address(address)).pk, 'large')
+    if found is None:
+        raise HttpError(404, 'This mailbox has no photo.')
+    response = HttpResponse(found[0], content_type='image/jpeg')
+    response['ETag'] = f'"{found[1][:32]}"'
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+_PHOTO_BODY = {
+    'requestBody': {
+        'required': True,
+        'content': {
+            'multipart/form-data': {
+                'schema': {
+                    'type': 'object',
+                    'required': ['photo'],
+                    'properties': {
+                        'photo': {'type': 'string', 'format': 'binary'},
+                        'crop_x': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                        'crop_y': {'type': 'number', 'minimum': 0, 'maximum': 1},
+                        'crop_size': {'type': 'number', 'minimum': 0.05, 'maximum': 1},
+                    },
+                }
+            }
+        },
+    }
+}
+
+
+@router.post(
+    '/mailboxes/{address}/photo',
+    response={200: MailboxV1, **errors(404, 422)},
+    summary="Set a mailbox's profile photo",
+    openapi_extra=_PHOTO_BODY,
+)
+@require_scope('mail.manage')
+def api_set_mailbox_photo(request: ApiRequest, address: str) -> MailboxV1:
+    """Upload a JPEG, PNG, WebP or GIF (multipart field ``photo``, up to 5 MB). The server cuts
+    a square (the centre, or ``crop_x``/``crop_y``/``crop_size`` as fractions of the picture),
+    stores two small JPEGs and removes all other data from the file. When the contact directory
+    is on, contacts apps pick the photo up within minutes.
+
+    The multipart body is read here, after the key's scope has been checked, so a key without
+    ``mail.manage`` is refused (403) whatever it sends."""
+    target = _address(address)
+    upload = request.FILES.get('photo')
+    if upload is None:
+        raise HttpError(422, 'Send the picture as the multipart field "photo".')
+    try:
+        ops.ensure_plain(target)
+    except MailboxError as exc:
+        raise problem(exc) from exc
+    user = _login(target)
+    crop = None
+    if request.POST.get('crop_size'):
+        crop = Crop.parse(
+            request.POST.get('crop_x') or '0',
+            request.POST.get('crop_y') or '0',
+            request.POST.get('crop_size', ''),
+        )
+        if crop is None:
+            raise HttpError(422, 'The crop is outside the picture.')
+    try:
+        PhotoService.set_photo(user, upload.read(), crop)
+    except PhotoError as exc:
+        raise HttpError(422, str(exc)) from exc
+    AuditService.record(action='api_mailbox_photo_set', user=actor(request), detail=target)
+    row = ops.get_mailbox(target)
+    if row is None:
+        raise problem(MailboxError(f'{target} does not exist.'))
+    return MailboxV1.of(row)
+
+
+@router.delete(
+    '/mailboxes/{address}/photo',
+    response={204: None, **errors(404)},
+    summary="Remove a mailbox's profile photo",
+)
+@require_scope('mail.manage')
+def api_delete_mailbox_photo(request: ApiRequest, address: str) -> Status[None]:
+    target = _address(address)
+    try:
+        ops.ensure_plain(target)
+    except MailboxError as exc:
+        raise problem(exc) from exc
+    PhotoService.remove_photo(_login(target))
+    AuditService.record(action='api_mailbox_photo_removed', user=actor(request), detail=target)
     return Status(204, None)
 
 

@@ -51,6 +51,10 @@ files = [
     "backend/apps/core/storage/views/media.py",
     "backend/apps/accounts/services/passkeys.py",
     "backend/apps/accounts/services/webauthn.py",
+    "backend/apps/accounts/services/photos.py",
+    "backend/apps/accounts/services/directory.py",
+    "backend/apps/accounts/views/photos.py",
+    "backend/apps/accounts/templatetags/directory_tags.py",
 ]
 strict = true
 ignore_missing_imports = true
@@ -68,6 +72,8 @@ module = [
     "backend.apps.accounts.services.tokens",
     "backend.apps.accounts.views.api_keys",
     "backend.apps.accounts.views.threats",
+    "backend.apps.accounts.views.photos",
+    "backend.apps.accounts.templatetags.directory_tags",
 ]
 disallow_untyped_decorators = false
 

@@ -12,3 +12,4 @@ cryptography>=50,<51
 passlib>=1.7.4,<2
 dnspython>=2.6,<3
 qrcode>=7.4,<9
+pillow>=12.3,<13

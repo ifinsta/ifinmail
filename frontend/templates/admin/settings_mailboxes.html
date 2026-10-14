@@ -1,5 +1,5 @@
 {% extends "admin/settings_base.html" %}
-{% load i18n %}{% load static %}
+{% load i18n %}{% load static %}{% load directory_tags %}
 
 {% block title %}{% blocktrans trimmed with name=brand.name %}Mailboxes — {{ name }}{% endblocktrans %}{% endblock %}
 
@@ -113,6 +113,8 @@
                 <div><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Save' %}</button></div>
             </form>
         </section>
+
+        {% directory_panel %}
     </div>
 </section>
 

@@ -1,0 +1,4 @@
+{% comment %}
+The signed-in person's avatar: their photo when they have one, else their initial.
+{% endcomment %}
+{% if user_photo_url %}<span class="ifinmail-avatar ifinmail-avatar--photo"><img src="{{ user_photo_url }}" alt="" width="32" height="32"></span>{% else %}<span class="ifinmail-avatar">{{ user_initials|default:'?' }}</span>{% endif %}

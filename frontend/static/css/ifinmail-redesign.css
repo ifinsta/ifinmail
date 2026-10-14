@@ -3307,3 +3307,105 @@ html.ifinmail-shell .ifinmail-passkey-status {
 }
 html.ifinmail-shell .ifinmail-passkey-status--error { color: var(--ifinmail-color-danger); }
 html.ifinmail-shell .ifinmail-login-passkey { margin-top: var(--ifinmail-space-3); }
+
+/* ─── Profile photo (Account) and photo avatars ─── */
+html.ifinmail-shell .ifinmail-avatar--photo {
+    padding: 0;
+    overflow: hidden;
+    background: var(--ifinmail-color-surface-2, var(--ifinmail-surface-container));
+}
+
+html.ifinmail-shell .ifinmail-avatar--photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+html.ifinmail-shell .ifinmail-photo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ifinmail-space-4);
+    margin-top: var(--ifinmail-space-4);
+}
+
+/* The display rules below would otherwise win over the hidden attribute the script toggles. */
+html.ifinmail-shell .ifinmail-photo [hidden] {
+    display: none;
+}
+
+html.ifinmail-shell .ifinmail-photo__stage {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-5);
+    flex-wrap: wrap;
+}
+
+html.ifinmail-shell .ifinmail-photo__frame {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--ifinmail-radius-full);
+    overflow: hidden;
+    background: var(--ifinmail-color-primary-tint);
+    border: 1px solid var(--ifinmail-color-border-light);
+    display: grid;
+    place-items: center;
+    flex: none;
+}
+
+html.ifinmail-shell .ifinmail-photo__current,
+html.ifinmail-shell .ifinmail-photo__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+html.ifinmail-shell .ifinmail-photo__canvas {
+    cursor: grab;
+    touch-action: none;
+}
+
+html.ifinmail-shell .ifinmail-photo__canvas:active {
+    cursor: grabbing;
+}
+
+html.ifinmail-shell .ifinmail-photo__canvas:focus-visible {
+    outline: 2px solid var(--ifinmail-color-primary);
+    outline-offset: -2px;
+}
+
+html.ifinmail-shell .ifinmail-photo__initial {
+    font-size: var(--ifinmail-font-size-3xl);
+    font-weight: var(--ifinmail-font-weight-semibold);
+    color: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-photo__controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ifinmail-space-3);
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
+html.ifinmail-shell .ifinmail-photo__choose {
+    align-self: flex-start;
+    cursor: pointer;
+}
+
+html.ifinmail-shell .ifinmail-photo__zoom {
+    display: flex;
+    align-items: center;
+    gap: var(--ifinmail-space-3);
+}
+
+html.ifinmail-shell .ifinmail-photo__zoom input[type="range"] {
+    flex: 1 1 auto;
+    max-width: 240px;
+    accent-color: var(--ifinmail-color-primary);
+}
+
+html.ifinmail-shell .ifinmail-photo__hint--error {
+    color: var(--ifinmail-color-danger);
+}

@@ -25,7 +25,7 @@ INSTALL_COMMAND = (
     'curl -sSL https://raw.githubusercontent.com/ifinsta/ifinmail/main/'
     'provisioning/scripts/bootstrap.sh | sudo bash'
 )
-LEGAL_UPDATED = date(2026, 10, 13)
+LEGAL_UPDATED = date(2026, 10, 14)
 CHANGELOG_RELEASES = 8  # the page shows the newest releases; the file on GitHub has them all
 
 _HEADING = re.compile(r'(?m)^## (v\d[\w.\-+]*)[ \t]*$')

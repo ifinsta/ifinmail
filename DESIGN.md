@@ -43,6 +43,10 @@ Rules:
 5. Small screens show the wordmark only (see above); the rail and favicon carry the mark.
 6. Emails use `lockup-email.png` (a PNG, 2× of 222×56): most mail clients drop SVG.
 
+## Avatars and photos
+
+The avatar is a circle: the person's photo (`includes/avatar.html`, `ifinmail-avatar--photo`, cover-fit) or, without one, their initial on the primary tint. Photos are square JPEGs made by the server (`PhotoService`: 256 px for the account page and contacts apps, 96 px for lists and the header); never link the uploaded original, and never render a photo that is not served through `accounts:photo` (it is behind the sign-in and carries a content-hash URL). The upload control is `admin/partials/account_photo.html` with `ifinmail-photo.js`: choose, drag, zoom, then Save; without JavaScript the server centres the square. Images are read as `data:` URLs because `blob:` is not in the Content-Security-Policy.
+
 ## Settings hub
 
 All configuration lives under **Settings** (`/accounts/settings/`), grouped as Workspace, Access, Personalization and System. The catalogue is one typed list in `backend/apps/accounts/services/settings_catalogue.py`; the left list, the hub overview and the sidebar highlight are all generated from it.

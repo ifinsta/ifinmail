@@ -16,6 +16,7 @@ instance mounted at ``/api/v2/`` while v1 keeps answering. Within v1 only additi
 from backend.apps.accounts.viewsets import KeyBasic, TokenBearer, status_router
 from backend.apps.accounts.viewsets.contract import ContractAPI
 from backend.apps.core.api import router as health_router
+from backend.apps.core.releases.api import router as releases_router
 from backend.apps.core.telemetry.api import router as telemetry_router
 from backend.apps.dns.api import router as dns_router
 from backend.apps.domains.api import router as domains_router
@@ -38,6 +39,7 @@ api.add_router('', health_router)
 api.add_router('', domains_router)
 api.add_router('', dns_router)
 api.add_router('', mail_router)
+api.add_router('', releases_router)
 api.add_router('', telemetry_router)
 
 __all__ = ['api']

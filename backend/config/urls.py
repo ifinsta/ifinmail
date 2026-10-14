@@ -156,6 +156,9 @@ urlpatterns = [
     path('manifest.webmanifest', manifest, name='manifest'),
     path('csp-report/', csp_report, name='csp-report'),
     path('health/', health_check, name='health-check'),
+    # App releases: what devices poll, the newest-build permalink and the console page
+    # (before accounts/, whose settings/<slug>/ catch-all would otherwise take the page)
+    path('', include('backend.apps.core.releases.urls')),
     path('accounts/', include('backend.apps.accounts.urls')),
     *api_versions.urlpatterns,
     path('admin/', legacy_accounts_redirect),

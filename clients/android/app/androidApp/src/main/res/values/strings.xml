@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Ifinmail</string>
+    <string name="update_channel_name">App updates</string>
+    <string name="update_channel_description">Tells you when a new version of the app is ready.</string>
+    <string name="update_notice_title">A new version is available</string>
+    <string name="update_notice_required_title">Update required</string>
+    <string name="update_notice_text">Version %1$s is ready. Open the app to update.</string>
 </resources>

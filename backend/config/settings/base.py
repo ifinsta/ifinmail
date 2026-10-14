@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # ifinmail platform services (audit trail, TLS, monitoring, runtime files)
     'backend.apps.core.platform.apps.PlatformConfig',
     'backend.apps.core.plugins.apps.PluginsConfig',
+    'backend.apps.core.releases.apps.ReleasesConfig',
     'backend.apps.core.assistant.apps.AssistantConfig',
     # ifinmail apps
     'backend.apps.accounts.apps.AccountsConfig',
@@ -285,6 +286,11 @@ CELERY_BEAT_SCHEDULE = {
         # External file store (Object storage plugin): write, read back and remove a test object.
         'task': 'storage.probe',
         'schedule': crontab(minute='5,35'),
+    },
+    'releases-prune-checkins': {
+        # Device update checks older than half a year; keeps the adoption statistics bounded.
+        'task': 'releases.prune_checkins',
+        'schedule': crontab(hour=4, minute=20),
     },
     'exposure-check': {
         # What a stranger sees: scanner paths, ports, certificate, headers, relay, resolver.

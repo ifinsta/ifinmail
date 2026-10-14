@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every user-visible string of the shared UI. Add a values-<locale>/strings.xml next to this file
+  to translate; keys must match. Technical tokens (IMAP, SMTP, SSL/TLS, STARTTLS, XOAUTH2) and the
+  product name are deliberately left out of the catalogue.
+-->
+<resources>
+    <!-- Generic actions -->
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_close">Close</string>
+    <string name="show_password">Show password</string>
+    <string name="hide_password">Hide password</string>
+    <string name="star_starred">Starred</string>
+    <string name="star_star">Star</string>
+
+    <!-- Shell -->
+    <string name="sync_unavailable_title">Mail sync is not available yet</string>
+    <string name="sync_unavailable_subtitle">Use the Android app for full IMAP/POP3/SMTP support.</string>
+
+    <!-- Mailboxes and navigation -->
+    <string name="mailbox_inbox">Inbox</string>
+    <string name="mailbox_starred">Starred</string>
+    <string name="mailbox_snoozed">Snoozed</string>
+    <string name="mailbox_drafts">Drafts</string>
+    <string name="manage_accounts">Manage accounts</string>
+    <string name="no_account_selected">No account selected</string>
+    <string name="account">Account</string>
+    <string name="switch_account">Switch account</string>
+    <string name="add_account">Add account</string>
+    <string name="menu">Menu</string>
+
+    <!-- Inbox -->
+    <string name="search_in_mail">Search in mail</string>
+    <string name="clear_search">Clear search</string>
+    <string name="refresh">Refresh</string>
+    <string name="compose">Compose</string>
+    <string name="unread_count">%1$d unread</string>
+    <string name="queued_count">%1$d queued</string>
+    <string name="sending_undo">Sending — tap Undo to cancel</string>
+    <string name="chip_threads">Threads</string>
+    <string name="chip_all">All</string>
+    <string name="category_urgent">Urgent</string>
+    <string name="category_financial">Financial</string>
+    <string name="category_social">Social</string>
+    <string name="category_general">General</string>
+    <string name="has_attachment">Has attachment</string>
+    <string name="no_subject">(no subject)</string>
+    <string name="inbox_no_mailbox_title">No mailbox connected</string>
+    <string name="inbox_no_mailbox_subtitle">Add your Gmail, Outlook, Yahoo or any IMAP/POP3 account to start reading mail.</string>
+    <string name="nothing_in_category">Nothing in this category</string>
+    <string name="no_results_for">No results for &quot;%1$s&quot;</string>
+    <string name="no_results_hint">Try different keywords or filters</string>
+    <string name="empty_inbox_title">Inbox is empty</string>
+    <string name="empty_inbox_subtitle">New messages appear here automatically.</string>
+    <string name="empty_starred_title">No starred messages</string>
+    <string name="empty_starred_subtitle">Star a message to find it here quickly.</string>
+    <string name="empty_snoozed_title">Nothing snoozed</string>
+    <string name="empty_snoozed_subtitle">Snoozed messages come back to your inbox at the time you choose.</string>
+
+    <!-- Message detail -->
+    <string name="could_not_open">Could not open this message</string>
+    <string name="could_not_delete">Could not delete this message</string>
+    <string name="could_not_snooze">Could not snooze this message</string>
+    <string name="more_options">More options</string>
+    <string name="mark_as_read">Mark as read</string>
+    <string name="mark_as_unread">Mark as unread</string>
+    <string name="snooze">Snooze</string>
+    <string name="to_me">to me</string>
+    <string name="to_recipients">to %1$s</string>
+    <string name="attachment_badge">attachment</string>
+    <string name="no_content">This message has no content.</string>
+    <string name="smart_reply">Smart reply</string>
+    <string name="reply">Reply</string>
+    <string name="reply_all">Reply all</string>
+    <string name="forward">Forward</string>
+    <string name="snooze_until">Snooze until</string>
+    <string name="in_one_hour">In 1 hour</string>
+    <string name="snooze_tomorrow_morning">Tomorrow morning</string>
+    <string name="snooze_tomorrow_afternoon">Tomorrow afternoon</string>
+    <string name="snooze_next_monday">Next Monday</string>
+
+    <!-- Compose -->
+    <string name="select_account_first">Select an account first</string>
+    <string name="draft_saved">Draft saved</string>
+    <string name="draft_save_failed">Could not save the draft</string>
+    <string name="schedule_send">Schedule send</string>
+    <string name="send">Send</string>
+    <string name="send_failed">Sending failed</string>
+    <string name="schedule_failed">Scheduling failed</string>
+    <string name="save_draft">Save draft</string>
+    <string name="field_from">From</string>
+    <string name="field_to">To</string>
+    <string name="field_cc">Cc</string>
+    <string name="placeholder_recipients">Recipients</string>
+    <string name="cc_bcc">Cc/Bcc</string>
+    <string name="placeholder_subject">Subject</string>
+    <string name="placeholder_body">Compose email</string>
+    <string name="discard_title">Discard this message?</string>
+    <string name="discard_message">Save it as a draft to finish it later, or discard your changes.</string>
+    <string name="keep_editing">Keep editing</string>
+    <string name="schedule_tomorrow_8">Tomorrow 8:00</string>
+    <string name="schedule_tomorrow_13">Tomorrow 13:00</string>
+    <string name="schedule_next_monday_9">Next Monday 9:00</string>
+    <string name="quote_forwarded_header">---------- Forwarded message ----------\nFrom: %1$s\n</string>
+    <string name="quote_reply_header">\n\nOn %1$s, %2$s wrote:\n</string>
+
+    <!-- Drafts -->
+    <string name="drafts_empty_title">No drafts</string>
+    <string name="drafts_empty_subtitle">Drafts you save from the composer appear here.</string>
+    <string name="draft_no_recipient">No recipient</string>
+    <string name="draft_preview">%1$s — %2$s</string>
+    <string name="delete_draft">Delete draft</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="accounts_title">Accounts</string>
+    <string name="accounts_empty_title">No accounts yet</string>
+    <string name="accounts_empty_subtitle">Connect a mailbox to get started. IMAP, POP3 and SMTP are supported.</string>
+    <string name="preferences_header">PREFERENCES</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_subtitle">Follow your system or choose a theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="export_mailbox">Export mailbox (MBOX)</string>
+    <string name="export_ready">Export ready — choose where to save it</string>
+    <string name="export_failed_file">Export failed: could not create the file</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="remove_account_title">Remove %1$s?</string>
+    <string name="remove_account_message">This disconnects the mailbox from ifinmail. Messages on the server are not deleted.</string>
+
+    <!-- Add account -->
+    <string name="add_account_subtitle">Connect an existing mailbox via IMAP, POP3 or SMTP.</string>
+    <string name="step_email">Email</string>
+    <string name="step_server">Server</string>
+    <string name="step_sign_in">Sign in</string>
+    <string name="step_verify">Verify</string>
+    <string name="step_progress">Step %1$d of %2$d: %3$s</string>
+    <string name="email_address">Email address *</string>
+    <string name="email_helper">Providers like Gmail, Outlook, Yahoo and iCloud are detected automatically</string>
+    <string name="invalid_email">Enter a valid email address</string>
+    <string name="looking_up">Looking up server configuration…</string>
+    <string name="no_autoconfig">No automatic configuration found for this domain. Proton Mail requires their Bridge app; other custom servers must be entered manually.</string>
+    <string name="use_manual">Use manual configuration for custom servers</string>
+    <string name="detected_configuration">Detected configuration</string>
+    <string name="choose_connection">Choose how ifinmail should connect to %1$s.</string>
+    <string name="server_summary">Incoming  %1$s:%2$d · %3$s\nOutgoing  %4$s:%5$d · %6$s</string>
+    <string name="security_none">None</string>
+    <string name="sign_in_title">Sign in</string>
+    <string name="credential_app_password">App password</string>
+    <string name="credential_oauth_token">OAuth2 token (XOAUTH2)</string>
+    <string name="access_token">Access token *</string>
+    <string name="access_token_helper">Token needs the https://mail.google.com/ scope for Gmail (XOAUTH2)</string>
+    <string name="password_label">Password / app password *</string>
+    <string name="password_helper">Use your regular password, or an app password if your provider requires one</string>
+    <string name="verify_and_add">Verify &amp; add account</string>
+    <string name="verifying">Verifying connection…</string>
+    <string name="connecting_to">Connecting to %1$s…</string>
+    <string name="account_added">Account added</string>
+    <string name="verification_failed">Verification failed</string>
+    <string name="cert_title">Trust this server&apos;s certificate?</string>
+    <string name="cert_message">%1$s is using a certificate that no public authority has signed. A new ifinmail server does this until it obtains a real one. Compare the fingerprint with the one on your server (Settings → TLS certificates) before continuing.</string>
+    <string name="cert_trust">Trust and continue</string>
+    <string name="cert_not_trusted">The server&apos;s certificate was not trusted.</string>
+    <string name="manual_title">Manual server configuration</string>
+    <string name="manual_incoming_header">INCOMING</string>
+    <string name="manual_outgoing_header">OUTGOING</string>
+    <string name="manual_incoming_host">Incoming host</string>
+    <string name="manual_incoming_port">Incoming port</string>
+    <string name="manual_host_hint">e.g. mail.example.com</string>
+    <string name="manual_smtp_host">SMTP host</string>
+    <string name="manual_smtp_port">SMTP port</string>
+    <string name="manual_use_settings">Use settings</string>
+    <string name="manual_profile_label">Custom · %1$s</string>
+    <string name="manual_profile_note">Manually configured</string>
+
+    <!-- App updates (in-house over-the-air updates) -->
+    <string name="update_available_title">Version %1$s is available</string>
+    <string name="update_available_subtitle">%1$s download</string>
+    <string name="update_action_update">Update</string>
+    <string name="update_action_later">Later</string>
+    <string name="update_downloading">Downloading the update</string>
+    <string name="update_ready_title">Version %1$s is ready to install</string>
+    <string name="update_action_install">Install</string>
+    <string name="update_permission_title">Allow installing updates</string>
+    <string name="update_permission_body">Android needs your permission once before this app can install its own updates.</string>
+    <string name="update_action_allow">Allow</string>
+    <string name="update_installing">Installing the update</string>
+    <string name="update_failed_title">The update did not finish</string>
+    <string name="update_action_retry">Try again</string>
+    <string name="update_required_title">Update required</string>
+    <string name="update_required_body">This version of the app is no longer supported. Update to version %1$s to keep using your mail.</string>
+    <string name="update_settings_title">App updates</string>
+    <string name="update_installed_version">Installed version</string>
+    <string name="update_server">Update server</string>
+    <string name="update_status_idle">Not checked yet</string>
+    <string name="update_status_checking">Checking…</string>
+    <string name="update_status_up_to_date">You have the latest version.</string>
+    <string name="update_action_check">Check for updates</string>
+    <string name="update_notifications_title">Update notices</string>
+    <string name="update_notifications_body">Get a notice when a new version is ready, even when the app is closed.</string>
+    <string name="update_whats_new">What is new</string>
+
+    <!-- Short month names used in message timestamps -->
+    <!-- Date patterns: %1$s = short month name, %2$d = day, %3$d = year -->
+    <string name="date_month_day">%1$s %2$d</string>
+    <string name="date_month_day_year">%1$s %2$d, %3$d</string>
+
+    <string-array name="month_abbreviations">
+        <item>Jan</item>
+        <item>Feb</item>
+        <item>Mar</item>
+        <item>Apr</item>
+        <item>May</item>
+        <item>Jun</item>
+        <item>Jul</item>
+        <item>Aug</item>
+        <item>Sep</item>
+        <item>Oct</item>
+        <item>Nov</item>
+        <item>Dec</item>
+    </string-array>
+</resources>

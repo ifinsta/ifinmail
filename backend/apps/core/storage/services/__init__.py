@@ -44,6 +44,7 @@ _ALLOWED_EXTENSIONS = {
     '.zip',
     '.gz',
     '.tar',
+    '.apk',
 }
 _MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
@@ -67,6 +68,12 @@ _EXTENSION_MIME_MAP = {
     '.zip': {'application/zip'},
     '.gz': {'application/gzip'},
     '.tar': {'application/x-tar'},
+    # Browsers and curl label an APK with its own type, a zip type or a bare octet-stream.
+    '.apk': {
+        'application/vnd.android.package-archive',
+        'application/octet-stream',
+        'application/zip',
+    },
 }
 
 
@@ -77,7 +84,7 @@ class StorageService:
     def upload(
         *,
         file: UploadedFile,
-        user: AbstractBaseUser,
+        user: AbstractBaseUser | None,
         entity_type: str,
         entity_id: str = '',
         merchant_id: str = '',

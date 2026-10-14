@@ -807,6 +807,67 @@
     color: var(--ifinmail-color-text-primary);
 }
 
+/* ── Download page ──────────────────────────────────────────── */
+
+.ifinmail-site-download {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--ifinmail-space-8);
+    align-items: start;
+    padding: var(--site-section) 0;
+    border-bottom: 1px solid var(--ifinmail-color-border-light);
+}
+
+.ifinmail-site-download__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ifinmail-space-3);
+    margin: 0;
+    font-size: var(--site-h2);
+    font-weight: var(--ifinmail-font-weight-bold);
+}
+
+.ifinmail-site-download__facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--ifinmail-space-2) var(--ifinmail-space-5);
+    margin: var(--ifinmail-space-6) 0 0;
+    font-size: var(--ifinmail-font-size-body);
+}
+
+.ifinmail-site-download__facts dt {
+    color: var(--ifinmail-color-text-muted);
+}
+
+.ifinmail-site-download__facts dd {
+    margin: 0;
+    color: var(--ifinmail-color-text-secondary);
+    font-family: var(--ifinmail-font-mono);
+    overflow-wrap: anywhere;
+}
+
+/* A scannable code is dark on light whatever the theme, so it keeps a white ground. */
+.ifinmail-site-download__qr {
+    margin: 0;
+    padding: var(--ifinmail-space-3);
+    border: 1px solid var(--ifinmail-color-border);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-white);
+    color: var(--ifinmail-color-text-muted);
+    text-align: center;
+    font-size: var(--ifinmail-font-size-body);
+}
+
+.ifinmail-site-download__qr img {
+    display: block;
+    margin: 0 auto var(--ifinmail-space-2);
+}
+
+.ifinmail-site-download__steps {
+    padding-left: var(--ifinmail-space-6);
+}
+
 /* ── Closing band ───────────────────────────────────────────── */
 
 .ifinmail-site-band {
@@ -966,6 +1027,10 @@
     .ifinmail-site-split {
         grid-template-columns: minmax(0, 1fr);
         gap: var(--ifinmail-space-4);
+    }
+
+    .ifinmail-site-download {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 

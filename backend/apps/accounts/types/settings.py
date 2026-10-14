@@ -33,6 +33,7 @@ class SettingsIcon(StrEnum):
     CERTIFICATE = 'certificate'
     NETWORK = 'network'
     ACCOUNT = 'account'
+    DEVICE = 'device'
 
 
 @dataclass(frozen=True)

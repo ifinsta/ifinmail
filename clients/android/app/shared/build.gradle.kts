@@ -80,6 +80,13 @@ kotlin {
     }
 }
 
+compose.resources {
+    // Keep the generated accessor class internal and give it a stable, explicit package.
+    publicResClass = false
+    packageOfResClass = "com.ifinmail.app.shared.resources"
+    generateResClass = always
+}
+
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }

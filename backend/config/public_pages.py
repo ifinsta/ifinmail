@@ -1,5 +1,6 @@
-"""The public site: landing, features, pricing, security, docs, changelog, about, contact, terms
-and privacy. Nobody signs in to read them, and none of them reads the database.
+"""The public site: landing, features, pricing, security, docs, changelog, download, about, contact,
+terms and privacy. Nobody signs in to read them. None of them reads the database except the
+download page, which lists the Android builds an administrator has published.
 
 Copy lives in ``frontend/templates/site/``; this module only routes to it and supplies the few
 facts that more than one page quotes (where the code, the issue tracker and the security contact
@@ -19,6 +20,8 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.urls import path
+
+from backend.apps.core.releases.web import download_context
 
 REPO_URL = 'https://github.com/ifinsta/ifinmail'
 INSTALL_COMMAND = (
@@ -85,6 +88,11 @@ def changelog_page(request: HttpRequest) -> HttpResponse:
     return render(request, 'site/changelog.html', _context(releases=changelog_releases()))
 
 
+def download_page(request: HttpRequest) -> HttpResponse:
+    """The one public page that reads the database: the newest published Android build."""
+    return render(request, 'site/download.html', _context(**download_context(request)))
+
+
 urlpatterns = [
     path('', _page('site/landing.html'), name='landing'),
     path('features/', _page('site/features.html'), name='features'),
@@ -92,6 +100,7 @@ urlpatterns = [
     path('security/', _page('site/security.html'), name='security'),
     path('docs/', _page('site/docs.html'), name='docs'),
     path('changelog/', changelog_page, name='changelog'),
+    path('download/', download_page, name='download'),
     path('about/', _page('site/about.html'), name='about'),
     path('contact/', _page('site/contact.html'), name='contact'),
     path('terms/', _page('site/terms.html'), name='terms'),

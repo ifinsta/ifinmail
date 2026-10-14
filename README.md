@@ -217,6 +217,23 @@ vendor SDK is involved: requests are signed by the console itself.
   hand.
 - Design, research and how to add another protocol: `docs/storage-contract.md`.
 
+### Android app: download page and over-the-air updates
+
+Your own server hosts the ifinmail Android app, so in-house releases need no app store.
+
+- **Download page:** `/download/` shows the latest stable build with its SHA-256, a QR code and the install
+  steps. `/updates/v1/android/latest.apk` always redirects to the newest stable APK.
+- **Publish:** *Settings → App releases* (asks for your password), `POST /api/v1/releases/android` with an API
+  key that has the `system.manage` scope, or `python manage.py publish_release app.apk` in the `api`
+  container. The server reads the APK itself and refuses another app, an unsigned file, a repeated version
+  code or a different signing key.
+- **Devices update themselves:** the app checks about twice a day, shows a banner, downloads the build (resumable,
+  SHA-256 checked, identity checked again on the device) and hands it to Android's installer. Releases can be
+  staged (a percentage of devices), `beta` or `stable`, and *mandatory* to retire an old build.
+- **Privacy:** a check-in is a random install id, version and Android level; no account, address or IP. Kept
+  180 days.
+- Workflow, signing, rollback and troubleshooting: `docs/android-releases.md`.
+
 ### Off-site copy and the backup key
 
 Backups are encrypted with GPG and, by default, stay on the same disk as the server. Two small

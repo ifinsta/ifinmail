@@ -17,3 +17,12 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Release signing material must never be committed
+keystore.properties
+*.jks
+*.keystore
+!keystore.properties.example
+
+# Signed release artefacts made by scripts/release.py
+dist/

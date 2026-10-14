@@ -1,0 +1,165 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}App releases — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'App releases' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Publish a signed Android build here and every installed copy is offered it. People can also install it from the public download page.' %}</p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'download' %}">{% trans 'Open the download page' %}</a>
+            </div>
+        </div>
+
+        <dl class="ifinmail-settings-rows ifinmail-panel ifinmail-settings-section">
+            <div class="ifinmail-settings-row"><dt>{% trans 'Live on stable' %}</dt><dd>{% if latest %}<span class="ifinmail-text--mono">{{ latest.version_name }}</span> <span class="ifinmail-help-text">({{ latest.version_code }})</span>{% else %}{% trans 'Nothing published yet' %}{% endif %}</dd></div>
+            <div class="ifinmail-settings-row"><dt>{% trans 'Application id' %}</dt><dd><code class="ifinmail-text--mono">{{ package }}</code></dd></div>
+            <div class="ifinmail-settings-row"><dt>{% blocktrans trimmed with n=active_days %}Devices seen in the last {{ n }} days{% endblocktrans %}</dt><dd><span class="ifinmail-text--mono">{{ active_devices }}</span></dd></div>
+        </dl>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="release-new">
+            <h2 class="ifinmail-panel-title" id="release-new">{% trans 'Publish a build' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Upload the signed release APK. The version and signing key are read from the file; a build signed with a different key than the earlier ones is refused, because devices would not install it.' %}</p>
+            <form method="post" action="{% url 'releases:console_publish' %}" enctype="multipart/form-data" class="ifinmail-inline-form" autocomplete="off">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="release-file">{% trans 'APK file' %}</label>
+                    <input class="ifinmail-input" id="release-file" name="file" type="file" accept=".apk,application/vnd.android.package-archive" required aria-describedby="release-file-help">
+                    <p class="ifinmail-help-text" id="release-file-help">{% trans 'A signed release build (app-release.apk).' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="release-channel">{% trans 'Channel' %}</label>
+                    <select class="ifinmail-input" id="release-channel" name="channel" aria-describedby="release-channel-help">
+                        {% for value in channels %}<option value="{{ value }}">{{ value }}</option>{% endfor %}
+                    </select>
+                    <p class="ifinmail-help-text" id="release-channel-help">{% trans 'Stable goes to everyone. Beta is only offered to builds set to the beta channel.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="release-notes">{% trans 'What is new' %}</label>
+                    <textarea class="ifinmail-input" id="release-notes" name="notes" rows="4" maxlength="4000" placeholder="{% trans 'Faster sync, fixes a crash when opening large messages.' %}"></textarea>
+                    <p class="ifinmail-help-text">{% trans 'Shown on the download page and in the app. Markdown is allowed.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="release-rollout">{% trans 'Share of devices (percent)' %}</label>
+                    <input class="ifinmail-input" id="release-rollout" name="rollout_percent" type="number" min="0" max="100" value="100" inputmode="numeric" aria-describedby="release-rollout-help">
+                    <p class="ifinmail-help-text" id="release-rollout-help">{% trans 'Start below 100 to try a build on some devices first, then raise it.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label class="ifinmail-check"><input type="checkbox" name="publish" value="1" checked> <span>{% trans 'Offer it to devices now' %}</span></label>
+                    <label class="ifinmail-check"><input type="checkbox" name="mandatory" value="1" aria-describedby="release-mandatory-help"> <span>{% trans 'Mandatory: devices older than this must update' %}</span></label>
+                    <p class="ifinmail-help-text" id="release-mandatory-help">{% trans 'Use for a security fix. Older installs show an update screen and cannot be used until updated. Needs 100 percent.' %}</p>
+                </div>
+                <div class="ifinmail-field">
+                    <label for="release-confirm">{% trans 'Your password' %}</label>
+                    <input class="ifinmail-input" id="release-confirm" name="confirm_password" type="password" autocomplete="current-password" required>
+                </div>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Publish build' %}</button></div>
+            </form>
+        </section>
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Releases' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Releases' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr>
+                    <th scope="col">{% trans 'Version' %}</th>
+                    <th scope="col">{% trans 'Channel' %}</th>
+                    <th scope="col">{% trans 'Status' %}</th>
+                    <th scope="col">{% trans 'Size' %}</th>
+                    <th scope="col">{% trans 'Published' %}</th>
+                    <th scope="col"><span class="ifinmail-sr-only">{% trans 'Manage' %}</span></th>
+                </tr></thead>
+                <tbody>
+                {% for r in releases %}
+                <tr>
+                    <td><span class="ifinmail-text--mono">{{ r.version_name }}</span><br><span class="ifinmail-help-text">{% blocktrans trimmed with code=r.version_code %}build {{ code }}{% endblocktrans %}</span></td>
+                    <td>{{ r.channel }}</td>
+                    <td>
+                        {% if not r.is_published %}<span class="ifinmail-badge ifinmail-badge--neutral">{% trans 'Withdrawn' %}</span>
+                        {% elif r.mandatory %}<span class="ifinmail-badge ifinmail-badge--warning">{% trans 'Mandatory' %}</span>
+                        {% elif r.rollout_percent < 100 %}<span class="ifinmail-badge ifinmail-badge--info">{% blocktrans trimmed with n=r.rollout_percent %}{{ n }}% of devices{% endblocktrans %}</span>
+                        {% else %}<span class="ifinmail-badge ifinmail-badge--success">{% trans 'Live' %}</span>{% endif %}
+                    </td>
+                    <td class="ifinmail-text--mono">{{ r.size_bytes|filesizeformat }}</td>
+                    <td>{% if r.published_at %}{{ r.published_at|date:"Y-m-d H:i" }}{% else %}{% trans 'Not yet' %}{% endif %}{% if r.published_by %}<br><span class="ifinmail-help-text">{{ r.published_by }}</span>{% endif %}</td>
+                    <td>
+                        <details class="ifinmail-key-manage">
+                            <summary class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm">{% trans 'Manage' %}</summary>
+                            <form method="post" action="{% url 'releases:console_action' %}" class="ifinmail-inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="platform" value="{{ r.platform }}">
+                                <input type="hidden" name="channel" value="{{ r.channel }}">
+                                <input type="hidden" name="version_code" value="{{ r.version_code }}">
+                                <div class="ifinmail-field">
+                                    <span class="ifinmail-label">SHA-256</span>
+                                    <code class="ifinmail-text--mono">{{ r.sha256 }}</code>
+                                </div>
+                                <div class="ifinmail-field">
+                                    <label for="notes-{{ r.id }}">{% trans 'What is new' %}</label>
+                                    <textarea class="ifinmail-input" id="notes-{{ r.id }}" name="notes" rows="3" maxlength="4000">{{ r.notes }}</textarea>
+                                    <button class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm" type="submit" name="action" value="notes">{% trans 'Save notes' %}</button>
+                                </div>
+                                <div class="ifinmail-field">
+                                    <label for="share-{{ r.id }}">{% trans 'Share of devices (percent)' %}</label>
+                                    <input class="ifinmail-input" id="share-{{ r.id }}" name="rollout_percent" type="number" min="0" max="100" value="{{ r.rollout_percent }}" inputmode="numeric"{% if r.mandatory %} disabled{% endif %}>
+                                    {% if not r.mandatory %}<button class="ifinmail-btn ifinmail-btn--outline ifinmail-btn--sm" type="submit" name="action" value="rollout">{% trans 'Set share' %}</button>{% endif %}
+                                </div>
+                                <div class="ifinmail-field">
+                                    <label for="confirm-{{ r.id }}">{% trans 'Your password (to delete or make mandatory)' %}</label>
+                                    <input class="ifinmail-input" id="confirm-{{ r.id }}" name="confirm_password" type="password" autocomplete="current-password">
+                                </div>
+                                <div class="ifinmail-inline-form--row">
+                                    {% if r.is_published %}
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="withdraw" data-confirm="{% trans 'Withdraw this build? Devices will not be offered it. Devices already on it keep working.' %}">{% trans 'Withdraw' %}</button>
+                                    {% else %}
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="restore">{% trans 'Offer again' %}</button>
+                                    {% endif %}
+                                    {% if r.mandatory %}
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="mandatory_off">{% trans 'Make optional' %}</button>
+                                    {% else %}
+                                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="mandatory_on" data-confirm="{% trans 'Make this build mandatory? Older installs will have to update before they can be used.' %}">{% trans 'Make mandatory' %}</button>
+                                    {% endif %}
+                                    <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="delete" data-confirm="{% trans 'Delete this build and its file? It cannot be restored.' %}">{% trans 'Delete' %}</button>
+                                </div>
+                            </form>
+                        </details>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No builds yet. Upload the first signed APK above.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        {% if adoption %}
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Devices by version' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Devices by version' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th scope="col">{% trans 'Version' %}</th><th scope="col" class="ifinmail-text--right">{% trans 'Devices' %}</th></tr></thead>
+                <tbody>
+                {% for row in adoption %}
+                <tr>
+                    <td><span class="ifinmail-text--mono">{{ row.version_name|default:row.version_code }}</span> <span class="ifinmail-help-text">({{ row.version_code }})</span></td>
+                    <td class="ifinmail-text--mono ifinmail-text--right">{{ row.devices }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="release-ci">
+            <h2 class="ifinmail-panel-title" id="release-ci">{% trans 'Publish from a build pipeline' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Create an API key with the system.manage scope (Settings → API keys), then upload from the machine that builds the app:' %}</p>
+            <pre class="ifinmail-codebox" tabindex="0"><code>curl -u ifm_&lt;key&gt;:&lt;secret&gt; \
+  -F file=@app-release.apk -F notes="What is new" \
+  https://{{ request.get_host }}/api/v1/releases/android</code></pre>
+        </section>
+    </div>
+</section>
+{% endblock %}

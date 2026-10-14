@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_channel_name">Mises à jour de l\'application</string>
+    <string name="update_channel_description">Vous prévient quand une nouvelle version de l\'application est prête.</string>
+    <string name="update_notice_title">Une nouvelle version est disponible</string>
+    <string name="update_notice_required_title">Mise à jour requise</string>
+    <string name="update_notice_text">La version %1$s est prête. Ouvrez l\'application pour la mettre à jour.</string>
+</resources>

@@ -1,6 +1,13 @@
 package com.ifinmail.app.shared.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import com.ifinmail.app.shared.ui.update.UpdateRequiredScreen
+import com.ifinmail.app.shared.update.UpdateController
+import com.ifinmail.app.shared.update.isRequired
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +27,10 @@ import com.ifinmail.app.shared.ui.screens.InboxScreen
 import com.ifinmail.app.shared.ui.screens.MessageDetailScreen
 import com.ifinmail.app.shared.ui.screens.UiComposeMode
 import com.ifinmail.app.shared.ui.theme.IfinmailTheme
+import com.ifinmail.app.shared.resources.Res
+import com.ifinmail.app.shared.resources.sync_unavailable_subtitle
+import com.ifinmail.app.shared.resources.sync_unavailable_title
+import org.jetbrains.compose.resources.stringResource
 
 sealed interface Screen {
     data object Inbox : Screen
@@ -31,30 +42,47 @@ sealed interface Screen {
 }
 
 @Composable
-fun App(mailController: MailController? = null) {
-    var darkThemeMode by rememberSaveable { mutableStateOf(false) }
-    // false = follow system, true = force dark; simple toggle for MVP
-    IfinmailTheme(darkTheme = darkThemeMode || isSystemDark()) {
-        if (mailController == null) {
+fun App(
+    mailController: MailController? = null,
+    /** Reports the effective theme so the host can restyle platform chrome such as system bars. */
+    onDarkThemeChanged: (Boolean) -> Unit = {},
+    /** Stored theme choice: null follows the system, true/false is an explicit dark/light choice. */
+    initialThemeOverride: Boolean? = null,
+    /** Called when the person picks a theme in Settings so the host can persist it. */
+    onThemeOverrideChanged: (Boolean?) -> Unit = {},
+    /** In-house over-the-air updates; null where the platform has none. */
+    updateController: UpdateController? = null
+) {
+    var darkOverride by rememberSaveable { mutableStateOf(initialThemeOverride) }
+    val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val dark = darkOverride ?: systemDark
+    LaunchedEffect(dark) { onDarkThemeChanged(dark) }
+    val updateState = updateController?.state?.collectAsState()?.value
+    IfinmailTheme(darkTheme = dark) {
+        if (updateController != null && updateState?.isRequired == true) {
+            // The server has declared this version unusable: nothing else is offered.
+            UpdateRequiredScreen(updateController)
+        } else if (mailController == null) {
             com.ifinmail.app.shared.ui.components.EmptyState(
-                iconText = "",
-                title = "Mail sync is not available yet",
-                subtitle = "Use the Android app for full IMAP/POP3/SMTP support."
+                icon = Icons.Default.MailOutline,
+                title = stringResource(Res.string.sync_unavailable_title),
+                subtitle = stringResource(Res.string.sync_unavailable_subtitle)
             )
         } else {
-            MailAppRoot(mailController, darkThemeMode) { darkThemeMode = it }
+            MailAppRoot(mailController, updateController, darkOverride) {
+                darkOverride = it
+                onThemeOverrideChanged(it)
+            }
         }
     }
 }
 
 @Composable
-private fun isSystemDark(): Boolean = androidx.compose.foundation.isSystemInDarkTheme()
-
-@Composable
 private fun MailAppRoot(
     controller: MailController,
-    darkThemeMode: Boolean,
-    onThemeChange: (Boolean) -> Unit
+    updateController: UpdateController?,
+    themeOverride: Boolean?,
+    onThemeChange: (Boolean?) -> Unit
 ) {
     val backStack = remember { mutableStateListOf<Screen>(Screen.Inbox) }
 
@@ -78,15 +106,17 @@ private fun MailAppRoot(
             onCompose = { push(Screen.Compose(ComposePayload(null, UiComposeMode.NEW))) },
             onManageAccounts = { push(Screen.Accounts) },
             onAddAccount = { push(Screen.AddAccount) },
-            onOpenDrafts = { push(Screen.Drafts) }
+            onOpenDrafts = { push(Screen.Drafts) },
+            updateController = updateController
         )
 
         Screen.Accounts -> AccountsScreen(
             controller = controller,
             onAddAccount = { push(Screen.AddAccount) },
             onBack = { pop() },
-            darkTheme = darkThemeMode,
-            onToggleTheme = { onThemeChange(it) }
+            updateController = updateController,
+            themeOverride = themeOverride,
+            onThemeChange = onThemeChange
         )
 
         Screen.AddAccount -> AddAccountScreen(

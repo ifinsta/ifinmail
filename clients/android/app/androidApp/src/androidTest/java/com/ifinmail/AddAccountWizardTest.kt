@@ -25,6 +25,8 @@ class AddAccountWizardTest {
 
     @Before
     fun setUp() {
+        // The catalogue is localised; these assertions are written against the English strings.
+        java.util.Locale.setDefault(java.util.Locale.ENGLISH)
         controller = FakeMailController()
         rule.setContent { App(mailController = controller) }
         navigateToWizard()

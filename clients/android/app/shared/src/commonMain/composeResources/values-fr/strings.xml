@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Traduction française. Les clés doivent rester identiques à values/strings.xml. -->
+<resources>
+    <!-- Actions générales -->
+    <string name="action_back">Retour</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_continue">Continuer</string>
+    <string name="action_remove">Supprimer</string>
+    <string name="action_undo">Annuler</string>
+    <string name="action_discard">Abandonner</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="action_close">Fermer</string>
+    <string name="show_password">Afficher le mot de passe</string>
+    <string name="hide_password">Masquer le mot de passe</string>
+    <string name="star_starred">Favori</string>
+    <string name="star_star">Ajouter aux favoris</string>
+
+    <!-- Coque -->
+    <string name="sync_unavailable_title">La synchronisation du courrier n&apos;est pas encore disponible</string>
+    <string name="sync_unavailable_subtitle">Utilisez l&apos;application Android pour la prise en charge complète d&apos;IMAP/POP3/SMTP.</string>
+
+    <!-- Boîtes et navigation -->
+    <string name="mailbox_inbox">Boîte de réception</string>
+    <string name="mailbox_starred">Favoris</string>
+    <string name="mailbox_snoozed">Reportés</string>
+    <string name="mailbox_drafts">Brouillons</string>
+    <string name="manage_accounts">Gérer les comptes</string>
+    <string name="no_account_selected">Aucun compte sélectionné</string>
+    <string name="account">Compte</string>
+    <string name="switch_account">Changer de compte</string>
+    <string name="add_account">Ajouter un compte</string>
+    <string name="menu">Menu</string>
+
+    <!-- Boîte de réception -->
+    <string name="search_in_mail">Rechercher dans le courrier</string>
+    <string name="clear_search">Effacer la recherche</string>
+    <string name="refresh">Actualiser</string>
+    <string name="compose">Écrire</string>
+    <string name="unread_count">%1$d non lu(s)</string>
+    <string name="queued_count">%1$d en attente</string>
+    <string name="sending_undo">Envoi en cours — appuyez sur Annuler pour interrompre</string>
+    <string name="chip_threads">Conversations</string>
+    <string name="chip_all">Tous</string>
+    <string name="category_urgent">Urgent</string>
+    <string name="category_financial">Finances</string>
+    <string name="category_social">Social</string>
+    <string name="category_general">Général</string>
+    <string name="has_attachment">Pièce jointe</string>
+    <string name="no_subject">(sans objet)</string>
+    <string name="inbox_no_mailbox_title">Aucune boîte aux lettres connectée</string>
+    <string name="inbox_no_mailbox_subtitle">Ajoutez votre compte Gmail, Outlook, Yahoo ou tout compte IMAP/POP3 pour commencer à lire votre courrier.</string>
+    <string name="nothing_in_category">Rien dans cette catégorie</string>
+    <string name="no_results_for">Aucun résultat pour &quot;%1$s&quot;</string>
+    <string name="no_results_hint">Essayez d&apos;autres mots-clés ou filtres</string>
+    <string name="empty_inbox_title">La boîte de réception est vide</string>
+    <string name="empty_inbox_subtitle">Les nouveaux messages apparaissent ici automatiquement.</string>
+    <string name="empty_starred_title">Aucun message en favori</string>
+    <string name="empty_starred_subtitle">Ajoutez un message aux favoris pour le retrouver rapidement.</string>
+    <string name="empty_snoozed_title">Aucun message reporté</string>
+    <string name="empty_snoozed_subtitle">Les messages reportés reviennent dans votre boîte de réception à l&apos;heure choisie.</string>
+
+    <!-- Détail du message -->
+    <string name="could_not_open">Impossible d&apos;ouvrir ce message</string>
+    <string name="could_not_delete">Impossible de supprimer ce message</string>
+    <string name="could_not_snooze">Impossible de reporter ce message</string>
+    <string name="more_options">Plus d&apos;options</string>
+    <string name="mark_as_read">Marquer comme lu</string>
+    <string name="mark_as_unread">Marquer comme non lu</string>
+    <string name="snooze">Reporter</string>
+    <string name="to_me">à moi</string>
+    <string name="to_recipients">à %1$s</string>
+    <string name="attachment_badge">pièce jointe</string>
+    <string name="no_content">Ce message ne contient aucun texte.</string>
+    <string name="smart_reply">Réponse suggérée</string>
+    <string name="reply">Répondre</string>
+    <string name="reply_all">Répondre à tous</string>
+    <string name="forward">Transférer</string>
+    <string name="snooze_until">Reporter jusqu&apos;à</string>
+    <string name="in_one_hour">Dans 1 heure</string>
+    <string name="snooze_tomorrow_morning">Demain matin</string>
+    <string name="snooze_tomorrow_afternoon">Demain après-midi</string>
+    <string name="snooze_next_monday">Lundi prochain</string>
+
+    <!-- Rédaction -->
+    <string name="select_account_first">Sélectionnez d&apos;abord un compte</string>
+    <string name="draft_saved">Brouillon enregistré</string>
+    <string name="draft_save_failed">Impossible d&apos;enregistrer le brouillon</string>
+    <string name="schedule_send">Programmer l&apos;envoi</string>
+    <string name="send">Envoyer</string>
+    <string name="send_failed">Échec de l&apos;envoi</string>
+    <string name="schedule_failed">Échec de la programmation</string>
+    <string name="save_draft">Enregistrer le brouillon</string>
+    <string name="field_from">De</string>
+    <string name="field_to">À</string>
+    <string name="field_cc">Cc</string>
+    <string name="placeholder_recipients">Destinataires</string>
+    <string name="cc_bcc">Cc/Cci</string>
+    <string name="placeholder_subject">Objet</string>
+    <string name="placeholder_body">Rédiger le message</string>
+    <string name="discard_title">Abandonner ce message ?</string>
+    <string name="discard_message">Enregistrez-le comme brouillon pour le terminer plus tard, ou abandonnez vos modifications.</string>
+    <string name="keep_editing">Continuer la rédaction</string>
+    <string name="schedule_tomorrow_8">Demain 8:00</string>
+    <string name="schedule_tomorrow_13">Demain 13:00</string>
+    <string name="schedule_next_monday_9">Lundi prochain 9:00</string>
+    <string name="quote_forwarded_header">---------- Message transféré ----------\nDe : %1$s\n</string>
+    <string name="quote_reply_header">\n\nLe %1$s, %2$s a écrit :\n</string>
+
+    <!-- Brouillons -->
+    <string name="drafts_empty_title">Aucun brouillon</string>
+    <string name="drafts_empty_subtitle">Les brouillons enregistrés depuis l&apos;éditeur apparaissent ici.</string>
+    <string name="draft_no_recipient">Aucun destinataire</string>
+    <string name="draft_preview">%1$s — %2$s</string>
+    <string name="delete_draft">Supprimer le brouillon</string>
+
+    <!-- Paramètres -->
+    <string name="settings_title">Paramètres</string>
+    <string name="accounts_title">Comptes</string>
+    <string name="accounts_empty_title">Aucun compte pour l&apos;instant</string>
+    <string name="accounts_empty_subtitle">Connectez une boîte aux lettres pour commencer. IMAP, POP3 et SMTP sont pris en charge.</string>
+    <string name="preferences_header">PRÉFÉRENCES</string>
+    <string name="theme_title">Thème</string>
+    <string name="theme_subtitle">Suivre le système ou choisir un thème</string>
+    <string name="theme_system">Système</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="export_mailbox">Exporter la boîte (MBOX)</string>
+    <string name="export_ready">Export prêt — choisissez où l&apos;enregistrer</string>
+    <string name="export_failed_file">Échec de l&apos;export : impossible de créer le fichier</string>
+    <string name="export_failed">Échec de l&apos;export : %1$s</string>
+    <string name="remove_account_title">Supprimer %1$s ?</string>
+    <string name="remove_account_message">Cela déconnecte la boîte aux lettres d&apos;ifinmail. Les messages sur le serveur ne sont pas supprimés.</string>
+
+    <!-- Ajout d'un compte -->
+    <string name="add_account_subtitle">Connectez une boîte aux lettres existante via IMAP, POP3 ou SMTP.</string>
+    <string name="step_email">E-mail</string>
+    <string name="step_server">Serveur</string>
+    <string name="step_sign_in">Connexion</string>
+    <string name="step_verify">Vérification</string>
+    <string name="step_progress">Étape %1$d sur %2$d : %3$s</string>
+    <string name="email_address">Adresse e-mail *</string>
+    <string name="email_helper">Les fournisseurs comme Gmail, Outlook, Yahoo et iCloud sont détectés automatiquement</string>
+    <string name="invalid_email">Saisissez une adresse e-mail valide</string>
+    <string name="looking_up">Recherche de la configuration du serveur…</string>
+    <string name="no_autoconfig">Aucune configuration automatique trouvée pour ce domaine. Proton Mail nécessite son application Bridge ; les autres serveurs personnalisés doivent être saisis manuellement.</string>
+    <string name="use_manual">Utiliser la configuration manuelle pour un serveur personnalisé</string>
+    <string name="detected_configuration">Configuration détectée</string>
+    <string name="choose_connection">Choisissez comment ifinmail doit se connecter à %1$s.</string>
+    <string name="server_summary">Entrant  %1$s:%2$d · %3$s\nSortant  %4$s:%5$d · %6$s</string>
+    <string name="security_none">Aucune</string>
+    <string name="sign_in_title">Connexion</string>
+    <string name="credential_app_password">Mot de passe d&apos;application</string>
+    <string name="credential_oauth_token">Jeton OAuth2 (XOAUTH2)</string>
+    <string name="access_token">Jeton d&apos;accès *</string>
+    <string name="access_token_helper">Le jeton nécessite la portée https://mail.google.com/ pour Gmail (XOAUTH2)</string>
+    <string name="password_label">Mot de passe / mot de passe d&apos;application *</string>
+    <string name="password_helper">Utilisez votre mot de passe habituel, ou un mot de passe d&apos;application si votre fournisseur l&apos;exige</string>
+    <string name="verify_and_add">Vérifier et ajouter le compte</string>
+    <string name="verifying">Vérification de la connexion…</string>
+    <string name="connecting_to">Connexion à %1$s…</string>
+    <string name="account_added">Compte ajouté</string>
+    <string name="verification_failed">Échec de la vérification</string>
+    <string name="cert_title">Faire confiance au certificat de ce serveur ?</string>
+    <string name="cert_message">%1$s utilise un certificat qu&apos;aucune autorité publique n&apos;a signé. Un nouveau serveur ifinmail fait cela tant qu&apos;il n&apos;en a pas obtenu un valide. Comparez l&apos;empreinte avec celle de votre serveur (Paramètres → Certificats TLS) avant de continuer.</string>
+    <string name="cert_trust">Faire confiance et continuer</string>
+    <string name="cert_not_trusted">Le certificat du serveur n&apos;a pas été approuvé.</string>
+    <string name="manual_title">Configuration manuelle du serveur</string>
+    <string name="manual_incoming_header">COURRIER ENTRANT</string>
+    <string name="manual_outgoing_header">COURRIER SORTANT</string>
+    <string name="manual_incoming_host">Serveur entrant</string>
+    <string name="manual_incoming_port">Port entrant</string>
+    <string name="manual_host_hint">p. ex. mail.exemple.com</string>
+    <string name="manual_smtp_host">Serveur SMTP</string>
+    <string name="manual_smtp_port">Port SMTP</string>
+    <string name="manual_use_settings">Utiliser ces paramètres</string>
+    <string name="manual_profile_label">Personnalisé · %1$s</string>
+    <string name="manual_profile_note">Configuré manuellement</string>
+
+    <!-- Date patterns: %1$s = short month name, %2$d = day, %3$d = year -->
+    <string name="date_month_day">%2$d %1$s</string>
+    <string name="date_month_day_year">%2$d %1$s %3$d</string>
+
+    <!-- Mises à jour de l'application (mises à jour internes à distance) -->
+    <string name="update_available_title">La version %1$s est disponible</string>
+    <string name="update_available_subtitle">Téléchargement de %1$s</string>
+    <string name="update_action_update">Mettre à jour</string>
+    <string name="update_action_later">Plus tard</string>
+    <string name="update_downloading">Téléchargement de la mise à jour</string>
+    <string name="update_ready_title">La version %1$s est prête à être installée</string>
+    <string name="update_action_install">Installer</string>
+    <string name="update_permission_title">Autoriser l&apos;installation des mises à jour</string>
+    <string name="update_permission_body">Android demande votre autorisation, une seule fois, pour que cette application installe ses propres mises à jour.</string>
+    <string name="update_action_allow">Autoriser</string>
+    <string name="update_installing">Installation de la mise à jour</string>
+    <string name="update_failed_title">La mise à jour n&apos;a pas abouti</string>
+    <string name="update_action_retry">Réessayer</string>
+    <string name="update_required_title">Mise à jour requise</string>
+    <string name="update_required_body">Cette version de l&apos;application n&apos;est plus prise en charge. Passez à la version %1$s pour continuer à utiliser votre messagerie.</string>
+    <string name="update_settings_title">Mises à jour de l&apos;application</string>
+    <string name="update_installed_version">Version installée</string>
+    <string name="update_server">Serveur de mises à jour</string>
+    <string name="update_status_idle">Pas encore vérifié</string>
+    <string name="update_status_checking">Vérification…</string>
+    <string name="update_status_up_to_date">Vous avez la dernière version.</string>
+    <string name="update_action_check">Rechercher des mises à jour</string>
+    <string name="update_notifications_title">Notifications de mise à jour</string>
+    <string name="update_notifications_body">Recevez une notification quand une nouvelle version est prête, même application fermée.</string>
+    <string name="update_whats_new">Nouveautés</string>
+
+    <string-array name="month_abbreviations">
+        <item>janv.</item>
+        <item>févr.</item>
+        <item>mars</item>
+        <item>avr.</item>
+        <item>mai</item>
+        <item>juin</item>
+        <item>juil.</item>
+        <item>août</item>
+        <item>sept.</item>
+        <item>oct.</item>
+        <item>nov.</item>
+        <item>déc.</item>
+    </string-array>
+</resources>

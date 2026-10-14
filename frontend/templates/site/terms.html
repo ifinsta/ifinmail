@@ -40,7 +40,7 @@
         <p>{% trans 'The platform that runs this server is published in a public repository, with the licence stated there. It is provided without warranty, and these terms do not change that licence.' %}</p>
 
         <h2>{% trans 'Changes and contact' %}</h2>
-        <p>{% trans 'The operator may update these terms. The date at the top shows when they last changed, and continued use means you accept the current version. Questions about these terms go to the operator of this server; questions about the software go to the project.' %} <a href="{% url 'contact' %}">{% trans 'Project contact' %}</a></p>
+        <p>{% trans 'The operator may update these terms. The date at the top shows when they last changed, and continued use means you accept the current version. Questions about these terms go to the operator of this server; questions about the software go to the project.' %} {% if site.on.contact %}<a href="{% url 'contact' %}">{% trans 'Project contact' %}</a>{% endif %}</p>
     </article>
 </div>
 {% endblock %}

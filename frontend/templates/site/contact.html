@@ -19,17 +19,17 @@
             <li class="ifinmail-site-item">
                 <h3>{% trans 'Questions and bugs' %}</h3>
                 <p>{% trans 'Open an issue. Say what you expected, what happened, and what System health shows.' %}</p>
-                <a class="ifinmail-site-more" href="{{ issues_url }}" rel="noopener">{% trans 'Open an issue' %}</a>
+                {% if site.project_links %}<a class="ifinmail-site-more" href="{{ issues_url }}" rel="noopener">{% trans 'Open an issue' %}</a>{% endif %}
             </li>
             <li class="ifinmail-site-item">
                 <h3>{% trans 'Security reports' %}</h3>
                 <p>{% trans 'Report privately so a fix can ship before details are public. Targets: acknowledged in three working days, assessed in seven.' %}</p>
-                <a class="ifinmail-site-more" href="{{ security_policy_url }}" rel="noopener">{% trans 'Report privately' %}</a>
+                {% if site.project_links %}<a class="ifinmail-site-more" href="{{ security_policy_url }}" rel="noopener">{% trans 'Report privately' %}</a>{% endif %}
             </li>
             <li class="ifinmail-site-item">
                 <h3>{% trans 'Read first' %}</h3>
                 <p>{% trans 'Most setup questions are answered in the documentation, and every release is described in the changelog.' %}</p>
-                <a class="ifinmail-site-more" href="{% url 'docs' %}">{% trans 'Documentation' %}</a>
+                {% if site.on.docs %}<a class="ifinmail-site-more" href="{% url 'docs' %}">{% trans 'Documentation' %}</a>{% endif %}
             </li>
         </ul>
         <p class="ifinmail-site-meta">{% trans 'Support is community best effort. There is no service-level agreement.' %}</p>

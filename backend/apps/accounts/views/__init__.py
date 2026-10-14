@@ -48,6 +48,7 @@ from .registration import (
 )
 from .settings_hub import settings_hub, settings_page
 from .setup import setup_advance, setup_step, setup_wizard
+from .website import website_page, website_pages
 from .spam import (
     spam_add_provider,
     spam_filtering,
@@ -111,6 +112,8 @@ __all__ = [
     'spam_add_provider',
     'spam_filtering',
     'spam_remove_provider',
+    'website_page',
+    'website_pages',
     'spam_set_sensitivity',
     'spam_test_provider',
     'spam_toggle_provider',

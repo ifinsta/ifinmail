@@ -45,7 +45,7 @@
         <p>{% trans 'You can ask the operator what is held about you, to correct it, to export your mail, or to delete your account. Closing an account removes its login; mail that was already backed up leaves the backups when they expire.' %}</p>
 
         <h2>{% trans 'Security' %}</h2>
-        <p>{% trans 'Connections are encrypted, passwords are hashed, secrets are stored encrypted and administrative actions are recorded in a tamper-evident trail. No system is perfectly secure; the security page lists what is and is not covered.' %} <a href="{% url 'security' %}">{% trans 'Security' %}</a></p>
+        <p>{% trans 'Connections are encrypted, passwords are hashed, secrets are stored encrypted and administrative actions are recorded in a tamper-evident trail. No system is perfectly secure; the security page lists what is and is not covered.' %} {% if site.on.security %}<a href="{% url 'security' %}">{% trans 'Security' %}</a>{% endif %}</p>
 
         <h2>{% trans 'Changes and contact' %}</h2>
         <p>{% trans 'This page may be updated, and the date at the top shows when it last changed. Questions about your data go to the operator of this server.' %}</p>

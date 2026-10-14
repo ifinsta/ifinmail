@@ -25,11 +25,11 @@
     {% empty %}
     <section class="ifinmail-site-split">
         <div><h2 class="ifinmail-site-split__title">{% trans 'No changelog on this server' %}</h2></div>
-        <div class="ifinmail-site-prose"><p>{% trans 'The release notes are published with every release.' %} <a href="{{ releases_url }}" rel="noopener">{% trans 'Open the releases' %}</a></p></div>
+        <div class="ifinmail-site-prose"><p>{% trans 'The release notes are published with every release.' %} {% if site.project_links %}<a href="{{ releases_url }}" rel="noopener">{% trans 'Open the releases' %}</a>{% endif %}</p></div>
     </section>
     {% endfor %}
     {% if releases %}
-    <div class="ifinmail-site-more-row"><a class="ifinmail-site-more" href="{{ releases_url }}" rel="noopener">{% trans 'Older releases on GitHub' %}</a></div>
+    <div class="ifinmail-site-more-row">{% if site.project_links %}<a class="ifinmail-site-more" href="{{ releases_url }}" rel="noopener">{% trans 'Older releases on GitHub' %}</a>{% endif %}</div>
     {% endif %}
 </div>
 {% endblock %}

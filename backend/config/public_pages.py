@@ -6,6 +6,11 @@ Copy lives in ``frontend/templates/site/``; this module only routes to it and su
 facts that more than one page quotes (where the code, the issue tracker and the security contact
 are). The changelog is the repository's own ``CHANGELOG.md``, so the page and the file cannot
 disagree.
+
+Every page first asks ``core.website`` what the "Website pages" plugin decided: serve the page as
+shipped (the default, and what happens when the plugin is not installed), serve the
+administrator's own text in the same layout, or not serve it at all. The menus and cross-links
+come from the same answer, so a page that is off is gone everywhere.
 """
 
 from __future__ import annotations
@@ -18,11 +23,14 @@ from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
 from django.urls import path
 
 from backend.apps.core.releases.web import download_context
+from backend.apps.core.website.services import content as website_content
+from backend.apps.core.website.services import site as website_site
+from backend.apps.core.website.types import BY_KEY, Mode
 
 # The project that publishes the software. One setting (UPDATE_REPO, "owner/name") drives the
 # links here, the install command and the release check, so a fork changes it in one place.
@@ -38,24 +46,82 @@ CHANGELOG_RELEASES = 8  # the page shows the newest releases; the file on GitHub
 _HEADING = re.compile(r'(?m)^## (v\d[\w.\-+]*)[ \t]*$')
 
 
-def _context(**extra: object) -> dict[str, object]:
+def _external() -> dict[str, str]:
     return {
         'repo_url': REPO_URL,
         'issues_url': f'{REPO_URL}/issues',
         'releases_url': f'{REPO_URL}/releases',
         'security_policy_url': f'{REPO_URL}/security/policy',
+    }
+
+
+def _context(**extra: object) -> dict[str, object]:
+    site = extra.pop('site', None) or website_site.current(_external())
+    return {
+        **_external(),
         'install_command': INSTALL_COMMAND,
         'legal_updated': LEGAL_UPDATED,
+        'site': site,
         **extra,
     }
 
 
-def _page(template: str) -> Callable[[HttpRequest], HttpResponse]:
-    def view(request: HttpRequest) -> HttpResponse:
-        return render(request, template, _context())
+def _may_preview(request: HttpRequest) -> bool:
+    """An administrator may look at a page's own text before switching it on."""
+    if request.GET.get('preview') != 'custom':
+        return False
+    user = request.user
+    if not (user.is_authenticated and (user.is_staff or user.is_superuser)):
+        return False
+    from backend.apps.accounts.services.roles import RoleService
+    from backend.apps.accounts.types.permissions import PermissionCode
 
-    view.__name__ = template.rsplit('/', 1)[-1].removesuffix('.html') + '_page'
+    return RoleService.has_perm(user, PermissionCode.SYSTEM_MANAGE)
+
+
+def _serve(
+    request: HttpRequest, key: str, standard: Callable[[HttpRequest, dict[str, object]], HttpResponse]
+) -> HttpResponse:
+    """One public page: off, the administrator's text, or as shipped."""
+    site = website_site.current(_external())
+    mode = site.mode(key)
+    preview = _may_preview(request)
+    if mode == Mode.OFF and not preview:
+        if key == 'landing':
+            return redirect('accounts:login')
+        raise Http404(key)
+    if mode == Mode.CUSTOM or preview:
+        text = website_content.get(key)
+        if text.usable:
+            return render(
+                request,
+                'site/custom.html',
+                _context(site=site, text=text, page=BY_KEY[key], previewing=preview and mode != Mode.CUSTOM),
+            )
+    return standard(request, _context(site=site))
+
+
+def standard_html(request: HttpRequest, key: str) -> str:
+    """The page as shipped, whatever the plugin decided: the starting point for custom text."""
+    view = _STANDARD[key]
+    return view(request, _context()).content.decode('utf-8')
+
+
+def _page(template: str) -> Callable[[HttpRequest], HttpResponse]:
+    key = template.rsplit('/', 1)[-1].removesuffix('.html')
+
+    def standard(request: HttpRequest, context: dict[str, object]) -> HttpResponse:
+        return render(request, template, context)
+
+    def view(request: HttpRequest) -> HttpResponse:
+        return _serve(request, key, standard)
+
+    view.__name__ = f'{key}_page'
+    _STANDARD[key] = standard
     return view
+
+
+_STANDARD: dict[str, Callable[[HttpRequest, dict[str, object]], HttpResponse]] = {}
 
 
 def parse_changelog(text: str, limit: int = CHANGELOG_RELEASES) -> list[dict[str, str]]:
@@ -88,13 +154,25 @@ def changelog_releases() -> list[dict[str, str]]:
         return []
 
 
+def _changelog_standard(request: HttpRequest, context: dict[str, object]) -> HttpResponse:
+    return render(request, 'site/changelog.html', {**context, 'releases': changelog_releases()})
+
+
+def _download_standard(request: HttpRequest, context: dict[str, object]) -> HttpResponse:
+    """The one public page that reads the database: the newest published Android build."""
+    return render(request, 'site/download.html', {**context, **download_context(request)})
+
+
+_STANDARD['changelog'] = _changelog_standard
+_STANDARD['download'] = _download_standard
+
+
 def changelog_page(request: HttpRequest) -> HttpResponse:
-    return render(request, 'site/changelog.html', _context(releases=changelog_releases()))
+    return _serve(request, 'changelog', _changelog_standard)
 
 
 def download_page(request: HttpRequest) -> HttpResponse:
-    """The one public page that reads the database: the newest published Android build."""
-    return render(request, 'site/download.html', _context(**download_context(request)))
+    return _serve(request, 'download', _download_standard)
 
 
 urlpatterns = [

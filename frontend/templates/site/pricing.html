@@ -57,7 +57,7 @@
         </div>
         <div class="ifinmail-site-prose">
             <p>{% trans 'Questions and bugs go to the public issue tracker, and fixes ship as releases. There is no support contract and no service-level agreement. Security reports have stated response targets.' %}</p>
-            <p><a href="{% url 'contact' %}">{% trans 'How to get help' %}</a></p>
+            <p>{% if site.on.contact %}<a href="{% url 'contact' %}">{% trans 'How to get help' %}</a>{% endif %}</p>
         </div>
     </section>
 </div>

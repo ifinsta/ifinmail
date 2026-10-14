@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.0.57
+- **Website pages plugin: make the public site your own, or switch it off.** The public pages
+  (home, features, pricing, security, documentation, changelog, Android app, about, contact, terms,
+  privacy) are written for the open-source project. An organisation running the platform as its
+  own service can now remove every trace of that.
+  - **Per page: Standard, Custom or Off.** Off means the address answers "not found" (the home
+    page sends visitors to sign-in) and the page disappears from the header, the footer, the
+    links on other pages and the console's own links (sign-in terms, support, download).
+    Custom shows your text in the same layout; with no text written yet the standard page is
+    shown, never a blank one.
+  - **Your words, under Settings → Website.** Heading, introduction, body (headings, lists, bold,
+    italic, links), an optional button, the browser tab title and the search description, with
+    "Start from the standard text" to edit instead of retype, and a preview before the page is
+    switched to Custom. Text is shown escaped: scripts, raw HTML and `javascript:` links cannot
+    get through.
+  - **Footer and links.** Hide the "Powered by" line or replace it with your own, change the
+    sentence under the name, and hide the links to the open-source project (source code,
+    releases, issue tracker, security policy) everywhere on the site.
+  - **Cheap and decoupled.** The decision is resolved when the plugin's settings are saved and
+    read from the cache, so a public request does not touch the plugin machinery or the database.
+    Without the plugin the site is exactly as it was; uninstalling it brings the standard site
+    back and keeps your text. The name and logo still come from Settings → General.
+
 ## v0.0.56
 - **Spam Filtering does what it says.** The page used to look like a control panel but changed
   nothing: the slider never saved (the script and the view disagreed on the field name), the

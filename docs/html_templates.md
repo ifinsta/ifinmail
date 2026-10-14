@@ -25,6 +25,7 @@ verify — every row must exist on disk.
 |---|---|---|
 | `admin/dashboard.html` | Dashboard | `accounts/views/dashboard.py` |
 | `admin/user_management.html` | Users | `accounts/views/users.py` |
+| `admin/website_pages.html`, `admin/website_page.html` | Website | `accounts/views/website.py` — Settings → Website: the public pages and their mode, and the editor for a custom page; `site/custom.html` is the public layout for custom text |
 | `admin/spam_filtering.html` | Spam | `accounts/views/spam.py` — filter figures from the hourly digest, sensitivity form (1–10 → the four Rspamd thresholds), DNS lists table with Test / Turn off / Remove and an add form; all plain forms with redirect + flash message |
 | `admin/dns_config.html` | DomainConfig | `dns/views/web.py` |
 | `admin/branding_identity.html` | Branding | branding view |

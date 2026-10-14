@@ -1,0 +1,139 @@
+manifest_version = 2
+
+[plugin]
+id = "website-pages"
+name = "Website pages"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "operations"
+summary = "Decide which public pages exist, replace their text with your own, and remove every mention of the platform and its open-source project."
+requires_core = "0.0.57"
+description = """
+The public site (home, features, pricing, security, documentation, changelog, Android app, about, contact, terms and privacy) is written for the open-source project. An organisation that runs the platform as its own mail service usually wants none of that: its own words, its own legal text, and no pages it does not need.
+
+For each page choose Standard (as shipped), Custom (your own text in the same layout, written under Settings → Website) or Off (the page is gone: its address answers "not found", the home page sends visitors to sign-in, and every link to it disappears from the menus and from other pages). A page set to Custom with nothing written yet shows its standard text, so a half-finished page is never blank.
+
+The footer can drop the "Powered by" line (or say something of your own), and the links to the project's source code, releases, issue tracker and security policy can be hidden. Pages are served from a small cached policy, so switching the whole site off costs less than serving it.
+
+Nothing here changes the console, sign-in, mail or DNS. Text you write is stored on this server and shown escaped; it cannot contain scripts. Uninstalling the plugin brings the standard site back; your text is kept in case you install it again.
+"""
+
+[[settings]]
+key = "mode_landing"
+type = "choice"
+label = "Home page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_features"
+type = "choice"
+label = "Features page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_pricing"
+type = "choice"
+label = "Pricing page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_security"
+type = "choice"
+label = "Security page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_docs"
+type = "choice"
+label = "Documentation"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_changelog"
+type = "choice"
+label = "Changelog"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_download"
+type = "choice"
+label = "Android app page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_about"
+type = "choice"
+label = "About page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_contact"
+type = "choice"
+label = "Contact page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_terms"
+type = "choice"
+label = "Terms page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "mode_privacy"
+type = "choice"
+label = "Privacy page"
+options = ["standard", "custom", "off"]
+default = "standard"
+help = "Standard: as shipped. Custom: your text from Settings → Website. Off: not served."
+
+[[settings]]
+key = "powered_by"
+type = "boolean"
+label = "Footer says the platform is ifinmail"
+default = true
+help = "Untick to remove the \"Powered by\" line."
+
+[[settings]]
+key = "project_links"
+type = "boolean"
+label = "Link to the open-source project"
+default = true
+help = "Source code, releases, issue tracker and security policy. Untick to hide them everywhere on the site."
+
+[[settings]]
+key = "tagline"
+type = "text"
+label = "Footer sentence under the name"
+max_length = 160
+help = "Leave empty to keep the standard sentence."
+
+[[settings]]
+key = "footer_note"
+type = "text"
+label = "Footer line instead of \"Powered by\""
+max_length = 160
+help = "For example a company registration or a short legal line. Leave empty to keep the standard line."
+
+[[contributes]]
+capability = "website.pages"
+values = { modes = "landing={mode_landing},features={mode_features},pricing={mode_pricing},security={mode_security},docs={mode_docs},changelog={mode_changelog},download={mode_download},about={mode_about},contact={mode_contact},terms={mode_terms},privacy={mode_privacy}", powered_by = "{powered_by}", project_links = "{project_links}", tagline = "{tagline}", footer_note = "{footer_note}" }

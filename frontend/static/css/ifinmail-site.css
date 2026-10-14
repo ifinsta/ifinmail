@@ -1025,7 +1025,8 @@
 
 .ifinmail-site-footer__grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
+    /* as many link columns as there are (pages can be switched off), never an empty gap */
+    grid-template-columns: minmax(0, 1.4fr) repeat(auto-fit, minmax(8rem, 1fr));
     gap: var(--ifinmail-space-8);
     padding: var(--ifinmail-space-10) 0 var(--ifinmail-space-8);
 }

@@ -1,0 +1,79 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name page=page.label %}{{ page }} text — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{{ page.label }}</h1>
+                <p class="ifinmail-page-subtitle">{% blocktrans trimmed with url=public_url %}Your own text for the page at <code class="ifinmail-text--mono">{{ url }}</code>. It uses the same layout as the standard page.{% endblocktrans %}</p>
+            </div>
+            <div class="ifinmail-page-actions">
+                <span class="ifinmail-badge ifinmail-badge--{{ mode_tone }}">{{ mode_word }}</span>
+                {% if has_text %}<a class="ifinmail-btn ifinmail-btn--outline" href="{{ public_url }}?preview=custom" target="_blank" rel="noopener">{% trans 'Preview' %}</a>{% endif %}
+            </div>
+        </div>
+
+        {% if mode != 'custom' %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--info" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{% if mode == 'off' %}{% trans 'This page is off' %}{% else %}{% trans 'Visitors see the standard text' %}{% endif %}</p>
+                <p class="ifinmail-hbanner__next">{% if plugin.installed %}{% trans 'Set this page to Custom in the Website pages plugin to show your text.' %}{% else %}{% trans 'Install the Website pages plugin and set this page to Custom to show your text.' %}{% endif %} <a href="{{ plugin.url }}">{% trans 'Open the plugin' %}</a></p>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" class="ifinmail-inline-form ifinmail-panel ifinmail-settings-section" novalidate>
+            {% csrf_token %}
+            <div class="ifinmail-field">
+                <label for="w-heading">{% trans 'Heading' %}</label>
+                <input class="ifinmail-input ifinmail-input--full" id="w-heading" name="heading" type="text" maxlength="{{ limits.heading }}" value="{{ values.heading }}"{% if errors.heading %} aria-invalid="true" aria-describedby="w-heading-err"{% endif %}>
+                {% if errors.heading %}<p class="ifinmail-field-error" id="w-heading-err">{{ errors.heading }}</p>{% endif %}
+            </div>
+            <div class="ifinmail-field">
+                <label for="w-lede">{% trans 'Introduction' %}</label>
+                <textarea class="ifinmail-input ifinmail-input--full" id="w-lede" name="lede" rows="2" maxlength="{{ limits.lede }}"{% if errors.lede %} aria-invalid="true" aria-describedby="w-lede-err"{% endif %}>{{ values.lede }}</textarea>
+                {% if errors.lede %}<p class="ifinmail-field-error" id="w-lede-err">{{ errors.lede }}</p>{% endif %}
+                <p class="ifinmail-help-text">{% trans 'One or two sentences under the heading.' %}</p>
+            </div>
+            <div class="ifinmail-field">
+                <label for="w-body">{% trans 'Text' %}</label>
+                <textarea class="ifinmail-input ifinmail-input--full ifinmail-text--mono" id="w-body" name="body" rows="18" maxlength="{{ limits.body }}"{% if errors.body %} aria-invalid="true" aria-describedby="w-body-err"{% endif %}>{{ values.body }}</textarea>
+                {% if errors.body %}<p class="ifinmail-field-error" id="w-body-err">{{ errors.body }}</p>{% endif %}
+                <p class="ifinmail-help-text">{% trans 'Plain text with a few marks: ## for a heading, ### for a smaller one, - for a list item, 1. for a numbered one, **bold**, *italic*, [text](address) for a link, and a blank line between paragraphs. Raw HTML is shown as written.' %}</p>
+            </div>
+            <div class="ifinmail-field">
+                <label for="w-cta-label">{% trans 'Button text (optional)' %}</label>
+                <input class="ifinmail-input" id="w-cta-label" name="cta_label" type="text" maxlength="{{ limits.cta_label }}" value="{{ values.cta_label }}"{% if errors.cta_label %} aria-invalid="true" aria-describedby="w-cta-label-err"{% endif %}>
+                {% if errors.cta_label %}<p class="ifinmail-field-error" id="w-cta-label-err">{{ errors.cta_label }}</p>{% endif %}
+            </div>
+            <div class="ifinmail-field">
+                <label for="w-cta-url">{% trans 'Button address' %}</label>
+                <input class="ifinmail-input ifinmail-input--full ifinmail-text--mono" id="w-cta-url" name="cta_url" type="text" maxlength="{{ limits.cta_url }}" value="{{ values.cta_url }}" placeholder="https://" autocapitalize="none" spellcheck="false"{% if errors.cta_url %} aria-invalid="true" aria-describedby="w-cta-url-err"{% endif %}>
+                {% if errors.cta_url %}<p class="ifinmail-field-error" id="w-cta-url-err">{{ errors.cta_url }}</p>{% endif %}
+            </div>
+            <div class="ifinmail-field">
+                <label for="w-title">{% trans 'Browser tab title' %}</label>
+                <input class="ifinmail-input ifinmail-input--full" id="w-title" name="title" type="text" maxlength="{{ limits.title }}" value="{{ values.title }}"{% if errors.title %} aria-invalid="true" aria-describedby="w-title-err"{% endif %}>
+                {% if errors.title %}<p class="ifinmail-field-error" id="w-title-err">{{ errors.title }}</p>{% endif %}
+                <p class="ifinmail-help-text">{% trans 'The name of the server is added after it.' %}</p>
+            </div>
+            <div class="ifinmail-field">
+                <label for="w-description">{% trans 'Description for search engines' %}</label>
+                <textarea class="ifinmail-input ifinmail-input--full" id="w-description" name="description" rows="2" maxlength="{{ limits.description }}"{% if errors.description %} aria-invalid="true" aria-describedby="w-description-err"{% endif %}>{{ values.description }}</textarea>
+                {% if errors.description %}<p class="ifinmail-field-error" id="w-description-err">{{ errors.description }}</p>{% endif %}
+            </div>
+            <div class="ifinmail-inline-form--row">
+                <button class="ifinmail-btn ifinmail-btn--primary" type="submit" name="action" value="save">{% trans 'Save' %}</button>
+                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="starter" data-confirm="{% trans 'Replace what is in the form with the standard text of this page? Nothing is saved until you press Save.' %}">{% trans 'Start from the standard text' %}</button>
+                {% if has_text %}<button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="clear" data-confirm="{% trans 'Remove your text for this page?' %}">{% trans 'Remove my text' %}</button>{% endif %}
+            </div>
+        </form>
+        <p><a class="ifinmail-link-strong" href="{% url 'accounts:website_pages' %}">{% trans 'All public pages' %}</a></p>
+    </div>
+</section>
+{% endblock %}

@@ -12,7 +12,7 @@
                 <p class="ifinmail-page-subtitle">{% trans 'Publish a signed Android build here and every installed copy is offered it. People can also install it from the public download page.' %}</p>
             </div>
             <div class="ifinmail-page-actions">
-                <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'download' %}">{% trans 'Open the download page' %}</a>
+                {% if site_pages.download %}<a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'download' %}">{% trans 'Open the download page' %}</a>{% endif %}
             </div>
         </div>
 

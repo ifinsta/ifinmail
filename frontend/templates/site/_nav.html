@@ -2,18 +2,14 @@
 {% with current=request.resolver_match.url_name %}
 <header class="ifinmail-site-header{% if user.is_authenticated %} ifinmail-site-header--session{% endif %}">
     <div class="ifinmail-site-wrap ifinmail-site-header__inner">
-        <a class="ifinmail-site-brand" href="{% url 'landing' %}">
+        <a class="ifinmail-site-brand" href="{{ site.home_url }}">
             {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
             {% include "includes/brand_name.html" %}
         </a>
 
         <nav class="ifinmail-site-nav" aria-label="{% trans 'Main' %}">
-            <a href="{% url 'features' %}"{% if current == 'features' %} aria-current="page"{% endif %}>{% trans 'Features' %}</a>
-            <a href="{% url 'pricing' %}"{% if current == 'pricing' %} aria-current="page"{% endif %}>{% trans 'Pricing' %}</a>
-            <a href="{% url 'security' %}"{% if current == 'security' %} aria-current="page"{% endif %}>{% trans 'Security' %}</a>
-            <a href="{% url 'docs' %}"{% if current == 'docs' %} aria-current="page"{% endif %}>{% trans 'Docs' %}</a>
-            <a href="{% url 'changelog' %}"{% if current == 'changelog' %} aria-current="page"{% endif %}>{% trans 'Changelog' %}</a>
-            <a href="{% url 'download' %}"{% if current == 'download' %} aria-current="page"{% endif %}>{% trans 'Android app' %}</a>
+            {% for link in site.nav_links %}<a href="{{ link.url }}"{% if current == link.key %} aria-current="page"{% endif %}>{{ link.label }}</a>
+            {% endfor %}
         </nav>
 
         <div class="ifinmail-site-actions">
@@ -21,7 +17,7 @@
             {% include "site/_account.html" with in_menu=False %}
             {% else %}
             <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
-            <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'docs' %}#install">{% trans 'Get started' %}</a>
+            {% if site.get_started %}<a class="ifinmail-btn ifinmail-btn--outline" href="{{ site.get_started.url }}">{{ site.get_started.label }}</a>{% endif %}
             {% endif %}
         </div>
 
@@ -32,17 +28,13 @@
                 <svg class="ifinmail-site-menu__close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </summary>
             <div class="ifinmail-site-menu__panel">
-                <a href="{% url 'features' %}"{% if current == 'features' %} aria-current="page"{% endif %}>{% trans 'Features' %}</a>
-                <a href="{% url 'pricing' %}"{% if current == 'pricing' %} aria-current="page"{% endif %}>{% trans 'Pricing' %}</a>
-                <a href="{% url 'security' %}"{% if current == 'security' %} aria-current="page"{% endif %}>{% trans 'Security' %}</a>
-                <a href="{% url 'docs' %}"{% if current == 'docs' %} aria-current="page"{% endif %}>{% trans 'Docs' %}</a>
-                <a href="{% url 'changelog' %}"{% if current == 'changelog' %} aria-current="page"{% endif %}>{% trans 'Changelog' %}</a>
-                <a href="{% url 'download' %}"{% if current == 'download' %} aria-current="page"{% endif %}>{% trans 'Android app' %}</a>
+                {% for link in site.nav_links %}<a href="{{ link.url }}"{% if current == link.key %} aria-current="page"{% endif %}>{{ link.label }}</a>
+                {% endfor %}
                 {% if user.is_authenticated %}
                 {% include "site/_account.html" with in_menu=True %}
                 {% else %}
                 <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
-                <a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'docs' %}#install">{% trans 'Get started' %}</a>
+                {% if site.get_started %}<a class="ifinmail-btn ifinmail-btn--primary" href="{{ site.get_started.url }}">{{ site.get_started.label }}</a>{% endif %}
                 {% endif %}
             </div>
         </details>

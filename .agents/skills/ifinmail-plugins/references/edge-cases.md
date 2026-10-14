@@ -444,4 +444,10 @@ the real Rspamd 3.8.1, Dovecot 2.3.21 and Postfix 3.8.6 images built from this r
 | 329 | What Redis holds about recipients | Short hashes only; counts, never who was written to | CT |
 | 330 | Redis unavailable | A counter is lost, never a message; the job skips that minute | code |
 | 331 | Unsafe or injected values in blocked destinations or paused logins | Ignored by the console grammar and again by the Postfix watcher | P, CT |
-
+| 332 | Website pages plugin not installed, disabled or uninstalled | Every public page is standard, exactly as before; written text is kept | CT |
+| 333 | A page set to Off | 404 (the home page redirects to sign-in); removed from the header, footer and every cross-link | CT |
+| 334 | A page set to Custom with no text saved | The standard page is shown, never a blank one | CT |
+| 335 | Scripts, raw HTML, `javascript:`/`data:`/`//host` links or attribute breakouts in custom text | Shown as text; links limited to http(s), mailto, tel, paths and anchors | CT |
+| 336 | Policy read on every public request | One cache entry, written when the plugin's settings are published; falls back to the database for 5 minutes if the cache was flushed | CT |
+| 337 | Console links to public pages (sign-in terms, support, download) when those pages are off | Hidden through `site_pages` | CT |
+| 338 | Preview of a page that is off or not yet custom | Only for a signed-in administrator with `system.manage`, with `?preview=custom` | CT |

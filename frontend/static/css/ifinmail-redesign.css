@@ -2668,6 +2668,22 @@ html.ifinmail-shell .ifinmail-assistant-chat--empty .ifinmail-assistant-scroll {
     padding-bottom: var(--ifinmail-space-4);
 }
 html.ifinmail-shell .ifinmail-assistant-chat--empty .ifinmail-assistant-dock { margin-bottom: auto; }
+/* The empty state is taller than a short screen (phone, landscape, split window): the whole
+   column scrolls under a pinned title bar instead of clipping the composer and suggestions. */
+html.ifinmail-shell .ifinmail-assistant-chat--empty {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+html.ifinmail-shell .ifinmail-assistant-chat--empty .ifinmail-assistant-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--ifinmail-bg);
+}
+@media (max-height: 520px) {
+    html.ifinmail-shell .ifinmail-assistant-note,
+    html.ifinmail-shell .ifinmail-assistant-composer__hint { display: none; }
+}
 html.ifinmail-shell .ifinmail-assistant-greeting {
     margin: 0;
     font-size: var(--ifinmail-font-size-4xl);

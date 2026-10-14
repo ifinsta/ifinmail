@@ -143,3 +143,15 @@ class PageColumnTests(SimpleTestCase):
         assert head is not None
         self.assertIn('padding: var(--ifinmail-space-8) 0 var(--ifinmail-space-5)', head.group(1))
         self.assertIn('.ifinmail-site-pagehead + .ifinmail-site-wrap--page > :first-child', css)
+
+
+class AssistantScrollTests(SimpleTestCase):
+    def test_the_empty_assistant_scrolls_instead_of_clipping_its_composer(self) -> None:
+        """The page is exactly one viewport tall with ``overflow: hidden``; the empty state has no
+        inner scroller, so on a short screen the composer and suggestions were cut off."""
+        css = (STATIC / 'ifinmail-redesign.css').read_text()
+        rules = {sel: body for sel, body in rule_blocks(css)}
+        chat = rules['html.ifinmail-shell .ifinmail-assistant-chat--empty']
+        self.assertIn('overflow-y: auto', chat)
+        bar = rules['html.ifinmail-shell .ifinmail-assistant-chat--empty .ifinmail-assistant-bar']
+        self.assertIn('position: sticky', bar)

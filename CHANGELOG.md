@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.48
+- **Fix: short pages (sign-in, registration, error) scrolled on phones.** The page wrapper itself
+  was sized to `100dvh`, but the `<body>`, app layout, standalone layout and main column were
+  still `min-height: 100vh`. On a phone `100vh` is the screen with the address bar hidden, so the
+  document was one address-bar taller (about 56 px) than the visible area and scrolled even when
+  the content was short. Every full-height rule now carries its `100dvh` partner, and a test fails
+  if a bare `100vh` height is added again.
+
 ## v0.0.47
 - **Phone sign-in, registration and error pages: the header block is centred as one unit.** v0.0.46
   moved the title under the wordmark to the left; the intended look is the reverse, so the wordmark,

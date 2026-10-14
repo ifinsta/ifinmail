@@ -6,14 +6,14 @@
 
 {% block content %}
 <section class="ifinmail-site-pagehead">
-    <div class="ifinmail-site-wrap ifinmail-site-wrap--changelog">
+    <div class="ifinmail-site-wrap ifinmail-site-wrap--page">
         <p class="ifinmail-site-overline">{% trans 'Changelog' %}</p>
         <h1>{% trans 'What changed, release by release.' %}</h1>
         <p class="ifinmail-site-lede">{% trans 'The newest releases, as written in the repository. Problems we found and fixed are listed too.' %}</p>
     </div>
 </section>
 
-<div class="ifinmail-site-wrap ifinmail-site-wrap--changelog">
+<div class="ifinmail-site-wrap ifinmail-site-wrap--page">
     {% for release in releases %}
     <section class="ifinmail-site-release" aria-labelledby="{{ release.anchor }}">
         <h2 class="ifinmail-site-release__version" id="{{ release.anchor }}">

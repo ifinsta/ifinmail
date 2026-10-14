@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.53
+- **Every explanatory page is laid out like the changelog.** Features, pricing, security, about,
+  contact, docs, download, terms and privacy now put the heading and the content in the same
+  centred column (56rem), with the title or label beside its text, so moving between pages no
+  longer shifts the layout. The space between the heading and the first section is one tight step
+  instead of a banner plus a full section of padding (about 56 px less), and sections are spaced
+  like releases on the changelog. Phones are unchanged apart from the tighter gap.
+
 ## v0.0.52
 - **Sign in to the console with passkeys only.** On **Passkeys → Sign in with passkeys only** a
   login can switch its console password off: a stolen or guessed password then opens nothing

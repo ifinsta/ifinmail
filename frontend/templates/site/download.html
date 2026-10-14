@@ -11,14 +11,14 @@ download_path, permalink, qr_data_uri, manifest_url, android_version.
 
 {% block content %}
 <section class="ifinmail-site-pagehead">
-    <div class="ifinmail-site-wrap">
+    <div class="ifinmail-site-wrap ifinmail-site-wrap--page">
         <p class="ifinmail-site-overline">{% trans 'Android app' %}</p>
         <h1>{% trans 'Your mail on your phone.' %}</h1>
         <p class="ifinmail-site-lede">{% trans 'Install the app straight from this server. It checks here for new versions and installs them when you agree, so every device stays current without an app store.' %}</p>
     </div>
 </section>
 
-<div class="ifinmail-site-wrap">
+<div class="ifinmail-site-wrap ifinmail-site-wrap--page">
     {% if release %}
     <section class="ifinmail-site-download" aria-labelledby="download-version">
         <div class="ifinmail-site-download__main">

@@ -10,7 +10,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from backend.apps.core.assistant.models import AssistantConversation, AssistantMessage
-from backend.apps.core.assistant.services import agent, config
+from backend.apps.core.assistant.services import agent, config, tools
 from backend.apps.core.assistant.services.provider import OpenAICompatibleProvider, check_endpoint
 from backend.apps.core.assistant.types import (
     MAX_QUESTION_CHARS,
@@ -119,6 +119,26 @@ class ConversationService:
             proposal = message.proposal
             if proposal.get('error'):
                 raise AssistantError('This draft did not validate, so it cannot be applied.')
+            kind = proposal.get('kind')
+            if kind:
+                applier = tools.applier_for(kind)
+                if applier is None:
+                    raise AssistantError('That kind of draft can no longer be applied here.')
+                try:
+                    summary = applier(proposal, user)
+                except PluginError as exc:
+                    raise AssistantError(f'Not applied: {exc}') from None
+                message.proposal_applied_by = user
+                message.proposal_applied_at = timezone.now()
+                message.save(
+                    update_fields=['proposal_applied_by', 'proposal_applied_at', 'updated_at']
+                )
+                AuditService.record(
+                    'assistant_proposal_applied',
+                    user=user,
+                    detail=f'{kind} from assistant draft {message_id}: {summary}'[:500],
+                )
+                return summary
             plugin_id, settings = proposal['plugin_id'], proposal['settings']
             ConversationService._check_matches_draft(proposal)
             try:

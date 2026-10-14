@@ -116,3 +116,7 @@ class WebsiteCapability(Capability):
 def register() -> None:
     registry.register_target(WebsiteTarget())
     registry.register_capability(WebsiteCapability())
+    # The assistant's tools for the website (it drafts; a person applies).
+    from backend.apps.core.website import assistant_handlers
+
+    assistant_handlers.register()

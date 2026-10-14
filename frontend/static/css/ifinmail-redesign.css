@@ -3548,3 +3548,22 @@ html.ifinmail-shell .ifinmail-session-item {
         white-space: normal;
     }
 }
+
+/* Recovery codes shown once on the Passkeys page: a printable grid, never wider than the card. */
+html.ifinmail-shell .ifinmail-recovery-codes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+    gap: var(--ifinmail-space-2);
+    margin: var(--ifinmail-space-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+html.ifinmail-shell .ifinmail-recovery-codes li {
+    padding: var(--ifinmail-space-2) var(--ifinmail-space-3);
+    border: 1px solid var(--ifinmail-color-border-light);
+    border-radius: var(--ifinmail-radius);
+    background: var(--ifinmail-color-surface-2);
+    font-size: var(--ifinmail-font-size-body);
+    user-select: all;
+}

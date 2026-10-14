@@ -213,6 +213,18 @@
                         </form>
                     </dd>
                 </div>
+                {% if mfa_status.passkeys_only %}
+                <div class="ifinmail-settings-row">
+                    <dt>{% trans 'Console sign-in' %}</dt>
+                    <dd>
+                        <p class="ifinmail-settings-row__help">{% trans 'This login signs in to the console with passkeys only; its password does not open it. If the owner lost every passkey and recovery code, allow the password again.' %}</p>
+                        <form method="post" action="{% url 'accounts:mailbox_allow_password_login' mailbox_id=mailbox.id %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                            {% csrf_token %}
+                            <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Allow this login to use its password for the console again?' %}">{% trans 'Allow password sign-in again' %}</button>
+                        </form>
+                    </dd>
+                </div>
+                {% endif %}
                 <div class="ifinmail-settings-row">
                     <dt>{% trans 'API tokens' %}</dt>
                     <dd>

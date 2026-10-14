@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.52
+- **Sign in to the console with passkeys only.** On **Passkeys → Sign in with passkeys only** a
+  login can switch its console password off: a stolen or guessed password then opens nothing
+  there, and only a passkey does. The *mailbox* password is untouched, because mail apps sign in
+  to IMAP and SMTP with it.
+  - **Guarded against lockout:** it needs enough passkeys that losing one device is survivable
+    (two, or one that syncs across your devices), the account password again, and an
+    acknowledgement; it hands out **ten single-use recovery codes**, shown once and stored only as
+    hashes; and the passkeys that make it safe cannot be removed while it is on.
+  - **The way back in:** "Lost your passkey? Use a recovery code" on the sign-in page (an unknown
+    address, a wrong code and a login without codes all get the same answer; ten attempts per
+    address and address per quarter-hour); an administrator can **Allow password sign-in again**
+    from the mailbox profile; and the server shell has `make allow-password-login EMAIL=…`. Every
+    step is audited, and a correct password for a passkeys-only login is answered exactly like a
+    wrong one.
+  - Migration `accounts 0013`.
+
 ## v0.0.51
 - **A passkey is a way to sign in, not a second step.** Until now holding a passkey changed
   password sign-ins: after the email and password you were asked to prove yourself *again* with the

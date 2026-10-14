@@ -1,7 +1,7 @@
 .PHONY: migrate makemigrations run shell shell_plus dbshell check test coverage lint lint-fix \
         format fmt format-check collectstatic deploy createsuperuser audit clean lock \
         provision update rollback version uninstall reload rebuild up down build restart pull logs ps shell-api migrate-api manage \
-        health backup restore-test offsite-check backup-key audit-verify reset-mfa firewall makemessages compilemessages
+        health backup restore-test offsite-check backup-key audit-verify reset-mfa allow-password-login firewall makemessages compilemessages
 
 # --- Django targets (local development) ---
 PORT ?= 8000
@@ -143,6 +143,10 @@ audit-verify:
 reset-mfa:
 	@test -n "$(EMAIL)" || { echo "usage: make reset-mfa EMAIL=admin@example.com"; exit 2; }
 	$(DOCKER_COMPOSE) exec -T api python manage.py reset_mfa "$(EMAIL)"
+
+allow-password-login:
+	@test -n "$(EMAIL)" || { echo "usage: make allow-password-login EMAIL=admin@example.com"; exit 2; }
+	$(DOCKER_COMPOSE) exec -T api python manage.py allow_password_login "$(EMAIL)"
 
 health:
 	$(DOCKER_COMPOSE) ps

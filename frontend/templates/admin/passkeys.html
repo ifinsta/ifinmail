@@ -13,6 +13,14 @@
             </div>
         </div>
 
+        {% if recovery_signin %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+            <div><p class="ifinmail-hbanner__headline">{% trans 'You signed in with a recovery code.' %}</p>
+            <p class="ifinmail-hbanner__next">{% trans 'Add a new passkey below, then make new recovery codes. Or allow password sign-in again.' %}</p></div>
+        </div>
+        {% endif %}
+
         {% if enforced and not passkeys and not has_totp %}
         <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
@@ -78,7 +86,54 @@
                 <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Add a passkey' %}</button></div>
             </form>
             <p class="ifinmail-passkey-status" id="passkey-status" role="status" hidden></p>
-            <p class="ifinmail-help-text">{% trans 'Your browser or password manager will ask you to create the passkey and unlock it. Then sign out and choose “Sign in with a passkey” on the sign-in page. Your password keeps working, so you are never locked out; to put a second step after the password, set up an authenticator app.' %}</p>
+            <p class="ifinmail-help-text">{% trans 'Your browser or password manager will ask you to create the passkey and unlock it. Then sign out and choose “Sign in with a passkey” on the sign-in page. Until you switch to passkeys only (below) your password keeps working too; to put a second step after the password, set up an authenticator app.' %}</p>
+            {% endif %}
+        </section>
+
+        {% if new_codes %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pk-codes">
+            <h2 class="ifinmail-panel-title" id="pk-codes">{% trans 'Your recovery codes' %}</h2>
+            <p class="ifinmail-settings-section__lede">{% trans 'Each code signs you in once, from “Lost your passkey?” on the sign-in page, if every passkey is lost. They are shown only now: save them in a password manager or print them, and keep them apart from your devices.' %}</p>
+            <ul class="ifinmail-recovery-codes" aria-label="{% trans 'Recovery codes' %}">
+                {% for code in new_codes %}<li><code class="ifinmail-text--mono">{{ code }}</code></li>{% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="pk-only">
+            <h2 class="ifinmail-panel-title" id="pk-only">{% trans 'Sign in with passkeys only' %}</h2>
+            {% if passwordless %}
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed %}On. The password does not open the console for this login; a passkey (or a recovery code) does. Your mailbox password still works in mail apps.{% endblocktrans %}</p>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Recovery codes left' %}</dt><dd>{{ recovery_remaining }}</dd></div>
+            </dl>
+            <form method="post" action="{% url 'accounts:passkeys_only_new_codes' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <label class="ifinmail-sr-only" for="pk-codes-pw">{% trans 'Your password' %}</label>
+                <input class="ifinmail-input" id="pk-codes-pw" name="confirm_password" type="password" autocomplete="current-password" placeholder="{% trans 'Your password' %}" required>
+                <button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Make new recovery codes? The old ones stop working.' %}">{% trans 'New recovery codes' %}</button>
+            </form>
+            <form method="post" action="{% url 'accounts:passkeys_only_disable' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <label class="ifinmail-sr-only" for="pk-off-pw">{% trans 'Your password' %}</label>
+                <input class="ifinmail-input" id="pk-off-pw" name="confirm_password" type="password" autocomplete="current-password" placeholder="{% trans 'Your password' %}" required>
+                <button class="ifinmail-btn ifinmail-btn--ghost" type="submit">{% trans 'Allow password sign-in again' %}</button>
+            </form>
+            {% else %}
+            <p class="ifinmail-settings-section__lede">{% blocktrans trimmed %}Turn the password off for the console. A stolen or guessed password then opens nothing here: only your passkeys do. Your mailbox password is unaffected, because mail apps sign in to IMAP and SMTP with it.{% endblocktrans %}</p>
+            {% if passwordless_check.ok %}
+            <form method="post" action="{% url 'accounts:passkeys_only_enable' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <div class="ifinmail-field">
+                    <label for="pk-on-pw">{% trans 'Your password' %}</label>
+                    <input class="ifinmail-input" id="pk-on-pw" name="confirm_password" type="password" autocomplete="current-password" required>
+                </div>
+                <label class="ifinmail-check"><input type="checkbox" name="understand"> <span>{% blocktrans trimmed %}I understand that I will sign in to the console with a passkey, and that the recovery codes shown next are my way back in if I lose every passkey.{% endblocktrans %}</span></label>
+                <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Use passkeys only' %}</button></div>
+            </form>
+            {% else %}
+            <p class="ifinmail-help-text">{{ passwordless_check.reason }}</p>
+            {% endif %}
             {% endif %}
         </section>
     </div>

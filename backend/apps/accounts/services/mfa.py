@@ -297,6 +297,8 @@ class TOTPService:
 
     @staticmethod
     def status_for(user: object) -> dict[str, object]:
+        from backend.apps.accounts.services.passwordless import PasswordlessService
+
         """Summary for profile/admin display (never includes secrets)."""
         devices = list(TOTPDevice.objects.filter(user=user, verified=True))
         return {
@@ -313,4 +315,5 @@ class TOTPService:
             'pending': TOTPService.pending_device(user) is not None,
             'enforced': TOTPService.enforced(),
             'passkeys': TOTPService.passkey_count(user),
+            'passkeys_only': PasswordlessService.is_passwordless(user),
         }

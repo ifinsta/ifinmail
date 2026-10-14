@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Recovery code — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block body_layout %}
+<main class="ifinmail-login">
+
+  <div class="ifinmail-login-card">
+    {% include "includes/card_brand.html" %}
+
+    <h1 class="ifinmail-login-card__title">{% trans 'Sign in with a recovery code' %}</h1>
+    <p class="ifinmail-login-card__subtitle">{% trans 'For a login that uses passkeys only and has lost them. Each code works once.' %}</p>
+
+    {% if error %}
+      <div class="ifinmail-login-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{% url 'accounts:recovery_login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" class="ifinmail-login-form">
+      {% csrf_token %}
+      <div class="ifinmail-login-form__group">
+        <label class="ifinmail-login-form__label" for="rc-email">{% trans 'Email' %}</label>
+        <input type="email" name="email" id="rc-email" class="ifinmail-login-form__input" required autofocus autocomplete="username" value="{{ email|default:'' }}">
+      </div>
+      <div class="ifinmail-login-form__group">
+        <label class="ifinmail-login-form__label" for="rc-code">{% trans 'Recovery code' %}</label>
+        <input type="text" name="code" id="rc-code" class="ifinmail-login-form__input ifinmail-text--mono" required autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxx-xxxx-xxxx-xxxx">
+      </div>
+      <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Sign in' %}</button>
+    </form>
+  </div>
+
+  <p class="ifinmail-login-card__register">
+    <a href="{% url 'accounts:login' %}">{% trans 'Back to sign in' %}</a>
+  </p>
+
+</main>
+{% endblock %}

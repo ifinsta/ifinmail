@@ -19,7 +19,10 @@ html {
 
 .ifinmail-body {
     display: flex;
+    /* 100vh is the tallest the viewport gets (browser bars hidden); on a phone it makes a short
+       page scroll by the height of the address bar. dvh follows what is actually visible. */
     min-height: 100vh;
+    min-height: 100dvh;
     width: 100%;
     font-family: var(--ifinmail-font-ui);
     font-size: var(--ifinmail-font-size-body);
@@ -35,6 +38,7 @@ html {
 .ifinmail-app-layout {
     display: flex;
     min-height: 100vh;
+    min-height: 100dvh;
     width: 100%;
 }
 
@@ -44,6 +48,7 @@ html {
     flex-direction: column;
     min-width: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     background: var(--ifinmail-color-surface-1);
     transition: margin-left 150ms var(--ifinmail-easing-standard);
 }
@@ -454,6 +459,7 @@ html {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    min-height: 100dvh;
     /* body is a flex row: without this the layout shrinks to its content and sits at the left */
     flex: 1 1 auto;
     width: 100%;
@@ -593,6 +599,7 @@ html {
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background: var(--ifinmail-overlay-scrim);
     /* Elegant brand navy blur overlay */
     backdrop-filter: blur(5px);

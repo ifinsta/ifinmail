@@ -95,3 +95,28 @@ class AuthPageHeightTests(SimpleTestCase):
             self.assertIn(f'html.ifinmail-shell {selector}', block)
         self.assertIn('text-align: center !important', block)
         self.assertNotIn('text-align: left !important', block)
+
+
+class ViewportUnitTests(SimpleTestCase):
+    def test_every_full_height_rule_has_a_dvh_partner(self) -> None:
+        """``100vh`` is the viewport with the browser's bars hidden: on a phone it is taller than
+        what is visible, so a short page scrolls by the address-bar height. Each ``100vh`` height
+        must be followed, in the same rule, by the ``100dvh`` that tracks the visible area."""
+        missing: list[str] = []
+        for path in sorted(STATIC.glob('*.css')):
+            css = re.sub(r'/\*.*?\*/', '', path.read_text(), flags=re.S)
+            for selector, body in rule_blocks(css):
+                declarations = [d.strip() for d in body.split(';') if d.strip()]
+                for index, decl in enumerate(declarations):
+                    match = re.fullmatch(
+                        r'((?:min-|max-)?height)\s*:\s*100vh(\s*!important)?', decl
+                    )
+                    if not match:
+                        continue
+                    partner = f'{match.group(1)}: 100dvh{match.group(2) or ""}'
+                    following = [d.replace('  ', ' ') for d in declarations[index + 1 :]]
+                    if partner not in following:
+                        missing.append(
+                            f'{path.name}: {selector.splitlines()[-1].strip()} {{ {decl} }}'
+                        )
+        self.assertEqual(missing, [], 'add the 100dvh partner right after each 100vh height')

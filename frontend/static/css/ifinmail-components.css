@@ -1748,7 +1748,9 @@ select.ifinmail-input {
 .ifinmail-admin-nav {
     width: var(--ifinmail-sidebar-width);
     min-height: 100vh;
+    min-height: 100dvh;
     max-height: 100vh;
+    max-height: 100dvh;
     position: sticky;
     top: 0;
     color: var(--ifinmail-color-text-primary);

@@ -90,6 +90,13 @@ class MailEvent:
     who: str  # the account tried (Dovecot lines only), '' otherwise
     weight: int = 1  # Dovecot reports several attempts on one line
     ref: str = ''  # Postfix queue id, when the line has one (joins Postfix, Rspamd, Dovecot)
+    # Delivery detail of a Postfix status line (never content): the destination's domain, the
+    # enhanced status code, the receiving server's own words (addresses and IPs removed), and
+    # for a "received" line the sending address (a local mailbox for outgoing mail).
+    domain: str = ''
+    dsn: str = ''
+    reason: str = ''
+    sender: str = ''
 
 
 @dataclass

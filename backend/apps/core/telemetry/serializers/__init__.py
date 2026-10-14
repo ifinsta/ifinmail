@@ -11,6 +11,70 @@ from ninja import Schema
 from backend.apps.core.serializers.health import FingerprintV1
 
 
+class DeliveryVerdictV1(Schema):
+    tone: str  # none | ok | watch | bad
+    headline: str
+    next: str
+
+
+class DeliveryFiguresV1(Schema):
+    sent: int  # accepted by the receiving server (not "reached the inbox")
+    deferred: int  # delivery attempts that were postponed (a message can be retried several times)
+    bounced: int  # failed for good
+    final: int  # sent + bounced
+    bounce_rate: float | None  # percent of final outcomes; null when nothing was final
+    local_failed: int  # failures delivering into this server's own mailboxes
+
+
+class DeliveryReasonV1(Schema):
+    category: str
+    kind: str  # bounced | deferred
+    label: str
+    hint: str
+    count: int
+    share: int
+    example: str  # the receiver's own words, addresses and IPs removed
+    reputation: bool
+
+
+class DeliveryDestinationV1(Schema):
+    domain: str
+    provider: str
+    sent: int
+    deferred: int
+    bounced: int
+    bounce_rate: float | None
+
+
+class DeliveryProviderV1(Schema):
+    provider: str
+    sent: int
+    deferred: int
+    bounced: int
+    bounce_rate: float | None
+
+
+class DeliverySenderV1(Schema):
+    address: str
+    sent: int
+    deferred: int
+    bounced: int
+    bounce_rate: float | None
+
+
+class DeliveryV1(DeliveryFiguresV1):
+    period: str
+    label: str
+    since: str
+    until: str
+    verdict: DeliveryVerdictV1
+    previous: DeliveryFiguresV1
+    reasons: list[DeliveryReasonV1]
+    destinations: list[DeliveryDestinationV1]
+    providers: list[DeliveryProviderV1]
+    senders: list[DeliverySenderV1]
+
+
 class ErrorEventV1(Schema):
     id: str
     time: str

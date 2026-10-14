@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from . import delivery
 from .access_log import _tail, network_of
 from .classify import clean
 from .types import MailEvent
@@ -62,11 +63,13 @@ _DOVECOT_OK = re.compile(
 # deferred or bounced. The queue id is kept so one message can be followed across the three logs.
 _QUEUED = re.compile(
     r'postfix/(?:\w+/)?qmgr\[\d+\]: (?P<qid>[0-9A-Za-z]+): '
-    r'from=<[^>]*>, size=\d+, nrcpt=\d+ \(queue active\)'
+    r'from=<(?P<sender>[^>]*)>, size=\d+, nrcpt=\d+ \(queue active\)'
 )
 _STATUS = re.compile(
-    r'postfix/(?:\w+/)?(?P<svc>smtp|lmtp|local|virtual)\[\d+\]: (?P<qid>[0-9A-Za-z]+): to=<[^>]*>, '
-    r'(?:orig_to=<[^>]*>, )?relay=[^,]*, .*?status=(?P<status>sent|deferred|bounced)'
+    r'postfix/(?:\w+/)?(?P<svc>smtp|lmtp|local|virtual)\[\d+\]: (?P<qid>[0-9A-Za-z]+): '
+    r'to=<(?P<to>[^>]*)>, (?:orig_to=<[^>]*>, )?relay=[^,]*, .*?'
+    r'(?:dsn=(?P<dsn>\d\.\d{1,3}\.\d{1,3}), )?status=(?P<status>sent|deferred|bounced)'
+    r'(?: \((?P<detail>.*)\))?'
 )
 # Rspamd's one line per message: its verdict, and the queue id Postfix gave the message.
 _RSPAMD = re.compile(
@@ -148,10 +151,19 @@ def parse_line(raw: str, now: datetime) -> MailEvent | None:
     if match:
         status, service = match['status'], match['svc']
         kind = status if status != 'sent' else ('delivered' if service != 'smtp' else 'sent')
-        return MailEvent(at, '', 'postfix', kind, '', 1, match['qid'])
+        to = (match['to'] or '').lower()
+        domain = to.rsplit('@', 1)[-1] if service == 'smtp' and '@' in to else ''
+        reason = delivery.scrub(match['detail'] or '') if service == 'smtp' else ''
+        return MailEvent(
+            at, '', 'postfix', kind, '', 1, match['qid'],
+            domain=clean(domain, 120), dsn=match['dsn'] or '', reason=reason,
+        )  # fmt: skip
     match = _QUEUED.search(rest)
     if match:
-        return MailEvent(at, '', 'postfix', 'received', '', 1, match['qid'])
+        return MailEvent(
+            at, '', 'postfix', 'received', '', 1, match['qid'],
+            sender=clean((match['sender'] or '').lower(), 160),
+        )  # fmt: skip
     match = _RSPAMD.search(rest)
     if match:
         action = re.sub(r'[^a-z]+', '_', match['action'].lower()).strip('_')

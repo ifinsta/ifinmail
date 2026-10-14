@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from backend.apps.core.platform.models import AuditEvent
 from backend.apps.core.telemetry.models import ErrorEvent, KnownPlace, ThreatDigest, ThreatFinding
-from backend.apps.core.telemetry.threats import rollup
+from backend.apps.core.telemetry.threats import delivery, rollup
 from backend.apps.core.telemetry.threats.types import Severity
 
 PERIODS: dict[str, tuple[str, timedelta]] = {
@@ -123,6 +123,32 @@ def sources_table(
     return out
 
 
+def delivery_section(period: str = 'day', now: datetime | None = None) -> dict[str, Any]:
+    """Only the delivery figures (digest rows, no other query): the dashboard and the API use it."""
+    period = period if period in PERIODS else 'day'
+    now = now or timezone.now()
+    label, span = PERIODS[period]
+    since = now - span
+    floor = since.replace(minute=0, second=0, microsecond=0)
+    rows = [
+        d['summary'] or {}
+        for d in ThreatDigest.objects.filter(hour__gte=floor).order_by('hour').values('summary')
+    ]
+    previous = [
+        d['summary'] or {}
+        for d in ThreatDigest.objects.filter(
+            hour__gte=(since - span).replace(minute=0, second=0, microsecond=0), hour__lt=floor
+        ).values('summary')
+    ]
+    return {
+        'period': period,
+        'label': label,
+        'since': since.astimezone(UTC).isoformat(timespec='minutes'),
+        'until': now.astimezone(UTC).isoformat(timespec='minutes'),
+        **delivery.build(rows, previous),
+    }
+
+
 def build(
     period: str = 'day', now: datetime | None = None, chain: dict[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -168,6 +194,13 @@ def build(
             'unknown_recipient',
         )
     }
+    previous = [
+        d['summary'] or {}
+        for d in ThreatDigest.objects.filter(
+            hour__gte=(since - span).replace(minute=0, second=0, microsecond=0),
+            hour__lt=since.replace(minute=0, second=0, microsecond=0),
+        ).values('summary')
+    ]
     mail['spam'] = _sum_dict(rows, 'rspamd', 'actions')
     mail['logins'] = _sum(rows, 'dovecot', 'logins')
 
@@ -233,6 +266,7 @@ def build(
         'hours_expected': int(span.total_seconds() // 3600),
         'web': web,
         'mail': mail,
+        'delivery': delivery.build(rows, previous),
         'security': security,
         'changes': changes,
         'errors': errors,
@@ -262,6 +296,7 @@ def as_text(data: dict[str, Any], link: str = '') -> str:
     ]
     if mail.get('spam'):
         lines.append('  spam filter: ' + ', '.join(f'{k} {v}' for k, v in mail['spam'].items()))
+    lines += ['', *delivery.as_text(data['delivery'])]
     lines += [
         '',
         'WEB',

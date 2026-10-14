@@ -12,7 +12,13 @@ from backend.apps.accounts.viewsets.errors import errors
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.core.serializers.health import TelemetryStatsV1
 from backend.apps.core.telemetry import viewsets as ops
-from backend.apps.core.telemetry.serializers import AckIn, AckV1, ErrorPageV1, FingerprintListV1
+from backend.apps.core.telemetry.serializers import (
+    AckIn,
+    AckV1,
+    DeliveryV1,
+    ErrorPageV1,
+    FingerprintListV1,
+)
 
 router = Router(tags=['telemetry'])
 
@@ -28,6 +34,19 @@ def api_errors(
 ) -> ErrorPageV1:
     """Application errors, newest first. Filter with ``severity``, ``source`` and ``q``."""
     return ops.list_errors(severity=severity, source=source, query=q, page=page)
+
+
+@router.get(
+    '/telemetry/delivery', response={200: DeliveryV1, **errors()}, summary='Outgoing mail delivery'
+)
+@require_scope('audit.view')
+def api_delivery(request: ApiRequest, period: str = 'day') -> DeliveryV1:
+    """What happened to the mail this server sent: accepted, retried and failed counts, the bounce
+    rate, why it failed (the receiver's own words, classified), where, and from which mailbox.
+
+    ``period`` is ``day``, ``week`` or ``month``. ``sent`` means the receiving server accepted the
+    message; it does not say whether it reached the inbox or the spam folder."""
+    return ops.delivery(period)
 
 
 @router.get(

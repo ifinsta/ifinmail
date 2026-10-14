@@ -67,6 +67,8 @@
             </div>
         </div>
 
+        {% include "admin/partials/delivery_panel.html" with delivery=report.delivery full=True %}
+
         <section class="ifinmail-panel ifinmail-health-section" aria-labelledby="rp-sources">
             <h2 class="ifinmail-panel-title" id="rp-sources">{% trans 'Log sources' %}</h2>
             <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Log sources' %}">

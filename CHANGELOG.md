@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.54
+- **Delivery status for the owner.** What happened to the mail this server sent, on the Dashboard
+  and in the Logs report, with the reasons in plain words.
+  - **Counts:** accepted by the receiving server, retried attempts, failed for good, and the bounce
+    rate (`bounced / (accepted + bounced)`; retries are attempts, not failures), for the last day,
+    week or month, with the change against the period before.
+  - **Why, where, who:** the receiving server's own words, classified (reverse DNS, SPF/DKIM/DMARC,
+    blocked, rate-limited, greylisted, unknown address, mailbox full, too large, TLS, connection)
+    each with what to do; the destination domains and providers; and the sending mailbox. Only
+    counts and scrubbed reasons are stored (no addresses of recipients, IPs or message content).
+  - **Alerts:** a finding, and an email to the administrators for the serious ones, when the bounce
+    rate is over 2% (watch) or 5% (alert) across at least 20 messages in a day, or when one provider
+    refuses or delays most of what is sent to it. Nothing fires on a handful of messages.
+  - **API and email:** `GET /api/v1/telemetry/delivery?period=day|week|month` (scope `audit.view`)
+    and a Delivery section in the weekly email.
+  - "Accepted" means the receiving server took the message: whether it reached the inbox or the
+    spam folder is not visible from here (for Gmail, Google Postmaster Tools shows it).
+
 ## v0.0.53
 - **Every explanatory page is laid out like the changelog.** Features, pricing, security, about,
   contact, docs, download, terms and privacy now put the heading and the content in the same

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.44
+- **Fix: the contact-directory job was not registered in the worker.** v0.0.42 added
+  `accounts.publish_directory`, but the worker only imports tasks from the apps listed in
+  `backend/config/celery.py` and `accounts` was not one of them, so the five-minute schedule
+  logged "Received unregistered task" and switching the directory on would not have published
+  anything. `accounts` is now listed, and a test checks that every scheduled task is registered
+  (eager mode in tests had hidden it). The directory was off, so nothing was affected.
+- **Hardening: anonymous update checks cannot fill the device table.** The Android update
+  manifest needs no credentials, so anyone could invent device ids and add a row per request.
+  New devices are no longer recorded past 100,000 tracked devices (known devices keep updating),
+  on top of the existing 180-day prune.
+
 ## v0.0.43
 - **Android app: download page and over-the-air updates for in-house releases.**
   - **Server** (`backend/apps/core/releases/`): publish signed APKs from *Settings → App releases*, the v1 API

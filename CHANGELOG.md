@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.55
+- **Assistant page no longer clips its composer.** On a short screen (a phone, a phone turned
+  sideways, a split window) the empty "new chat" view was taller than the page and the question box
+  and the suggestions below it were cut off with nothing to scroll. The view now scrolls under a
+  pinned title bar, and the small print under the composer is hidden on very short screens. With a
+  conversation open, only the thread scrolls, as before.
+
 ## v0.0.54
 - **Delivery status for the owner.** What happened to the mail this server sent, on the Dashboard
   and in the Logs report, with the reasons in plain words.

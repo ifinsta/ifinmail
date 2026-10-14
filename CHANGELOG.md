@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.49
+- **Public pages know who is signed in.** The header showed "Sign in" and "Get started" to
+  everyone, including an administrator who had just come from the console. A signed-in person now
+  sees their avatar and name, **Open console** (only when their login may open it; a plain
+  mailbox gets just **Sign out**) and **Sign out**; the phone menu shows the same with the
+  address. The Android download page sends an administrator straight to *Settings → App
+  releases*. The sign-in page sends someone who is already signed in to the console, or to the
+  page they were headed for (`?next=`, same site only); `?switch=1` keeps the form for another
+  account. The header switches to the Menu button below 1200 px while signed in.
+- **Changelog, terms and privacy are one centred column.** The heading and the text sat at the
+  left edge of a page column with a wide empty margin to their right; they now share a narrower
+  column centred on the page.
+
 ## v0.0.48
 - **Fix: short pages (sign-in, registration, error) scrolled on phones.** The page wrapper itself
   was sized to `100dvh`, but the `<body>`, app layout, standalone layout and main column were

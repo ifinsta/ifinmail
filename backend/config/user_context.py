@@ -26,6 +26,7 @@ def user_context(request: HttpRequest) -> dict[str, object]:
             'user_initials': '?',
             'user_display_name': 'Guest',
             'user_role_label': 'GUEST',
+            'can_use_console': False,
         }
     email: str = getattr(user, 'email', '') or ''
 
@@ -42,6 +43,15 @@ def user_context(request: HttpRequest) -> dict[str, object]:
     else:
         role = 'USER'
 
+    can_use_console = False
+    try:
+        from backend.apps.accounts.services.roles import RoleService
+        from backend.apps.accounts.types.permissions import PermissionCode
+
+        can_use_console = bool(RoleService.has_perm(user, PermissionCode.CONSOLE_ACCESS))
+    except Exception:  # a page must still render if roles cannot be read
+        can_use_console = False
+
     can_use_assistant = assistant_ready = False
     if user.is_staff:
         from backend.apps.accounts.services.roles import RoleService
@@ -57,6 +67,7 @@ def user_context(request: HttpRequest) -> dict[str, object]:
         'user_initials': initials,
         'user_display_name': full_name,
         'user_role_label': role,
+        'can_use_console': can_use_console,  # may open the console (public pages offer it)
         'can_use_assistant': can_use_assistant,
         'assistant_ready': assistant_ready,  # a model is connected: offer "Ask the assistant"
     }

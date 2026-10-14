@@ -1,6 +1,6 @@
 {% load i18n %}
 {% with current=request.resolver_match.url_name %}
-<header class="ifinmail-site-header">
+<header class="ifinmail-site-header{% if user.is_authenticated %} ifinmail-site-header--session{% endif %}">
     <div class="ifinmail-site-wrap ifinmail-site-header__inner">
         <a class="ifinmail-site-brand" href="{% url 'landing' %}">
             {% include "includes/brand_mark.html" with mark_class="ifinmail-site-brand__logo" size="28" %}
@@ -17,8 +17,12 @@
         </nav>
 
         <div class="ifinmail-site-actions">
+            {% if user.is_authenticated %}
+            {% include "site/_account.html" with in_menu=False %}
+            {% else %}
             <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
             <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'docs' %}#install">{% trans 'Get started' %}</a>
+            {% endif %}
         </div>
 
         <details class="ifinmail-site-menu">
@@ -34,8 +38,12 @@
                 <a href="{% url 'docs' %}"{% if current == 'docs' %} aria-current="page"{% endif %}>{% trans 'Docs' %}</a>
                 <a href="{% url 'changelog' %}"{% if current == 'changelog' %} aria-current="page"{% endif %}>{% trans 'Changelog' %}</a>
                 <a href="{% url 'download' %}"{% if current == 'download' %} aria-current="page"{% endif %}>{% trans 'Android app' %}</a>
+                {% if user.is_authenticated %}
+                {% include "site/_account.html" with in_menu=True %}
+                {% else %}
                 <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
                 <a class="ifinmail-btn ifinmail-btn--primary" href="{% url 'docs' %}#install">{% trans 'Get started' %}</a>
+                {% endif %}
             </div>
         </details>
     </div>

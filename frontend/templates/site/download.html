@@ -134,7 +134,11 @@ download_path, permalink, qr_data_uri, manifest_url, android_version.
         <div><h2 class="ifinmail-site-split__title" id="none-yet">{% trans 'No Android build yet' %}</h2></div>
         <div class="ifinmail-site-prose">
             <p>{% trans 'An administrator has not published the Android app on this server yet. Check back soon, or ask whoever runs this server.' %}</p>
+            {% if can_use_console %}
+            <p><a href="{% url 'releases:console' %}">{% trans 'Publish a build in Settings → App releases' %}</a></p>
+            {% elif not user.is_authenticated %}
             <p><a href="{% url 'accounts:login' %}">{% trans 'Administrators: sign in to publish a build' %}</a></p>
+            {% endif %}
         </div>
     </section>
     {% endif %}

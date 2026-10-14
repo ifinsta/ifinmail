@@ -6,14 +6,14 @@
 
 {% block content %}
 <section class="ifinmail-site-pagehead">
-    <div class="ifinmail-site-wrap">
+    <div class="ifinmail-site-wrap ifinmail-site-wrap--reading">
         <p class="ifinmail-site-overline">{% trans 'Legal' %}</p>
         <h1>{% trans 'Terms of use' %}</h1>
         <p class="ifinmail-site-meta">{% blocktrans trimmed with date=legal_updated|date:'j F Y' %}Last updated {{ date }}{% endblocktrans %}</p>
     </div>
 </section>
 
-<div class="ifinmail-site-wrap ifinmail-site-legal">
+<div class="ifinmail-site-wrap ifinmail-site-wrap--reading ifinmail-site-legal">
     <article class="ifinmail-site-prose">
         <h2>{% trans 'Who these terms are with' %}</h2>
         <p>{% blocktrans trimmed with name=brand.name %}{{ name }} is a mail server run by the person or organisation that installed it (the operator). These terms are between you and the operator, and they cover your use of this server’s mail services and its console. The project that publishes the software is not a party to them and does not run, host or have access to this server.{% endblocktrans %}</p>

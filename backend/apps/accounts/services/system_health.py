@@ -929,10 +929,11 @@ def _security() -> list[HealthCheck]:
     )
     from backend.apps.accounts.models import Passkey
 
+    # A second step after the password is an authenticator app. A passkey replaces the password
+    # instead of following it, so it is reported on its own and does not count here.
     enrolled = set(
         TOTPDevice.objects.filter(user__in=admins, verified=True).values_list('user_id', flat=True)
     )
-    enrolled |= set(Passkey.objects.filter(user__in=admins).values_list('user_id', flat=True))
     without = [u.email for u in admins if u.pk not in enrolled]
     with_passkey = len(
         set(Passkey.objects.filter(user__in=admins).values_list('user_id', flat=True))
@@ -945,28 +946,32 @@ def _security() -> list[HealthCheck]:
         two_factor = HealthCheck(
             'admin-2fa', GROUP_SECURITY, title, WARNING,
             f'Required, and not yet set up for: {", ".join(without)}.',
-            'They are sent to set it up at their next sign-in (an authenticator app or a passkey).',
-            link=_url('accounts:passkeys'), link_label='Passkeys and two-factor',
+            'They are sent to set up an authenticator app at their next password sign-in '
+            '(signing in with a passkey instead satisfies it).',
+            link=_url('accounts:mfa_setup'), link_label='Set up an authenticator app',
         )
     elif without:
         two_factor = HealthCheck(
             'admin-2fa', GROUP_SECURITY, title, WARNING,
             f'Optional, and not set up for: {", ".join(without)}.',
-            'A stolen password alone can open the console. Add a passkey (or an authenticator '
-            'app), then set MFA_ENFORCEMENT=required in the install directory\'s '
+            'A stolen password alone can open the console. Set up an authenticator app (a '
+            'passkey signs in without the password, but does not stop the password from being '
+            'used), then set MFA_ENFORCEMENT=required in the install directory\'s '
             'provisioning/.env and restart to make it mandatory.',
-            link=_url('accounts:passkeys'), link_label='Add a passkey',
+            link=_url('accounts:mfa_setup'), link_label='Set up an authenticator app',
         )
     elif not enforced:
         two_factor = HealthCheck(
             'admin-2fa', GROUP_SECURITY, title, INFO,
-            f'Every administrator uses it ({with_passkey} with a passkey), but it is optional.',
+            f'Every administrator has an authenticator app ({with_passkey} also sign in with a '
+            'passkey), but it is optional.',
             'Set MFA_ENFORCEMENT=required so new administrators cannot skip it.',
         )
     else:
         two_factor = HealthCheck(
             'admin-2fa', GROUP_SECURITY, title, OK,
-            f'Required, and every administrator uses it ({with_passkey} with a passkey).'
+            f'Required, and every administrator has an authenticator app ({with_passkey} also '
+            'sign in with a passkey).'
         )
     checks.append(two_factor)
     if SystemSettings.get_bool(SettingKey.REGISTRATION_OPEN, False):

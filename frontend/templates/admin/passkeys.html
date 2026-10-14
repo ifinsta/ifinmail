@@ -9,7 +9,7 @@
         <div class="ifinmail-page-header">
             <div>
                 <h1 class="ifinmail-page-title">{% trans 'Passkeys' %}</h1>
-                <p class="ifinmail-page-subtitle">{% trans 'A passkey signs you in with your fingerprint, face, screen lock or a security key. There is no password to guess, steal or be tricked into typing on a fake site, and it only works on this server’s own address. A passkey sign-in already counts as two factors.' %}</p>
+                <p class="ifinmail-page-subtitle">{% trans 'A passkey signs you in with your fingerprint, face, screen lock or a security key instead of your email and password. There is no password to guess, steal or be tricked into typing on a fake site, and it only works on this server’s own address. It replaces the password step; it is not an extra step after it.' %}</p>
             </div>
         </div>
 
@@ -17,7 +17,7 @@
         <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
             <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
             <div><p class="ifinmail-hbanner__headline">{% trans 'Your administrator requires a second factor.' %}</p>
-            <p class="ifinmail-hbanner__next">{% trans 'Add a passkey here, or set up an authenticator app.' %}</p></div>
+            <p class="ifinmail-hbanner__next">{% trans 'Add a passkey here and sign in with it from now on, or set up an authenticator app for password sign-ins.' %}</p></div>
         </div>
         {% endif %}
 
@@ -78,7 +78,7 @@
                 <div><button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Add a passkey' %}</button></div>
             </form>
             <p class="ifinmail-passkey-status" id="passkey-status" role="status" hidden></p>
-            <p class="ifinmail-help-text">{% trans 'Your browser or password manager will ask you to create the passkey and unlock it. Keep a second way to sign in (another passkey or an authenticator app) in case you lose this device.' %}</p>
+            <p class="ifinmail-help-text">{% trans 'Your browser or password manager will ask you to create the passkey and unlock it. Then sign out and choose “Sign in with a passkey” on the sign-in page. Your password keeps working, so you are never locked out; to put a second step after the password, set up an authenticator app.' %}</p>
             {% endif %}
         </section>
     </div>

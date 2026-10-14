@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.51
+- **A passkey is a way to sign in, not a second step.** Until now holding a passkey changed
+  password sign-ins: after the email and password you were asked to prove yourself *again* with the
+  passkey. A passkey now does what it is for: on the sign-in page "Sign in with a passkey" replaces
+  the email and password (no address to type), and nothing is asked afterwards because the gesture
+  is already two factors. A password sign-in is exactly as before: it is followed by an
+  authenticator code only if you have an authenticator app.
+  - The second-step passkey endpoints (`/accounts/mfa/passkey/…`) and the "Use a passkey" button on
+    the authenticator page are removed.
+  - Registering a passkey no longer marks the current session as having passed two-factor.
+  - `MFA_ENFORCEMENT=required` is satisfied by an authenticator app (after a password) or by
+    signing in with a passkey; merely holding a passkey no longer ends the authenticator prompt for
+    password sign-ins.
+  - System health reports authenticator apps for the two-factor check and counts passkey sign-in
+    separately; the Passkeys, Account and authenticator pages say the same.
+
 ## v0.0.50
 - **URLs are variables, and the domain people are on is the authority.** One helper,
   `backend/config/site_url.py`, answers "what address is this server at?": the domain of the

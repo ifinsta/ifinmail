@@ -16,17 +16,6 @@
       <div class="ifinmail-login-error">{{ error }}</div>
     {% endif %}
 
-    {% if has_passkey %}
-    <div class="ifinmail-login-passkey">
-      <button type="button" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full" hidden data-passkey-signin
-              data-options="{% url 'accounts:mfa_passkey_options' %}"
-              data-verify="{% url 'accounts:mfa_passkey_verify' %}"
-              data-status="#passkey-status">{% trans 'Use a passkey' %}</button>
-      <p class="ifinmail-passkey-status" id="passkey-status" role="status" hidden></p>
-    </div>
-    {% endif %}
-
-    {% if has_totp or not has_passkey %}
     <form method="post" action="" class="ifinmail-login-form">
       {% csrf_token %}
       <div class="ifinmail-login-form__group">
@@ -35,7 +24,6 @@
       </div>
       <button type="submit" class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full ifinmail-login-form__submit">{% trans 'Verify & sign in' %}</button>
     </form>
-    {% endif %}
   </div>
 
   <p class="ifinmail-login-card__register">
@@ -45,6 +33,3 @@
 </main>
 {% endblock %}
 
-{% block scripts %}
-{% if has_passkey %}<script src="{% static 'js/ifinmail-passkeys.js' %}"></script>{% endif %}
-{% endblock %}

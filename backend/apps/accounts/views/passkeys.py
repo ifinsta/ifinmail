@@ -118,7 +118,6 @@ def passkey_register_verify(request: HttpRequest) -> JsonResponse:
         user=_actor(request),
         detail=f'{row.name} ({"synced" if row.backup_eligible else "device-bound"})',
     )
-    _mark_verified(request, 'passkey')  # the person just unlocked it: that is proof enough
     return JsonResponse({'ok': True, 'name': row.name, 'id': str(row.pk)})
 
 
@@ -204,52 +203,3 @@ def _destination(request: HttpRequest, payload: dict[str, Any], user: Any) -> st
     if not SetupState.is_complete():
         return reverse('accounts:setup_wizard')
     return reverse('accounts:dashboard')
-
-
-# -- the second step after a password ------------------------------------------------------------
-
-
-def _pending_user(request: HttpRequest) -> Any | None:
-    pending = request.session.get('mfa_pending_user_id')
-    if not pending:
-        return None
-    return passkeys.user_model().objects.filter(pk=pending, is_active=True).first()
-
-
-@require_POST
-def mfa_passkey_options(request: HttpRequest) -> JsonResponse:
-    user = _pending_user(request)
-    if user is None:
-        return _error('Your sign-in expired. Start again.', 401)
-    if _limited(request):
-        return _error('Too many attempts. Wait a few minutes and try again.', 429)
-    try:
-        return JsonResponse({'ok': True, 'options': passkeys.authentication_options(request, user)})
-    except WebAuthnError as exc:
-        return _error(str(exc))
-
-
-@require_POST
-def mfa_passkey_verify(request: HttpRequest) -> JsonResponse:
-    user = _pending_user(request)
-    if user is None:
-        return _error('Your sign-in expired. Start again.', 401)
-    if _limited(request):
-        return _error('Too many attempts. Wait a few minutes and try again.', 429)
-    try:
-        payload = passkeys.parse_json(request)
-        row = passkeys.finish_authentication(request, payload, expected_user=user)
-    except WebAuthnError as exc:
-        AuditService.record(
-            action='mfa_failed', user=user.email, detail='passkey rejected', severity='warning'
-        )
-        return _error(str(exc), 401)
-    request.session.cycle_key()
-    login(request, user, backend=_MODEL_BACKEND)
-    _mark_verified(request, 'passkey')
-    AuditService.record(
-        action='mfa_verified',
-        user=user.email,
-        detail=f'method=passkey ({row.name}) IP: {_get_client_ip(request)}',
-    )
-    return JsonResponse({'ok': True, 'next': _destination(request, payload, user)})

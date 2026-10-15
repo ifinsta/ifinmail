@@ -69,3 +69,15 @@ def expire_agent_inboxes() -> int:
     from .services import agent_inboxes
 
     return agent_inboxes.expire()
+
+
+@shared_task(name='mail.scan_inbox_events')
+def scan_inbox_events() -> int:
+    """New mail in watched mailboxes becomes message.received events (every 30 seconds)."""
+    from .services import inbox_events
+
+    try:
+        return inbox_events.scan()
+    except Exception:
+        logging.getLogger('backend').warning('Inbox webhooks scan failed', exc_info=True)
+        return 0

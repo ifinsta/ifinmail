@@ -358,6 +358,14 @@ class DeveloperTarget(AdapterTarget):
             _int_between(0, 8760), 'Hours an inbox lives unless asked otherwise (0: kept).'
         ),
         'inboxes_quota_mb': TargetKey(_int_between(1, 1024), 'Size of each agent inbox in MB.'),
+        'inbox_events_enabled': TargetKey(
+            _one_of('yes', 'no'), 'Send received mail of watched mailboxes to webhooks.'
+        ),
+        'inbox_events_body': TargetKey(_one_of('yes', 'no'), 'Include the message text and HTML.'),
+        'inbox_events_allow_http': TargetKey(_one_of('yes', 'no'), 'Allow plain http webhooks.'),
+        'inbox_events_allow_private': TargetKey(
+            _one_of('yes', 'no'), 'Allow webhooks on private networks.'
+        ),
     }
 
 
@@ -664,6 +672,26 @@ def _capabilities() -> tuple[Capability, ...]:
                     'Hours an inbox lives unless the key asks otherwise (0: kept until deleted).',
                 ),
                 'quota_mb': _field((DEV, 'inboxes_quota_mb'), 'Size of each inbox in MB.'),
+            },
+        ),
+        _Capability(
+            'developer.inbox_webhooks',
+            'Inbox webhooks',
+            'Mail that arrives in a watched mailbox is sent to a webhook as signed JSON, with the '
+            'one-time code or sign-in link already found.',
+            {
+                'enabled': _field((DEV, 'inbox_events_enabled'), 'yes: send received mail.'),
+                'include_body': _field(
+                    (DEV, 'inbox_events_body'),
+                    'yes: the event carries the text and HTML (up to 64 KB each); no: only the '
+                    'sender, subject, snippet, attachment names and the code or link.',
+                ),
+                'allow_http': _field(
+                    (DEV, 'inbox_events_allow_http'), 'yes: allow plain http webhook addresses.'
+                ),
+                'allow_private': _field(
+                    (DEV, 'inbox_events_allow_private'), 'yes: allow webhooks on private networks.'
+                ),
             },
         ),
         _Capability(

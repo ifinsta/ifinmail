@@ -326,6 +326,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'mail.scan_delivery_events',
         'schedule': crontab(minute='*'),
     },
+    'inbox-events-scan': {
+        # New mail in mailboxes that webhooks watch becomes message.received (Inbox webhooks).
+        'task': 'mail.scan_inbox_events',
+        'schedule': 30.0,
+    },
     'agent-inboxes-expire': {
         # Agent inboxes past their time are emptied and removed (Agent inboxes plugin).
         'task': 'mail.expire_agent_inboxes',

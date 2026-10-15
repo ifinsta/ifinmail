@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.67
+- **Inbox webhooks plugin: received mail pushed to your application or agent.** A webhook can
+  now watch mailboxes. Each message that arrives becomes a signed `message.received` event
+  within about 30 seconds.
+  - **What an event carries:** sender, recipients, subject, date, a snippet, attachment names,
+    the one-time code or sign-in link already found, and the text and HTML (up to 64 KB each;
+    a setting leaves the body out). Turning a webhook on never replays mail that was already
+    there, and a message is sent once per webhook.
+  - **Who may watch what:** a console webhook may watch any mailbox (recorded in the audit
+    trail). A key may watch the agent inboxes it created, and other mailboxes only with
+    `mail.manage` as well. Being allowed to *send* as a domain never means being allowed to
+    *read* it.
+  - **Signing, retries and address rules** are the same as for delivery events.
+
 ## v0.0.66
 - **Agent inboxes plugin: email addresses for AI agents.** A key with the new `agents.manage`
   scope creates a real mailbox for an agent in one call (`POST /api/v1/inboxes`), on a domain you

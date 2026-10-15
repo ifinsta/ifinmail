@@ -521,13 +521,18 @@ def api_create_webhook(request: ApiRequest, payload: WebhookCreateV1) -> Status[
 
 
 def _check_mailboxes(request: ApiRequest, mailboxes: list[str]) -> None:
-    """A key may only listen to mailboxes it may send as (its allowed senders)."""
-    from backend.apps.accounts.services.tokens import sender_allowed
+    """A key may watch the agent inboxes it created; any other mailbox on this server needs
+    ``mail.manage`` as well (reading people's mail is an administrator's power)."""
+    from backend.apps.mail.services import agent_inboxes
 
-    allowed = list(request.auth.row.allowed_senders or [])
+    row = request.auth.row
     for box in mailboxes:
-        if not sender_allowed(allowed, box.strip().lower()):
-            raise HttpError(403, f'This key may not read mail for {box}.')
+        address = box.strip().lower()
+        if agent_inboxes.owns(row.prefix, address):
+            continue
+        if 'mail.manage' in (row.scopes or []) and ops.get_mailbox(address) is not None:
+            continue
+        raise HttpError(403, f'This key may not read mail for {box}.')
 
 
 @router.delete(

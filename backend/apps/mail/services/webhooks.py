@@ -188,6 +188,13 @@ def create_endpoint(
     boxes = sorted({m.strip().lower() for m in mailboxes if m.strip()})
     if EventType.RECEIVED in wanted and not boxes:
         raise WebhookError('Name the mailboxes whose received mail this webhook gets.')
+    if EventType.RECEIVED in wanted:
+        from backend.apps.mail.models import Mailbox
+
+        for box in boxes:
+            local, _, domain = box.partition('@')
+            if not Mailbox.objects.filter(local_part=local, domain__name=domain).exists():
+                raise WebhookError(f'{box} is not a mailbox on this server.')
     if WebhookEndpoint.objects.filter(owner_prefix=owner_prefix).count() >= MAX_ENDPOINTS_PER_OWNER:
         raise WebhookError(f'At most {MAX_ENDPOINTS_PER_OWNER} webhooks; remove one first.')
     clean_url = check_url(url, current)

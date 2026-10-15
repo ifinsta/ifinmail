@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.73
+- **Oceanic theme.** A second light look beside Smooth: the same soft shapes in sea blues (deep
+  navy text, a teal-blue accent, sea-glass surfaces). Choose it under Settings → Appearance, or
+  set it as the default for everyone. Smooth stays the default. Oceanic never follows the
+  operating system into dark, and every text and background pair clears 4.5:1 (a test measures
+  them). The theme picker now shows its six themes in two even rows.
+
 ## v0.0.72
 - **Docker cleans up after itself.** Each update rebuilt every image and left the build cache
   and the replaced images on disk: about 5 GB after a few dozen updates. A new

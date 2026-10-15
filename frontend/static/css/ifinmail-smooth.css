@@ -5,8 +5,9 @@
    friendly feel, for everyday business use. Light only: it never
    follows the operating system into a dark scheme.
 
-   Everything here is scoped to html[data-scheme="smooth"], so the
-   Light, Dark, Auto and High contrast themes are untouched. Token
+   Everything here is scoped to the smooth and oceanic schemes (Oceanic
+   is Smooth's shapes in a sea-blue palette), so the Light, Dark, Auto
+   and High contrast themes are untouched. Token
    values (colours, radii, shadows) are in ifinmail-variables.css;
    this file only refines components that need more than a token.
    Rules: no gradients, no glow, no decorative motion; depth comes
@@ -14,97 +15,97 @@
    ══════════════════════════════════════════════════════════════ */
 
 /* ─── Page and type ─── */
-html[data-scheme="smooth"] body {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) body {
     background: var(--ifinmail-color-surface-1);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 }
 
-html[data-scheme="smooth"] h1,
-html[data-scheme="smooth"] h2,
-html[data-scheme="smooth"] h3,
-html[data-scheme="smooth"] .ifinmail-page-title,
-html[data-scheme="smooth"] .ifinmail-panel-title {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) h1,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) h2,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) h3,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-page-title,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-panel-title {
     letter-spacing: -0.012em;
 }
 
 /* Small caps labels shout; keep them as quiet sentence-case labels. */
-html[data-scheme="smooth"] .ifinmail-overline,
-html[data-scheme="smooth"] .ifinmail-site-overline,
-html[data-scheme="smooth"] .ifinmail-settings__group-title,
-html[data-scheme="smooth"] .ifinmail-admin-nav-section {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-overline,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-overline,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings__group-title,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-nav-section {
     text-transform: none;
     letter-spacing: 0;
     font-weight: var(--ifinmail-font-weight-medium);
 }
 
 /* ─── Surfaces: a hairline and one soft shadow instead of a hard edge ─── */
-html[data-scheme="smooth"] .ifinmail-panel,
-html[data-scheme="smooth"] .ifinmail-stat-panel,
-html[data-scheme="smooth"] .ifinmail-table-panel,
-html[data-scheme="smooth"] .ifinmail-summary,
-html[data-scheme="smooth"] .ifinmail-settings-overview,
-html[data-scheme="smooth"] .ifinmail-assistant-proposal,
-html[data-scheme="smooth"] .ifinmail-dns-provider-card,
-html[data-scheme="smooth"] .ifinmail-setup-card,
-html[data-scheme="smooth"] .ifinmail-health-banner,
-html[data-scheme="smooth"] .ifinmail-hbanner,
-html[data-scheme="smooth"] .ifinmail-theme-card {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-panel,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-stat-panel,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-summary,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings-overview,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-assistant-proposal,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-dns-provider-card,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-setup-card,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-health-banner,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-hbanner,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-theme-card {
     border-color: var(--ifinmail-color-border-light);
 }
 
 /* Phones keep the flat, full-width list the layout uses there. From tablet up, cards are
    rounded and lifted by one soft shadow (the older sheets force "none !important"). */
 @media (min-width: 768px) {
-    html[data-scheme="smooth"] .ifinmail-panel,
-    html[data-scheme="smooth"] .ifinmail-stat-panel,
-    html[data-scheme="smooth"] .ifinmail-table-panel,
-    html[data-scheme="smooth"] .ifinmail-summary,
-    html[data-scheme="smooth"] .ifinmail-settings-overview,
-    html[data-scheme="smooth"] .ifinmail-assistant-proposal,
-    html[data-scheme="smooth"] .ifinmail-dns-provider-card,
-    html[data-scheme="smooth"] .ifinmail-setup-card,
-    html[data-scheme="smooth"] .ifinmail-health-banner,
-    html[data-scheme="smooth"] .ifinmail-hbanner,
-    html[data-scheme="smooth"] .ifinmail-theme-card {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-panel,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-stat-panel,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-summary,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings-overview,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-assistant-proposal,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-dns-provider-card,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-setup-card,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-health-banner,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-hbanner,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-theme-card {
         border-radius: var(--ifinmail-radius-lg);
         box-shadow: var(--ifinmail-shadow-1) !important;
     }
 }
 
 /* A table wider than the screen scrolls inside its card (never clipped, never the page). */
-html[data-scheme="smooth"] .ifinmail-table-panel {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
 
-html[data-scheme="smooth"] .ifinmail-table-panel > table,
-html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel > table,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel .ifinmail-admin-table {
     min-width: 100%;
 }
 
 /* Phones: a table without labels scrolls in its card; one that ifinmail-tables.js has labelled
    (.is-stacked) becomes a list of cards, one per row, each value beside its column heading. */
 @media (max-width: 767px) {
-    html[data-scheme="smooth"] .ifinmail-admin-table:not(.is-stacked) {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table:not(.is-stacked) {
         min-width: 32rem;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table:not(.is-stacked) th,
-    html[data-scheme="smooth"] .ifinmail-admin-table:not(.is-stacked) td {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table:not(.is-stacked) th,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table:not(.is-stacked) td {
         white-space: nowrap;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked,
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tbody,
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tr,
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked tbody,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked tr,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td {
         display: block;
         width: 100%;
         min-width: 0;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked thead {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked thead {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -113,18 +114,18 @@ html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
         white-space: nowrap;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tr {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked tr {
         padding: var(--ifinmail-space-3) var(--ifinmail-space-4);
         border-bottom: 1px solid var(--ifinmail-color-border-light);
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked tr:last-child {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked tr:last-child {
         border-bottom: 0;
     }
 
     /* A cell can hold several things (avatar, name, address): the label sits in a left column
        and everything the cell holds stays in the column beside it, wrapping inside it. */
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td {
         position: relative;
         display: block;
         min-height: 1.75rem;
@@ -136,15 +137,15 @@ html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
     }
 
     /* Things that are one value (a status dot with its word, a badge) keep their natural size. */
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td > .ifinmail-status-dot,
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td > .ifinmail-badge,
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td .ifinmail-btn {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td > .ifinmail-status-dot,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td > .ifinmail-badge,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td .ifinmail-btn {
         width: auto;
         min-width: 0;
         flex: none;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td::before {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td::before {
         content: attr(data-label);
         position: absolute;
         top: var(--ifinmail-space-1);
@@ -156,41 +157,41 @@ html[data-scheme="smooth"] .ifinmail-table-panel .ifinmail-admin-table {
     }
 
     /* An empty value shows a dash, so its label never sits on top of the next row's. */
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td:empty::after {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td:empty::after {
         content: "\2014";
         color: var(--ifinmail-color-text-muted);
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[data-label=""]::before {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td[data-label=""]::before {
         display: none;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[data-label=""],
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[colspan] {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td[data-label=""],
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td[colspan] {
         padding-left: 0;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[colspan] {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td[colspan] {
         text-align: center;
     }
 
-    html[data-scheme="smooth"] .ifinmail-admin-table.is-stacked td[colspan]::before {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table.is-stacked td[colspan]::before {
         display: none;
     }
 }
 
 /* Cells inside a card are separated by whitespace and a faint line, not boxed in. */
-html[data-scheme="smooth"] .ifinmail-stat-cell,
-html[data-scheme="smooth"] .ifinmail-summary__cell,
-html[data-scheme="smooth"] .ifinmail-settings-row,
-html[data-scheme="smooth"] .ifinmail-timeline-item,
-html[data-scheme="smooth"] .ifinmail-table-panel-header,
-html[data-scheme="smooth"] .ifinmail-page-header {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-stat-cell,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-summary__cell,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings-row,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-timeline-item,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel-header,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-page-header {
     border-color: var(--ifinmail-color-border-light);
 }
 
 /* ─── Tables ─── */
-html[data-scheme="smooth"] .ifinmail-admin-table th {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table th {
     background: transparent;
     color: var(--ifinmail-color-text-muted);
     font-weight: var(--ifinmail-font-weight-medium);
@@ -199,20 +200,20 @@ html[data-scheme="smooth"] .ifinmail-admin-table th {
     border-bottom: 1px solid var(--ifinmail-color-border-light);
 }
 
-html[data-scheme="smooth"] .ifinmail-admin-table td {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table td {
     border-color: var(--ifinmail-color-border-light);
 }
 
-html[data-scheme="smooth"] .ifinmail-admin-table tbody tr {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table tbody tr {
     transition: background var(--ifinmail-transition);
 }
 
-html[data-scheme="smooth"] .ifinmail-admin-table tbody tr:hover {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-table tbody tr:hover {
     background: var(--ifinmail-color-primary-subtle);
 }
 
 /* ─── Controls ─── */
-html[data-scheme="smooth"] .ifinmail-btn {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-btn {
     border-radius: var(--ifinmail-radius);
     font-weight: var(--ifinmail-font-weight-medium);
     transition:
@@ -222,36 +223,36 @@ html[data-scheme="smooth"] .ifinmail-btn {
         box-shadow var(--ifinmail-transition);
 }
 
-html[data-scheme="smooth"] .ifinmail-btn--primary {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-btn--primary {
     border-color: transparent;
     box-shadow: var(--ifinmail-shadow-1);
 }
 
 /* The legacy sheets force a primary-coloured edge with !important; here the edge is neutral
    and the text carries the colour. */
-html[data-scheme="smooth"] .ifinmail-btn--outline {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-btn--outline {
     border-color: var(--ifinmail-color-border) !important;
     background-color: var(--ifinmail-surface-container-lowest);
 }
 
-html[data-scheme="smooth"] .ifinmail-btn--outline:hover {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-btn--outline:hover {
     border-color: var(--ifinmail-color-primary) !important;
     background-color: var(--ifinmail-color-primary-subtle) !important;
 }
 
-html[data-scheme="smooth"] .ifinmail-btn--danger {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-btn--danger {
     border-color: var(--ifinmail-color-border);
 }
 
-html[data-scheme="smooth"] .ifinmail-input,
-html[data-scheme="smooth"] input[type="text"],
-html[data-scheme="smooth"] input[type="email"],
-html[data-scheme="smooth"] input[type="password"],
-html[data-scheme="smooth"] input[type="number"],
-html[data-scheme="smooth"] input[type="search"],
-html[data-scheme="smooth"] input[type="url"],
-html[data-scheme="smooth"] select,
-html[data-scheme="smooth"] textarea {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-input,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="text"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="email"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="password"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="number"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="search"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="url"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) select,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) textarea {
     border-color: var(--ifinmail-color-border);
     border-radius: var(--ifinmail-radius);
     background-color: var(--ifinmail-surface-container-lowest);
@@ -260,245 +261,245 @@ html[data-scheme="smooth"] textarea {
         box-shadow var(--ifinmail-transition);
 }
 
-html[data-scheme="smooth"] .ifinmail-input:hover,
-html[data-scheme="smooth"] select:hover,
-html[data-scheme="smooth"] textarea:hover {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-input:hover,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) select:hover,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) textarea:hover {
     border-color: var(--ifinmail-color-text-muted);
 }
 
 /* A field inside a bordered wrapper (search) draws no edge of its own. */
-html[data-scheme="smooth"] .ifinmail-global-search input,
-html[data-scheme="smooth"] .ifinmail-settings__search input {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-global-search input,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings__search input {
     border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
 }
 
-html[data-scheme="smooth"] .ifinmail-global-search:focus-within,
-html[data-scheme="smooth"] .ifinmail-settings__search:focus-within {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-global-search:focus-within,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings__search:focus-within {
     border-color: var(--ifinmail-color-primary);
     box-shadow: 0 0 0 3px rgba(var(--ifinmail-color-primary-rgb), 0.16);
 }
 
-html[data-scheme="smooth"] input[type="checkbox"],
-html[data-scheme="smooth"] input[type="radio"] {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="checkbox"],
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="radio"] {
     border-color: var(--ifinmail-color-border);
 }
 
-html[data-scheme="smooth"] input[type="checkbox"] {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="checkbox"] {
     border-radius: var(--ifinmail-radius-sm);
 }
 
 /* A soft halo in the brand colour; the keyboard outline below stays the strong signal. */
-html[data-scheme="smooth"] .ifinmail-input:focus,
-html[data-scheme="smooth"] input:focus,
-html[data-scheme="smooth"] select:focus,
-html[data-scheme="smooth"] textarea:focus {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-input:focus,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input:focus,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) select:focus,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) textarea:focus {
     border-color: var(--ifinmail-color-primary);
     box-shadow: 0 0 0 3px rgba(var(--ifinmail-color-primary-rgb), 0.16);
 }
 
 /* ─── Navigation ─── */
-html[data-scheme="smooth"] .ifinmail-header,
-html[data-scheme="smooth"] .ifinmail-admin-brand,
-html[data-scheme="smooth"] .ifinmail-admin-nav,
-html[data-scheme="smooth"] .ifinmail-settings__nav {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-header,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-brand,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-nav,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings__nav {
     border-color: var(--ifinmail-color-border-light);
 }
 
-html[data-scheme="smooth"] .ifinmail-admin-nav a,
-html[data-scheme="smooth"] .ifinmail-settings__nav a {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-admin-nav a,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings__nav a {
     border-radius: var(--ifinmail-radius);
     transition: background var(--ifinmail-transition), color var(--ifinmail-transition);
 }
 
-html[data-scheme="smooth"] .ifinmail-global-search,
-html[data-scheme="smooth"] .ifinmail-settings__search {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-global-search,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings__search {
     border-color: var(--ifinmail-color-border);
     border-radius: var(--ifinmail-radius-lg);
     background: var(--ifinmail-color-surface-2);
 }
 
 /* ─── Floating layers ─── */
-html[data-scheme="smooth"] .ifinmail-dropdown-menu {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-dropdown-menu {
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius-lg);
     box-shadow: var(--ifinmail-shadow-2);
 }
 
-html[data-scheme="smooth"] .ifinmail-modal,
-html[data-scheme="smooth"] .ifinmail-modal-dialog {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-modal,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-modal-dialog {
     border-radius: var(--ifinmail-radius-dialog);
     box-shadow: var(--ifinmail-shadow-3);
 }
 
 /* ─── Auth, registration, setup ─── */
-html[data-scheme="smooth"] .ifinmail-login,
-html[data-scheme="smooth"] .ifinmail-reg {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-login,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-reg {
     background: var(--ifinmail-color-surface-1);
     background-image: none;
 }
 
-html[data-scheme="smooth"] .ifinmail-login-card,
-html[data-scheme="smooth"] .ifinmail-reg-card {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-login-card,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-reg-card {
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius-dialog);
     box-shadow: var(--ifinmail-shadow-2);
 }
 
 /* ─── Inner blocks that older pages draw as small square boxes ─── */
-html[data-scheme="smooth"] .ifinmail-quick-action,
-html[data-scheme="smooth"] .ifinmail-role-card,
-html[data-scheme="smooth"] .ifinmail-session-item,
-html[data-scheme="smooth"] .ifinmail-toolbox-record,
-html[data-scheme="smooth"] .ifinmail-engine-row,
-html[data-scheme="smooth"] .ifinmail-codebox,
-html[data-scheme="smooth"] .ifinmail-assistant-composer,
-html[data-scheme="smooth"] .ifinmail-assistant-suggestion {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-quick-action,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-role-card,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-session-item,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-toolbox-record,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-engine-row,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-codebox,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-assistant-composer,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-assistant-suggestion {
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius-lg);
 }
 
-html[data-scheme="smooth"] .ifinmail-toolbox-record,
-html[data-scheme="smooth"] .ifinmail-codebox {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-toolbox-record,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-codebox {
     background: var(--ifinmail-color-surface-1);
 }
 
-html[data-scheme="smooth"] .ifinmail-progress,
-html[data-scheme="smooth"] .ifinmail-progress span,
-html[data-scheme="smooth"] .ifinmail-switch,
-html[data-scheme="smooth"] .ifinmail-slider {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-progress,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-progress span,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-switch,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-slider {
     border-radius: var(--ifinmail-radius-full);
 }
 
-html[data-scheme="smooth"] .ifinmail-tooltip__content {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-tooltip__content {
     border-radius: var(--ifinmail-radius);
     box-shadow: var(--ifinmail-shadow-2);
 }
 
 /* ─── Tabs: a soft pill marks the current one ─── */
-html[data-scheme="smooth"] .ifinmail-tab {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-tab {
     border-radius: var(--ifinmail-radius);
     transition: background var(--ifinmail-transition), color var(--ifinmail-transition);
 }
 
-html[data-scheme="smooth"] .ifinmail-tab--active {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-tab--active {
     background: var(--ifinmail-color-primary-tint);
     border-color: transparent;
 }
 
 /* ─── Status chips and pills ─── */
-html[data-scheme="smooth"] .ifinmail-badge,
-html[data-scheme="smooth"] .ifinmail-pill {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-badge,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-pill {
     border-color: transparent;
     padding-inline: var(--ifinmail-space-2);
 }
 
 /* ─── Scrollbars: thin and quiet ─── */
-html[data-scheme="smooth"],
-html[data-scheme="smooth"] * {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]),
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) * {
     scrollbar-width: thin;
     scrollbar-color: var(--ifinmail-color-border) transparent;
 }
 
-html[data-scheme="smooth"] ::-webkit-scrollbar {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 
-html[data-scheme="smooth"] ::-webkit-scrollbar-thumb {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) ::-webkit-scrollbar-thumb {
     background: var(--ifinmail-color-border);
     border: 3px solid transparent;
     background-clip: content-box;
     border-radius: var(--ifinmail-radius-full);
 }
 
-html[data-scheme="smooth"] ::-webkit-scrollbar-thumb:hover {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) ::-webkit-scrollbar-thumb:hover {
     background: var(--ifinmail-color-text-muted);
     background-clip: content-box;
 }
 
 /* ─── Public site ─── */
-html[data-scheme="smooth"] .ifinmail-site-header {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-header {
     border-bottom-color: var(--ifinmail-color-border-light);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-window,
-html[data-scheme="smooth"] .ifinmail-site-note,
-html[data-scheme="smooth"] .ifinmail-site-download__qr,
-html[data-scheme="smooth"] .ifinmail-site pre {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-window,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-note,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-download__qr,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site pre {
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius-lg);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-window {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-window {
     box-shadow: var(--ifinmail-shadow-2);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-item {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-item {
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius-lg);
     box-shadow: var(--ifinmail-shadow-1);
 }
 
-html[data-scheme="smooth"] .ifinmail-site code {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site code {
     border-color: transparent;
     border-radius: var(--ifinmail-radius-xs);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-footer {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-footer {
     background: var(--ifinmail-surface-container-lowest);
 }
 
 /* The closing call to action is a quiet light band, not a dark block. */
-html[data-scheme="smooth"] .ifinmail-site-band {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-band {
     background: var(--ifinmail-color-primary-subtle);
     color: var(--ifinmail-color-text-primary);
     border-block: 1px solid var(--ifinmail-color-border-light);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-band h2 {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-band h2 {
     color: var(--ifinmail-color-brand);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-band p {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-band p {
     color: var(--ifinmail-color-text-secondary);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-band .ifinmail-btn {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-band .ifinmail-btn {
     background: var(--ifinmail-color-primary);
     color: var(--ifinmail-on-primary);
 }
 
-html[data-scheme="smooth"] .ifinmail-site-band .ifinmail-btn:hover {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-band .ifinmail-btn:hover {
     background: var(--ifinmail-color-primary-hover);
 }
 
 /* ─── Messages: the tint carries the meaning, not a hard coloured edge ─── */
-html[data-scheme="smooth"] .ifinmail-login-error,
-html[data-scheme="smooth"] .ifinmail-error-banner,
-html[data-scheme="smooth"] .ifinmail-verify-success,
-html[data-scheme="smooth"] .ifinmail-dns-result--ok,
-html[data-scheme="smooth"] .ifinmail-dns-result--err,
-html[data-scheme="smooth"] .ifinmail-deliverability-fix,
-html[data-scheme="smooth"] .ifinmail-hbanner--danger,
-html[data-scheme="smooth"] .ifinmail-hbanner--warning,
-html[data-scheme="smooth"] .ifinmail-hbanner--ok,
-html[data-scheme="smooth"] .ifinmail-empty-state--danger,
-html[data-scheme="smooth"] .ifinmail-flash {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-login-error,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-error-banner,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-verify-success,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-dns-result--ok,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-dns-result--err,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-deliverability-fix,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-hbanner--danger,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-hbanner--warning,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-hbanner--ok,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-empty-state--danger,
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-flash {
     border-color: transparent;
     border-radius: var(--ifinmail-radius-lg);
     box-shadow: none;
 }
 
 /* Tiles in one row are one height, whatever the tallest one holds. */
-html[data-scheme="smooth"] .ifinmail-stat-panel {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-stat-panel {
     align-self: stretch;
 }
 
 /* Theme previews are thumbnails, not features: keep the dark ones small and soft. */
-html[data-scheme="smooth"] .ifinmail-theme-card__preview {
+html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-theme-card__preview {
     height: 3.5rem;
     border-color: var(--ifinmail-color-border-light);
     border-radius: var(--ifinmail-radius);
@@ -506,11 +507,11 @@ html[data-scheme="smooth"] .ifinmail-theme-card__preview {
 
 /* Phones: a settings row with a long explanation reads top to bottom, not as two squeezed columns. */
 @media (max-width: 767px) {
-    html[data-scheme="smooth"] .ifinmail-settings-row:has(dd .ifinmail-settings-row__help) {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings-row:has(dd .ifinmail-settings-row__help) {
         display: block;
     }
 
-    html[data-scheme="smooth"] .ifinmail-settings-row:has(dd .ifinmail-settings-row__help) dd {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-settings-row:has(dd .ifinmail-settings-row__help) dd {
         margin-top: var(--ifinmail-space-1);
         text-align: left;
         justify-content: flex-start;
@@ -519,25 +520,25 @@ html[data-scheme="smooth"] .ifinmail-theme-card__preview {
 
 /* Phones: things you tap are big enough to tap (about 40 px), not only to see. */
 @media (max-width: 767px) {
-    html[data-scheme="smooth"] .ifinmail-wordmark--header,
-    html[data-scheme="smooth"] a.ifinmail-link-strong,
-    html[data-scheme="smooth"] button.ifinmail-link-strong,
-    html[data-scheme="smooth"] .ifinmail-site-more,
-    html[data-scheme="smooth"] .ifinmail-login-form__forgot,
-    html[data-scheme="smooth"] .ifinmail-hc__copy {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-wordmark--header,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) a.ifinmail-link-strong,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) button.ifinmail-link-strong,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-site-more,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-login-form__forgot,
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-hc__copy {
         display: inline-flex;
         align-items: center;
         min-height: 40px;
     }
 
-    html[data-scheme="smooth"] input[type="checkbox"],
-    html[data-scheme="smooth"] input[type="radio"],
-    html[data-scheme="smooth"] .ifinmail-login-form__checkbox {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="checkbox"],
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="radio"],
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-login-form__checkbox {
         width: 20px;
         height: 20px;
     }
 
-    html[data-scheme="smooth"] input[type="range"] {
+    html:is([data-scheme="smooth"], [data-scheme="oceanic"]) input[type="range"] {
         height: 32px;
     }
 }

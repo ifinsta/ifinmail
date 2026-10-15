@@ -39,6 +39,12 @@ class DefaultThemeTests(MailTablesTestCase):
         self.assertEqual(appearance.default_theme(), 'light')
         self.assertEqual(self.default_in_page(reverse('landing')), 'light')
 
+    def test_oceanic_can_be_the_default(self) -> None:
+        self.sign_in(is_staff=True, is_superuser=True)
+        self.client.post(reverse('accounts:appearance_default'), {'theme': 'oceanic'})
+        self.assertEqual(appearance.default_theme(), 'oceanic')
+        self.assertEqual(self.default_in_page(reverse('landing')), 'oceanic')
+
     def test_unknown_themes_are_refused(self) -> None:
         self.sign_in(is_staff=True, is_superuser=True)
         self.client.post(reverse('accounts:appearance_default'), {'theme': 'neon'})

@@ -19,11 +19,12 @@ def rules(css: str) -> list[tuple[str, str]]:
 
 class SmoothStylesheetTests(SimpleTestCase):
     def test_every_rule_is_scoped_to_the_smooth_scheme(self) -> None:
-        """Otherwise Light, Dark and High contrast would change with it."""
+        """Otherwise Light, Dark and High contrast would change with it. Oceanic shares the look."""
         unscoped = []
+        scope = 'html:is([data-scheme="smooth"], [data-scheme="oceanic"])'
         for selector, _ in rules((CSS / 'ifinmail-smooth.css').read_text()):
-            for part in selector.split(','):
-                if not part.strip().startswith('html[data-scheme="smooth"]'):
+            for part in selector.replace(scope, 'SCOPE').split(','):
+                if not part.strip().startswith('SCOPE'):
                     unscoped.append(part.strip())
         self.assertEqual(unscoped, [])
 
@@ -36,12 +37,12 @@ class SmoothStylesheetTests(SimpleTestCase):
     def test_no_dark_scheme_in_the_smooth_look(self) -> None:
         css = (CSS / 'ifinmail-smooth.css').read_text()
         self.assertNotIn('prefers-color-scheme', css)
-        block = re.search(r'html\[data-scheme="smooth"\]\s*\{(.*?)\n\}', (CSS / 'ifinmail-variables.css').read_text(), re.S)
+        block = re.search(r'html\[data-scheme="smooth"\],\s*html\[data-scheme="oceanic"\]\s*\{(.*?)\n\}', (CSS / 'ifinmail-variables.css').read_text(), re.S)
         assert block is not None
         self.assertIn('color-scheme: light', block.group(1))
 
     def test_the_brand_colour_is_left_to_the_organisation(self) -> None:
-        block = re.search(r'html\[data-scheme="smooth"\]\s*\{(.*?)\n\}', (CSS / 'ifinmail-variables.css').read_text(), re.S)
+        block = re.search(r'html\[data-scheme="smooth"\],\s*html\[data-scheme="oceanic"\]\s*\{(.*?)\n\}', (CSS / 'ifinmail-variables.css').read_text(), re.S)
         assert block is not None
         for token in ('--ifinmail-color-primary:', '--ifinmail-color-brand:', '--ifinmail-on-primary:'):
             self.assertNotIn(token, block.group(1))
@@ -49,7 +50,7 @@ class SmoothStylesheetTests(SimpleTestCase):
     def test_radii_are_softer_than_the_standard_look(self) -> None:
         css = (CSS / 'ifinmail-variables.css').read_text()
         root = re.search(r':root\s*\{(.*?)\n\}', css, re.S).group(1)  # type: ignore[union-attr]
-        smooth = re.search(r'html\[data-scheme="smooth"\]\s*\{(.*?)\n\}', css, re.S).group(1)  # type: ignore[union-attr]
+        smooth = re.search(r'html\[data-scheme="smooth"\],\s*html\[data-scheme="oceanic"\]\s*\{(.*?)\n\}', css, re.S).group(1)  # type: ignore[union-attr]
 
         def rem(block: str, name: str) -> float:
             return float(re.search(rf'--ifinmail-{name}:\s*([\d.]+)rem', block).group(1))  # type: ignore[union-attr]
@@ -77,7 +78,7 @@ class ThemeBootstrapTests(SimpleTestCase):
     def test_the_picker_offers_smooth_first(self) -> None:
         html = (Path(settings.BASE_DIR) / 'frontend' / 'templates' / 'admin' / 'settings_appearance.html').read_text()
         values = re.findall(r'name="ifinmail-theme" value="(\w+)"', html)
-        self.assertEqual(values, ['smooth', 'light', 'dark', 'auto', 'contrast'])
+        self.assertEqual(values, ['smooth', 'oceanic', 'light', 'dark', 'auto', 'contrast'])
 
 
 class PhoneTablesTests(SimpleTestCase):
@@ -99,7 +100,7 @@ class PhoneTablesTests(SimpleTestCase):
         panel = [
             body
             for sel, body in rules(css)
-            if sel.strip() == 'html[data-scheme="smooth"] .ifinmail-table-panel'
+            if sel.strip() == 'html:is([data-scheme="smooth"], [data-scheme="oceanic"]) .ifinmail-table-panel'
         ]
         self.assertTrue(any('overflow-x: auto' in b for b in panel))
         self.assertFalse(any('overflow: hidden' in b for b in panel))

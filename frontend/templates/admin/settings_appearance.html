@@ -9,7 +9,7 @@
         <div class="ifinmail-page-header">
             <div>
                 <h1 class="ifinmail-page-title">{{ settings_item.title }}</h1>
-                <p class="ifinmail-page-subtitle">{% trans 'Smooth is the default: soft edges and a calm light look for everyday work. Light, dark, auto and high contrast are there if you prefer them.' %}</p>
+                <p class="ifinmail-page-subtitle">{% trans 'Smooth is the default: soft edges and a calm light look for everyday work. Oceanic is the same look in sea blues. Light, dark, auto and high contrast are there if you prefer them.' %}</p>
             </div>
         </div>
 
@@ -21,6 +21,11 @@
                         <input class="ifinmail-sr-only" type="radio" name="ifinmail-theme" value="smooth">
                         <span class="ifinmail-theme-card__preview ifinmail-theme-card__preview--smooth" aria-hidden="true"><i></i><b></b></span>
                         <span class="ifinmail-theme-card__label">{% trans 'Smooth' %}</span>
+                    </label>
+                    <label class="ifinmail-theme-card">
+                        <input class="ifinmail-sr-only" type="radio" name="ifinmail-theme" value="oceanic">
+                        <span class="ifinmail-theme-card__preview ifinmail-theme-card__preview--oceanic" aria-hidden="true"><i></i><b></b></span>
+                        <span class="ifinmail-theme-card__label">{% trans 'Oceanic' %}</span>
                     </label>
                     <label class="ifinmail-theme-card">
                         <input class="ifinmail-sr-only" type="radio" name="ifinmail-theme" value="light">
@@ -55,6 +60,7 @@
                 <label class="ifinmail-sr-only" for="theme-default-choice">{% trans 'Default theme' %}</label>
                 <select class="ifinmail-input" id="theme-default-choice" name="theme">
                     <option value="smooth"{% if default_theme == 'smooth' %} selected{% endif %}>{% trans 'Smooth' %}</option>
+                    <option value="oceanic"{% if default_theme == 'oceanic' %} selected{% endif %}>{% trans 'Oceanic' %}</option>
                     <option value="light"{% if default_theme == 'light' %} selected{% endif %}>{% trans 'Light' %}</option>
                     <option value="dark"{% if default_theme == 'dark' %} selected{% endif %}>{% trans 'Dark' %}</option>
                     <option value="auto"{% if default_theme == 'auto' %} selected{% endif %}>{% trans 'Auto' %}</option>

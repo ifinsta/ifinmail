@@ -265,6 +265,9 @@
     --ifinmail-preview-smooth-bg: #F3F6FA;
     --ifinmail-preview-smooth-bar: #FFFFFF;
     --ifinmail-preview-smooth-btn: #3B6FE8;
+    --ifinmail-preview-oceanic-bg: #E4F1F5;
+    --ifinmail-preview-oceanic-bar: #FFFFFF;
+    --ifinmail-preview-oceanic-btn: #0C6A8A;
     --ifinmail-preview-light-bg: #F3F4F6;
     --ifinmail-preview-light-bar: #FFFFFF;
     --ifinmail-preview-light-btn: #1A56DB;
@@ -285,8 +288,10 @@
    Only token values change here; component CSS stays untouched.
    ══════════════════════════════════════════════════════════════ */
 /* Smooth: the default. Light only, soft edges, quiet depth. Primary and brand colours are left
-   alone so a custom brand colour keeps working. Component refinements: ifinmail-smooth.css. */
-html[data-scheme="smooth"] {
+   alone so a custom brand colour keeps working. Component refinements: ifinmail-smooth.css.
+   Oceanic shares these shapes and surfaces; its own colours follow in the next block. */
+html[data-scheme="smooth"],
+html[data-scheme="oceanic"] {
     color-scheme: light;
 
     --ifinmail-color-border: #E2E7EE;
@@ -318,6 +323,52 @@ html[data-scheme="smooth"] {
     --ifinmail-duration-normal: 180ms;
     --ifinmail-transition-fast: 120ms var(--ifinmail-easing-standard);
     --ifinmail-transition: 180ms var(--ifinmail-easing-standard);
+}
+
+/* Oceanic: Smooth's soft shapes in a light sea-blue palette (deep navy text, teal-blue accent,
+   sea-glass surfaces). Light only. It sets the accent itself, so it replaces a custom brand colour
+   like Dark does. Every text/background pair below is checked in test_oceanic_theme.py. */
+html[data-scheme="oceanic"] {
+    --ifinmail-color-primary: #0C6A8A;
+    --ifinmail-color-primary-hover: #0A5772;
+    --ifinmail-color-primary-tint: #DDF0F5;
+    --ifinmail-color-primary-subtle: #EBF6F9;
+    --ifinmail-color-primary-rgb: 12, 106, 138;
+    --ifinmail-color-brand: #0B3C5D;
+    --ifinmail-band-bg: #0B3C5D;
+
+    --ifinmail-color-text-primary: #0B2433;
+    --ifinmail-color-text-secondary: #2F4858;
+    --ifinmail-color-text-muted: #4B6575;
+
+    --ifinmail-color-border: #C5DAE2;
+    --ifinmail-color-border-light: #D8E8ED;
+    --ifinmail-color-surface-1: #EAF4F7;
+    --ifinmail-color-surface-2: #E1EEF2;
+    --ifinmail-surface-container-high: #D6E7EC;
+    --ifinmail-surface-container-highest: #C5DAE2;
+    --ifinmail-surface-dim: #C9DEE5;
+    --ifinmail-inverse-surface: #0B2A3A;
+    --ifinmail-inverse-on-surface: #E4F1F5;
+
+    --ifinmail-color-info: #0369A1;
+    --ifinmail-color-info-tint: #DBEFF9;
+
+    --ifinmail-secondary-fixed: #CFEBF2;
+    --ifinmail-on-secondary-fixed: #00252F;
+    --ifinmail-on-secondary-fixed-variant: #0A5772;
+
+    --ifinmail-sidebar-active-bg: #D6EEF4;
+    --ifinmail-sidebar-active-color: #0A5772;
+    --ifinmail-sidebar-hover-bg: #E4F1F5;
+    --ifinmail-sidebar-text: #2F4858;
+    --ifinmail-sidebar-text-muted: #4B6575;
+
+    --ifinmail-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234b6575' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+    --ifinmail-shadow-1: 0 1px 2px rgba(11, 60, 93, 0.05), 0 1px 3px rgba(11, 60, 93, 0.05);
+    --ifinmail-shadow-2: 0 6px 18px rgba(11, 60, 93, 0.10), 0 1px 3px rgba(11, 60, 93, 0.06);
+    --ifinmail-shadow-3: 0 14px 34px rgba(11, 60, 93, 0.14), 0 2px 6px rgba(11, 60, 93, 0.07);
 }
 
 html[data-scheme="dark"] {

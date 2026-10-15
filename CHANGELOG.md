@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.69
+- **Human approval plugin: a person in the loop for mail agents send.**
+  - **The rule:** hold every message, messages with a recipient outside this server, or
+    messages to someone the sender has never written to before. It covers keys that manage agent
+    inboxes, or every API key.
+  - **What happens to a held message:** it answers `202` with `"status": "pending_approval"`
+    and an id the agent polls (`GET /api/v1/approvals/{id}`). Administrators are emailed (at most
+    every ten minutes) and decide under **Settings → Approvals**, or with a key that has
+    `mail.manage`. A key never approves its own mail.
+  - **Approving re-runs every check of a normal send:** a key that was revoked, or lost the right
+    to send as that address in the meantime, makes the message fail instead of leaving.
+    Undecided messages expire (24 h by default), and every decision is in the audit trail.
+  - **Python:** `api.approval(id)` and `api.wait_for_approval(id)`.
+
 ## v0.0.68
 - **Injection shield plugin: mail is checked for instructions planted for AI agents before an
   agent reads it.** Every message an agent gets through this server (Agent inboxes API, Inbox

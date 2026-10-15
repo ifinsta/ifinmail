@@ -331,6 +331,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'mail.scan_inbox_events',
         'schedule': 30.0,
     },
+    'approvals-expire': {
+        # Held messages nobody approved in time expire (Human approval plugin).
+        'task': 'mail.expire_approvals',
+        'schedule': crontab(minute='*/5'),
+    },
     'agent-inboxes-expire': {
         # Agent inboxes past their time are emptied and removed (Agent inboxes plugin).
         'task': 'mail.expire_agent_inboxes',

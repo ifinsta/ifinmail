@@ -837,6 +837,7 @@ class ContractTests(ApiBase):
                 .replace('{alias_id}', 'x')
                 .replace('{fingerprint}', 'abc')
                 .replace('{uid}', '1')
+                .replace('{approval_id}', '00000000-0000-0000-0000-000000000000')
             )
             body = bodies.get((op.method, op.path), {} if op.method in ('POST', 'PATCH') else None)
             response = self.call(op.method.lower(), url, body=body, **kw)

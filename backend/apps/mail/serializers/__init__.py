@@ -163,7 +163,9 @@ class MessageAcceptedV1(Schema):
     """The server accepted the message for delivery (it is not a delivery receipt)."""
 
     id: str  # the Message-ID header, without the angle brackets
-    status: str  # "queued", or "captured" for a sandbox key (kept, not delivered)
+    # "queued"; "captured" for a sandbox key (kept, not delivered); "pending_approval" when the
+    # Human approval plugin holds it (``id`` is then the approval's id: GET /approvals/{id}).
+    status: str
     recipients: int
 
 
@@ -337,6 +339,44 @@ class WebhookDeliveryV1(Schema):
         )
 
 
+class ApprovalV1(Schema):
+    """A message held for a person's approval, and what became of it."""
+
+    id: str
+    status: str  # pending | sent | rejected | expired | failed
+    sender: str
+    to: list[str]
+    cc: list[str]
+    subject: str
+    reason: str
+    created_at: str
+    decided_at: str | None
+    decided_by: str
+    note: str
+    message_id: str  # the sent message's id (for delivery events), once sent
+
+    @classmethod
+    def of(cls, row) -> ApprovalV1:  # noqa: ANN001
+        return cls(
+            id=str(row.pk),
+            status=row.status,
+            sender=row.sender,
+            to=list(row.to),
+            cc=list(row.cc),
+            subject=row.subject,
+            reason=row.reason,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+            decided_at=row.decided_at.isoformat(timespec='seconds') if row.decided_at else None,
+            decided_by=row.decided_by,
+            note=row.note,
+            message_id=row.message_id,
+        )
+
+
+class ApprovalDecisionV1(Schema):
+    note: str = ''
+
+
 class SandboxMessageV1(Schema):
     """A message a sandbox key sent, kept for inspection and never delivered."""
 
@@ -370,6 +410,8 @@ class SandboxMessageV1(Schema):
 
 
 __all__ = [
+    'ApprovalDecisionV1',
+    'ApprovalV1',
     'RiskV1',
     'FoundCodeV1',
     'FoundLinkV1',

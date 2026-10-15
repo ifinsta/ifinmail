@@ -152,3 +152,36 @@ class AgentInbox(models.Model):
 
     def __str__(self) -> str:
         return self.address
+
+
+class PendingMessage(models.Model):
+    """A message an API key sent that waits for a person's approval (Human approval plugin)."""
+
+    PENDING, SENT, REJECTED, EXPIRED, FAILED = 'pending', 'sent', 'rejected', 'expired', 'failed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    key_prefix = models.CharField(max_length=16, db_index=True)
+    key_name = models.CharField(max_length=64, blank=True, default='')
+    sender = models.CharField(max_length=254)
+    to = models.JSONField(default=list)
+    cc = models.JSONField(default=list)
+    bcc = models.JSONField(default=list)
+    reply_to = models.CharField(max_length=254, blank=True, default='')
+    subject = models.CharField(max_length=998)
+    text = models.TextField(blank=True, default='')
+    html = models.TextField(blank=True, default='')
+    reason = models.CharField(max_length=200)
+    status = models.CharField(max_length=10, default=PENDING, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.CharField(max_length=255, blank=True, default='')
+    note = models.CharField(max_length=300, blank=True, default='')
+    message_id = models.CharField(max_length=255, blank=True, default='')  # once sent
+
+    class Meta:
+        db_table = 'mail_pending_message'
+        ordering = ['-created_at']
+
+    @property
+    def recipients(self) -> list[str]:
+        return [*self.to, *self.cc, *self.bcc]

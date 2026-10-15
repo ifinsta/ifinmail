@@ -81,3 +81,11 @@ def scan_inbox_events() -> int:
     except Exception:
         logging.getLogger('backend').warning('Inbox webhooks scan failed', exc_info=True)
         return 0
+
+
+@shared_task(name='mail.expire_approvals')
+def expire_approvals() -> int:
+    """Held messages nobody decided on in time expire (every five minutes)."""
+    from .services import approvals
+
+    return approvals.expire()

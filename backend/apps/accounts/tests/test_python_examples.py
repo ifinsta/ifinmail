@@ -214,6 +214,19 @@ class ClientTests(ExampleBase):
         app.delete_webhook(hook['id'])
         self.assertEqual(app.webhooks(), [])
 
+    def test_a_held_message_is_followed_until_a_person_decides(self) -> None:
+        from backend.apps.core.plugins.services import InstallationService
+        from backend.apps.mail.services import approvals
+
+        InstallationService.install('human-approval', {'rule': 'all', 'applies_to': 'all'}, 'a')
+        sender = self.sender(['billing@ifinmail.test'])
+        held = sender.send('billing@ifinmail.test', ['ana@example.org'], 'Hi', text='Hello')
+        self.assertEqual(held['status'], 'pending_approval')
+        self.assertEqual(sender.approval(held['id'])['status'], 'pending')
+        approvals.approve(held['id'], actor='root@ifinmail.test')
+        with patch.object(self.module.time, 'sleep'):
+            self.assertEqual(sender.wait_for_approval(held['id'], timeout=1)['status'], 'sent')
+
     def test_a_rate_limit_is_waited_out(self) -> None:
         slept: list[float] = []
         calls = {'n': 0}

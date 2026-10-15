@@ -54,7 +54,7 @@ leftovers() {
         docker network inspect ifinmail-net >/dev/null 2>&1 && { echo "  network: ifinmail-net"; found=1; }
     fi
     for path in /etc/cron.d/ifinmail-backup /etc/sysctl.d/99-ifinmail.conf "$STATE_DIR" \
-                /var/log/ifinmail-backup.log /var/log/ifinmail-restore-test.log; do
+                /var/log/ifinmail-backup.log /var/log/ifinmail-restore-test.log /var/log/ifinmail-docker-clean.log; do
         [ -e "$path" ] && { echo "  $path"; found=1; }
     done
     if [ -d /backups ] && ls /backups/ifinmail_backup_* >/dev/null 2>&1; then
@@ -136,7 +136,7 @@ if command -v gpg >/dev/null 2>&1; then
         gpg --batch --yes --delete-secret-and-public-key "$fpr" >/dev/null 2>&1 || true
     done
 fi
-rm -f /var/log/ifinmail-backup.log /var/log/ifinmail-restore-test.log
+rm -f /var/log/ifinmail-backup.log /var/log/ifinmail-restore-test.log /var/log/ifinmail-docker-clean.log
 if [ "$KEEP_BACKUPS" != 1 ] && [ -d /backups ]; then
     rm -rf /backups/ifinmail_backup_* /backups/[0-9]*_[0-9]*
     rmdir /backups 2>/dev/null || true   # only when nothing else lives there

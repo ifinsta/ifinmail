@@ -1,7 +1,7 @@
 .PHONY: migrate makemigrations run shell shell_plus dbshell check test coverage lint lint-fix \
         format fmt format-check collectstatic deploy createsuperuser audit clean lock \
         provision update rollback version uninstall reload rebuild up down build restart pull logs ps shell-api migrate-api manage \
-        health backup restore-test offsite-check backup-key audit-verify reset-mfa allow-password-login firewall makemessages compilemessages
+        health docker-clean backup restore-test offsite-check backup-key audit-verify reset-mfa allow-password-login firewall makemessages compilemessages
 
 # --- Django targets (local development) ---
 PORT ?= 8000
@@ -156,6 +156,9 @@ health:
 
 backup:
 	provisioning/scripts/backup_full.sh
+
+docker-clean:
+	provisioning/scripts/docker_clean.sh $(DOCKER_CLEAN_ARGS)
 
 restore-test:
 	provisioning/scripts/restore_test.sh

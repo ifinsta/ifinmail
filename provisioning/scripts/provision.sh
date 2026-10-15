@@ -492,9 +492,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 15 3 * * * root cd $repo_root && set -a && . provisioning/.env && set +a && BACKUP_ENCRYPT=true make backup >> /var/log/ifinmail-backup.log 2>&1
 # Weekly restore drill: proves the latest backup actually restores (non-destructive).
 30 4 * * 0 root cd $repo_root && set -a && . provisioning/.env && set +a && bash provisioning/scripts/restore_test.sh >> /var/log/ifinmail-restore-test.log 2>&1
+# Daily Docker clean-up: old build cache and replaced images, so updates never fill the disk.
+50 4 * * * root cd $repo_root && bash provisioning/scripts/docker_clean.sh >> /var/log/ifinmail-docker-clean.log 2>&1
 CRON
     chmod 644 "$cron_file"
-    echo "Daily backup scheduled in $cron_file (03:15); weekly restore drill on Sundays (04:30)."
+    echo "Daily backup scheduled in $cron_file (03:15); weekly restore drill on Sundays (04:30);"
+    echo "daily Docker clean-up (04:50)."
 }
 
 MANIFEST_DIR="${IFINMAIL_STATE_DIR:-/var/lib/ifinmail}"

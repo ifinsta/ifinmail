@@ -462,6 +462,7 @@ make up          # Start the stack
 make down        # Stop the stack
 make reload      # Rebuild images and redeploy
 make backup      # Run a full backup (schedule this daily via cron)
+make docker-clean  # Trim Docker build cache and replaced images (runs daily and after updates)
 make firewall    # Configure ufw firewall rules
 ```
 
@@ -483,6 +484,16 @@ before switching, and rolls back by itself if the new console is not healthy wit
 minutes. `make rollback` restores that snapshot together with the previous code, because a newer
 version may already have changed the database schema. Mail, DNSSEC keys and certificates are in
 volumes every version shares. The last five snapshots are kept.
+
+Every update rebuilds the images, which leaves build cache and the replaced images behind.
+`provisioning/scripts/docker_clean.sh` removes them after each successful update and every day
+at 04:50 (log: `/var/log/ifinmail-docker-clean.log`): images without a name, `ifinmail/*` test
+tags no container uses, stopped stack containers, build cache unused for 7 days and anything
+above 3 GB of it, or all of it once the disk is 85% full. Volumes, images in use and other
+projects' Docker objects are never touched, and a rollback rebuilds from git, so it needs none
+of it. `sudo make docker-clean DOCKER_CLEAN_ARGS=--deep` empties the build cache now;
+`--dry-run` shows what would go. The limits are `DOCKER_CLEAN_CACHE_DAYS`,
+`DOCKER_CLEAN_CACHE_MAX` and `DOCKER_CLEAN_DISK_PERCENT`.
 
 Re-running the one-line installer on an installed server keeps its configuration and secrets,
 and keeps a release pinned by `make update`.

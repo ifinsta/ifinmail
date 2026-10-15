@@ -1,0 +1,75 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Suppressions — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Suppressions' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Recipients mail sent through the API is never sent to, per sending domain: addresses that do not exist, people who unsubscribed, and addresses added by hand or by an application. People’s own mail from their mail apps is not affected.' %}</p>
+            </div>
+        </div>
+
+        {% if not policy.enabled %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--info" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{% trans 'The list is not applied' %}</p>
+                <p class="ifinmail-hbanner__next">{% trans 'Install the Sender compliance plugin to apply it to API mail, add one-click unsubscribe and pause keys whose mail bounces.' %} <a href="{% url 'accounts:marketplace_plugin' 'sender-compliance' %}">{% trans 'Open the plugin' %}</a></p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if paused %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sp-paused">
+            <h2 class="ifinmail-panel-title" id="sp-paused">{% trans 'Keys paused for bounces' %}</h2>
+            <dl class="ifinmail-settings-rows">
+                {% for key in paused %}
+                <div class="ifinmail-settings-row"><dt>{{ key.label }}<small class="ifinmail-settings-row__help">{% blocktrans trimmed with rate=key.rate total=key.total %}{{ rate }}% of {{ total }} messages bounced today{% endblocktrans %}</small></dt>
+                    <dd><form method="post" action="{% url 'accounts:suppressions_action' %}">{% csrf_token %}<input type="hidden" name="action" value="resume"><input type="hidden" name="prefix" value="{{ key.prefix }}"><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Resume' %}</button></form></dd></div>
+                {% endfor %}
+            </dl>
+        </section>
+        {% endif %}
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Suppressed recipients' %}">
+            <div class="ifinmail-table-panel-header">
+                <h2 class="ifinmail-panel-title">{% trans 'Suppressed recipients' %}</h2>
+                <form method="get" class="ifinmail-inline-form--row"><label class="ifinmail-sr-only" for="sp-q">{% trans 'Find' %}</label><input class="ifinmail-input" id="sp-q" name="q" value="{{ query }}" placeholder="{% trans 'Find an address' %}"></form>
+            </div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Address' %}</th><th>{% trans 'From domain' %}</th><th>{% trans 'Why' %}</th><th>{% trans 'Since' %}</th><th><span class="ifinmail-sr-only">{% trans 'Actions' %}</span></th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td><code class="ifinmail-text--mono">{{ row.address }}</code></td>
+                        <td>{{ row.domain }}</td>
+                        <td><span class="ifinmail-badge ifinmail-badge--neutral">{{ row.reason }}</span>{% if row.detail %}<br><span class="ifinmail-settings-row__help">{{ row.detail|truncatechars:80 }}</span>{% endif %}</td>
+                        <td>{{ row.created_at|date:'Y-m-d' }}</td>
+                        <td><form method="post" action="{% url 'accounts:suppressions_action' %}">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="domain" value="{{ row.domain }}"><input type="hidden" name="address" value="{{ row.address }}"><button class="ifinmail-btn ifinmail-btn--outline" type="submit" data-confirm="{% trans 'Allow API mail to this address again?' %}"><span class="ifinmail-sr-only">{{ row.address }}: </span>{% trans 'Remove' %}</button></form></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'Nobody is suppressed.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sp-add">
+            <h2 class="ifinmail-panel-title" id="sp-add">{% trans 'Add an address' %}</h2>
+            <form method="post" action="{% url 'accounts:suppressions_action' %}" class="ifinmail-inline-form ifinmail-inline-form--row">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add">
+                <label class="ifinmail-sr-only" for="sp-address">{% trans 'Address' %}</label>
+                <input class="ifinmail-input ifinmail-text--mono" id="sp-address" name="address" placeholder="someone@example.org" required autocapitalize="none" spellcheck="false">
+                <label class="ifinmail-sr-only" for="sp-domain">{% trans 'From domain' %}</label>
+                <select class="ifinmail-input" id="sp-domain" name="domain">{% for d in domains %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+                <button class="ifinmail-btn ifinmail-btn--primary" type="submit">{% trans 'Suppress' %}</button>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

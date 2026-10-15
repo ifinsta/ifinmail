@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.70
+- **Sender compliance plugin: API mail stays inside Gmail, Yahoo and Microsoft's sender
+  rules.**
+  - **Suppression list (per sending domain):** addresses that bounced because they do not exist
+    are added from the delivery log, along with people who unsubscribed and addresses added in the
+    console or by an application (`POST /api/v1/suppressions`). They are left out of a message
+    before it is sent, and the answer lists them in `suppressed`. A message with nobody left is
+    refused. See **Settings → Suppressions**.
+  - **One-click unsubscribe (RFC 8058):** bulk mail (`"unsubscribe": true`, or every API message
+    if you choose) gets `List-Unsubscribe` and `List-Unsubscribe-Post` headers with a signed link
+    for that one recipient. Mail apps unsubscribe with one press, while the link's page asks for a
+    click, so link scanners unsubscribe no one. Bulk mail goes to one recipient per message.
+  - **Bounce guard:** a key whose mail bounces over the limit in a day (5% by default, with at
+    least 50 messages) is paused until an administrator resumes it.
+  - **Python:** `send(..., unsubscribe=True)`, `suppress()` and `suppressions()`.
+
 ## v0.0.69
 - **Human approval plugin: a person in the loop for mail agents send.**
   - **The rule:** hold every message, messages with a recipient outside this server, or

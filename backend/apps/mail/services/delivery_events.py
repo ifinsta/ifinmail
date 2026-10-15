@@ -62,9 +62,16 @@ def _queue_key(qid: str) -> str:
     return f'apiqid:{qid}'
 
 
+def _wanted() -> bool:
+    """The log is followed for Delivery events and for Sender compliance (bounce handling)."""
+    from backend.apps.mail.services import compliance
+
+    return webhooks.policy().delivery_events or compliance.settings().enabled
+
+
 def remember(message_id: str, key_prefix: str, sender: str, recipients: int) -> None:
     """Called by the send path: emit ``message.queued`` and remember the message."""
-    if not webhooks.policy().delivery_events:
+    if not _wanted():
         return
     mid = message_id.strip('<>')
     try:
@@ -121,6 +128,13 @@ def handle_line(line: str) -> int:
     }
     if kind != EventType.DELIVERED:
         data['category'] = classify_delivery.classify(status['dsn'] or '', reason)
+    from backend.apps.mail.services import compliance
+
+    if kind == EventType.DELIVERED:
+        compliance.count(sent.key_prefix, delivered=1)
+    elif kind == EventType.BOUNCED:
+        compliance.count(sent.key_prefix, bounced=1)
+        compliance.note_bounce(sent.sender, data['recipient'], data['category'], data['dsn'], reason)
     # One event per (message, recipient, outcome, log line): a retry is a new deferral.
     event_id = 'evt_' + _short_hash(f'{sent.message_id}|{status["to"]}|{kind}|{line}')
     return webhooks.emit(kind, data, key_prefix=sent.key_prefix, event_id=event_id)
@@ -156,7 +170,7 @@ def read_new_lines(path: Path | None = None) -> list[str]:
 
 def scan() -> int:
     """Turn new log lines into events (every minute)."""
-    if not webhooks.policy().delivery_events:
+    if not _wanted():
         return 0
     produced = 0
     for line in read_new_lines():

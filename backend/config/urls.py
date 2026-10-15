@@ -13,6 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.core.storage.views.media import media as storage_media
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
+from backend.apps.mail.views.unsubscribe import unsubscribe
 from backend.config import api_versions, public_pages
 from backend.config.branding import DEFAULT_BRAND_NAME
 
@@ -156,6 +157,8 @@ urlpatterns = [
     path('manifest.webmanifest', manifest, name='manifest'),
     path('csp-report/', csp_report, name='csp-report'),
     path('health/', health_check, name='health-check'),
+    # One-click unsubscribe for mail sent through the API (Sender compliance plugin, RFC 8058).
+    path('unsubscribe/<str:token>/', unsubscribe, name='unsubscribe'),
     # App releases: what devices poll, the newest-build permalink and the console page
     # (before accounts/, whose settings/<slug>/ catch-all would otherwise take the page)
     path('', include('backend.apps.core.releases.urls')),

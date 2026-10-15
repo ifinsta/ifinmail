@@ -251,6 +251,7 @@ class Client:
         bcc: list[str] | None = None,
         reply_to: str | None = None,
         idempotency_key: str | None = None,
+        unsubscribe: bool = False,
     ) -> dict[str, Any]:
         """Send one message as ``sender`` (one of the key's allowed senders).
 
@@ -260,6 +261,8 @@ class Client:
         again; one is generated when you do not pass one, so this call is safe to retry.
         """
         body: dict[str, Any] = {'from': sender, 'to': to, 'subject': subject}
+        if unsubscribe:  # bulk mail: one-click unsubscribe (Sender compliance plugin)
+            body['unsubscribe'] = True
         for name, value in (
             ('text', text),
             ('html', html),
@@ -290,6 +293,15 @@ class Client:
             if state['status'] != 'pending' or time.monotonic() >= deadline:
                 return state
             time.sleep(every)
+
+    def suppress(self, address: str, domain: str, detail: str = '') -> dict[str, Any]:
+        """Never send API mail from ``domain`` to ``address`` again (your app's unsubscribes)."""
+        return self.request(
+            'POST', '/api/v1/suppressions', json={'address': address, 'domain': domain, 'detail': detail}
+        )
+
+    def suppressions(self, address: str = '') -> Iterator[dict[str, Any]]:
+        return self.paged('/api/v1/suppressions', address=address or None)
 
     # ------------------------------------------------------------------ Operations: sandbox
 

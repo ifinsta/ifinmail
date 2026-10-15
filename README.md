@@ -293,6 +293,7 @@ They run against the real API in the test suite, so they cannot drift from it.
 | `mail.send` | `POST /messages`; with the Developer sandbox plugin `GET/DELETE /sandbox/messages`, `GET /sandbox/messages/{id}`; with Delivery events `GET/POST /webhooks`, `DELETE /webhooks/{id}`, `POST /webhooks/{id}/test`, `POST /webhooks/{id}/enable`, `GET /webhooks/{id}/deliveries` |
 | `mail.send` (approvals) | Human approval plugin: `GET /approvals`, `GET /approvals/{id}` (own messages; every key's with `mail.manage`) |
 | `mail.manage` (approvals) | `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` (never a key's own messages) |
+| `mail.send` (suppressions) | Sender compliance plugin: `GET/POST /suppressions` (domains the key sends from; all with `mail.manage`), `DELETE /suppressions/{domain}/{address}` (`mail.manage`) |
 | `agents.manage` | Agent inboxes plugin: `GET/POST /inboxes`, `GET/DELETE /inboxes/{address}`, `GET /inboxes/{address}/messages`, `GET/DELETE /inboxes/{address}/messages/{uid}`, `GET /inboxes/{address}/messages/{uid}/code`, `GET /inboxes/{address}/wait` (only inboxes the key created) |
 | `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify`, `GET /dns/status` |
 

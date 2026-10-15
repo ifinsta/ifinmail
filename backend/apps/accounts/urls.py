@@ -3,6 +3,7 @@ from django.views.generic import RedirectView
 
 from .views.api_keys import api_key_action, api_key_create, api_key_sandbox, api_keys
 from .views.approvals import approvals_decide, approvals_page
+from .views.suppressions import suppressions_action, suppressions_page
 from .views.webhooks import webhooks_action, webhooks_create, webhooks_page
 from .views.assistant import (
     assistant,
@@ -237,6 +238,8 @@ urlpatterns = [
     path('settings/api-keys/sandbox/', api_key_sandbox, name='api_key_sandbox'),
     path('settings/webhooks/', webhooks_page, name='webhooks'),
     path('settings/approvals/', approvals_page, name='approvals'),
+    path('settings/suppressions/', suppressions_page, name='suppressions'),
+    path('settings/suppressions/action/', suppressions_action, name='suppressions_action'),
     path('settings/approvals/decide/', approvals_decide, name='approvals_decide'),
     path('settings/approvals/<uuid:pending_id>/', approvals_page, name='approvals_message'),
     path('settings/webhooks/create/', webhooks_create, name='webhooks_create'),

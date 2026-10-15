@@ -20,6 +20,8 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    SuppressionCreateV1,
+    SuppressionV1,
     ApprovalDecisionV1,
     ApprovalV1,
     InboxCodeV1,
@@ -76,7 +78,7 @@ from .viewsets import (
 import logging
 
 logger = logging.getLogger('backend')
-router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox', 'webhooks', 'inboxes', 'approvals'])
+router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox', 'webhooks', 'inboxes', 'approvals', 'suppressions'])
 IDEMPOTENCY_TTL = 24 * 3600
 
 
@@ -361,6 +363,7 @@ def api_send_message(
         subject=payload.subject,
         text=payload.text,
         html=payload.html,
+        bulk=payload.unsubscribe,
     )
     token = (idempotency_key or '').strip()
     if len(token) > 64:
@@ -390,6 +393,7 @@ def api_send_message(
         if receipt.pending_id
         else ('captured' if receipt.captured else 'queued'),
         recipients=receipt.recipients,
+        suppressed=list(receipt.suppressed),
     )
     if slot:
         cache.set(
@@ -822,6 +826,61 @@ def api_reject(request: ApiRequest, approval_id: str, payload: ApprovalDecisionV
         note=payload.note,
     )
     return ApprovalV1.of(row)
+
+
+# ------------------------------------------------------------------------------ suppressions
+# A key sees and adds suppressions for the domains it may send from; mail.manage sees all and
+# removes them.
+
+
+def _sending_domains(request: ApiRequest) -> list[str] | None:
+    row = request.auth.row
+    if 'mail.manage' in (row.scopes or []):
+        return None
+    return sorted({s.rpartition('@')[2].lower() for s in (row.allowed_senders or [])})
+
+
+@router.get('/suppressions', response={200: list[SuppressionV1], **errors()}, summary='List suppressed recipients')
+@paginate(LimitOffsetPagination)
+@require_scope('mail.send')
+def api_suppressions(request: ApiRequest, address: str = '') -> list[SuppressionV1]:
+    """Recipients mail from your domains will not be sent to: bounced, unsubscribed or added."""
+    from backend.apps.mail.services import compliance
+
+    return [SuppressionV1.of(r) for r in compliance.listing(_sending_domains(request), address=address)]
+
+
+@router.post('/suppressions', response={201: SuppressionV1, **errors(403, 409, 422)}, summary='Suppress a recipient')
+@require_scope('mail.send')
+def api_add_suppression(request: ApiRequest, payload: SuppressionCreateV1) -> Status[SuppressionV1]:
+    """For your application's own unsubscribes and complaints."""
+    from backend.apps.mail.models import Suppression
+    from backend.apps.mail.services import compliance
+    from backend.apps.mail.services.messages import SendRefused, address
+
+    domains = _sending_domains(request)
+    domain = payload.domain.strip().lower()
+    if domains is not None and domain not in domains:
+        raise HttpError(403, f'This key does not send from {domain}.')
+    try:
+        clean = address(payload.address)
+    except SendRefused as exc:
+        raise HttpError(422, exc.message) from exc
+    if not compliance.suppress(domain, clean, Suppression.MANUAL, detail=payload.detail, by=actor(request)):
+        raise HttpError(409, f'{clean} is already suppressed for {domain}.')
+    row = Suppression.objects.get(domain=domain, address=clean)
+    return Status(201, SuppressionV1.of(row))
+
+
+@router.delete('/suppressions/{domain}/{address}', response={204: None, **errors(404)}, summary='Remove a suppression')
+@require_scope('mail.manage')
+def api_remove_suppression(request: ApiRequest, domain: str, address: str) -> Status[None]:
+    from backend.apps.mail.services import compliance
+
+    if not compliance.unsuppress(domain, address):
+        raise HttpError(404, 'That recipient is not suppressed for that domain.')
+    AuditService.record(action='api_suppression_removed', user=actor(request), detail=f'{address} ({domain})')
+    return Status(204, None)
 
 
 __all__ = [

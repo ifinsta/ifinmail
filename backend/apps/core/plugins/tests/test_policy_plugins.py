@@ -259,6 +259,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'mailbox-care',
                 'object-storage',
                 'outbound-policy',
+                'sender-compliance',
                 'website-pages',
             ],
         )

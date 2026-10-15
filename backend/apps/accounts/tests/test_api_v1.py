@@ -817,6 +817,7 @@ class ContractTests(ApiBase):
             ('POST', '/aliases'): {'source': 'a@ifinmail.test', 'destination': 'b@ifinmail.test'},
             ('POST', '/domains'): {'name': 'example.com'},
             ('POST', '/inboxes'): {},
+            ('POST', '/suppressions'): {'address': 'a@example.org', 'domain': 'ifinmail.test'},
             ('POST', '/webhooks'): {'name': 'w', 'url': 'https://h.example.com/', 'events': ['message.bounced']},
             ('PATCH', '/mailboxes/{address}'): {'quota_bytes': 1},
             ('POST', '/telemetry/fingerprints/{fingerprint}/ack'): {'status': 'ACKED'},
@@ -838,6 +839,7 @@ class ContractTests(ApiBase):
                 .replace('{fingerprint}', 'abc')
                 .replace('{uid}', '1')
                 .replace('{approval_id}', '00000000-0000-0000-0000-000000000000')
+                .replace('{domain}', 'ifinmail.test')
             )
             body = bodies.get((op.method, op.path), {} if op.method in ('POST', 'PATCH') else None)
             response = self.call(op.method.lower(), url, body=body, **kw)

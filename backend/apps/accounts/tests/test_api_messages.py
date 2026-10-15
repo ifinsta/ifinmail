@@ -487,6 +487,6 @@ class MigrationAndConsoleTests(SendBase):
         self.assertIn('Idempotency-Key', names)
         self.assertEqual(
             sorted(spec['components']['schemas']['MessageIn']['properties']),
-            ['bcc', 'cc', 'from', 'html', 'reply_to', 'subject', 'text', 'to'],
+            ['bcc', 'cc', 'from', 'html', 'reply_to', 'subject', 'text', 'to', 'unsubscribe'],
         )
         self.assertTrue(timedelta(0) < timedelta(days=1))

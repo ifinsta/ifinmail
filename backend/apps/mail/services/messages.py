@@ -22,7 +22,7 @@ import html as html_lib
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from email.utils import make_msgid
 from smtplib import SMTPException
@@ -67,6 +67,7 @@ class SendRequest:
     subject: str
     text: str | None
     html: str | None
+    bulk: bool = False  # marketing or bulk mail: one-click unsubscribe (Sender compliance)
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ class Receipt:
     recipients: int
     captured: bool = False  # a sandbox key's message, kept and not delivered
     pending_id: str = ''  # held for a person's approval (Human approval plugin)
+    suppressed: tuple[str, ...] = ()  # recipients left out: on the suppression list
 
 
 def address(raw: str) -> str:
@@ -240,6 +242,47 @@ class MessageService:
             if outside:
                 raise SendRefused(403, f'{sender} may only send to domains hosted here.')
 
+        # Sender compliance: a key paused for bounces sends nothing; suppressed recipients are
+        # left out; bulk mail gets one-click unsubscribe headers.
+        from backend.apps.mail.services import compliance
+
+        rules = compliance.settings()
+        extra_headers: dict[str, str] = {}
+        dropped: list[str] = []
+        if rules.enabled:
+            stopped = compliance.paused(key.prefix) if key.prefix else None
+            if stopped:
+                raise SendRefused(
+                    403,
+                    f'This key is paused: {stopped["rate"]}% of its {stopped["total"]} messages '
+                    'today bounced. Clean the list, then ask an administrator to resume it.',
+                )
+            dropped = compliance.suppressed(sender, recipients)
+            if dropped:
+                gone = set(dropped)
+                recipients = [r for r in recipients if r not in gone]
+                request = replace(
+                    request,
+                    to=tuple(a for a in request.to if address(a) not in gone),
+                    cc=tuple(a for a in request.cc if address(a) not in gone),
+                    bcc=tuple(a for a in request.bcc if address(a) not in gone),
+                )
+                if not recipients:
+                    raise SendRefused(
+                        422, 'Every recipient is on the suppression list; nothing was sent.'
+                    )
+            wants = rules.unsubscribe == 'all' or (rules.unsubscribe == 'bulk' and request.bulk)
+            if wants and len(recipients) == 1:
+                extra_headers = compliance.unsubscribe_headers(
+                    sender, recipients[0], bulk=request.bulk
+                )
+            elif request.bulk and rules.unsubscribe != 'off' and len(recipients) > 1:
+                raise SendRefused(
+                    422,
+                    'Bulk mail with one-click unsubscribe goes to one recipient per message, so '
+                    'each person can unsubscribe themselves.',
+                )
+
         # A sandbox key stops here: everything above was checked like a real send, and the
         # message is kept for inspection. It never reaches the relay, the quotas or containment.
         if key.sandbox:
@@ -267,7 +310,12 @@ class MessageService:
                 html=html,
                 keep=box.max_messages,
             )
-            return Receipt(message_id=message_id, recipients=len(recipients), captured=True)
+            return Receipt(
+                message_id=message_id,
+                recipients=len(recipients),
+                captured=True,
+                suppressed=tuple(dropped),
+            )
 
         # Human approval: a message the plugin's rule holds waits for a person.
         if not key.approved:
@@ -281,7 +329,10 @@ class MessageService:
                     key_prefix=key.prefix, key_name=key.name, request=request, reason=reason
                 )
                 return Receipt(
-                    message_id='', recipients=len(recipients), pending_id=str(held.pk)
+                    message_id='',
+                    recipients=len(recipients),
+                    pending_id=str(held.pk),
+                    suppressed=tuple(dropped),
                 )
 
         # Quotas: the key's recipients per day, then the From address's messages per minute/day.
@@ -332,7 +383,7 @@ class MessageService:
             cc=[address(a) for a in request.cc] or None,
             bcc=[address(a) for a in request.bcc] or None,
             reply_to=[reply_to] if reply_to else None,
-            headers={'Message-ID': message_id, 'X-Mailer': 'ifinmail-api'},
+            headers={'Message-ID': message_id, 'X-Mailer': 'ifinmail-api', **extra_headers},
             connection=get_connection(fail_silently=False, timeout=SMTP_TIMEOUT_SECONDS),
         )
         if html.strip():
@@ -352,7 +403,11 @@ class MessageService:
 
         if approvals.settings().enabled:
             approvals.remember_contacts(sender, recipients)
-        return Receipt(message_id=message_id.strip('<>'), recipients=len(recipients))
+        return Receipt(
+            message_id=message_id.strip('<>'),
+            recipients=len(recipients),
+            suppressed=tuple(dropped),
+        )
 
 
 def digest(value: str) -> str:

@@ -93,6 +93,28 @@ curl -u ifm_KEY:ifs_SECRET -X POST {{ site_origin }}/api/v1/mailboxes \
             <li>{% trans 'Rotate a key with an overlap so the integration can switch secrets without an outage. Every change is in the audit trail under the key’s name.' %}</li>
         </ul>
 
+        <h3 id="api-python">{% trans 'Python' %}</h3>
+        <p>{% trans 'A single-file client (it needs only requests) takes care of the key, error messages, rate limits, safe retries and paging. Keep the key and secret in the environment, not in the code.' %}</p>
+        <pre tabindex="0"><code>export IFINMAIL_URL={{ site_origin }}
+export IFINMAIL_KEY=ifm_...
+export IFINMAIL_SECRET=ifs_...</code></pre>
+        <pre tabindex="0"><code>from ifinmail_client import Client, IfinmailError
+
+api = Client.from_env()
+
+for box in api.mailboxes(domain="example.com"):   # follows every page
+    print(box["address"], box["quota_bytes"])
+
+try:
+    api.create_mailbox("ana@example.com")         # invited: she sets her own password
+except IfinmailError as exc:
+    if exc.status != 409:                         # 409: it already exists
+        raise
+
+api.send("billing@example.com", ["ana@example.org"],
+         "Your invoice", text="Thank you.")      # safe to retry: sent once</code></pre>
+        {% if site.project_links %}<p>{% trans 'The client and eight runnable examples (provision mailboxes from a CSV, send mail, read the delivery report, a monitoring check for cron or Nagios) are in the repository.' %} <a href="{{ repo_url }}/tree/main/examples/python" rel="noopener">{% trans 'Python examples' %}</a></p>{% endif %}
+
         <h2 id="extend">{% trans 'Plugins and assistant' %}</h2>
         <p>{% trans 'The Marketplace adds capabilities, such as inbound protection, outbound sending policy, mailbox care and a compliance journal, by configuring the server for you. Each plugin page shows what it changes and whether the mail server has applied it.' %}</p>
         <p>{% trans 'The assistant answers questions about your server from its own checks. It is off until you give it the base URL and model of any OpenAI-compatible service under Marketplace, then Assistant. It can read and draft changes; applying a change is always your click.' %}</p>

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.0.63
+- **Python samples for integrators.** `examples/python` has a single-file client and eight
+  runnable examples, and the Documentation page's API section now has a Python walk-through.
+  - **The client** (`ifinmail_client.py`, needs only `requests`): key and secret from the
+    environment, every failure raised as one error with the server's own message, waiting out a
+    `429` by its `Retry-After`, retrying reads (and writes that carry an idempotency key) on a
+    gateway error but never a plain write, and following `limit`/`offset` pages for you.
+  - **The examples:** check the server and key, list and add domains, create, list, change,
+    pause and delete mailboxes, provision many mailboxes from a CSV (dry run, safe to rerun),
+    send mail (with what each error means), the delivery report with reasons, a monitoring check
+    with exit codes for cron or Nagios, and aliases.
+  - **They cannot rot.** The test suite imports the client and every script and runs them
+    against the real API, so a renamed field or changed status code fails the build.
+
 ## v0.0.62
 - **Smooth: every page checked, including the ones behind a state.** Error pages (400 to 504),
   the setup wizard, registration steps, password reset, two-factor, plugin submission, mail

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.0.72
+- **Docker cleans up after itself.** Each update rebuilt every image and left the build cache
+  and the replaced images on disk: about 5 GB after a few dozen updates. A new
+  `docker_clean.sh` runs after every successful update and daily at 04:50 (`make docker-clean`
+  to run it now, `--deep` to empty the build cache, `--dry-run` to look first). It removes
+  images without a name, unused `ifinmail/*` test tags, stopped stack containers, build cache
+  unused for a week and anything above 3 GB, or all of it when the disk is 85% full. It never
+  touches volumes, images in use or other projects' Docker objects.
+
 ## v0.0.71
 - **Agent gateway plugin: AI agents use this server over the Model Context Protocol.** With the
   plugin, the server answers at `/mcp` (Streamable HTTP, JSON answers; protocol versions

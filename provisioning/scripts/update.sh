@@ -145,6 +145,7 @@ do_update() {
     if provision && wait_healthy; then
         sed -i "s#^\(.* $snapshot_file\) pending\$#\1 ok#" "$HISTORY"
         prune_snapshots
+        bash "$SCRIPT_DIR/docker_clean.sh" >/dev/null 2>&1 || echo "(Docker clean-up failed; see 'make docker-clean')" >&2
         say "Updated to $target. To undo: make rollback"
         return 0
     fi

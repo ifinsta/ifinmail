@@ -253,6 +253,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'delivery-events',
                 'developer-sandbox',
                 'inbound-protection',
+                'inbox-webhooks',
                 'mailbox-care',
                 'object-storage',
                 'outbound-policy',

@@ -1,0 +1,41 @@
+manifest_version = 2
+
+[plugin]
+id = "inbox-webhooks"
+name = "Inbox webhooks"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "integration"
+summary = "Push mail that arrives in chosen mailboxes to your application or agent as signed JSON, with the one-time code or sign-in link already found."
+requires_core = "0.0.67"
+description = """
+Applications and agents that act on incoming mail (a support desk, an invoice reader, an agent waiting for a reply) should not poll a mailbox. With this plugin, a webhook names the mailboxes it watches, and each message that arrives there is sent to it as a signed message.received event within about 30 seconds: sender, recipients, subject, date, a snippet, attachment names, the one-time code or sign-in link if there is one, and (unless you turn it off below) the text and HTML, up to 64 KB each.
+
+Webhooks are made under Settings, Webhooks (any mailbox: an administrator's decision, recorded in the audit trail) or by an API key (only the agent inboxes it created, or other mailboxes on this server if the key can also manage mail). Events are signed and retried exactly like delivery events, and turning a webhook on never replays mail that was already there.
+
+This forwards mail content to another system. Use it for mailboxes that exist for that purpose (support@, invoices@, agent inboxes), tell the people who write to them, and keep "include the body" off where a summary is enough.
+"""
+
+[[settings]]
+key = "include_body"
+type = "boolean"
+label = "Include the message text and HTML"
+default = true
+help = "Off: events carry only the sender, subject, a snippet, attachment names and the code or link."
+
+[[settings]]
+key = "allow_http"
+type = "boolean"
+label = "Allow plain http addresses"
+default = false
+
+[[settings]]
+key = "allow_private"
+type = "boolean"
+label = "Allow addresses on private networks"
+default = false
+help = "For a receiver on your own network. This server itself is never allowed."
+
+[[contributes]]
+capability = "developer.inbox_webhooks"
+values = { enabled = "yes", include_body = "{include_body}", allow_http = "{allow_http}", allow_private = "{allow_private}" }

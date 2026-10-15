@@ -278,6 +278,11 @@ speaks: `/api/`).
    curl -H "Authorization: Bearer ifm.KEY.ifs_SECRET" https://mail.yourdomain.com/api/v1/status
    ```
 
+**Python:** [`examples/python`](examples/python) has a single-file client (key from the
+environment, readable errors, `Retry-After` handling, safe retries, paging) and eight runnable
+examples: provision mailboxes from a CSV, send mail, the delivery report, a cron/Nagios check.
+They run against the real API in the test suite, so they cannot drift from it.
+
 | Scope | Endpoints |
 | --- | --- |
 | none | `GET /health` (liveness for monitors; the only operation without a key) |

@@ -184,6 +184,36 @@ class ClientTests(ExampleBase):
         (captured,) = list(ci.sandbox_messages(to='ana@example.org'))
         self.assertEqual(captured['subject'], 'Welcome')
 
+    def test_webhooks_round_trip_and_signature_check(self) -> None:
+        import socket
+
+        from backend.apps.core.plugins.services import InstallationService
+        from backend.apps.mail.services import webhooks
+
+        InstallationService.install('delivery-events', {}, 'root@ifinmail.test')
+        row, token = TokenService.create(
+            self.owner, 'app', ['mail.send'], expires_in_days=30,
+            allowed_senders=['billing@ifinmail.test'],
+        )
+        app = self.module.Client(
+            'http://testserver', key_id(row.prefix), token.split('.', 2)[2],
+            session=DjangoSession(self.client), max_retries=0,
+        )
+        received: list[tuple[bytes, dict]] = []
+        public = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('203.0.113.9', 443))]
+        with patch.object(socket, 'getaddrinfo', return_value=public), patch.object(
+            webhooks, '_post', side_effect=lambda url, body, headers: received.append((body, headers)) or 200
+        ):
+            hook = app.create_webhook('app', 'https://hooks.example.com/in', ['message.bounced'])
+            answer = app.test_webhook(hook['id'])
+        self.assertEqual(answer['status'], 'delivered')
+        body, headers = received[0]
+        self.assertTrue(self.module.verify_webhook(hook['secret'], body, headers['X-Ifinmail-Signature']))
+        self.assertFalse(self.module.verify_webhook('whsec_other', body, headers['X-Ifinmail-Signature']))
+        self.assertEqual([w['id'] for w in app.webhooks()], [hook['id']])
+        app.delete_webhook(hook['id'])
+        self.assertEqual(app.webhooks(), [])
+
     def test_a_rate_limit_is_waited_out(self) -> None:
         slept: list[float] = []
         calls = {'n': 0}
@@ -325,7 +355,7 @@ class ScriptTests(ExampleBase):
 class FilesTests(SimpleTestCase):
     def test_every_script_has_a_docstring_a_main_and_no_secret(self) -> None:
         scripts = sorted(EXAMPLES.glob('0*.py'))
-        self.assertGreaterEqual(len(scripts), 8)
+        self.assertGreaterEqual(len(scripts), 9)
         for path in scripts:
             text = path.read_text()
             with self.subTest(script=path.name):

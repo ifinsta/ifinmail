@@ -145,6 +145,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 ('api', 'key', 'secret', 'token', 'integration', 'webhook', 'automation', 'v1'),
             ),
             SettingsItem(
+                'webhooks',
+                _('Webhooks'),
+                _('Signed events for your applications: delivery outcomes, received mail.'),
+                SettingsIcon.SECURITY,
+                'accounts:webhooks',
+                ('webhook', 'event', 'events', 'callback', 'bounce', 'delivered', 'integration'),
+            ),
+            SettingsItem(
                 'certificates',
                 _('TLS certificates'),
                 _('Issue, renew or upload the server certificate.'),

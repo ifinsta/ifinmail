@@ -1,0 +1,46 @@
+manifest_version = 2
+
+[plugin]
+id = "delivery-events"
+name = "Delivery events"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "integration"
+summary = "Tell your application what became of each message it sent through the API: queued, delivered, retried or bounced, as signed webhooks."
+requires_core = "0.0.65"
+description = """
+An application that sends mail through the API needs to know what happened next: did the receiving server take it, is it being retried, did it bounce, and why. This plugin sends that to your webhooks as signed JSON, one event per recipient and outcome.
+
+Events: message.queued (the API accepted it), message.delivered (a receiving server took it; whether it reached the inbox is only visible from the receiver's side), message.deferred (an attempt failed and will be retried) and message.bounced (it failed for good), each with the message id the API returned, the recipient, the DSN code and the receiving server's reason, classified like the Delivery report (reverse DNS, authentication, blocked, mailbox full and so on).
+
+Only mail sent through the API produces events; people's own mail never does. A webhook created in the console hears about every API message; one created with an API key hears only about that key's messages. Every event is signed with HMAC-SHA256 (header X-Ifinmail-Signature) and carries an id to deduplicate on; failed deliveries are retried for about two days, and a receiver that answers 410 is switched off.
+
+Webhook addresses must be https and public unless you allow plain http or private networks below; they may never point at this server itself.
+"""
+
+[[settings]]
+key = "allow_http"
+type = "boolean"
+label = "Allow plain http addresses"
+default = false
+help = "Only for receivers on a network you trust."
+
+[[settings]]
+key = "allow_private"
+type = "boolean"
+label = "Allow addresses on private networks"
+default = false
+help = "For a receiver on your own network (10.x, 172.16-31.x, 192.168.x). This server itself is never allowed."
+
+[[settings]]
+key = "max_attempts"
+type = "integer"
+label = "Attempts per event"
+min = 1
+max = 8
+default = 8
+help = "Retries wait 1 min, 5 min, 30 min, 2 h, 6 h, 12 h, then 24 h."
+
+[[contributes]]
+capability = "developer.events"
+values = { enabled = "yes", allow_http = "{allow_http}", allow_private = "{allow_private}", max_attempts = "{max_attempts}" }

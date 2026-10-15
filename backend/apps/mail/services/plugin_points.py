@@ -341,6 +341,12 @@ class DeveloperTarget(AdapterTarget):
         'sandbox_max_messages': TargetKey(
             _int_between(10, 10000), 'Captured messages kept per key (the oldest go first).'
         ),
+        'events_enabled': TargetKey(_one_of('yes', 'no'), 'Send delivery events to webhooks.'),
+        'events_allow_http': TargetKey(_one_of('yes', 'no'), 'Allow plain http webhooks.'),
+        'events_allow_private': TargetKey(
+            _one_of('yes', 'no'), 'Allow webhooks on private networks.'
+        ),
+        'events_max_attempts': TargetKey(_int_between(1, 8), 'Attempts per event.'),
     }
 
 
@@ -606,6 +612,25 @@ def _capabilities() -> tuple[Capability, ...]:
                 ),
                 'max_messages': _field(
                     (DEV, 'sandbox_max_messages'), 'Captured messages kept per key.'
+                ),
+            },
+        ),
+        _Capability(
+            'developer.events',
+            'Delivery events',
+            'What became of each message sent through the API (queued, delivered, deferred, '
+            'bounced), sent to webhooks as signed JSON.',
+            {
+                'enabled': _field((DEV, 'events_enabled'), 'yes: send delivery events.'),
+                'allow_http': _field(
+                    (DEV, 'events_allow_http'), 'yes: allow plain http webhook addresses.'
+                ),
+                'allow_private': _field(
+                    (DEV, 'events_allow_private'),
+                    'yes: allow webhooks on private networks (10.x, 172.16-31.x, 192.168.x).',
+                ),
+                'max_attempts': _field(
+                    (DEV, 'events_max_attempts'), 'Attempts before an event is given up.'
                 ),
             },
         ),

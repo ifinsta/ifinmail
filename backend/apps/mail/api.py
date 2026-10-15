@@ -20,6 +20,10 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    WebhookCreatedV1,
+    WebhookCreateV1,
+    WebhookDeliveryV1,
+    WebhookV1,
     SandboxMessageV1,
     AliasCreateIn,
     AliasCreateV1,
@@ -61,7 +65,10 @@ from .viewsets import (
     set_smtp_proxy,
 )
 
-router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox'])
+import logging
+
+logger = logging.getLogger('backend')
+router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox', 'webhooks'])
 IDEMPOTENCY_TTL = 24 * 3600
 
 
@@ -379,6 +386,15 @@ def api_send_message(
             {'state': 'done', 'fingerprint': fingerprint, 'receipt': accepted.model_dump()},
             IDEMPOTENCY_TTL,
         )
+    if not receipt.captured:
+        from backend.apps.mail.services import delivery_events
+
+        try:
+            delivery_events.remember(
+                receipt.message_id, row.prefix, message.sender.strip().lower(), receipt.recipients
+            )
+        except Exception:  # events are a convenience; the message is already on its way
+            logger.warning('Could not record delivery events for %s', receipt.message_id)
     domains = sorted({a.rpartition('@')[2] for a in (*message.to, *message.cc, *message.bcc)})
     AuditService.record(
         action='api_message_captured' if receipt.captured else 'api_message_sent',
@@ -443,6 +459,121 @@ def api_sandbox_clear(request: ApiRequest) -> Status[None]:
     row = _sandbox_key(request)
     sandbox.clear(row.prefix)
     return Status(204, None)
+
+
+# ------------------------------------------------------------------------------ webhooks
+# A key manages its own webhooks: they hear about the messages that key sends (and, with the
+# Inbox Webhooks plugin, about mail received by the mailboxes they name).
+
+
+def _own_webhook(request: ApiRequest, webhook_id: str):  # noqa: ANN202
+    from backend.apps.mail.services import webhooks
+
+    row = webhooks.get_endpoint(webhook_id, request.auth.row.prefix)
+    if row is None:
+        raise HttpError(404, 'No webhook with that id for this key.')
+    return row
+
+
+@router.get('/webhooks', response={200: list[WebhookV1], **errors()}, summary='List webhooks')
+@require_scope('mail.send')
+def api_list_webhooks(request: ApiRequest) -> list[WebhookV1]:
+    """This key's webhooks."""
+    from backend.apps.mail.services import webhooks
+
+    return [WebhookV1.of(r) for r in webhooks.endpoints_for(request.auth.row.prefix)]
+
+
+@router.post(
+    '/webhooks', response={201: WebhookCreatedV1, **errors(422)}, summary='Create a webhook'
+)
+@require_scope('mail.send')
+def api_create_webhook(request: ApiRequest, payload: WebhookCreateV1) -> Status[WebhookCreatedV1]:
+    """Events: ``message.queued``, ``message.delivered``, ``message.deferred``,
+    ``message.bounced`` (Delivery Events plugin) and ``message.received`` (Inbox Webhooks plugin,
+    with ``mailboxes``). The answer carries the signing ``secret`` once: keep it, it verifies the
+    ``X-Ifinmail-Signature`` header of every event."""
+    from backend.apps.mail.services import webhooks
+
+    if payload.mailboxes:
+        _check_mailboxes(request, payload.mailboxes)
+    try:
+        row, secret = webhooks.create_endpoint(
+            name=payload.name,
+            url=payload.url,
+            events=payload.events,
+            owner_prefix=request.auth.row.prefix,
+            mailboxes=payload.mailboxes,
+            created_by=actor(request),
+        )
+    except webhooks.WebhookError as exc:
+        raise HttpError(422, str(exc)) from exc
+    AuditService.record(
+        action='api_webhook_created', user=actor(request), detail=f'{row.name} {row.url}'
+    )
+    return Status(201, WebhookCreatedV1(**WebhookV1.of(row).model_dump(), secret=secret))
+
+
+def _check_mailboxes(request: ApiRequest, mailboxes: list[str]) -> None:
+    """A key may only listen to mailboxes it may send as (its allowed senders)."""
+    from backend.apps.accounts.services.tokens import sender_allowed
+
+    allowed = list(request.auth.row.allowed_senders or [])
+    for box in mailboxes:
+        if not sender_allowed(allowed, box.strip().lower()):
+            raise HttpError(403, f'This key may not read mail for {box}.')
+
+
+@router.delete(
+    '/webhooks/{webhook_id}', response={204: None, **errors(404)}, summary='Delete a webhook'
+)
+@require_scope('mail.send')
+def api_delete_webhook(request: ApiRequest, webhook_id: str) -> Status[None]:
+    row = _own_webhook(request, webhook_id)
+    AuditService.record(action='api_webhook_deleted', user=actor(request), detail=row.name)
+    row.delete()
+    return Status(204, None)
+
+
+@router.post(
+    '/webhooks/{webhook_id}/test',
+    response={200: WebhookDeliveryV1, **errors(404)},
+    summary='Send a test event',
+)
+@require_scope('mail.send')
+def api_test_webhook(request: ApiRequest, webhook_id: str) -> WebhookDeliveryV1:
+    """Sends ``webhook.ping`` now and returns how the receiver answered."""
+    from backend.apps.mail.services import webhooks
+
+    return WebhookDeliveryV1.of(webhooks.ping(_own_webhook(request, webhook_id)))
+
+
+@router.get(
+    '/webhooks/{webhook_id}/deliveries',
+    response={200: list[WebhookDeliveryV1], **errors(404)},
+    summary='Recent deliveries of a webhook',
+)
+@paginate(LimitOffsetPagination)
+@require_scope('mail.send')
+def api_webhook_deliveries(request: ApiRequest, webhook_id: str) -> list[WebhookDeliveryV1]:
+    """Newest first, kept for 14 days: what was sent, how many attempts, the last answer."""
+    row = _own_webhook(request, webhook_id)
+    return [WebhookDeliveryV1.of(d) for d in row.deliveries.all()[:500]]
+
+
+@router.post(
+    '/webhooks/{webhook_id}/enable',
+    response={200: WebhookV1, **errors(404)},
+    summary='Switch a webhook back on',
+)
+@require_scope('mail.send')
+def api_enable_webhook(request: ApiRequest, webhook_id: str) -> WebhookV1:
+    """After a ``410 Gone`` switched it off, or after fixing the receiver."""
+    from backend.apps.mail.services import webhooks
+
+    row = _own_webhook(request, webhook_id)
+    webhooks.set_active(row, True)
+    return WebhookV1.of(row)
 
 
 __all__ = [

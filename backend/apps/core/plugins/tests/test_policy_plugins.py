@@ -249,6 +249,7 @@ class BundledPluginsTests(SimpleTestCase):
             [
                 'assistant',
                 'compliance-journal',
+                'delivery-events',
                 'developer-sandbox',
                 'inbound-protection',
                 'mailbox-care',

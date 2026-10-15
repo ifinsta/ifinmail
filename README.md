@@ -295,6 +295,7 @@ They run against the real API in the test suite, so they cannot drift from it.
 | `mail.manage` (approvals) | `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` (never a key's own messages) |
 | `mail.send` (suppressions) | Sender compliance plugin: `GET/POST /suppressions` (domains the key sends from; all with `mail.manage`), `DELETE /suppressions/{domain}/{address}` (`mail.manage`) |
 | `agents.manage` | Agent inboxes plugin: `GET/POST /inboxes`, `GET/DELETE /inboxes/{address}`, `GET /inboxes/{address}/messages`, `GET/DELETE /inboxes/{address}/messages/{uid}`, `GET /inboxes/{address}/messages/{uid}/code`, `GET /inboxes/{address}/wait` (only inboxes the key created) |
+| any of the above | Agent gateway plugin: `POST /mcp` (Model Context Protocol); the tools offered follow the key's scopes |
 | `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify`, `GET /dns/status` |
 
 The table is generated from the running server: `GET /api/v1/openapi.json` states each
@@ -325,6 +326,25 @@ you what a key may do and which keys look unsafe. Ask it "how can a program crea
   are no attachments yet. The `Idempotency-Key` header (up to 64 characters) makes a retry safe: the
   same key and message return the first answer instead of sending twice. Nothing is stored: there
   is no Sent folder for API mail.
+- **AI agents (Model Context Protocol).** Install the *Agent gateway* plugin and point an MCP
+  client at `https://mail.yourdomain.com/mcp` with a key as a bearer token
+  (`Authorization: Bearer ifm.<prefix>.<secret>`, the form shown when the key is created):
+
+  ```bash
+  claude mcp add --transport http ifinmail https://mail.yourdomain.com/mcp \
+    --header "Authorization: Bearer ifm.PREFIX.SECRET"
+  ```
+
+  The agent sees only the tools its key's scopes allow: `create_inbox`, `list_inboxes`,
+  `delete_inbox`, `list_messages`, `read_message`, `get_code` and `wait_for_message`
+  (`agents.manage`, with the Agent inboxes plugin), `send_email` and `approval_status`
+  (`mail.send`), `delivery_report` (`audit.view`) and `server_status` (`console.access`). Every
+  tool calls the same service as the matching API operation, so allowed senders, daily caps,
+  the Outbound policy, Human approval, Sender compliance and sandbox keys all apply. Agents send
+  plain text only. `read_message` hands the model what a person sees (hidden text removed) with
+  the Injection shield's verdict, and says the content is untrusted. Actions that change
+  something are in the audit trail under the key. The transport is Streamable HTTP with JSON
+  answers (protocol versions 2025-06-18, 2025-03-26 and 2024-11-05).
 - **Lists are paged**: `?limit=` (default 50, at most 200) and `?offset=`; the reply is
   `{"items": [...], "count": N}`.
 - **Errors** are `{"detail": "..."}` with 401 (credentials), 403 (scope or protected mailbox),

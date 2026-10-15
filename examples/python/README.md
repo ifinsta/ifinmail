@@ -68,6 +68,14 @@ except IfinmailError as exc:
 api.send("billing@example.com", ["ana@example.org"], "Your invoice", text="Thank you.")
 ```
 
+## Agents that speak MCP
+
+If your agent framework speaks the Model Context Protocol (Claude, ChatGPT connectors, Cursor,
+the OpenAI Agents SDK, LangChain), you may not need this client at all: install the *Agent
+gateway* plugin and connect the framework to `https://mail.yourdomain.com/mcp` with
+`Authorization: Bearer ifm.<prefix>.<secret>`. It gets the same inbox, code and sending tools,
+with the same rules.
+
 ## Things worth knowing
 
 - **Errors are JSON with a `detail` message.** `401` is a refused credential (the same answer for

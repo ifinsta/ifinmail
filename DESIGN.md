@@ -65,13 +65,15 @@ All configuration lives under **Settings** (`/accounts/settings/`), grouped as W
 
 ## Themes
 
-Smooth (default), Light, Dark, Auto and High contrast. `ifinmail-theme-init.js` runs in `<head>` and sets `html[data-theme]` (the choice, stored in `localStorage`; until someone chooses, the server default from Settings → Appearance, passed as `data-default` on the script tag, and otherwise Smooth) and `html[data-scheme]` (what renders: smooth, light, dark or contrast). Theme blocks live at the end of `ifinmail-variables.css` and change token values only.
+Smooth (default), Oceanic, Light, Dark, Auto and High contrast. `ifinmail-theme-init.js` runs in `<head>` and sets `html[data-theme]` (the choice, stored in `localStorage`; until someone chooses, the server default from Settings → Appearance, passed as `data-default` on the script tag, and otherwise Smooth) and `html[data-scheme]` (what renders: smooth, oceanic, light, dark or contrast). Theme blocks live at the end of `ifinmail-variables.css` and change token values only.
 
 **Smooth** is the default look: light only (it never follows the operating system into a dark scheme), soft edges instead of hard ones (a pale hairline and one soft shadow on cards; 10 / 14 / 18 px radii; pill badges), quiet surfaces, no gradients, glow or decorative motion. It changes tokens (colours of borders and surfaces, radii, shadows, motion; never the brand or primary colour) and the few components that need more in `ifinmail-smooth.css`, which is loaded last and where every rule starts with `html[data-scheme="smooth"]`. A new page needs nothing special: use tokens and it is smooth. Do not hard-code a radius or a border colour; if a component draws a square box in Smooth, give it a token radius and `--ifinmail-color-border-light`.
 
+**Oceanic** is Smooth's shapes (the same radii, shadows and `ifinmail-smooth.css` rules, which are scoped to `html:is([data-scheme="smooth"], [data-scheme="oceanic"])`) in a light sea-blue palette: deep navy text, a teal-blue accent (`#0C6A8A`), sea-glass surfaces. Light only, never follows the operating system. Unlike Smooth it sets the accent itself, so it replaces a custom brand colour (as Dark does). Status colours (success, warning, danger) are not changed. `test_oceanic_theme.py` measures every text/background pair; change a token there and the test says whether it still clears 4.5:1.
+
 - Never write a literal colour in component CSS. A new literal-colour token in `:root` must also be defined in the `dark` and `contrast` blocks (a test enforces this).
 - Text on a primary fill uses `--ifinmail-on-primary`, never white.
-- Text contrast must hold in every scheme (smooth, dark and contrast); check with axe in each (`localStorage.setItem('ifinmail-theme', 'dark')`).
+- Text contrast must hold in every scheme (smooth, oceanic, dark and contrast); check with axe in each (`localStorage.setItem('ifinmail-theme', 'dark')`).
 
 ## Where things live
 

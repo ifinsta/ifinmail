@@ -17,7 +17,7 @@ from backend.apps.core.types import SettingKey
 logger = logging.getLogger('backend')
 
 DEFAULT = 'smooth'
-THEMES = ('smooth', 'light', 'dark', 'auto', 'contrast')
+THEMES = ('smooth', 'oceanic', 'light', 'dark', 'auto', 'contrast')
 _CACHE_KEY = 'appearance:default-theme:v1'
 
 

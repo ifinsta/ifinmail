@@ -2,19 +2,19 @@
  * ifinmail theme bootstrap. Loaded synchronously in <head> so the right theme
  * is on <html> before first paint (no flash).
  *
- * data-theme  = the person's choice: smooth | light | dark | auto | contrast
- * data-scheme = what is actually rendered: smooth | light | dark | contrast
+ * data-theme  = the person's choice: smooth | oceanic | light | dark | auto | contrast
+ * data-scheme = what is actually rendered: smooth | oceanic | light | dark | contrast
  *
  * The choice lives in localStorage on this browser. Until someone chooses, the
  * server's default applies (data-default on this script's own tag, set under
  * Settings > Appearance); without one it is "smooth". Smooth is a light-only
- * look and never follows the operating system into a dark scheme.
+ * look and never follows the operating system into a dark scheme; so is oceanic.
  */
 (function () {
     'use strict';
 
     var KEY = 'ifinmail-theme';
-    var CHOICES = ['smooth', 'light', 'dark', 'auto', 'contrast'];
+    var CHOICES = ['smooth', 'oceanic', 'light', 'dark', 'auto', 'contrast'];
     var root = document.documentElement;
     var tag = document.currentScript;
     var configured = tag && tag.getAttribute('data-default');
@@ -50,7 +50,7 @@
                theme blocks (this runs before the stylesheets load). */
             meta.setAttribute(
                 'content',
-                (scheme === 'light' || scheme === 'smooth')
+                (scheme === 'light' || scheme === 'smooth' || scheme === 'oceanic')
                     ? meta.getAttribute('data-default')
                     : (scheme === 'dark' ? '#0B1220' : '#000000')
             );

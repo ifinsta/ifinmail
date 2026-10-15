@@ -178,7 +178,7 @@ def test_theme_bootstrap_runs_before_styles_and_is_csp_safe() -> None:
     before = base[script - 40 : script]
     assert '<script src=' in before, 'theme bootstrap must be an external script'
     source = _read(FRONTEND / 'static' / 'js' / 'ifinmail-theme-init.js')
-    for choice in ('smooth', 'light', 'dark', 'auto', 'contrast'):
+    for choice in ('smooth', 'oceanic', 'light', 'dark', 'auto', 'contrast'):
         assert f"'{choice}'" in source
 
 

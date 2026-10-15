@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.71
+- **Agent gateway plugin: AI agents use this server over the Model Context Protocol.** With the
+  plugin, the server answers at `/mcp` (Streamable HTTP, JSON answers; protocol versions
+  2025-06-18, 2025-03-26 and 2024-11-05). An agent connects with an API key as a bearer token.
+  - **Tools follow the key's scopes:** inbox tools (`create_inbox`, `list_messages`,
+    `read_message`, `get_code`, `wait_for_message` and more) with `agents.manage`; `send_email`
+    and `approval_status` with `mail.send`; `delivery_report` with `audit.view`; and
+    `server_status` with `console.access`. A key whose owner loses a permission loses the tool.
+  - **The same rules as the API:** every tool calls the same service. Sending is checked for
+    allowed senders, daily caps, the Outbound policy, Human approval, Sender compliance and
+    sandbox keys. Agents send plain text only, and a setting removes `send_email` altogether.
+  - **Mail is handed to the model as data:** `read_message` returns what a person sees, with
+    hidden text removed (even without the Injection shield plugin), plus the risk verdict. Every
+    result carrying mail says it is untrusted. A message the shield holds is not shown.
+  - **Audit:** each action that changes something is recorded under the key, never with a
+    message body.
+
 ## v0.0.70
 - **Sender compliance plugin: API mail stays inside Gmail, Yahoo and Microsoft's sender
   rules.**

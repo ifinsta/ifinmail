@@ -247,6 +247,7 @@ class BundledPluginsTests(SimpleTestCase):
         self.assertEqual(
             sorted(e.plugin_id for e in bundled),
             [
+                'agent-gateway',
                 'agent-inboxes',
                 'assistant',
                 'compliance-journal',

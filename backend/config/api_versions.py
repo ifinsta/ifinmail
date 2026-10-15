@@ -56,6 +56,10 @@ INFRASTRUCTURE: dict[str, str] = {
     'health/': 'liveness probe for Docker, nginx and the updater; same body as GET /api/v1/health',
     'csp-report/': 'receiver of browser CSP reports; the format is defined by browsers',
     'manifest.webmanifest': 'web app manifest; the format is defined by browsers',
+    'mcp': (
+        'Model Context Protocol endpoint (JSON-RPC 2.0); the protocol and its versions are '
+        'defined by MCP, and its tools call the same services as the v1 operations'
+    ),
     'updates/v1/android/latest.json': (
         'update manifest the Android app polls; public and read-only like the download page, '
         'because a phone holds no API key (release management is POST /api/v1/releases/android)'

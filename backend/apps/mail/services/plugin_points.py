@@ -388,6 +388,8 @@ class DeveloperTarget(AdapterTarget):
         'compliance_suppress_bounces': TargetKey(
             _one_of('yes', 'no'), 'Suppress addresses that do not exist.'
         ),
+        'gateway_enabled': TargetKey(_one_of('yes', 'no'), 'Serve the MCP agent gateway at /mcp.'),
+        'gateway_allow_send': TargetKey(_one_of('yes', 'no'), 'Offer the send_email tool.'),
     }
 
 
@@ -771,6 +773,19 @@ def _capabilities() -> tuple[Capability, ...]:
                 'suppress_bounces': _field(
                     (DEV, 'compliance_suppress_bounces'),
                     'yes: an address that does not exist is never written to again.',
+                ),
+            },
+        ),
+        _Capability(
+            'developer.gateway',
+            'Agent gateway (MCP)',
+            'AI agents connect to /mcp with an API key and use this server\'s tools (agent '
+            'inboxes, codes, sending, delivery reports) under the key\'s scopes and every rule.',
+            {
+                'enabled': _field((DEV, 'gateway_enabled'), 'yes: serve /mcp.'),
+                'allow_send': _field(
+                    (DEV, 'gateway_allow_send'),
+                    'yes: keys with mail.send get the send_email tool; no: agents only read.',
                 ),
             },
         ),

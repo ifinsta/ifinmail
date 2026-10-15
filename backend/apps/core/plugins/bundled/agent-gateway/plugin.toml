@@ -1,0 +1,28 @@
+manifest_version = 2
+
+[plugin]
+id = "agent-gateway"
+name = "Agent gateway (MCP)"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "integration"
+summary = "Let AI agents (Claude, ChatGPT, Cursor, agent frameworks) use this server over the Model Context Protocol, with the same keys, scopes and rules as the API."
+requires_core = "0.0.71"
+description = """
+Agent frameworks speak the Model Context Protocol. With this plugin the server answers at /mcp (Streamable HTTP) and an agent connects with an API key: Authorization: Bearer ifm.<key>.<secret>.
+
+The agent sees only the tools its key's scopes allow. With agents.manage: create_inbox, list_inboxes, delete_inbox, list_messages, read_message, get_code and wait_for_message (needs the Agent inboxes plugin). With mail.send: send_email and approval_status. With audit.view: delivery_report. With console.access: server_status.
+
+Nothing goes around the rules. Sending goes through the same checks as POST /api/v1/messages: allowed senders, daily limits, the Outbound policy, Human approval, Sender compliance and the sandbox. Agents send plain text only. read_message hands the model what a person sees, with hidden text removed and the Injection shield's verdict, and every result that carries mail tells the model it is untrusted data. Each action that changes something is in the audit trail under the key.
+"""
+
+[[settings]]
+key = "allow_send"
+type = "boolean"
+label = "Offer the send_email tool to keys with mail.send"
+default = true
+help = "Off: agents can read their inboxes but never send through the gateway."
+
+[[contributes]]
+capability = "developer.gateway"
+values = { enabled = "yes", allow_send = "{allow_send}" }

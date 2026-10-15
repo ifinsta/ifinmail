@@ -148,6 +148,7 @@ class ApiKeyCreateForm(forms.Form):
     rate_limit_per_minute = forms.IntegerField(required=False, min_value=1, max_value=6000)
     senders = forms.CharField(required=False, strip=True, widget=forms.Textarea)
     send_limit_per_day = forms.IntegerField(required=False, min_value=1, max_value=100000)
+    sandbox = forms.BooleanField(required=False)
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         from backend.apps.accounts.types.permissions import TOKEN_SCOPES

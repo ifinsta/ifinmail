@@ -165,6 +165,25 @@ class ClientTests(ExampleBase):
             sender.send('someone-else@ifinmail.test', ['ana@example.org'], 'Hi', text='x')
         self.assertEqual(caught.exception.status, 403)
 
+    def test_sandbox_round_trip(self) -> None:
+        from backend.apps.core.plugins.services import InstallationService
+
+        InstallationService.install('developer-sandbox', {}, 'root@ifinmail.test')
+        row, token = TokenService.create(
+            self.owner, 'ci', ['mail.send'], expires_in_days=30,
+            allowed_senders=['billing@ifinmail.test'], sandbox=True,
+        )
+        ci = self.module.Client(
+            'http://testserver', key_id(row.prefix), token.split('.', 2)[2],
+            session=DjangoSession(self.client), max_retries=0,
+        )
+        ci.clear_sandbox()
+        result = ci.send('billing@ifinmail.test', ['ana@example.org'], 'Welcome', text='Hi')
+        self.assertEqual(result['status'], 'captured')
+        self.assertEqual(mail.outbox, [])
+        (captured,) = list(ci.sandbox_messages(to='ana@example.org'))
+        self.assertEqual(captured['subject'], 'Welcome')
+
     def test_a_rate_limit_is_waited_out(self) -> None:
         slept: list[float] = []
         calls = {'n': 0}

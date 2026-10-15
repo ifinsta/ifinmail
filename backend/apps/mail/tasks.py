@@ -25,3 +25,11 @@ def check_outbound_containment() -> dict[str, list[str]]:
     except Exception:  # Redis or the database briefly unavailable: try again next minute
         logging.getLogger('backend').warning('Outbound containment check failed', exc_info=True)
         return {'paused': [], 'alerted': []}
+
+
+@shared_task(name='mail.purge_sandbox')
+def purge_sandbox() -> int:
+    """Drop captured sandbox mail older than the Developer sandbox plugin's retention (daily)."""
+    from .services import sandbox
+
+    return sandbox.purge()

@@ -94,6 +94,7 @@ comma-separated and normalised (lower-case, sorted, de-duplicated, at most 200 e
 | `mailbox.retention` | `trash_days`, `junk_days`, `sent_days` | 1-3650 | Delete messages in that folder after N days |
 | `mailbox.forwarding` | `max_redirects` | 0-20 | Addresses one filter rule may forward to (0 = none) |
 | `mailbox.quota_warnings` | `enabled` | yes/no | Notice in the Inbox at 80% and 95% of the quota |
+| `developer.sandbox` | `enabled`, `retention_days`, `max_messages` | yes/no, 1-90, 10-10000 | Mail from sandbox API keys is checked like real mail, kept for inspection and never delivered (in-console target `console.developer`) |
 | `website.pages` | `modes`, `powered_by`, `project_links`, `tagline`, `footer_note` | `page=standard\|custom\|off` list, yes/no, yes/no, one line, one line | Which public pages are served, whether the footer and links mention the platform and its project, and the footer's own sentence or line (in-console target `console.website`; the text of custom pages is written under Settings → Website, not in plugin settings) |
 | `assistant.model` | `base_url`, `model`, `api_key` (secret), `daily_tokens` | http(s) URL, model name, secret, 1000-10000000 | The administrator assistant's OpenAI-compatible model (in-console target `console.assistant`) |
 

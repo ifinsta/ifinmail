@@ -249,6 +249,7 @@ class BundledPluginsTests(SimpleTestCase):
             [
                 'assistant',
                 'compliance-journal',
+                'developer-sandbox',
                 'inbound-protection',
                 'mailbox-care',
                 'object-storage',
@@ -881,6 +882,7 @@ class ApplyStatusTests(MailTablesTestCase):
             [
                 'console.assistant',
                 'console.containment',
+                'console.developer',
                 'console.storage',
                 'console.website',
                 'dovecot.policy',

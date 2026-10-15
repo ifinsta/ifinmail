@@ -316,6 +316,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.check_for_updates',
         'schedule': crontab(minute=40, hour='*/6'),
     },
+    'sandbox-purge': {
+        # Captured sandbox mail is kept for the Developer sandbox plugin's number of days.
+        'task': 'mail.purge_sandbox',
+        'schedule': crontab(hour=3, minute=50),
+    },
     'assistant-purge': {
         # Assistant conversations are kept 30 days.
         'task': 'assistant.purge',

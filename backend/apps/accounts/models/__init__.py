@@ -217,6 +217,9 @@ class APIToken(models.Model):
     allowed_senders = models.JSONField(default=list, blank=True)
     # Recipients per day for ``POST /messages``; null uses API_SEND_LIMIT_PER_DAY.
     send_limit_per_day = models.PositiveIntegerField(null=True, blank=True)
+    # Sandbox key: mail it sends is captured for inspection (Developer sandbox plugin) and never
+    # delivered. Set at creation only; a key does not switch between test and production.
+    sandbox = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'accounts_api_token'

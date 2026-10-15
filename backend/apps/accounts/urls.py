@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from .views.api_keys import api_key_action, api_key_create, api_keys
+from .views.api_keys import api_key_action, api_key_create, api_key_sandbox, api_keys
 from .views.assistant import (
     assistant,
     assistant_apply,
@@ -232,6 +232,12 @@ urlpatterns = [
     path('settings/api-keys/', api_keys, name='api_keys'),
     path('settings/api-keys/create/', api_key_create, name='api_key_create'),
     path('settings/api-keys/action/', api_key_action, name='api_key_action'),
+    path('settings/api-keys/sandbox/', api_key_sandbox, name='api_key_sandbox'),
+    path(
+        'settings/api-keys/sandbox/<uuid:message_id>/',
+        api_key_sandbox,
+        name='api_key_sandbox_message',
+    ),
     path('settings/appearance/default/', appearance_default, name='appearance_default'),
     path('settings/<slug:slug>/', settings_page, name='settings_page'),
     path('branding/', branding_identity, name='branding_identity'),

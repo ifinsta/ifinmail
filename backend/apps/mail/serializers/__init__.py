@@ -163,11 +163,44 @@ class MessageAcceptedV1(Schema):
     """The server accepted the message for delivery (it is not a delivery receipt)."""
 
     id: str  # the Message-ID header, without the angle brackets
-    status: str  # "queued"
+    status: str  # "queued", or "captured" for a sandbox key (kept, not delivered)
     recipients: int
 
 
+class SandboxMessageV1(Schema):
+    """A message a sandbox key sent, kept for inspection and never delivered."""
+
+    id: str
+    message_id: str
+    sender: str
+    to: list[str]
+    cc: list[str]
+    bcc: list[str]
+    reply_to: str
+    subject: str
+    text: str
+    html: str
+    created_at: str
+
+    @classmethod
+    def of(cls, row) -> SandboxMessageV1:  # noqa: ANN001
+        return cls(
+            id=str(row.pk),
+            message_id=row.message_id,
+            sender=row.sender,
+            to=list(row.to),
+            cc=list(row.cc),
+            bcc=list(row.bcc),
+            reply_to=row.reply_to,
+            subject=row.subject,
+            text=row.text,
+            html=row.html,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+        )
+
+
 __all__ = [
+    'SandboxMessageV1',
     'AliasCreateIn',
     'AliasCreateV1',
     'AliasOut',

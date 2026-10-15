@@ -11,6 +11,9 @@
                 <h1 class="ifinmail-page-title">{% trans 'API keys' %}</h1>
                 <p class="ifinmail-page-subtitle">{% trans 'A key and its secret let an integration call the API on this server. Each key has scopes, an expiry and, if you want, a list of networks it may be used from.' %}</p>
             </div>
+            <div class="ifinmail-page-actions">
+                <a class="ifinmail-btn ifinmail-btn--outline" href="{% url 'accounts:api_key_sandbox' %}">{% trans 'Sandbox mail' %}</a>
+            </div>
         </div>
 
         {% if revealed %}
@@ -69,6 +72,10 @@
                     <input class="ifinmail-input" id="key-send-cap" name="send_limit_per_day" type="number" min="1" max="100000" placeholder="500">
                 </div>
                 <div class="ifinmail-field">
+                    <label class="ifinmail-check"><input type="checkbox" name="sandbox"> <span>{% trans 'Sandbox key: capture its mail, never deliver it' %}</span></label>
+                    <p class="ifinmail-help-text">{% trans 'For tests and staging. Mail sent with this key is checked like real mail, then kept for inspection under API keys → Sandbox instead of being delivered. Needs the Developer sandbox plugin. A key cannot be switched between sandbox and real later.' %}</p>
+                </div>
+                <div class="ifinmail-field">
                     <label for="key-rate">{% trans 'Calls per minute (optional)' %}</label>
                     <input class="ifinmail-input" id="key-rate" name="rate_limit_per_minute" type="number" min="1" max="6000" placeholder="120">
                 </div>
@@ -87,7 +94,7 @@
                 <tbody>
                 {% for k in keys %}
                 <tr>
-                    <td>{{ k.name }}{% if k.allowed_networks %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with n=k.allowed_networks|join:", " %}Only from {{ n }}{% endblocktrans %}</span>{% endif %}{% if k.allowed_senders %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with s=k.allowed_senders|join:", " %}Sends as {{ s }}{% endblocktrans %}</span>{% endif %}</td>
+                    <td>{{ k.name }}{% if k.allowed_networks %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with n=k.allowed_networks|join:", " %}Only from {{ n }}{% endblocktrans %}</span>{% endif %}{% if k.allowed_senders %}<br><span class="ifinmail-help-text">{% blocktrans trimmed with s=k.allowed_senders|join:", " %}Sends as {{ s }}{% endblocktrans %}</span>{% endif %}{% if k.sandbox %} <span class="ifinmail-badge ifinmail-badge--info">{% trans 'Sandbox' %}</span>{% endif %}</td>
                     <td><code class="ifinmail-text--mono">ifm_{{ k.prefix }}</code></td>
                     <td><code class="ifinmail-text--mono">{{ k.scopes|join:", " }}</code></td>
                     <td>{{ k.user.email }}</td>

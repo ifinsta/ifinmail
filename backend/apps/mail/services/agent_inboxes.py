@@ -202,17 +202,35 @@ def message(row: AgentInbox, uid: int) -> dict:
         raise _reader_error(exc) from exc
     if found is None:
         raise InboxError('No message with that uid in this inbox.', 404)
-    return found.as_dict()
+    return found.as_dict() | _shield(found.summary.subject, found.text, found.html)
+
+
+def _shield(subject: str, text: str, html: str) -> dict:
+    """``risk`` and ``safe_text`` when the Injection shield is on (``None`` otherwise)."""
+    from backend.apps.mail.services import injection_shield
+
+    current = injection_shield.settings()
+    if not current.enabled:
+        return {'risk': None, 'safe_text': None, 'held': False}
+    risk, safe = injection_shield.analyse(subject, text, html)
+    return {'risk': risk.as_dict(), 'safe_text': safe, 'held': injection_shield.held(risk, current)}
 
 
 def code(row: AgentInbox, uid: int) -> dict:
     from backend.apps.mail.services import codes
 
     full = message(row, uid)
+    if full['held']:
+        raise InboxError(
+            'The Injection shield holds this message (high risk of instructions planted for an '
+            'agent). Read it with care, or ask an administrator.',
+            409,
+        )
     return {
         'uid': uid,
         'subject': full['subject'],
         'from': full['from'],
+        'risk': full['risk'],
         **codes.extract(full['subject'], full['text'], full['html']),
     }
 
@@ -235,7 +253,12 @@ def wait(row: AgentInbox, *, since_uid: int, timeout: float, tag: str = '') -> d
                 full = message(row, summary.uid)
                 if not _matches_tag(tuple(full['to']), tuple(full['delivered_to']), tag):
                     continue
-            return code(row, summary.uid) | {'message': summary.as_dict()}
+            try:
+                return code(row, summary.uid) | {'message': summary.as_dict()}
+            except InboxError as exc:
+                if exc.status == 409:  # held by the Injection shield: not for agents
+                    continue
+                raise
         if timezone.now() >= deadline:
             return None
 

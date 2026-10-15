@@ -210,6 +210,16 @@ class InboxAttachmentV1(Schema):
     size: int
 
 
+class RiskV1(Schema):
+    """Injection shield verdict: how likely the message carries instructions planted for an
+    agent, and why. ``hidden_text`` is what a person reading the message would not see."""
+
+    score: int
+    level: str  # none | low | medium | high
+    reasons: list[str]
+    hidden_text: str
+
+
 class InboxMessageFullV1(InboxMessageV1):
     cc: list[str]
     reply_to: str
@@ -218,6 +228,9 @@ class InboxMessageFullV1(InboxMessageV1):
     html: str  # as sent; never render it without sanitising
     headers: dict[str, str]
     attachments: list[InboxAttachmentV1]
+    risk: RiskV1 | None = None  # with the Injection shield plugin
+    safe_text: str | None = None  # what a person would see: read this, not ``text``
+    held: bool = False
 
 
 class FoundCodeV1(Schema):
@@ -243,6 +256,7 @@ class InboxCodeV1(Schema):
     from_: str = Field(alias='from')
     code: str | None
     link: str | None
+    risk: RiskV1 | None = None
     codes: list[FoundCodeV1]
     links: list[FoundLinkV1]
 
@@ -356,6 +370,7 @@ class SandboxMessageV1(Schema):
 
 
 __all__ = [
+    'RiskV1',
     'FoundCodeV1',
     'FoundLinkV1',
     'InboxAttachmentV1',

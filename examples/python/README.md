@@ -82,6 +82,9 @@ api.send("billing@example.com", ["ana@example.org"], "Your invoice", text="Thank
   with "Sandbox key" ticked: `send` answers `"status": "captured"` and the message is kept, not
   delivered. Read it back with `api.sandbox_messages(to="ana@example.org")` and start each run
   with `api.clear_sandbox()`.
+- **Mail is untrusted input for an agent.** With the Injection shield plugin, messages from
+  `api.inboxes.read()` carry `risk` (score, level, reasons) and `safe_text` (what a person sees,
+  hidden parts removed). Feed `safe_text` to your model, never `html`.
 - **`202` from `send` means accepted, not delivered.** Use the delivery report (06) to see what
   became of mail. "Accepted" by the receiving server is also not "in the inbox".
 - **Logins with console access cannot be changed through the API,** and domains cannot be

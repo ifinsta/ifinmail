@@ -173,6 +173,15 @@ def _number(value: str | None) -> int | None:
     return number if number > 0 else None
 
 
+def _own_inbox(key: SendingKey, sender: str) -> bool:
+    """A key may send as the agent inboxes it created (Agent inboxes plugin)."""
+    if not key.prefix:
+        return False
+    from backend.apps.mail.services import agent_inboxes
+
+    return agent_inboxes.settings().enabled and agent_inboxes.owns(key.prefix, sender)
+
+
 class MessageService:
     @staticmethod
     def send(request: SendRequest, key: SendingKey, *, now: datetime | None = None) -> Receipt:
@@ -195,7 +204,7 @@ class MessageService:
             raise SendRefused(422, 'Name at least one recipient.')
 
         # Who may send as this address.
-        if not sender_allowed(list(key.allowed_senders), sender):
+        if not sender_allowed(list(key.allowed_senders), sender) and not _own_inbox(key, sender):
             raise SendRefused(403, f'This key may not send as {sender}.')
         if not Domain.objects.filter(name=domain).exists():
             raise SendRefused(403, f'{domain} is not a domain on this server.')

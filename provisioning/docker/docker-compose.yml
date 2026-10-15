@@ -126,6 +126,8 @@ services:
     environment:
       TZ: ${TZ:-UTC}
       DOVECOT_DB_PASSWORD: ${DOVECOT_DB_PASSWORD:?run make provision first}
+      # The console's IMAP master login (agent inboxes, inbox webhooks); private networks only.
+      DOVECOT_MASTER_PASSWORD: ${DOVECOT_MASTER_PASSWORD:-}
       MAIL_HOSTNAME: ${MAIL_HOSTNAME}
       PGSSLMODE: prefer
     volumes:
@@ -370,6 +372,9 @@ services:
       DATABASE_URL: postgresql://ifinmail_app:${APP_DB_PASSWORD:?run make provision first}@postgres:5432/ifinmail?sslmode=prefer
       REDIS_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/1
+      # Agent inboxes and inbox webhooks read mail over IMAP as Dovecot's master user.
+      DOVECOT_MASTER_PASSWORD: ${DOVECOT_MASTER_PASSWORD:-}
+      IFINMAIL_IMAP_HOST: dovecot
       DJANGO_SECRET_KEY: ${SECRET_KEY:?run make provision first}
       DJANGO_SETTINGS_MODULE: backend.config.settings.production
       ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
@@ -449,6 +454,9 @@ services:
       DB_SSLMODE: prefer
       REDIS_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/0
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?run make provision first}@redis:6379/1
+      # Agent inboxes and inbox webhooks read mail over IMAP as Dovecot's master user.
+      DOVECOT_MASTER_PASSWORD: ${DOVECOT_MASTER_PASSWORD:-}
+      IFINMAIL_IMAP_HOST: dovecot
       DJANGO_SECRET_KEY: ${SECRET_KEY:?run make provision first}
       DJANGO_SETTINGS_MODULE: backend.config.settings.production
       ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}

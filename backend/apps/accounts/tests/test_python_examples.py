@@ -264,6 +264,72 @@ class ClientTests(ExampleBase):
         self.assertIn('could not reach', caught.exception.detail)
 
 
+class AgentInboxClientTests(ExampleBase):
+    def setUp(self) -> None:
+        super().setUp()
+        import os
+
+        from backend.apps.core.plugins.services import InstallationService
+        from backend.apps.domains.models import Domain
+        from backend.apps.mail.services import imap_reader
+        from backend.apps.mail.tests.fake_imap import PASSWORD, FakeStore
+
+        Domain.objects.create(name='agents.ifinmail.test')
+        InstallationService.install('agent-inboxes', {'domain': 'agents.ifinmail.test'}, 'a')
+        self.store = FakeStore()
+        for active in (
+            patch.object(imap_reader.imaplib, 'IMAP4_SSL', side_effect=self.store.client),
+            patch.dict(os.environ, {'DOVECOT_MASTER_PASSWORD': PASSWORD}),
+            patch.object(imap_reader.time, 'sleep'),
+        ):
+            active.start()
+            self.addCleanup(active.stop)
+        row, token = TokenService.create(self.owner, 'agent', ['agents.manage'], expires_in_days=30)
+        self.agent = self.module.Client(
+            'http://testserver', key_id(row.prefix), token.split('.', 2)[2],
+            session=DjangoSession(self.client), max_retries=0,
+        )
+
+    def test_create_wait_for_the_code_and_delete(self) -> None:
+        from backend.apps.mail.tests.fake_imap import message
+
+        inbox = self.agent.inboxes.create(label='test', ttl_hours=1)
+        address = inbox['address']
+        self.store.boxes.setdefault(address, [])
+        self.assertEqual(self.agent.inboxes.newest_uid(address), 0)
+        self.store.on_noop = lambda: self.store.boxes[address] or self.store.deliver(
+            address, message('Verify', 'Your verification code is 739204', to=address)
+        )
+        found = self.agent.inboxes.wait(address, since_uid=0, timeout=5)
+        self.assertEqual(found['code'], '739204')
+        self.assertEqual(found['from'], 'no-reply@service.example')
+        self.assertEqual(self.agent.inboxes.code(address, found['uid'])['code'], '739204')
+        self.agent.inboxes.delete(address)
+        self.assertEqual(self.agent.inboxes.list(), [])
+
+    def test_the_signup_example_runs(self) -> None:
+        from backend.apps.mail.tests.fake_imap import message
+
+        def arrive() -> None:
+            for address, box in self.store.boxes.items():
+                if not box:
+                    self.store.deliver(address, message('Code', 'Your code: 551203', to=address))
+
+        real_create = self.module.AgentInboxes.create
+
+        def create(inboxes, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+            made = real_create(inboxes, *args, **kwargs)
+            self.store.boxes.setdefault(made['address'], [])
+            return made
+
+        self.store.on_noop = arrive
+        with patch.object(self.module.AgentInboxes, 'create', create):
+            code, out, err = self.run_script('10_agent_signup', '--timeout', '5', client=self.agent)
+        self.assertEqual(code, 0, err)
+        self.assertIn('code: 551203', out)
+        self.assertIn('Inbox deleted.', out)
+
+
 class ScriptTests(ExampleBase):
     def test_hello(self) -> None:
         code, out, _ = self.run_script('01_hello')
@@ -354,8 +420,8 @@ class ScriptTests(ExampleBase):
 
 class FilesTests(SimpleTestCase):
     def test_every_script_has_a_docstring_a_main_and_no_secret(self) -> None:
-        scripts = sorted(EXAMPLES.glob('0*.py'))
-        self.assertGreaterEqual(len(scripts), 9)
+        scripts = sorted(EXAMPLES.glob('[0-9][0-9]_*.py'))
+        self.assertGreaterEqual(len(scripts), 10)
         for path in scripts:
             text = path.read_text()
             with self.subTest(script=path.name):
@@ -365,5 +431,5 @@ class FilesTests(SimpleTestCase):
 
     def test_the_readme_lists_every_script(self) -> None:
         readme = (EXAMPLES / 'README.md').read_text()
-        for path in EXAMPLES.glob('0*.py'):
+        for path in EXAMPLES.glob('[0-9][0-9]_*.py'):
             self.assertIn(path.name, readme)

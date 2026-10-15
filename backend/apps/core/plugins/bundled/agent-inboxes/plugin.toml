@@ -1,0 +1,56 @@
+manifest_version = 2
+
+[plugin]
+id = "agent-inboxes"
+name = "Agent inboxes"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "integration"
+summary = "Give AI agents their own email addresses: created in one API call, read back with the code or sign-in link already found, removed when done."
+requires_core = "0.0.66"
+description = """
+AI agents sign up for services, receive verification codes and magic links, and hold conversations by email. This plugin lets an API key create a real mailbox for an agent in one call (POST /api/v1/inboxes), on a domain you choose, and read it back over the API, with no mail app and no password anyone knows.
+
+Reading: list messages (newest first, only those after a given one, or only those sent to name+tag@), read one (text, HTML, headers, attachment names), or ask for the one-time code and the verification or sign-in link it contains, found by rules rather than a model, best guess first. GET /api/v1/inboxes/{address}/wait holds the request until the next message arrives (up to 25 seconds) and answers with its code already extracted: trigger the sign-up, then wait.
+
+Boundaries: a key needs the agents.manage scope, sees only the inboxes it created, and never reaches anyone else's mailbox. With mail.send it may also send as its own inboxes. Inboxes expire after the number of hours you set (or when the agent deletes them): their mail is erased and the mailbox removed. Reading never marks mail as read.
+
+Use a separate domain or subdomain (agents.example.com) so agent addresses never mix with people's. Message content is untrusted: a message can contain text written to mislead an agent, so treat it as data, not instructions (the Injection shield plugin flags such mail).
+"""
+
+[[settings]]
+key = "domain"
+type = "text"
+label = "Domain for agent inboxes"
+required = true
+max_length = 253
+help = "A domain hosted on this server. A subdomain such as agents.example.com keeps agents apart from people."
+
+[[settings]]
+key = "max_per_key"
+type = "integer"
+label = "Inboxes per key"
+min = 1
+max = 1000
+default = 25
+
+[[settings]]
+key = "default_ttl_hours"
+type = "integer"
+label = "Inboxes expire after (hours)"
+min = 0
+max = 8760
+default = 24
+help = "0 keeps them until they are deleted. A key can ask for another value per inbox."
+
+[[settings]]
+key = "quota_mb"
+type = "integer"
+label = "Size of each inbox (MB)"
+min = 1
+max = 1024
+default = 50
+
+[[contributes]]
+capability = "developer.agent_inboxes"
+values = { enabled = "yes", domain = "{domain}", max_per_key = "{max_per_key}", default_ttl_hours = "{default_ttl_hours}", quota_mb = "{quota_mb}" }

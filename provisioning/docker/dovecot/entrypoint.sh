@@ -17,6 +17,17 @@ sed \
 chown root:dovecot /etc/dovecot/dovecot-sql.conf.ext
 chmod 640 /etc/dovecot/dovecot-sql.conf.ext
 
+# The console's IMAP master login (see conf.d/10-auth.conf). Hashed here; allowed only from
+# private networks. Without DOVECOT_MASTER_PASSWORD the file is empty: no master login exists.
+: > /etc/dovecot/master-users
+if [ -n "${DOVECOT_MASTER_PASSWORD:-}" ]; then
+    MASTER_HASH="$(doveadm pw -s SHA512-CRYPT -p "$DOVECOT_MASTER_PASSWORD")"
+    printf 'ifinmail-console:%s::::::allow_nets=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16\n' \
+        "$MASTER_HASH" > /etc/dovecot/master-users
+fi
+chown root:dovecot /etc/dovecot/master-users
+chmod 640 /etc/dovecot/master-users
+
 # The mail volume is shared with the postfix container, and whichever container
 # starts first initialises it from its own image (root:mail 2755 from postfix).
 # Dovecot delivers as vmail, which then could not create <domain>/<user>/ and

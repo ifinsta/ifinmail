@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.0.66
+- **Agent inboxes plugin: email addresses for AI agents.** A key with the new `agents.manage`
+  scope creates a real mailbox for an agent in one call (`POST /api/v1/inboxes`), on a domain you
+  choose, and reads it back over the API.
+  - **Reading:** list (newest first, `since_uid`, `tag`), read (text, HTML, headers,
+    attachment names), and `…/messages/{uid}/code`, which finds the one-time code and the
+    verification or sign-in link. This uses rules, not a model, and knows codes from
+    years, prices, phone and order numbers. `…/wait` holds the request until the next message
+    arrives (up to 25 s) and answers with its code already found.
+  - **Boundaries:** a key reaches only the inboxes it created and never anyone else's mailbox.
+    Inboxes expire after the hours you set (24 by default) and their mail is erased. Reading never
+    marks mail read. With `mail.send` the key can also send as its own inboxes, without listing them.
+  - **Plus addressing everywhere:** mail to `name+anything@domain` now arrives in `name@domain`
+    (Postfix and Dovecot), for people as well as agents.
+  - **How it reads mail:** over IMAP inside the Docker network, as a Dovecot master user with the
+    new `DOVECOT_MASTER_PASSWORD`. `make update` adds the password to existing installs. The master
+    login works only from private networks and only for mailboxes that exist.
+  - **Python:** `api.inboxes.create()`, `.wait()`, `.code()`, `.read()`, `.delete()`, and
+    `10_agent_signup.py` (create, wait for the code, delete).
+
 ## v0.0.65
 - **Delivery events plugin: signed webhooks for what became of mail sent through the API.**
   - Events `message.queued`, `message.delivered`, `message.deferred` and `message.bounced`, one

@@ -290,7 +290,8 @@ They run against the real API in the test suite, so they cannot drift from it.
 | `audit.view` | `GET /metrics` (Prometheus text), `GET /health/full`, `GET /health/dns`, `GET /health/deliverability`, `GET /telemetry/errors`, `GET /telemetry/stats`, `GET /telemetry/fingerprints` |
 | `system.manage` | `POST /telemetry/fingerprints/{fingerprint}/ack` |
 | `mail.manage` | `GET/POST /mailboxes`, `GET/PATCH/DELETE /mailboxes/{address}`, `GET/POST /aliases`, `DELETE /aliases/{id}` |
-| `mail.send` | `POST /messages` |
+| `mail.send` | `POST /messages`; with the Developer sandbox plugin `GET/DELETE /sandbox/messages`, `GET /sandbox/messages/{id}`; with Delivery events `GET/POST /webhooks`, `DELETE /webhooks/{id}`, `POST /webhooks/{id}/test`, `POST /webhooks/{id}/enable`, `GET /webhooks/{id}/deliveries` |
+| `agents.manage` | Agent inboxes plugin: `GET/POST /inboxes`, `GET/DELETE /inboxes/{address}`, `GET /inboxes/{address}/messages`, `GET/DELETE /inboxes/{address}/messages/{uid}`, `GET /inboxes/{address}/messages/{uid}/code`, `GET /inboxes/{address}/wait` (only inboxes the key created) |
 | `dns.manage` | `GET /domains`, `GET /domains/{name}`, `POST /domains`, `POST /domains/{name}/verify`, `GET /dns/status` |
 
 The table is generated from the running server: `GET /api/v1/openapi.json` states each

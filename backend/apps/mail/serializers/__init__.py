@@ -167,6 +167,90 @@ class MessageAcceptedV1(Schema):
     recipients: int
 
 
+class InboxCreateV1(Schema):
+    name: str = ''  # the part before @; random ("agent-1a2b3c4d") when empty
+    label: str = ''  # your own note, e.g. the task it is for
+    ttl_hours: int | None = None  # 0: kept until deleted; empty: the plugin's default
+
+
+class InboxV1(Schema):
+    address: str
+    label: str
+    created_at: str
+    expires_at: str | None
+
+    @classmethod
+    def of(cls, row) -> InboxV1:  # noqa: ANN001
+        return cls(
+            address=row.address,
+            label=row.label,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+            expires_at=row.expires_at.isoformat(timespec='seconds') if row.expires_at else None,
+        )
+
+
+class InboxMessageV1(Schema):
+    """One received message, without its body."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    uid: int
+    message_id: str
+    from_: str = Field(alias='from')
+    to: list[str]
+    subject: str
+    date: str
+    size: int
+    seen: bool
+
+
+class InboxAttachmentV1(Schema):
+    filename: str
+    content_type: str
+    size: int
+
+
+class InboxMessageFullV1(InboxMessageV1):
+    cc: list[str]
+    reply_to: str
+    delivered_to: list[str]
+    text: str
+    html: str  # as sent; never render it without sanitising
+    headers: dict[str, str]
+    attachments: list[InboxAttachmentV1]
+
+
+class FoundCodeV1(Schema):
+    value: str
+    shown: str
+    score: int
+    where: str
+
+
+class FoundLinkV1(Schema):
+    url: str
+    text: str
+    score: int
+
+
+class InboxCodeV1(Schema):
+    """What a verification email asks for: the best guess first, then the alternatives."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    uid: int
+    subject: str
+    from_: str = Field(alias='from')
+    code: str | None
+    link: str | None
+    codes: list[FoundCodeV1]
+    links: list[FoundLinkV1]
+
+
+class InboxWaitV1(InboxCodeV1):
+    message: InboxMessageV1
+
+
 class WebhookCreateV1(Schema):
     name: str
     url: str
@@ -272,6 +356,15 @@ class SandboxMessageV1(Schema):
 
 
 __all__ = [
+    'FoundCodeV1',
+    'FoundLinkV1',
+    'InboxAttachmentV1',
+    'InboxCodeV1',
+    'InboxCreateV1',
+    'InboxMessageFullV1',
+    'InboxMessageV1',
+    'InboxV1',
+    'InboxWaitV1',
     'WebhookCreateV1',
     'WebhookCreatedV1',
     'WebhookDeliveryV1',

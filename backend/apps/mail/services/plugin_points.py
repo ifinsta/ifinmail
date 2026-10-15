@@ -366,6 +366,12 @@ class DeveloperTarget(AdapterTarget):
         'inbox_events_allow_private': TargetKey(
             _one_of('yes', 'no'), 'Allow webhooks on private networks.'
         ),
+        'shield_enabled': TargetKey(
+            _one_of('yes', 'no'), 'Score mail for prompt injection before agents read it.'
+        ),
+        'shield_action': TargetKey(
+            _one_of('flag', 'hold'), 'flag: report the risk; hold: keep high-risk mail from agents.'
+        ),
     }
 
 
@@ -691,6 +697,20 @@ def _capabilities() -> tuple[Capability, ...]:
                 ),
                 'allow_private': _field(
                     (DEV, 'inbox_events_allow_private'), 'yes: allow webhooks on private networks.'
+                ),
+            },
+        ),
+        _Capability(
+            'developer.injection_shield',
+            'Injection shield',
+            'Mail read by agents is checked for hidden or planted instructions first; agents get '
+            'a risk score, the reasons and the text a person would see.',
+            {
+                'enabled': _field((DEV, 'shield_enabled'), 'yes: check mail agents read.'),
+                'action': _field(
+                    (DEV, 'shield_action'),
+                    'flag: report the risk with each message; hold: also keep high-risk mail '
+                    'from agents (no code extracted, skipped by wait, body left out of events).',
                 ),
             },
         ),

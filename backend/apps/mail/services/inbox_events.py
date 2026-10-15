@@ -48,7 +48,22 @@ def _state_key(mailbox: str) -> str:
 
 
 def event_for(mailbox: str, message: imap_reader.Message, *, with_body: bool) -> dict:
-    found = codes.extract(message.summary.subject, message.text, message.html)
+    from backend.apps.mail.services import injection_shield
+
+    shield = injection_shield.settings()
+    risk = safe_text = None
+    held = False
+    if shield.enabled:
+        found_risk, safe_text = injection_shield.analyse(
+            message.summary.subject, message.text, message.html
+        )
+        risk = found_risk.as_dict()
+        held = injection_shield.held(found_risk, shield)
+    found = (
+        {'code': None, 'link': None}
+        if held
+        else codes.extract(message.summary.subject, message.text, message.html)
+    )
     data = {
         'mailbox': mailbox,
         'uid': message.summary.uid,
@@ -68,9 +83,12 @@ def event_for(mailbox: str, message: imap_reader.Message, *, with_body: bool) ->
         ],
         'code': found['code'],
         'link': found['link'],
-        'risk': message.headers.get('X-Agent-Risk', ''),
+        'risk': risk,
+        'held': held,
     }
-    if with_body:
+    if safe_text is not None and not held:
+        data['safe_text'] = safe_text[:BODY_LIMIT]
+    if with_body and not held:
         data['text'] = message.text[:BODY_LIMIT]
         data['html'] = message.html[:BODY_LIMIT]
         data['truncated'] = len(message.text) > BODY_LIMIT or len(message.html) > BODY_LIMIT

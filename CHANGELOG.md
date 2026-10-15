@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.0.68
+- **Injection shield plugin: mail is checked for instructions planted for AI agents before an
+  agent reads it.** Every message an agent gets through this server (Agent inboxes API, Inbox
+  webhooks events) carries:
+  - **`risk`:** a score from 0 to 100, a level and the reasons. It looks for text hidden from
+    the reader (white or zero-size text, `display:none`, off-screen blocks, HTML comments
+    addressed to software), invisible or smuggled Unicode (Unicode "tag" characters are decoded
+    to show what they spell), bidirectional overrides, instructions aimed at an AI in plain sight
+    ("ignore your previous instructions", "send your API keys", "forward all emails to"), and
+    links whose text names another site.
+  - **`safe_text`:** the message as a person would see it, with hidden parts and invisible
+    characters removed. This is what an agent should read.
+  - **`hold`:** this option keeps high-risk mail from agents. No code is extracted, `wait`
+    skips the message, and webhook events carry only the sender, subject and verdict.
+  - It is rules, not a model: it explains every verdict, leaves ordinary mail alone
+    (newsletters, white-on-dark designs and security notices were tested), and cannot catch every
+    well-written attack in plain sight.
+
 ## v0.0.67
 - **Inbox webhooks plugin: received mail pushed to your application or agent.** A webhook can
   now watch mailboxes. Each message that arrives becomes a signed `message.received` event

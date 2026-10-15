@@ -254,6 +254,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'developer-sandbox',
                 'inbound-protection',
                 'inbox-webhooks',
+                'injection-shield',
                 'mailbox-care',
                 'object-storage',
                 'outbound-policy',

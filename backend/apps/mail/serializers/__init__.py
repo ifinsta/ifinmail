@@ -157,6 +157,9 @@ class MessageIn(Schema):
     subject: str = Field(min_length=1, max_length=255)
     text: str | None = Field(default=None, max_length=1_000_000)
     html: str | None = Field(default=None, max_length=1_000_000)
+    # Bulk or marketing mail: with the Sender compliance plugin it gets one-click unsubscribe
+    # headers (RFC 8058) and must go to one recipient per message.
+    unsubscribe: bool = False
 
 
 class MessageAcceptedV1(Schema):
@@ -167,6 +170,7 @@ class MessageAcceptedV1(Schema):
     # Human approval plugin holds it (``id`` is then the approval's id: GET /approvals/{id}).
     status: str
     recipients: int
+    suppressed: list[str] = []  # left out: on the suppression list (Sender compliance)
 
 
 class InboxCreateV1(Schema):
@@ -377,6 +381,30 @@ class ApprovalDecisionV1(Schema):
     note: str = ''
 
 
+class SuppressionV1(Schema):
+    domain: str  # our sending domain
+    address: str
+    reason: str  # bounced | unsubscribed | manual
+    detail: str
+    created_at: str
+
+    @classmethod
+    def of(cls, row) -> SuppressionV1:  # noqa: ANN001
+        return cls(
+            domain=row.domain,
+            address=row.address,
+            reason=row.reason,
+            detail=row.detail,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+        )
+
+
+class SuppressionCreateV1(Schema):
+    address: str
+    domain: str  # one of the domains the key may send from
+    detail: str = ''
+
+
 class SandboxMessageV1(Schema):
     """A message a sandbox key sent, kept for inspection and never delivered."""
 
@@ -410,6 +438,8 @@ class SandboxMessageV1(Schema):
 
 
 __all__ = [
+    'SuppressionCreateV1',
+    'SuppressionV1',
     'ApprovalDecisionV1',
     'ApprovalV1',
     'RiskV1',

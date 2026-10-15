@@ -378,6 +378,16 @@ class DeveloperTarget(AdapterTarget):
         ),
         'approvals_applies_to': TargetKey(_one_of('agents', 'all'), 'Which keys the rule covers.'),
         'approvals_expire_hours': TargetKey(_int_between(1, 168), 'Hours a held message waits.'),
+        'compliance_enabled': TargetKey(_one_of('yes', 'no'), 'Apply the sender compliance rules.'),
+        'compliance_unsubscribe': TargetKey(
+            _one_of('off', 'bulk', 'all'), 'Which API mail gets one-click unsubscribe headers.'
+        ),
+        'compliance_bounce_limit': TargetKey(
+            _int_between(0, 50), 'Bounce rate (%) that pauses a key (0: never).'
+        ),
+        'compliance_suppress_bounces': TargetKey(
+            _one_of('yes', 'no'), 'Suppress addresses that do not exist.'
+        ),
     }
 
 
@@ -738,6 +748,29 @@ def _capabilities() -> tuple[Capability, ...]:
                 ),
                 'expire_hours': _field(
                     (DEV, 'approvals_expire_hours'), 'Hours a held message waits before expiring.'
+                ),
+            },
+        ),
+        _Capability(
+            'developer.compliance',
+            'Sender compliance',
+            'Mail sent through the API follows the large providers\' sender rules: suppressed '
+            'recipients, one-click unsubscribe, and a pause when too much bounces.',
+            {
+                'enabled': _field((DEV, 'compliance_enabled'), 'yes: apply the rules.'),
+                'unsubscribe': _field(
+                    (DEV, 'compliance_unsubscribe'),
+                    'off: none; bulk: messages sent with "unsubscribe": true; all: every API '
+                    'message to a single recipient.',
+                ),
+                'bounce_limit': _field(
+                    (DEV, 'compliance_bounce_limit'),
+                    'Bounce rate in percent over a day (at least 50 messages) that pauses a key; '
+                    '0 never pauses.',
+                ),
+                'suppress_bounces': _field(
+                    (DEV, 'compliance_suppress_bounces'),
+                    'yes: an address that does not exist is never written to again.',
                 ),
             },
         ),

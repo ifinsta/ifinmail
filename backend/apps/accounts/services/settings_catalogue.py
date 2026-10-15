@@ -153,6 +153,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 ('approval', 'approve', 'agent', 'held', 'pending', 'human', 'review'),
             ),
             SettingsItem(
+                'suppressions',
+                _('Suppressions'),
+                _('Recipients API mail never goes to: bounced, unsubscribed, added.'),
+                SettingsIcon.DELIVERABILITY,
+                'accounts:suppressions',
+                ('suppression', 'unsubscribe', 'bounce', 'bounced', 'list', 'compliance', 'gmail'),
+            ),
+            SettingsItem(
                 'webhooks',
                 _('Webhooks'),
                 _('Signed events for your applications: delivery outcomes, received mail.'),

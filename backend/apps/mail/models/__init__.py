@@ -185,3 +185,27 @@ class PendingMessage(models.Model):
     @property
     def recipients(self) -> list[str]:
         return [*self.to, *self.cc, *self.bcc]
+
+
+class Suppression(models.Model):
+    """A recipient that mail from one of our domains must not go to (Sender compliance plugin):
+    it bounced for good, unsubscribed, or was added by hand or by an application."""
+
+    BOUNCED, UNSUBSCRIBED, MANUAL = 'bounced', 'unsubscribed', 'manual'
+
+    domain = models.CharField(max_length=253)  # our sending domain
+    address = models.CharField(max_length=254)  # the recipient
+    reason = models.CharField(max_length=20)
+    detail = models.CharField(max_length=300, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        db_table = 'mail_suppression'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['domain', 'address'], name='suppressed_once_per_domain')
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.address} (from {self.domain}: {self.reason})'

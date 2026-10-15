@@ -1,0 +1,46 @@
+manifest_version = 2
+
+[plugin]
+id = "sender-compliance"
+name = "Sender compliance"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "delivery"
+summary = "Keep mail sent through the API inside Gmail, Yahoo and Microsoft's sender rules: a suppression list, one-click unsubscribe, and a pause when too much bounces."
+requires_core = "0.0.70"
+description = """
+Gmail, Yahoo and Microsoft refuse or junk mail from senders who keep writing to addresses that do not exist, ignore unsubscribes, or send bulk mail without a one-click unsubscribe. An application or agent sending through the API can break those rules faster than anyone notices; this plugin keeps it inside them.
+
+Suppression list: an address that bounced because it does not exist is never written to again from that domain, and neither is one that unsubscribed or that your application added (POST /api/v1/suppressions). Suppressed recipients are left out of a message before it is sent and listed in the answer; a message left with no recipients is refused. The list is under Settings, Suppressions.
+
+One-click unsubscribe (RFC 8058): bulk mail (sent with "unsubscribe": true, or every API message if you choose) gets List-Unsubscribe and List-Unsubscribe-Post headers with a signed link for that recipient. Mail apps unsubscribe with one press; the link's page asks for a click, so a link scanner opening it unsubscribes no one. Bulk mail goes to one recipient per message, so each person can unsubscribe themselves.
+
+Bounce guard: a key whose mail bounces more than the limit over a day (with at least 50 messages) is paused until an administrator resumes it, before the providers start refusing the whole server.
+"""
+
+[[settings]]
+key = "unsubscribe"
+type = "choice"
+label = "One-click unsubscribe on"
+options = ["bulk", "all", "off"]
+default = "bulk"
+help = "bulk: messages sent with \"unsubscribe\": true. all: every API message to one recipient. off: none."
+
+[[settings]]
+key = "bounce_limit"
+type = "integer"
+label = "Pause a key when this % of its mail bounces in a day"
+min = 0
+max = 50
+default = 5
+help = "With at least 50 messages. 0 never pauses."
+
+[[settings]]
+key = "suppress_bounces"
+type = "boolean"
+label = "Never write again to an address that does not exist"
+default = true
+
+[[contributes]]
+capability = "developer.compliance"
+values = { enabled = "yes", unsubscribe = "{unsubscribe}", bounce_limit = "{bounce_limit}", suppress_bounces = "{suppress_bounces}" }

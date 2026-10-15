@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans 'Unsubscribe' %}{% endblock %}
+{% block body_layout %}
+<div class="ifinmail-login">
+    <div class="ifinmail-login-card">
+        <div class="ifinmail-login-card__brand">{% include "includes/brand_mark.html" with size="44" %}</div>
+        {% if state == 'invalid' %}
+        <h1 class="ifinmail-login-card__title">{% trans 'This link does not work' %}</h1>
+        <p class="ifinmail-login-card__subtitle">{% trans 'It may have been changed or be very old. Reply to the message and ask to be removed.' %}</p>
+        {% elif state == 'done' %}
+        <h1 class="ifinmail-login-card__title">{% trans 'You are unsubscribed' %}</h1>
+        <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed %}{{ address }} will not get mail sent in bulk from {{ domain }} through this server again.{% endblocktrans %}</p>
+        {% else %}
+        <h1 class="ifinmail-login-card__title">{% trans 'Unsubscribe?' %}</h1>
+        <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed %}Stop mail from {{ domain }} to {{ address }}.{% endblocktrans %}</p>
+        <form method="post">
+            <input type="hidden" name="List-Unsubscribe" value="One-Click">
+            <button class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full" type="submit">{% trans 'Unsubscribe' %}</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block sidebar_script %}{% endblock %}
+{% block service_worker %}{% endblock %}

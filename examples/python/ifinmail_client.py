@@ -275,6 +275,18 @@ class Client:
         )
 
 
+    # ------------------------------------------------------------------ Operations: sandbox
+
+    def sandbox_messages(self, to: str | None = None) -> Iterator[dict[str, Any]]:
+        """What a *sandbox* key sent (kept, never delivered), newest first. Needs the Developer
+        sandbox plugin and a key created with "Sandbox key" ticked."""
+        return self.paged('/api/v1/sandbox/messages', to=to)
+
+    def clear_sandbox(self) -> None:
+        """Delete this sandbox key's captured mail (start a test run clean)."""
+        self.request('DELETE', '/api/v1/sandbox/messages')
+
+
 # ---------------------------------------------------------------------------------- helpers
 
 

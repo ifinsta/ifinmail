@@ -88,6 +88,7 @@ curl -u ifm_KEY:ifs_SECRET -X POST {{ site_origin }}/api/v1/mailboxes \
             <li>{% trans 'Lists are paged with limit and offset. Errors are JSON with a detail message. A key has a calls-per-minute limit and answers 429 with Retry-After when it is exceeded.' %}</li>
             <li>{% trans 'Logins with console access cannot be changed through the API, and domains cannot be removed through it.' %}</li>
             <li>{% trans 'To send mail, create a key with the mail.send scope and the addresses it may send as, then POST /api/v1/messages with from, to, subject and text or html. A 202 answer means the server accepted the message for delivery. Send an Idempotency-Key header so a retry never sends twice.' %}</li>
+            <li>{% trans 'For tests, install the Developer sandbox plugin and create a key marked as a sandbox key: everything it sends is checked like real mail and kept on the server instead of being delivered. Read it back with GET /api/v1/sandbox/messages.' %}</li>
             <li>{% trans 'GET /api/v1/health needs no key and is safe to poll from a monitor. The detailed health, DNS, deliverability and error-log reports need a key with the audit.view scope.' %}</li>
             <li>{% trans 'The assistant knows the API and your keys: ask it how to connect a program, or whether your keys are set up safely.' %}</li>
             <li>{% trans 'Rotate a key with an overlap so the integration can switch secrets without an outage. Every change is in the audit trail under the key’s name.' %}</li>

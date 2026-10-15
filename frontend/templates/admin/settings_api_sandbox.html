@@ -1,0 +1,76 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Sandbox mail — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <a class="ifinmail-link-strong" href="{% url 'accounts:api_keys' %}">{% trans 'API keys' %}</a>
+                <h1 class="ifinmail-page-title">{% trans 'Sandbox mail' %}</h1>
+                <p class="ifinmail-page-subtitle">{% blocktrans trimmed with days=box.retention_days %}What sandbox keys sent. These messages were checked like real mail and kept here; none was delivered. They are deleted after {{ days }} days.{% endblocktrans %}</p>
+            </div>
+            {% if keys %}
+            <div class="ifinmail-page-actions">
+                <form method="get" class="ifinmail-inline-form--row">
+                    <label class="ifinmail-sr-only" for="sandbox-key">{% trans 'Key' %}</label>
+                    <select class="ifinmail-input" id="sandbox-key" name="key" data-autosubmit>
+                        <option value="">{% trans 'Every sandbox key' %}</option>
+                        {% for prefix, label in key_label.items %}<option value="{{ prefix }}"{% if prefix == key_filter %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    <noscript><button class="ifinmail-btn ifinmail-btn--outline" type="submit">{% trans 'Apply' %}</button></noscript>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if not box.enabled %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--warning" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{% trans 'The Developer sandbox plugin is off' %}</p>
+                <p class="ifinmail-hbanner__next">{% trans 'Sandbox keys are refused until it is installed and enabled; nothing they send is ever delivered.' %} <a href="{% url 'accounts:marketplace_plugin' 'developer-sandbox' %}">{% trans 'Open the plugin' %}</a></p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if selected %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="sandbox-message">
+            <h2 class="ifinmail-panel-title" id="sandbox-message">{{ selected.subject }}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'From' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.sender }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'To' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.to|join:", " }}</code></dd></div>
+                {% if selected.cc %}<div class="ifinmail-settings-row"><dt>{% trans 'Cc' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.cc|join:", " }}</code></dd></div>{% endif %}
+                {% if selected.bcc %}<div class="ifinmail-settings-row"><dt>{% trans 'Bcc' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.bcc|join:", " }}</code></dd></div>{% endif %}
+                {% if selected.reply_to %}<div class="ifinmail-settings-row"><dt>{% trans 'Reply-To' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.reply_to }}</code></dd></div>{% endif %}
+                <div class="ifinmail-settings-row"><dt>{% trans 'Message-ID' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.message_id }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Captured' %}</dt><dd>{{ selected.created_at|date:'Y-m-d H:i:s' }} UTC</dd></div>
+            </dl>
+            {% if selected.text %}<h3 class="ifinmail-panel-title">{% trans 'Text' %}</h3><pre class="ifinmail-codebox" tabindex="0">{{ selected.text }}</pre>{% endif %}
+            {% if selected.html %}<h3 class="ifinmail-panel-title">{% trans 'HTML (source)' %}</h3><pre class="ifinmail-codebox" tabindex="0">{{ selected.html }}</pre>{% endif %}
+        </section>
+        {% endif %}
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Captured messages' %}">
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Captured' %}</th><th>{% trans 'Key' %}</th><th>{% trans 'From' %}</th><th>{% trans 'To' %}</th><th>{% trans 'Subject' %}</th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.created_at|date:'Y-m-d H:i' }}</td>
+                        <td>{{ row.key_name }}</td>
+                        <td><code class="ifinmail-text--mono">{{ row.sender }}</code></td>
+                        <td><code class="ifinmail-text--mono">{{ row.recipients|join:", "|truncatechars:60 }}</code></td>
+                        <td><a class="ifinmail-link-strong" href="{% url 'accounts:api_key_sandbox_message' row.pk %}">{{ row.subject|truncatechars:70 }}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'No sandbox mail yet. Create an API key with “Sandbox key” ticked and send with it.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+    </div>
+</section>
+{% endblock %}

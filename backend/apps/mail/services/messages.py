@@ -76,12 +76,16 @@ class SendingKey:
     key_id: str  # "ifm_<prefix>", for counters and the audit trail
     allowed_senders: tuple[str, ...]
     daily_recipients: int | None  # None: the server default
+    sandbox: bool = False  # capture instead of delivering (Developer sandbox)
+    prefix: str = ''
+    name: str = ''
 
 
 @dataclass(frozen=True)
 class Receipt:
     message_id: str
     recipients: int
+    captured: bool = False  # a sandbox key's message, kept and not delivered
 
 
 def address(raw: str) -> str:
@@ -223,6 +227,35 @@ class MessageService:
             outside = [r for r in recipients if r.rpartition('@')[2] not in hosted]
             if outside:
                 raise SendRefused(403, f'{sender} may only send to domains hosted here.')
+
+        # A sandbox key stops here: everything above was checked like a real send, and the
+        # message is kept for inspection. It never reaches the relay, the quotas or containment.
+        if key.sandbox:
+            from backend.apps.mail.services import sandbox
+
+            box = sandbox.settings()
+            if not box.enabled:
+                raise SendRefused(
+                    403,
+                    'This is a sandbox key and the Developer sandbox plugin is off, so nothing '
+                    'was sent. Install or enable it to capture test mail.',
+                )
+            message_id = make_msgid(domain=domain).strip('<>')
+            sandbox.capture(
+                key_prefix=key.prefix,
+                key_name=key.name,
+                message_id=message_id,
+                sender=sender,
+                to=[address(a) for a in request.to],
+                cc=[address(a) for a in request.cc],
+                bcc=[address(a) for a in request.bcc],
+                reply_to=reply_to or '',
+                subject=subject,
+                text=text,
+                html=html,
+                keep=box.max_messages,
+            )
+            return Receipt(message_id=message_id, recipients=len(recipients), captured=True)
 
         # Quotas: the key's recipients per day, then the From address's messages per minute/day.
         until_midnight = _seconds_to_midnight(now)

@@ -74,6 +74,10 @@ api.send("billing@example.com", ["ana@example.org"], "Your invoice", text="Thank
 - **Retries.** Reads and anything with an `Idempotency-Key` are retried on a gateway error. A
   plain write is never retried blindly. `send` always carries a key (generated if you do not
   pass one), so repeating it with the same key never sends a second message.
+- **Testing without mailing anyone.** With the Developer sandbox plugin installed, create a key
+  with "Sandbox key" ticked: `send` answers `"status": "captured"` and the message is kept, not
+  delivered. Read it back with `api.sandbox_messages(to="ana@example.org")` and start each run
+  with `api.clear_sandbox()`.
 - **`202` from `send` means accepted, not delivered.** Use the delivery report (06) to see what
   became of mail. "Accepted" by the receiving server is also not "in the inbox".
 - **Logins with console access cannot be changed through the API,** and domains cannot be

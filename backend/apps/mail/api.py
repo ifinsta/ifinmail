@@ -20,6 +20,7 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    SandboxMessageV1,
     AliasCreateIn,
     AliasCreateV1,
     AliasV1,
@@ -60,7 +61,7 @@ from .viewsets import (
     set_smtp_proxy,
 )
 
-router = Router(tags=['mailboxes', 'aliases', 'messages'])
+router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox'])
 IDEMPOTENCY_TTL = 24 * 3600
 
 
@@ -331,6 +332,9 @@ def api_send_message(
         key_id=key_id(row.prefix),
         allowed_senders=tuple(row.allowed_senders or ()),
         daily_recipients=row.send_limit_per_day,
+        sandbox=row.sandbox,
+        prefix=row.prefix,
+        name=row.name,
     )
     message = SendRequest(
         sender=payload.from_,
@@ -365,7 +369,9 @@ def api_send_message(
             request.api_retry_after = exc.retry_after
         raise HttpError(exc.status, exc.message) from exc
     accepted = MessageAcceptedV1(
-        id=receipt.message_id, status='queued', recipients=receipt.recipients
+        id=receipt.message_id,
+        status='captured' if receipt.captured else 'queued',
+        recipients=receipt.recipients,
     )
     if slot:
         cache.set(
@@ -375,11 +381,68 @@ def api_send_message(
         )
     domains = sorted({a.rpartition('@')[2] for a in (*message.to, *message.cc, *message.bcc)})
     AuditService.record(
-        action='api_message_sent',
+        action='api_message_captured' if receipt.captured else 'api_message_sent',
         user=actor(request),
         detail=f'{message.sender} -> {receipt.recipients} recipient(s) [{",".join(domains)}]',
     )
     return Status(202, accepted)
+
+
+# ------------------------------------------------------------------------------ sandbox
+
+
+def _sandbox_key(request: ApiRequest):  # noqa: ANN202
+    row = request.auth.row
+    if not row.sandbox:
+        raise HttpError(403, 'Only a sandbox key has captured messages.')
+    return row
+
+
+@router.get(
+    '/sandbox/messages',
+    response={200: list[SandboxMessageV1], **errors()},
+    summary='List captured sandbox messages',
+)
+@paginate(LimitOffsetPagination)
+@require_scope('mail.send')
+def api_sandbox_messages(request: ApiRequest, to: str | None = None) -> list[SandboxMessageV1]:
+    """What this sandbox key sent, newest first. ``?to=`` keeps messages for one recipient. Only
+    the calling key's own messages are listed."""
+    from backend.apps.mail.services import sandbox
+
+    row = _sandbox_key(request)
+    return [SandboxMessageV1.of(m) for m in sandbox.messages_for(row.prefix, to=to)]
+
+
+@router.get(
+    '/sandbox/messages/{message_id}',
+    response={200: SandboxMessageV1, **errors(404)},
+    summary='Get a captured sandbox message',
+)
+@require_scope('mail.send')
+def api_sandbox_message(request: ApiRequest, message_id: str) -> SandboxMessageV1:
+    from backend.apps.mail.services import sandbox
+
+    row = _sandbox_key(request)
+    found = sandbox.get_for(row.prefix, message_id)
+    if found is None:
+        raise HttpError(404, 'No captured message with that id for this key.')
+    return SandboxMessageV1.of(found)
+
+
+@router.delete(
+    '/sandbox/messages',
+    response={204: None, **errors()},
+    summary='Delete all captured sandbox messages',
+)
+@require_scope('mail.send')
+def api_sandbox_clear(request: ApiRequest) -> Status[None]:
+    """Start a test run with an empty sandbox."""
+    from backend.apps.mail.services import sandbox
+
+    row = _sandbox_key(request)
+    sandbox.clear(row.prefix)
+    return Status(204, None)
 
 
 __all__ = [

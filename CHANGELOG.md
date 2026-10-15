@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.64
+- **Developer sandbox plugin: test sending without mailing anyone.** Create an API key with
+  "Sandbox key" ticked. What it sends goes through every check a real send does (allowed
+  senders, the domain, the Outbound policy limits) and is then kept on the server instead of
+  being delivered: the answer says `"status": "captured"`.
+  - Read captures back with `GET /api/v1/sandbox/messages` (`?to=` filters by recipient),
+    `GET /api/v1/sandbox/messages/{id}`, and clear them with `DELETE /api/v1/sandbox/messages`.
+    A key sees only its own. The Python client has `sandbox_messages()` and `clear_sandbox()`.
+  - The console shows them under Settings, API keys, Sandbox mail, with HTML shown as source.
+  - Sandbox mail never reaches the queue, the sending counters or containment, and it cannot leave
+    the server: with the plugin off, a sandbox key's sends are refused, not delivered.
+  - Kept for 7 days by default (1 to 90) and at most 500 per key by default (the oldest go first).
+
 ## v0.0.63
 - **Python samples for integrators.** `examples/python` has a single-file client and eight
   runnable examples, and the Documentation page's API section now has a Python walk-through.

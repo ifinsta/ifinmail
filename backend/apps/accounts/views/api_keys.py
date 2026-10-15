@@ -80,6 +80,7 @@ def api_key_create(request: HttpRequest) -> HttpResponse:
             rate_limit_per_minute=data['rate_limit_per_minute'],
             allowed_senders=data['senders'],
             send_limit_per_day=data['send_limit_per_day'],
+            sandbox=data['sandbox'],
         )
     except TokenError as exc:
         messages.error(request, str(exc))
@@ -95,7 +96,8 @@ def api_key_create(request: HttpRequest) -> HttpResponse:
         user=_actor(request),
         detail=f'{key_id(row.prefix)} {row.name} scopes={",".join(row.scopes)}'
         + (f' networks={",".join(row.allowed_networks)}' if row.allowed_networks else '')
-        + (f' senders={",".join(row.allowed_senders)}' if row.allowed_senders else ''),
+        + (f' senders={",".join(row.allowed_senders)}' if row.allowed_senders else '')
+        + (' sandbox' if row.sandbox else ''),
     )
     messages.success(request, f'Key {row.name} created. Copy the secret below; it is shown once.')
     return redirect('accounts:api_keys')
@@ -146,3 +148,39 @@ def api_key_action(request: HttpRequest) -> HttpResponse:
     except TokenError as exc:
         messages.error(request, str(exc))
     return redirect('accounts:api_keys')
+
+
+@login_required
+@_MANAGE
+@require_GET
+def api_key_sandbox(request: HttpRequest, message_id: str | None = None) -> HttpResponse:
+    """Settings → API keys → Sandbox: what sandbox keys sent (kept, never delivered)."""
+    from backend.apps.mail.models import SandboxMessage
+    from backend.apps.mail.services import sandbox
+
+    names = {k.prefix: k.name for k in TokenService.list_all() if getattr(k, 'sandbox', False)}
+    wanted = request.GET.get('key', '')
+    rows = SandboxMessage.objects.all()
+    if wanted:
+        rows = rows.filter(key_prefix=wanted)
+    selected = None
+    if message_id:
+        try:
+            selected = SandboxMessage.objects.filter(pk=message_id).first()
+        except (ValueError, TypeError):
+            selected = None
+    box = sandbox.settings()
+    return render(
+        request,
+        'admin/settings_api_sandbox.html',
+        {
+            'active_section': 'api-keys',
+            'show_settings_icon': True,
+            'rows': rows[:200],
+            'selected': selected,
+            'keys': names,
+            'key_filter': wanted,
+            'box': box,
+            'key_label': {p: f'{n} ({key_id(p)})' for p, n in names.items()},
+        },
+    )

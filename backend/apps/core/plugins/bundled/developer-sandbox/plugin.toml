@@ -1,0 +1,37 @@
+manifest_version = 2
+
+[plugin]
+id = "developer-sandbox"
+name = "Developer sandbox"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "integration"
+summary = "Test sending through the API without mailing anyone: mail from sandbox keys is checked like real mail, then kept for inspection."
+requires_core = "0.0.64"
+description = """
+Integrations need a way to test sending in CI and staging without real people receiving the mail. Create an API key and tick "Sandbox key": everything that key sends is checked exactly like a real send (allowed senders, the domain, the Outbound policy limits), then kept on this server instead of being delivered.
+
+Your tests read what was sent back through the API (GET /api/v1/sandbox/messages, filtered by recipient), or you look at it under Settings, API keys, Sandbox. Sandbox mail never reaches the mail queue, the sending counters or containment, and it cannot leave the server: when this plugin is off, a sandbox key's sends are refused rather than delivered.
+
+Captured messages are deleted after the number of days you choose, and each key keeps at most the number you set (the oldest go first).
+"""
+
+[[settings]]
+key = "retention_days"
+type = "integer"
+label = "Keep captured mail for (days)"
+min = 1
+max = 90
+default = 7
+
+[[settings]]
+key = "max_messages"
+type = "integer"
+label = "Messages kept per key"
+min = 10
+max = 10000
+default = 500
+
+[[contributes]]
+capability = "developer.sandbox"
+values = { enabled = "yes", retention_days = "{retention_days}", max_messages = "{max_messages}" }

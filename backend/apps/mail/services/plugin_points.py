@@ -325,6 +325,25 @@ class DovecotPolicyTarget(AdapterTarget):
     ack_file = 'dovecot-plugins.applied'
 
 
+class DeveloperTarget(AdapterTarget):
+    """The developer and agent features the console runs itself (sandbox, events, agent inboxes,
+    webhooks, approvals, compliance, the agent gateway). No file, nothing for a container to
+    apply: each feature reads its values with ``InstallationService.capability_values``."""
+
+    key = 'console.developer'
+    service = 'api'
+    in_process = True
+    keys = {
+        'sandbox_enabled': TargetKey(_one_of('yes', 'no'), 'Capture mail from sandbox keys.'),
+        'sandbox_retention_days': TargetKey(
+            _int_between(1, 90), 'Days a captured message is kept.'
+        ),
+        'sandbox_max_messages': TargetKey(
+            _int_between(10, 10000), 'Captured messages kept per key (the oldest go first).'
+        ),
+    }
+
+
 # ------------------------------------------------------------------------------ capabilities
 
 _YES_NO = _one_of('yes', 'no')
@@ -363,11 +382,13 @@ TARGETS: tuple[AdapterTarget, ...] = (
     RspamdPolicyTarget(),
     DovecotPolicyTarget(),
     ContainmentTarget(),
+    DeveloperTarget(),
 )
 
 MAIN, TLS, SENDER = 'postfix.main', 'postfix.tls_policy', 'postfix.sender_policy'
 FILTER, MAILBOX = 'rspamd.policy', 'dovecot.policy'
 CONTAIN = 'console.containment'
+DEV = 'console.developer'
 
 
 def _capabilities() -> tuple[Capability, ...]:
@@ -570,6 +591,21 @@ def _capabilities() -> tuple[Capability, ...]:
                 'sent_days': _field(
                     (MAILBOX, 'autoexpunge_sent_days'),
                     'Delete messages in Sent after this many days.',
+                ),
+            },
+        ),
+        _Capability(
+            'developer.sandbox',
+            'Developer sandbox',
+            'Mail from keys marked "sandbox" is checked like real mail, then kept for inspection '
+            'and never delivered.',
+            {
+                'enabled': _field((DEV, 'sandbox_enabled'), 'yes: capture sandbox mail.'),
+                'retention_days': _field(
+                    (DEV, 'sandbox_retention_days'), 'Days a captured message is kept.'
+                ),
+                'max_messages': _field(
+                    (DEV, 'sandbox_max_messages'), 'Captured messages kept per key.'
                 ),
             },
         ),

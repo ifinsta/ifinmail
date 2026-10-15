@@ -208,6 +208,7 @@ class TokenService:
         rate_limit_per_minute: int | None = None,
         allowed_senders: list[str] | None = None,
         send_limit_per_day: int | None = None,
+        sandbox: bool = False,
     ) -> tuple[APIToken, str]:
         """Create a token; returns ``(row, plaintext)`` — plaintext shown once."""
         clean_name = (name or '').strip()[:64]
@@ -251,6 +252,7 @@ class TokenService:
             rate_limit_per_minute=rate_limit_per_minute,
             allowed_senders=senders,
             send_limit_per_day=send_limit_per_day if SEND_SCOPE in allowed else None,
+            sandbox=bool(sandbox),
         )
         return row, format_token(prefix, secret)
 

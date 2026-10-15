@@ -220,6 +220,7 @@ REDIS_PORT=6379
 REDIS_PASSWORD=$(rand_urlsafe 24)
 
 RSPAMD_CONTROLLER_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+DOVECOT_MASTER_PASSWORD=$(openssl rand -hex 32)
 
 # --- DKIM ---
 DKIM_SELECTOR=default

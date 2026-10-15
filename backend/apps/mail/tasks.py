@@ -61,3 +61,11 @@ def scan_delivery_events() -> int:
     except Exception:
         logging.getLogger('backend').warning('Delivery events scan failed', exc_info=True)
         return 0
+
+
+@shared_task(name='mail.expire_agent_inboxes')
+def expire_agent_inboxes() -> int:
+    """Erase and remove agent inboxes whose time is up (every five minutes)."""
+    from .services import agent_inboxes
+
+    return agent_inboxes.expire()

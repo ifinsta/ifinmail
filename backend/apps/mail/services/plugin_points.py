@@ -141,6 +141,10 @@ def _dns_lists(value: str) -> str | None:
     return None
 
 
+def _one_domain(value: str) -> str | None:
+    return None if _DOMAIN_RE.match(value) else 'must be one domain name'
+
+
 def _int_between(low: int, high: int):
     def check(value: str) -> str | None:
         if not value.isdigit() or not low <= int(value) <= high:
@@ -347,6 +351,13 @@ class DeveloperTarget(AdapterTarget):
             _one_of('yes', 'no'), 'Allow webhooks on private networks.'
         ),
         'events_max_attempts': TargetKey(_int_between(1, 8), 'Attempts per event.'),
+        'inboxes_enabled': TargetKey(_one_of('yes', 'no'), 'Let API keys create agent inboxes.'),
+        'inboxes_domain': TargetKey(_one_domain, 'The hosted domain agent inboxes are created on.'),
+        'inboxes_max_per_key': TargetKey(_int_between(1, 1000), 'Inboxes one key may hold.'),
+        'inboxes_ttl_hours': TargetKey(
+            _int_between(0, 8760), 'Hours an inbox lives unless asked otherwise (0: kept).'
+        ),
+        'inboxes_quota_mb': TargetKey(_int_between(1, 1024), 'Size of each agent inbox in MB.'),
     }
 
 
@@ -632,6 +643,27 @@ def _capabilities() -> tuple[Capability, ...]:
                 'max_attempts': _field(
                     (DEV, 'events_max_attempts'), 'Attempts before an event is given up.'
                 ),
+            },
+        ),
+        _Capability(
+            'developer.agent_inboxes',
+            'Agent inboxes',
+            'API keys create mailboxes for AI agents in one call, read them back (with the '
+            'one-time code or sign-in link already found) and let them expire.',
+            {
+                'enabled': _field((DEV, 'inboxes_enabled'), 'yes: keys may create agent inboxes.'),
+                'domain': _field(
+                    (DEV, 'inboxes_domain'),
+                    'A hosted domain for agent inboxes (a subdomain such as agents.example.com '
+                    'keeps them apart from people).',
+                    normalize=lambda v: v.strip().lower().rstrip('.'),
+                ),
+                'max_per_key': _field((DEV, 'inboxes_max_per_key'), 'Inboxes one key may hold.'),
+                'default_ttl_hours': _field(
+                    (DEV, 'inboxes_ttl_hours'),
+                    'Hours an inbox lives unless the key asks otherwise (0: kept until deleted).',
+                ),
+                'quota_mb': _field((DEV, 'inboxes_quota_mb'), 'Size of each inbox in MB.'),
             },
         ),
         _Capability(

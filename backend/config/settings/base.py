@@ -326,6 +326,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'mail.scan_delivery_events',
         'schedule': crontab(minute='*'),
     },
+    'agent-inboxes-expire': {
+        # Agent inboxes past their time are emptied and removed (Agent inboxes plugin).
+        'task': 'mail.expire_agent_inboxes',
+        'schedule': crontab(minute='*/5'),
+    },
     'sandbox-purge': {
         # Captured sandbox mail is kept for the Developer sandbox plugin's number of days.
         'task': 'mail.purge_sandbox',

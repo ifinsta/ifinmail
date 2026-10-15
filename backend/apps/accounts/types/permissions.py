@@ -27,6 +27,9 @@ class PermissionCode(StrEnum):
     AUDIT_VIEW = 'audit.view'  # logs, telemetry, activity trails (read-only)
     ROLES_MANAGE = 'roles.manage'  # grant roles (keys to the kingdom)
     SETUP_MANAGE = 'setup.manage'  # setup wizard steps
+    # Agent inboxes (plugin): create, read and delete inboxes the key itself owns. It reaches no
+    # one else's mailbox, so an agent's key never needs mail.manage.
+    AGENTS_MANAGE = 'agents.manage'
 
 
 ALL_PERMISSIONS: tuple[str, ...] = tuple(code.value for code in PermissionCode)

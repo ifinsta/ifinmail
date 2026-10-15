@@ -134,3 +134,21 @@ class WebhookDelivery(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['endpoint', 'event_id'], name='webhook_event_once')
         ]
+
+
+class AgentInbox(models.Model):
+    """A mailbox an API key created for an agent (Agent inboxes plugin): only that key reads it,
+    and it is removed with its mail when it expires."""
+
+    address = models.CharField(max_length=254, unique=True)
+    owner_prefix = models.CharField(max_length=16, db_index=True)
+    label = models.CharField(max_length=120, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = 'mail_agent_inbox'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return self.address

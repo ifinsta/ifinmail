@@ -113,6 +113,8 @@ ensure_env() {
         grep -q '^DKIM_SELECTOR=' "$ENV_FILE" || echo "DKIM_SELECTOR=$DKIM_SELECTOR" >> "$ENV_FILE"
         grep -q '^BACKUP_GPG_PASSPHRASE=' "$ENV_FILE" || echo "BACKUP_GPG_PASSPHRASE=$(rand_b64 32)" >> "$ENV_FILE"
         grep -q '^RSPAMD_CONTROLLER_PASSWORD=' "$ENV_FILE" || echo "RSPAMD_CONTROLLER_PASSWORD=$(rand_b64 24)" >> "$ENV_FILE"
+        # The console reads agent inboxes over IMAP as a Dovecot master user (private networks only).
+        grep -q '^DOVECOT_MASTER_PASSWORD=' "$ENV_FILE" || echo "DOVECOT_MASTER_PASSWORD=$(rand_urlsafe 32)" >> "$ENV_FILE"
         grep -q '^SERVER_IP=' "$ENV_FILE" || echo "SERVER_IP=$(detect_public_ip)" >> "$ENV_FILE"
         grep -q '^DNS_NS_HOSTS=' "$ENV_FILE" || echo "DNS_NS_HOSTS=ns1.$MAIL_HOSTNAME,ns2.$MAIL_HOSTNAME" >> "$ENV_FILE"
         record_install_dir
@@ -148,6 +150,8 @@ REDIS_PORT=6379
 REDIS_PASSWORD=$(rand_urlsafe 24)
 
 RSPAMD_CONTROLLER_PASSWORD=$(rand_b64 24)
+# The console reads agent inboxes over IMAP as a Dovecot master user (private networks only).
+DOVECOT_MASTER_PASSWORD=$(rand_urlsafe 32)
 
 DKIM_SELECTOR=$DKIM_SELECTOR
 

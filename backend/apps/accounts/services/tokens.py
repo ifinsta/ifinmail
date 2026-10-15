@@ -229,7 +229,8 @@ class TokenService:
         if not allowed:
             raise TokenError('None of those scopes are held by this login.')
         senders = normalize_senders(allowed_senders) if SEND_SCOPE in allowed else []
-        if SEND_SCOPE in allowed and not senders:
+        # A key with agents.manage may send as the agent inboxes it creates, so it needs no list.
+        if SEND_SCOPE in allowed and not senders and 'agents.manage' not in allowed:
             raise TokenError(
                 'A key that can send mail must name the addresses it may send as '
                 '(name@domain, or *@domain for a whole domain).'

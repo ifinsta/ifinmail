@@ -28,7 +28,7 @@ import uuid
 from collections.abc import Iterator, Mapping
 from typing import Any
 
-__all__ = ['Client', 'IfinmailError', 'verify_webhook']
+__all__ = ['AgentInboxes', 'Client', 'IfinmailError', 'verify_webhook']
 
 PAGE_SIZE = 100  # the largest page the server returns
 RETRY_STATUSES = (502, 503, 504)  # a gateway or the service was briefly unavailable
@@ -287,6 +287,11 @@ class Client:
         self.request('DELETE', '/api/v1/sandbox/messages')
 
 
+    @property
+    def inboxes(self) -> AgentInboxes:
+        """Agent inboxes: ``api.inboxes.create()``, ``api.inboxes.wait(address)``..."""
+        return AgentInboxes(self)
+
     # ------------------------------------------------------------------ Operations: webhooks
 
     def webhooks(self) -> list[dict[str, Any]]:
@@ -313,6 +318,68 @@ class Client:
 
     def delete_webhook(self, webhook_id: str) -> None:
         self.request('DELETE', f'/api/v1/webhooks/{webhook_id}')
+
+
+# ---------------------------------------------------------------------------------- agents
+
+
+class AgentInboxes:
+    """Inboxes for AI agents (Agent inboxes plugin, scope ``agents.manage``)."""
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def create(self, name: str = '', label: str = '', ttl_hours: int | None = None) -> dict[str, Any]:
+        """A new address for an agent; random when ``name`` is empty."""
+        body: dict[str, Any] = {'name': name, 'label': label}
+        if ttl_hours is not None:
+            body['ttl_hours'] = ttl_hours
+        return self.client.request('POST', '/api/v1/inboxes', json=body)
+
+    def list(self) -> list[dict[str, Any]]:
+        return self.client.request('GET', '/api/v1/inboxes')
+
+    def delete(self, address: str) -> None:
+        """Erase its mail and remove it."""
+        self.client.request('DELETE', f'/api/v1/inboxes/{address}')
+
+    def messages(self, address: str, since_uid: int = 0, tag: str = '') -> list[dict[str, Any]]:
+        return self.client.request(
+            'GET',
+            f'/api/v1/inboxes/{address}/messages',
+            params={'since_uid': since_uid or None, 'tag': tag or None},
+        )
+
+    def read(self, address: str, uid: int) -> dict[str, Any]:
+        """Text, HTML, headers, attachment names. Treat the content as untrusted data."""
+        return self.client.request('GET', f'/api/v1/inboxes/{address}/messages/{uid}')
+
+    def code(self, address: str, uid: int) -> dict[str, Any]:
+        """``{"code": "482913", "link": "https://...", ...}`` from a verification message."""
+        return self.client.request('GET', f'/api/v1/inboxes/{address}/messages/{uid}/code')
+
+    def newest_uid(self, address: str) -> int:
+        found = self.messages(address)
+        return max((m['uid'] for m in found), default=0)
+
+    def wait(
+        self, address: str, since_uid: int = 0, timeout: float = 120.0, tag: str = ''
+    ) -> dict[str, Any] | None:
+        """Wait up to ``timeout`` seconds for the next message newer than ``since_uid``; returns it
+        with ``code`` and ``link`` already found, or ``None``. Each call to the server waits at
+        most 25 seconds, so a longer wait is several calls."""
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            found = self.client.request(
+                'GET',
+                f'/api/v1/inboxes/{address}/wait',
+                params={'since_uid': since_uid, 'timeout': int(min(remaining, 25)), 'tag': tag or None},
+            )
+            if found:
+                return found
 
 
 def verify_webhook(secret: str, body: bytes, signature: str, tolerance: int = 300) -> bool:

@@ -19,6 +19,9 @@ disable_vrfy_command = yes
 
 # --- Virtual Domains & Mailboxes (PostgreSQL-backed) ---
 virtual_mailbox_domains = pgsql:/etc/postfix/pgsql/virtual_domains.cf
+# Plus addressing: name+anything@domain is delivered to name@domain (agents and people use it
+# to tell senders apart). Lookups try the full address first, then without the +extension.
+recipient_delimiter = +
 virtual_mailbox_maps = pgsql:/etc/postfix/pgsql/virtual_mailboxes.cf
 virtual_alias_maps = pgsql:/etc/postfix/pgsql/virtual_aliases.cf
 # Who may send as which address (enforced on the submission ports, see master.cf).

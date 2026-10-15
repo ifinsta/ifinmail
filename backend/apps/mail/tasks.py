@@ -33,3 +33,31 @@ def purge_sandbox() -> int:
     from .services import sandbox
 
     return sandbox.purge()
+
+
+@shared_task(name='mail.deliver_webhook')
+def deliver_webhook(delivery_id: str) -> bool:
+    """Deliver one webhook event now (queued when the event happens)."""
+    from .services import webhooks
+
+    return webhooks.deliver(delivery_id)
+
+
+@shared_task(name='mail.sweep_webhooks')
+def sweep_webhooks() -> int:
+    """Retry webhook deliveries that are due, and forget old ones (every minute)."""
+    from .services import webhooks
+
+    return webhooks.sweep()
+
+
+@shared_task(name='mail.scan_delivery_events')
+def scan_delivery_events() -> int:
+    """Turn new Postfix log lines about API mail into delivery events (every minute)."""
+    from .services import delivery_events
+
+    try:
+        return delivery_events.scan()
+    except Exception:
+        logging.getLogger('backend').warning('Delivery events scan failed', exc_info=True)
+        return 0

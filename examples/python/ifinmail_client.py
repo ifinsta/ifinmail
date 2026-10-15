@@ -28,7 +28,7 @@ import uuid
 from collections.abc import Iterator, Mapping
 from typing import Any
 
-__all__ = ['Client', 'IfinmailError']
+__all__ = ['Client', 'IfinmailError', 'verify_webhook']
 
 PAGE_SIZE = 100  # the largest page the server returns
 RETRY_STATUSES = (502, 503, 504)  # a gateway or the service was briefly unavailable
@@ -285,6 +285,54 @@ class Client:
     def clear_sandbox(self) -> None:
         """Delete this sandbox key's captured mail (start a test run clean)."""
         self.request('DELETE', '/api/v1/sandbox/messages')
+
+
+    # ------------------------------------------------------------------ Operations: webhooks
+
+    def webhooks(self) -> list[dict[str, Any]]:
+        """This key's webhooks."""
+        return self.request('GET', '/api/v1/webhooks')
+
+    def create_webhook(
+        self, name: str, url: str, events: list[str], mailboxes: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Events: message.queued/delivered/deferred/bounced (Delivery events plugin) and
+        message.received with ``mailboxes`` (Inbox webhooks plugin). The answer's ``secret``
+        is shown once: store it to verify events with :func:`verify_webhook`."""
+        body: dict[str, Any] = {'name': name, 'url': url, 'events': events}
+        if mailboxes:
+            body['mailboxes'] = mailboxes
+        return self.request('POST', '/api/v1/webhooks', json=body)
+
+    def test_webhook(self, webhook_id: str) -> dict[str, Any]:
+        """Send ``webhook.ping`` now; the answer says how the receiver replied."""
+        return self.request('POST', f'/api/v1/webhooks/{webhook_id}/test')
+
+    def webhook_deliveries(self, webhook_id: str) -> Iterator[dict[str, Any]]:
+        return self.paged(f'/api/v1/webhooks/{webhook_id}/deliveries')
+
+    def delete_webhook(self, webhook_id: str) -> None:
+        self.request('DELETE', f'/api/v1/webhooks/{webhook_id}')
+
+
+def verify_webhook(secret: str, body: bytes, signature: str, tolerance: int = 300) -> bool:
+    """Check an event's ``X-Ifinmail-Signature`` header (``t=<unix time>,v1=<hex>``).
+
+    Pass the raw request body (bytes, exactly as received). Events older than ``tolerance``
+    seconds are refused, so a captured request cannot be replayed later.
+    """
+    import hashlib
+    import hmac
+
+    try:
+        parts = dict(item.split('=', 1) for item in signature.split(','))
+        stamp = int(parts['t'])
+    except (ValueError, KeyError):
+        return False
+    if abs(time.time() - stamp) > tolerance:
+        return False
+    expected = hmac.new(secret.encode(), f'{stamp}.'.encode() + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts.get('v1', ''))
 
 
 # ---------------------------------------------------------------------------------- helpers

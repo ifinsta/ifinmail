@@ -316,6 +316,16 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.check_for_updates',
         'schedule': crontab(minute=40, hour='*/6'),
     },
+    'webhooks-sweep': {
+        # Retries of webhook events that are due (Delivery Events, Inbox Webhooks plugins).
+        'task': 'mail.sweep_webhooks',
+        'schedule': crontab(minute='*'),
+    },
+    'delivery-events-scan': {
+        # New Postfix log lines about mail sent through the API become delivery events.
+        'task': 'mail.scan_delivery_events',
+        'schedule': crontab(minute='*'),
+    },
     'sandbox-purge': {
         # Captured sandbox mail is kept for the Developer sandbox plugin's number of days.
         'task': 'mail.purge_sandbox',

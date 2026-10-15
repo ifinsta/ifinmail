@@ -167,6 +167,78 @@ class MessageAcceptedV1(Schema):
     recipients: int
 
 
+class WebhookCreateV1(Schema):
+    name: str
+    url: str
+    events: list[str]
+    mailboxes: list[str] = []  # message.received only
+
+
+class WebhookV1(Schema):
+    id: str
+    name: str
+    url: str
+    events: list[str]
+    mailboxes: list[str]
+    active: bool
+    failing_since: str | None
+    last_success_at: str | None
+    last_error: str
+    created_at: str
+
+    @classmethod
+    def of(cls, row) -> WebhookV1:  # noqa: ANN001
+        def stamp(value) -> str | None:  # noqa: ANN001
+            return value.isoformat(timespec='seconds') if value else None
+
+        return cls(
+            id=str(row.pk),
+            name=row.name,
+            url=row.url,
+            events=list(row.events),
+            mailboxes=list(row.mailboxes),
+            active=row.active,
+            failing_since=stamp(row.failing_since),
+            last_success_at=stamp(row.last_success_at),
+            last_error=row.last_error,
+            created_at=stamp(row.created_at) or '',
+        )
+
+
+class WebhookCreatedV1(WebhookV1):
+    """Returned once, at creation: the signing secret is not shown again."""
+
+    secret: str
+
+
+class WebhookDeliveryV1(Schema):
+    id: str
+    event_id: str
+    event_type: str
+    status: str  # pending | delivered | failed
+    attempts: int
+    last_status_code: int | None
+    last_error: str
+    created_at: str
+    next_attempt_at: str | None
+
+    @classmethod
+    def of(cls, row) -> WebhookDeliveryV1:  # noqa: ANN001
+        return cls(
+            id=str(row.pk),
+            event_id=row.event_id,
+            event_type=row.event_type,
+            status=row.status,
+            attempts=row.attempts,
+            last_status_code=row.last_status_code,
+            last_error=row.last_error,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+            next_attempt_at=row.next_attempt_at.isoformat(timespec='seconds')
+            if row.next_attempt_at
+            else None,
+        )
+
+
 class SandboxMessageV1(Schema):
     """A message a sandbox key sent, kept for inspection and never delivered."""
 
@@ -200,6 +272,10 @@ class SandboxMessageV1(Schema):
 
 
 __all__ = [
+    'WebhookCreateV1',
+    'WebhookCreatedV1',
+    'WebhookDeliveryV1',
+    'WebhookV1',
     'SandboxMessageV1',
     'AliasCreateIn',
     'AliasCreateV1',

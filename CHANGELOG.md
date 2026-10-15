@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.0.65
+- **Delivery events plugin: signed webhooks for what became of mail sent through the API.**
+  - Events `message.queued`, `message.delivered`, `message.deferred` and `message.bounced`, one
+    per recipient and outcome, with the message id the API returned, the DSN code and the
+    receiving server's reason, scrubbed of addresses and classified like the Delivery report.
+    They come from the Postfix log, read every minute. Only API mail produces events.
+  - Webhooks are created under **Settings → Webhooks** (they hear about all API mail) or by a key
+    with `POST /api/v1/webhooks` (they hear only about that key's mail). Webhooks can be tested,
+    switched off and on, and removed, and their deliveries are listed for 14 days.
+  - Every event is signed (`X-Ifinmail-Signature: t=…,v1=` HMAC-SHA256 of `t.body`) and carries
+    an `X-Ifinmail-Event-Id` to deduplicate on. Failed deliveries are retried after 1 min, 5 min,
+    30 min, 2 h, 6 h, 12 h and 24 h, and a receiver answering `410` is switched off.
+  - **Address safety:** https and public addresses only, unless the plugin allows plain http or
+    private networks. An address is never allowed to reach the server itself or a metadata
+    address, it is checked again at every attempt (against DNS rebinding), and redirects are
+    not followed.
+  - **Python:** the client has `create_webhook`, `test_webhook`, `webhook_deliveries` and
+    `verify_webhook`, and `09_webhook_receiver.py` is a standard-library receiver that checks
+    signatures.
+
 ## v0.0.64
 - **Developer sandbox plugin: test sending without mailing anyone.** Create an API key with
   "Sandbox key" ticked. What it sends goes through every check a real send does (allowed

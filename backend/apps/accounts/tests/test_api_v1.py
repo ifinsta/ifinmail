@@ -816,6 +816,7 @@ class ContractTests(ApiBase):
             ('POST', '/mailboxes'): {'address': 'a@ifinmail.test'},
             ('POST', '/aliases'): {'source': 'a@ifinmail.test', 'destination': 'b@ifinmail.test'},
             ('POST', '/domains'): {'name': 'example.com'},
+            ('POST', '/webhooks'): {'name': 'w', 'url': 'https://h.example.com/', 'events': ['message.bounced']},
             ('PATCH', '/mailboxes/{address}'): {'quota_bytes': 1},
             ('POST', '/telemetry/fingerprints/{fingerprint}/ack'): {'status': 'ACKED'},
             ('POST', '/messages'): {

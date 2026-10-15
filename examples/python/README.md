@@ -25,6 +25,7 @@ may send as (`billing@example.com`, or `*@example.com`).
 | `mail.manage` | Mailboxes and aliases | 03, 04, 08 |
 | `mail.send` | Send as the key's allowed addresses | 05 |
 | `audit.view` | Health, delivery and error reports | 06, 07 |
+| `mail.send` + Delivery events plugin | Your own webhooks: what became of what you sent | 09 |
 
 A key can never do more than the person who created it can; narrowing that person's role
 narrows the key at once.
@@ -42,6 +43,7 @@ narrows the key at once.
 | `06_delivery_report.py` | What happened to what you sent, and why |
 | `07_monitor.py` | Exit codes for cron, Nagios or a CI gate |
 | `08_aliases.py` | Aliases |
+| `09_webhook_receiver.py` | Receive events: check the signature, skip repeats (standard library only) |
 
 ## Using the client in your code
 

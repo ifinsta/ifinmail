@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from .views.api_keys import api_key_action, api_key_create, api_key_sandbox, api_keys
+from .views.webhooks import webhooks_action, webhooks_create, webhooks_page
 from .views.assistant import (
     assistant,
     assistant_apply,
@@ -233,6 +234,9 @@ urlpatterns = [
     path('settings/api-keys/create/', api_key_create, name='api_key_create'),
     path('settings/api-keys/action/', api_key_action, name='api_key_action'),
     path('settings/api-keys/sandbox/', api_key_sandbox, name='api_key_sandbox'),
+    path('settings/webhooks/', webhooks_page, name='webhooks'),
+    path('settings/webhooks/create/', webhooks_create, name='webhooks_create'),
+    path('settings/webhooks/action/', webhooks_action, name='webhooks_action'),
     path(
         'settings/api-keys/sandbox/<uuid:message_id>/',
         api_key_sandbox,

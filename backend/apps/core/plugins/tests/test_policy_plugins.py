@@ -252,6 +252,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'compliance-journal',
                 'delivery-events',
                 'developer-sandbox',
+                'human-approval',
                 'inbound-protection',
                 'inbox-webhooks',
                 'injection-shield',

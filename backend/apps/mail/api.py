@@ -20,6 +20,8 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    ApprovalDecisionV1,
+    ApprovalV1,
     InboxCodeV1,
     InboxCreateV1,
     InboxMessageFullV1,
@@ -74,7 +76,7 @@ from .viewsets import (
 import logging
 
 logger = logging.getLogger('backend')
-router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox', 'webhooks', 'inboxes'])
+router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox', 'webhooks', 'inboxes', 'approvals'])
 IDEMPOTENCY_TTL = 24 * 3600
 
 
@@ -348,6 +350,7 @@ def api_send_message(
         sandbox=row.sandbox,
         prefix=row.prefix,
         name=row.name,
+        agent='agents.manage' in (row.scopes or []),
     )
     message = SendRequest(
         sender=payload.from_,
@@ -382,8 +385,10 @@ def api_send_message(
             request.api_retry_after = exc.retry_after
         raise HttpError(exc.status, exc.message) from exc
     accepted = MessageAcceptedV1(
-        id=receipt.message_id,
-        status='captured' if receipt.captured else 'queued',
+        id=receipt.pending_id or receipt.message_id,
+        status='pending_approval'
+        if receipt.pending_id
+        else ('captured' if receipt.captured else 'queued'),
         recipients=receipt.recipients,
     )
     if slot:
@@ -392,7 +397,7 @@ def api_send_message(
             {'state': 'done', 'fingerprint': fingerprint, 'receipt': accepted.model_dump()},
             IDEMPOTENCY_TTL,
         )
-    if not receipt.captured:
+    if not receipt.captured and not receipt.pending_id:
         from backend.apps.mail.services import delivery_events
 
         try:
@@ -403,7 +408,9 @@ def api_send_message(
             logger.warning('Could not record delivery events for %s', receipt.message_id)
     domains = sorted({a.rpartition('@')[2] for a in (*message.to, *message.cc, *message.bcc)})
     AuditService.record(
-        action='api_message_captured' if receipt.captured else 'api_message_sent',
+        action='api_message_held'
+        if receipt.pending_id
+        else ('api_message_captured' if receipt.captured else 'api_message_sent'),
         user=actor(request),
         detail=f'{message.sender} -> {receipt.recipients} recipient(s) [{",".join(domains)}]',
     )
@@ -740,6 +747,81 @@ def api_inbox_delete_message(request: ApiRequest, address: str, uid: int) -> Sta
     row = _inbox(request, address)
     _inbox_call(agent_inboxes.delete_message, row, uid)
     return Status(204, None)
+
+
+# ------------------------------------------------------------------------------ approvals
+# A key with mail.send sees its own held messages; a key with mail.manage sees all of them and may
+# approve or reject, but never its own.
+
+
+def _approval_call(fn, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+    from backend.apps.mail.services import approvals
+
+    try:
+        return fn(*args, **kwargs)
+    except approvals.ApprovalError as exc:
+        raise HttpError(exc.status, str(exc)) from exc
+
+
+def _visible_to(request: ApiRequest) -> str | None:
+    row = request.auth.row
+    return None if 'mail.manage' in (row.scopes or []) else row.prefix
+
+
+@router.get('/approvals', response={200: list[ApprovalV1], **errors()}, summary='List held messages')
+@paginate(LimitOffsetPagination)
+@require_scope('mail.send')
+def api_approvals(request: ApiRequest, status: str = '') -> list[ApprovalV1]:
+    """This key's held messages (every key's, with ``mail.manage``). ``?status=pending``."""
+    from backend.apps.mail.services import approvals
+
+    return [ApprovalV1.of(r) for r in approvals.listing(key_prefix=_visible_to(request), status=status)]
+
+
+@router.get('/approvals/{approval_id}', response={200: ApprovalV1, **errors(404)}, summary='Get a held message')
+@require_scope('mail.send')
+def api_approval(request: ApiRequest, approval_id: str) -> ApprovalV1:
+    """Poll this after ``"status": "pending_approval"``: sent, rejected, expired or failed."""
+    from backend.apps.mail.services import approvals
+
+    row = approvals.get(approval_id)
+    scope = _visible_to(request)
+    if row is None or (scope is not None and row.key_prefix != scope):
+        raise HttpError(404, 'No held message with that id for this key.')
+    return ApprovalV1.of(row)
+
+
+@router.post(
+    '/approvals/{approval_id}/approve',
+    response={200: ApprovalV1, **errors(403, 404, 409)},
+    summary='Approve and send a held message',
+)
+@require_scope('mail.manage')
+def api_approve(request: ApiRequest, approval_id: str, payload: ApprovalDecisionV1) -> ApprovalV1:
+    """Sends it now, with every check of a normal send. A key cannot approve its own messages."""
+    from backend.apps.mail.services import approvals
+
+    row = _approval_call(
+        approvals.approve, approval_id, actor=actor(request), actor_prefix=request.auth.row.prefix,
+        note=payload.note,
+    )
+    return ApprovalV1.of(row)
+
+
+@router.post(
+    '/approvals/{approval_id}/reject',
+    response={200: ApprovalV1, **errors(403, 404, 409)},
+    summary='Reject a held message',
+)
+@require_scope('mail.manage')
+def api_reject(request: ApiRequest, approval_id: str, payload: ApprovalDecisionV1) -> ApprovalV1:
+    from backend.apps.mail.services import approvals
+
+    row = _approval_call(
+        approvals.reject, approval_id, actor=actor(request), actor_prefix=request.auth.row.prefix,
+        note=payload.note,
+    )
+    return ApprovalV1.of(row)
 
 
 __all__ = [

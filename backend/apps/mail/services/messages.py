@@ -79,6 +79,8 @@ class SendingKey:
     sandbox: bool = False  # capture instead of delivering (Developer sandbox)
     prefix: str = ''
     name: str = ''
+    agent: bool = False  # the key manages agent inboxes (Human approval may apply)
+    approved: bool = False  # a person approved this message (Human approval): send it now
 
 
 @dataclass(frozen=True)
@@ -86,6 +88,7 @@ class Receipt:
     message_id: str
     recipients: int
     captured: bool = False  # a sandbox key's message, kept and not delivered
+    pending_id: str = ''  # held for a person's approval (Human approval plugin)
 
 
 def address(raw: str) -> str:
@@ -266,6 +269,21 @@ class MessageService:
             )
             return Receipt(message_id=message_id, recipients=len(recipients), captured=True)
 
+        # Human approval: a message the plugin's rule holds waits for a person.
+        if not key.approved:
+            from backend.apps.mail.services import approvals
+
+            reason = approvals.reason_to_hold(
+                agent_key=key.agent, sender=sender, recipients=recipients
+            )
+            if reason:
+                held = approvals.hold(
+                    key_prefix=key.prefix, key_name=key.name, request=request, reason=reason
+                )
+                return Receipt(
+                    message_id='', recipients=len(recipients), pending_id=str(held.pk)
+                )
+
         # Quotas: the key's recipients per day, then the From address's messages per minute/day.
         until_midnight = _seconds_to_midnight(now)
         stamp = now.strftime('%Y%m%d')
@@ -330,6 +348,10 @@ class MessageService:
             ) from exc
 
         containment.record_send(sender, recipients)
+        from backend.apps.mail.services import approvals
+
+        if approvals.settings().enabled:
+            approvals.remember_contacts(sender, recipients)
         return Receipt(message_id=message_id.strip('<>'), recipients=len(recipients))
 
 

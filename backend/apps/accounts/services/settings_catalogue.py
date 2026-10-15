@@ -145,6 +145,14 @@ CATALOGUE: tuple[SettingsGroup, ...] = (
                 ('api', 'key', 'secret', 'token', 'integration', 'webhook', 'automation', 'v1'),
             ),
             SettingsItem(
+                'approvals',
+                _('Approvals'),
+                _('Mail from agents that waits for a person before it leaves.'),
+                SettingsIcon.SECURITY,
+                'accounts:approvals',
+                ('approval', 'approve', 'agent', 'held', 'pending', 'human', 'review'),
+            ),
+            SettingsItem(
                 'webhooks',
                 _('Webhooks'),
                 _('Signed events for your applications: delivery outcomes, received mail.'),

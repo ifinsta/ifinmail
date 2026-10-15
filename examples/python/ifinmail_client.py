@@ -275,6 +275,22 @@ class Client:
         )
 
 
+    def approval(self, approval_id: str) -> dict[str, Any]:
+        """A message held by the Human approval plugin (``send`` answered
+        ``"status": "pending_approval"`` and this id): pending, sent, rejected, expired or failed."""
+        return self.request('GET', f'/api/v1/approvals/{approval_id}')
+
+    def wait_for_approval(
+        self, approval_id: str, timeout: float = 3600, every: float = 15
+    ) -> dict[str, Any]:
+        """Poll until a person decided (or ``timeout``); returns the last state seen."""
+        deadline = time.monotonic() + timeout
+        while True:
+            state = self.approval(approval_id)
+            if state['status'] != 'pending' or time.monotonic() >= deadline:
+                return state
+            time.sleep(every)
+
     # ------------------------------------------------------------------ Operations: sandbox
 
     def sandbox_messages(self, to: str | None = None) -> Iterator[dict[str, Any]]:

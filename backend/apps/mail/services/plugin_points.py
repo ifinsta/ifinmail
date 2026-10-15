@@ -372,6 +372,12 @@ class DeveloperTarget(AdapterTarget):
         'shield_action': TargetKey(
             _one_of('flag', 'hold'), 'flag: report the risk; hold: keep high-risk mail from agents.'
         ),
+        'approvals_enabled': TargetKey(_one_of('yes', 'no'), 'Hold API mail for approval.'),
+        'approvals_rule': TargetKey(
+            _one_of('all', 'external', 'first_contact'), 'Which messages wait for a person.'
+        ),
+        'approvals_applies_to': TargetKey(_one_of('agents', 'all'), 'Which keys the rule covers.'),
+        'approvals_expire_hours': TargetKey(_int_between(1, 168), 'Hours a held message waits.'),
     }
 
 
@@ -711,6 +717,27 @@ def _capabilities() -> tuple[Capability, ...]:
                     (DEV, 'shield_action'),
                     'flag: report the risk with each message; hold: also keep high-risk mail '
                     'from agents (no code extracted, skipped by wait, body left out of events).',
+                ),
+            },
+        ),
+        _Capability(
+            'developer.approvals',
+            'Human approval',
+            'Mail sent through the API (by agents, or by every key) waits for a person to approve '
+            'it when the rule says so.',
+            {
+                'enabled': _field((DEV, 'approvals_enabled'), 'yes: hold messages for approval.'),
+                'rule': _field(
+                    (DEV, 'approvals_rule'),
+                    'all: every message; external: recipients outside this server; '
+                    'first_contact: someone the sender has not written to before.',
+                ),
+                'applies_to': _field(
+                    (DEV, 'approvals_applies_to'),
+                    'agents: keys that manage agent inboxes; all: every key.',
+                ),
+                'expire_hours': _field(
+                    (DEV, 'approvals_expire_hours'), 'Hours a held message waits before expiring.'
                 ),
             },
         ),

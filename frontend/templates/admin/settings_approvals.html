@@ -1,0 +1,84 @@
+{% extends "admin/settings_base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans trimmed with name=brand.name %}Approvals — {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block settings_content %}
+<section class="ifinmail-admin-content">
+    <div class="ifinmail-admin-page">
+        <div class="ifinmail-page-header">
+            <div>
+                <h1 class="ifinmail-page-title">{% trans 'Approvals' %}</h1>
+                <p class="ifinmail-page-subtitle">{% trans 'Messages sent through the API that wait for a person before they leave. Approving sends the message with every check of a normal send run again.' %}</p>
+            </div>
+        </div>
+
+        {% if not policy.enabled %}
+        <div class="ifinmail-hbanner ifinmail-hbanner--info" role="status">
+            <svg class="ifinmail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+            <div>
+                <p class="ifinmail-hbanner__headline">{% trans 'Nothing is being held' %}</p>
+                <p class="ifinmail-hbanner__next">{% trans 'Install the Human approval plugin to hold mail from agents (or every key) for a person to approve.' %} <a href="{% url 'accounts:marketplace_plugin' 'human-approval' %}">{% trans 'Open the plugin' %}</a></p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if selected %}
+        <section class="ifinmail-panel ifinmail-settings-section" aria-labelledby="ap-selected">
+            <h2 class="ifinmail-panel-title" id="ap-selected">{{ selected.subject }}</h2>
+            <dl class="ifinmail-settings-rows">
+                <div class="ifinmail-settings-row"><dt>{% trans 'Sent by key' %}</dt><dd>{{ selected.key_name }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'From' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.sender }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'To' %}</dt><dd><code class="ifinmail-text--mono">{{ selected.recipients|join:", " }}</code></dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'Why it waits' %}</dt><dd>{{ selected.reason }}</dd></div>
+                <div class="ifinmail-settings-row"><dt>{% trans 'State' %}</dt><dd><span class="ifinmail-badge ifinmail-badge--{% if selected.status == 'pending' %}warning{% elif selected.status == 'sent' %}success{% elif selected.status == 'failed' %}danger{% else %}neutral{% endif %}">{{ selected.status }}</span>{% if selected.note %} <span class="ifinmail-settings-row__help">{{ selected.note }}</span>{% endif %}</dd></div>
+            </dl>
+            {% if selected.text %}<pre class="ifinmail-codebox" tabindex="0">{{ selected.text }}</pre>{% endif %}
+            {% if selected.html %}<details><summary>{% trans 'HTML (source)' %}</summary><pre class="ifinmail-codebox" tabindex="0">{{ selected.html }}</pre></details>{% endif %}
+            {% if selected.status == 'pending' %}
+            <form method="post" action="{% url 'accounts:approvals_decide' %}" class="ifinmail-inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="pending" value="{{ selected.pk }}">
+                <div class="ifinmail-field">
+                    <label for="ap-note">{% trans 'Note (optional)' %}</label>
+                    <input class="ifinmail-input ifinmail-input--full" id="ap-note" name="note" maxlength="300">
+                </div>
+                <div class="ifinmail-inline-form--row">
+                    <button class="ifinmail-btn ifinmail-btn--primary" type="submit" name="decision" value="approve">{% trans 'Approve and send' %}</button>
+                    <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="decision" value="reject" data-confirm="{% trans 'Reject this message? It will not be sent.' %}">{% trans 'Reject' %}</button>
+                </div>
+            </form>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Waiting' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Waiting' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Held' %}</th><th>{% trans 'Key' %}</th><th>{% trans 'From' %}</th><th>{% trans 'Subject' %}</th><th>{% trans 'Why' %}</th></tr></thead>
+                <tbody>
+                {% for row in waiting %}
+                    <tr><td>{{ row.created_at|date:'Y-m-d H:i' }}</td><td>{{ row.key_name }}</td><td><code class="ifinmail-text--mono">{{ row.sender }}</code></td><td><a class="ifinmail-link-strong" href="{% url 'accounts:approvals_message' row.pk %}">{{ row.subject|truncatechars:70 }}</a></td><td>{{ row.reason|truncatechars:60 }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="5" class="ifinmail-admin-table-empty"><div class="ifinmail-empty-state"><p>{% trans 'Nothing is waiting.' %}</p></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        {% if decided %}
+        <article class="ifinmail-table-panel" tabindex="0" role="region" aria-label="{% trans 'Decided' %}">
+            <div class="ifinmail-table-panel-header"><h2 class="ifinmail-panel-title">{% trans 'Decided' %}</h2></div>
+            <table class="ifinmail-admin-table">
+                <thead><tr><th>{% trans 'Decided' %}</th><th>{% trans 'By' %}</th><th>{% trans 'Subject' %}</th><th>{% trans 'Outcome' %}</th></tr></thead>
+                <tbody>
+                {% for row in decided %}
+                    <tr><td>{{ row.decided_at|date:'Y-m-d H:i' }}</td><td>{{ row.decided_by }}</td><td><a class="ifinmail-link-strong" href="{% url 'accounts:approvals_message' row.pk %}">{{ row.subject|truncatechars:70 }}</a></td><td>{{ row.status }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

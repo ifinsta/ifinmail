@@ -1,0 +1,45 @@
+manifest_version = 2
+
+[plugin]
+id = "human-approval"
+name = "Human approval"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "security"
+summary = "Keep a person in the loop: mail an AI agent sends waits for approval when it goes outside, to someone new, or always."
+requires_core = "0.0.69"
+description = """
+An agent that can send email can embarrass or endanger an organisation in seconds, especially one that has read a message written to mislead it. Human approval puts a person between the agent and the outside world where it matters.
+
+Choose the rule: every message, messages with a recipient outside this server, or messages to someone the sender has never written to before. It applies to keys that manage agent inboxes, or to every API key. A held message is answered with "status": "pending_approval" and an id the agent can poll (GET /api/v1/approvals/{id}); administrators are emailed (at most every ten minutes) and decide under Settings, Approvals, or with a key that has mail.manage. A key can never approve its own messages.
+
+Approving sends the message with every check of a normal send run again: if the key was revoked or lost its rights in the meantime, the message fails instead of leaving. Messages nobody decides on expire after the number of hours you set. Every decision is in the audit trail.
+"""
+
+[[settings]]
+key = "rule"
+type = "choice"
+label = "Hold"
+options = ["external", "first_contact", "all"]
+default = "external"
+help = "external: recipients outside this server. first_contact: someone the sender has not written to before. all: every message."
+
+[[settings]]
+key = "applies_to"
+type = "choice"
+label = "For"
+options = ["agents", "all"]
+default = "agents"
+help = "agents: keys that manage agent inboxes. all: every API key."
+
+[[settings]]
+key = "expire_hours"
+type = "integer"
+label = "A held message expires after (hours)"
+min = 1
+max = 168
+default = 24
+
+[[contributes]]
+capability = "developer.approvals"
+values = { enabled = "yes", rule = "{rule}", applies_to = "{applies_to}", expire_hours = "{expire_hours}" }

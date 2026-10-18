@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.74
+- **Sign-in lockout no longer locks everybody out.** Behind nginx, the lockout counted every
+  visitor as the proxy's own address, so five wrong passwords from anyone, including bots and
+  typos like `alex@ifinta.online`, locked every account for an hour, and each blocked try
+  restarted the hour. Failures are now counted per account and per client address (the same
+  address the audit trail records, never a forged `X-Forwarded-For` entry), and the lockout
+  records name the account that was tried. The lockout still lasts an hour (`AXES_COOLOFF_TIME`).
+
 ## v0.0.73
 - **Oceanic theme.** A second light look beside Smooth: the same soft shapes in sea blues (deep
   navy text, a teal-blue accent, sea-glass surfaces). Choose it under Settings → Appearance, or

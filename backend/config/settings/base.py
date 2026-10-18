@@ -362,6 +362,12 @@ AXES_FAILURE_LIMIT = int(os.environ.get('AXES_FAILURE_LIMIT', '5'))
 AXES_COOLOFF_TIME = float(os.environ.get('AXES_COOLOFF_TIME', '1'))
 AXES_LOCK_OUT_AT_FAILURE = True
 AXES_RESET_ON_SUCCESS = True
+# Behind nginx, REMOTE_ADDR is the proxy for every visitor, so by default five bad sign-ins from
+# anyone locked everybody out. Count failures per client address (the one the audit trail
+# records) and per account.
+AXES_CLIENT_IP_CALLABLE = 'backend.apps.accounts.services.client_ip.client_ip'
+AXES_USERNAME_CALLABLE = 'backend.apps.accounts.services.lockout.lockout_username'
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
 
 # Integration API (/api/v1): list endpoints return a page, `?limit=&offset=`.
 NINJA_PAGINATION_PER_PAGE = 50

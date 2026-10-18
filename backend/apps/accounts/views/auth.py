@@ -12,6 +12,7 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import ensure_csrf_cookie
 
+from backend.apps.accounts.services.client_ip import client_ip
 from backend.apps.accounts.services.setup_state import SetupState
 from backend.apps.core.platform.services.audit import AuditService
 
@@ -69,18 +70,8 @@ def require_perm(code: str):
 
 
 def _get_client_ip(request: HttpRequest) -> str:
-    """The client address as the reverse proxy saw it.
-
-    nginx *appends* the connecting address to X-Forwarded-For, so the last entry is the one to
-    trust; earlier entries are whatever the client sent, and taking the first would let anyone
-    choose the address recorded in the audit trail (and the threat digest built from it).
-    """
-    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if x_forwarded:
-        last = x_forwarded.split(',')[-1].strip()
-        if last:
-            return last
-    return request.META.get('REMOTE_ADDR', '')
+    """The client address as the reverse proxy saw it (also what Axes locks out)."""
+    return client_ip(request)
 
 
 @ensure_csrf_cookie
@@ -141,7 +132,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
             from axes.helpers import get_lockout_message, is_already_locked
 
             if callable(axes_settings.AXES_LOCKOUT_CALLABLE):
-                credentials = {'username': email, 'ip_address': request.META.get('REMOTE_ADDR', '')}
+                credentials = {'username': email, 'ip_address': client_ip(request)}
                 if axes_settings.AXES_LOCKOUT_CALLABLE(request, credentials):
                     error = get_lockout_message(request) or 'Account locked. Try again later.'
                     AuditService.record(

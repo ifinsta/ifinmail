@@ -11,6 +11,6 @@ who they are, a way into the console (only when their login may open it) and a w
     </span>
 </span>
 {% if can_use_console %}
-<a class="ifinmail-btn {% if in_menu %}ifinmail-btn--primary{% else %}ifinmail-btn--outline{% endif %}" href="{% url 'accounts:dashboard' %}">{% trans 'Open console' %}</a>
+<a class="ifinmail-btn {% if in_menu %}ifinmail-btn--primary{% else %}ifinmail-site-cta{% endif %}" href="{% url 'accounts:dashboard' %}">{% trans 'Open console' %}</a>
 {% endif %}
 <a class="ifinmail-btn {% if in_menu %}ifinmail-btn--outline{% else %}ifinmail-btn--ghost{% endif %}" href="{% url 'accounts:logout' %}">{% trans 'Sign out' %}</a>

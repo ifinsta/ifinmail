@@ -307,6 +307,83 @@
     min-height: 44px;
 }
 
+/* ── Header as a floating pill (768px and up) ───────────────
+   Brand, links and one inverted call to action sit in a centred capsule. Still flat: a 1px border
+   and a solid fill, no blur and no shadow; only the Menu dropdown floats, so it has one. Phones
+   keep the edge-to-edge bar above (see "Phone" below). Tokens only, so every theme follows. */
+
+@media (min-width: 768px) {
+    .ifinmail-site-header {
+        height: auto;
+        padding-top: var(--ifinmail-space-3);
+        border-bottom: 0;
+        background: transparent;
+        pointer-events: none;
+    }
+
+    .ifinmail-site-header__inner {
+        position: relative;
+        width: fit-content;
+        max-width: calc(100% - 2 * var(--site-pad));
+        height: auto;
+        padding: var(--ifinmail-space-2) var(--ifinmail-space-2) var(--ifinmail-space-2) var(--ifinmail-space-4);
+        gap: var(--ifinmail-space-6);
+        border: 1px solid var(--ifinmail-color-border);
+        border-radius: var(--ifinmail-radius-full);
+        background: var(--ifinmail-surface-container-lowest);
+        pointer-events: auto;
+    }
+
+    .ifinmail-site-nav {
+        flex: 0 1 auto;
+    }
+
+    .ifinmail-site-nav a,
+    .ifinmail-site-menu summary {
+        border-radius: var(--ifinmail-radius-full);
+    }
+
+    .ifinmail-site-actions .ifinmail-btn {
+        border-radius: var(--ifinmail-radius-full);
+    }
+
+    /* The call to action: the page's text colour as the fill, its ground as the label. */
+    .ifinmail-site-actions .ifinmail-site-cta {
+        border-color: transparent;
+        background: var(--ifinmail-color-text-primary);
+        color: var(--ifinmail-surface-container-lowest);
+    }
+
+    .ifinmail-site-actions .ifinmail-site-cta:hover {
+        border-color: transparent;
+        background: var(--ifinmail-color-text-secondary);
+        color: var(--ifinmail-surface-container-lowest);
+    }
+
+    /* Menu: a dropdown under the pill rather than a full-width sheet under the header. */
+    .ifinmail-site-menu {
+        margin-left: 0;
+    }
+
+    .ifinmail-site-menu__panel {
+        top: calc(100% + var(--ifinmail-space-2));
+        left: auto;
+        right: 0;
+        width: min(22rem, calc(100vw - 2 * var(--site-pad)));
+        border: 1px solid var(--ifinmail-color-border);
+        border-radius: var(--ifinmail-radius-lg);
+        box-shadow: var(--ifinmail-shadow-2);
+    }
+}
+
+/* Tablet: the Menu button replaces the links, so the pill spans the column. */
+@media (min-width: 768px) and (max-width: 879px) {
+    .ifinmail-site-header__inner {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
 /* ── Sections ───────────────────────────────────────────────── */
 
 .ifinmail-site-section {

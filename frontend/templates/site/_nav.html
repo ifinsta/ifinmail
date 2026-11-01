@@ -16,8 +16,8 @@
             {% if user.is_authenticated %}
             {% include "site/_account.html" with in_menu=False %}
             {% else %}
-            <a class="ifinmail-btn ifinmail-btn--ghost" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
-            {% if site.get_started %}<a class="ifinmail-btn ifinmail-btn--outline" href="{{ site.get_started.url }}">{{ site.get_started.label }}</a>{% endif %}
+            <a class="ifinmail-btn {% if site.get_started %}ifinmail-btn--ghost{% else %}ifinmail-site-cta{% endif %}" href="{% url 'accounts:login' %}">{% trans 'Sign in' %}</a>
+            {% if site.get_started %}<a class="ifinmail-btn ifinmail-site-cta" href="{{ site.get_started.url }}">{{ site.get_started.label }}</a>{% endif %}
             {% endif %}
         </div>
 

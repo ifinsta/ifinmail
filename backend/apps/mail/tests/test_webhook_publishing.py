@@ -145,7 +145,7 @@ class DeliverBatchTests(PublishingBase):
 
     def test_when_the_budget_is_spent_the_rest_goes_back_on_the_queue(self) -> None:
         clock = iter([0, 100]).__next__  # started at 0; second delivery finds 100 s have passed
-        self.assertEqual(webhooks.deliver_batch(self.ids, budget=60, clock=clock), 1)
+        self.assertEqual(webhooks.deliver_batch(self.ids, clock=clock), 1)
         self.delay.assert_called_once_with(self.ids[1:])
         self.assertEqual(
             self.status_of(self.ids),
@@ -159,7 +159,7 @@ class DeliverBatchTests(PublishingBase):
     def test_failing_to_requeue_is_logged_and_the_sweep_covers_it(self) -> None:
         clock = iter([0, 100]).__next__
         self.delay.side_effect = RuntimeError('down')
-        webhooks.deliver_batch(self.ids, budget=60, clock=clock)  # must not raise
+        webhooks.deliver_batch(self.ids, clock=clock)  # must not raise
         self.assertEqual(self.status_of(self.ids[1:]), [WebhookDelivery.PENDING] * 4)
 
     def test_one_dead_endpoint_does_not_hold_up_another(self) -> None:
@@ -183,6 +183,14 @@ class TaskTests(SimpleTestCase):
     def test_the_batch_task_is_registered_and_the_old_one_still_is(self) -> None:
         self.assertIn('mail.deliver_webhooks', app.tasks)
         self.assertIn('mail.deliver_webhook', app.tasks)  # messages already queued still run
+
+    def test_a_slow_endpoint_cannot_hold_a_worker_for_long(self) -> None:
+        # The budget is the time-slice a slow or dead endpoint gets before others have a turn.
+        # On a real worker (4 processes, an endpoint answering in 3 s) 60 s left the others
+        # waiting 61 s; 15 s kept it to 16 s. Raising it brings the stall back.
+        self.assertLessEqual(webhooks.BATCH_BUDGET_SECONDS, 15)
+        held = webhooks.BATCH_BUDGET_SECONDS + webhooks.TIMEOUT_SECONDS
+        self.assertLessEqual(held, 30)  # budget plus the one attempt that can overrun it
 
     def test_the_time_limits_sit_above_the_budget_plus_one_attempt(self) -> None:
         task = app.tasks['mail.deliver_webhooks']

@@ -59,10 +59,11 @@ def deliver_webhook(delivery_id: str) -> bool:
 
 
 # A chunk of deliveries to one endpoint (webhooks.deliver_batch): it stops taking new deliveries
-# after BATCH_BUDGET_SECONDS (60) and queues the rest, so a task is at most that plus one attempt
-# (10 s timeout, and a DNS check) long. The limits sit above that; a test pins the arithmetic.
-WEBHOOK_BATCH_SOFT_TIME_LIMIT = 100
-WEBHOOK_BATCH_TIME_LIMIT = 130
+# after BATCH_BUDGET_SECONDS (15) and queues the rest, so a task is at most that plus one attempt
+# (10 s timeout, and a DNS check) long. The limits sit above that, with room to spare, and a task
+# that is stuck beyond them is stopped so it cannot keep a worker; a test pins the arithmetic.
+WEBHOOK_BATCH_SOFT_TIME_LIMIT = 60
+WEBHOOK_BATCH_TIME_LIMIT = 80
 
 
 @shared_task(

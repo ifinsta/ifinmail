@@ -57,8 +57,12 @@ BACKOFF = (60, 300, 1800, 7200, 21600, 43200, 86400)
 # broker message each (about 0.4 ms apiece: 3 s for a busy minute, against 0.02 ms in a chunk).
 # A chunk is tried one after another, so it stops once BATCH_BUDGET_SECONDS are spent and the rest
 # go back on the queue; the task's time limits (mail.tasks) sit above budget + one attempt.
+# The budget is also how long a slow or dead endpoint can hold a worker before the others get a
+# turn: its remaining deliveries rejoin the back of the queue. Measured on a real worker with one
+# endpoint answering in 3 s and another instantly, 4 worker processes: a 60 s budget kept the fast
+# endpoint waiting 61 s, 15 s kept it to 16 s (the old one-message-per-delivery path: 113 s).
 DELIVERY_CHUNK = 25
-BATCH_BUDGET_SECONDS = 60
+BATCH_BUDGET_SECONDS = 15
 KEEP_DAYS = 14  # delivered and failed attempts kept for this long
 
 _ALWAYS_BLOCKED = (

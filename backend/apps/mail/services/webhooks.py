@@ -4,6 +4,14 @@ Used by the Delivery Events plugin (what became of mail sent through the API) an
 Webhooks plugin (mail a mailbox received). Each event is stored once per endpoint and delivered
 by the worker with retries, so a slow or failing receiver never slows mail down.
 
+How events travel: ``emit_many`` stores a batch (one policy lookup, one endpoint query, one insert)
+and ``_schedule`` publishes the new deliveries to the workers in chunks of at most
+``DELIVERY_CHUNK`` to one endpoint, round-robin across endpoints, once the transaction commits.
+``deliver_batch`` works through a chunk one delivery at a time and, after ``BATCH_BUDGET_SECONDS``,
+queues what it has not reached as a new chunk, so a slow endpoint holds a worker for a short time
+only. ``sweep`` (every minute) delivers whatever is due, which covers retries and any queue message
+that was lost. The README section "Event scans and webhook delivery" describes the whole design.
+
 What a receiver gets::
 
     POST <url>

@@ -138,7 +138,71 @@ Clients configure themselves: `autoconfig.<domain>` and `autodiscover.<domain>` 
 
 ## Scheduled jobs and backups
 
-A `worker` container runs the periodic jobs (with Celery's scheduler built in): DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days) and re-publishing the outbound settings. `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
+A `worker` container runs the periodic jobs (with Celery's scheduler built in): DNS verification (every 15 minutes), DKIM key files, the certificate hostname list, certificate-expiry warnings by email (14 days), re-publishing the outbound settings, and the event scans and webhook delivery described [below](#event-scans-and-webhook-delivery). `make provision` also installs a daily encrypted backup in `/etc/cron.d/ifinmail-backup` and enables automatic OS security updates. Container images are updated with `make reload`.
+
+### Event scans and webhook delivery
+
+The *Delivery events* and *Inbox webhooks* plugins send signed JSON events to URLs you choose. Three
+worker jobs make that happen; a job for a plugin that is not installed does nothing.
+
+| Job | Runs | Reads | Does |
+| --- | --- | --- | --- |
+| `mail.scan_delivery_events` | every minute | the new lines of the Postfix log, at most 4 MB a run | turns what became of mail sent through the API into `message.delivered`, `message.deferred` and `message.bounced` (the API itself sends `message.queued`); also feeds Sender compliance's bounce counters and suppressions |
+| `mail.scan_inbox_events` | every 30 seconds | new mail in watched mailboxes, at most 200 mailboxes and 50 new messages in each a run | `message.received`, with the Injection shield's verdict when that plugin is installed |
+| `mail.sweep_webhooks` | every minute | deliveries that are due | retries, and anything the queue lost (see below) |
+
+**How a scan works**
+
+- **In bulk, not line by line.** A scan reads every cache key it needs in two bulk reads (queue id
+  to Message-ID to sender), answers links made inside the same read from memory, writes new links
+  with one bulk write, adds the sender's delivered and bounced counters up once per sender (one
+  bounce-rate check each, not one per line) and queues the events of a batch with one insert. What
+  it has produced is written every 500 lines. On a 4 MB log (34,000 lines) this took a scan from about
+  30,000 cache calls and 40,000 queries to about 470 and 850. If a batch cannot be written, its
+  events are tried one at a time, so one bad event does not cost the others.
+- **Bounded in time.** Both scan tasks run under Celery time limits, 90 seconds soft and 120 hard,
+  so a message or log line that makes a scan hang cannot keep a worker busy for good. The Injection
+  shield, which reads text a stranger wrote, is bounded too: it checks at most 1,000,000 characters
+  of a message's text and of its HTML, and a larger message is reported as medium risk with the
+  reason "only the start was checked".
+- **Stopping loses nothing.** The delivery scan saves its place in the log when it reads, and puts
+  it back to the first line it has not handled when a run is stopped at the soft limit or the cache
+  is unavailable; at most the line in flight is handled twice (its event id makes that a no-op for
+  the webhook, and only the sender's counters count it again). The inbox scan saves each mailbox's
+  place after its batch, and every event has a fixed id, so a batch read again repeats nothing.
+  A worker killed outright (the hard limit, a power cut) can skip the lines it had read but not
+  yet handled.
+
+**How events are delivered**
+
+- **One stored delivery per event per endpoint.** The same event id is never queued twice for an
+  endpoint. A receiver that is slow, down or failing never slows mail down: delivery happens in the
+  worker, after the fact.
+- **In chunks, one endpoint at a time.** New deliveries reach the workers in groups of up to 25 to
+  the *same* endpoint, one `mail.deliver_webhooks` task per group, instead of one queue message each
+  (about 0.4 ms apiece: 3.1 s of publishing for 8,000 deliveries, against 0.14 s). A chunk is worked
+  through one delivery after another, so a slow or dead endpoint only delays its own deliveries and
+  is never sent two requests at once by the same task. Chunks are queued round-robin across
+  endpoints, so one endpoint's backlog does not sit in front of the others.
+- **A time slice for every chunk.** A chunk stops after 15 seconds and hands the deliveries it has
+  not reached back to the end of the queue, so a slow or dead endpoint holds a worker for at most
+  15 seconds plus one request (requests time out at 10 seconds) before others get a turn. The task
+  itself has limits of 60 seconds soft and 80 hard. The worker runs two processes shared by every
+  job (`--concurrency=2`), so a short slice matters.
+- **Retries.** A delivery that fails (any answer but 2xx, a timeout, a refused connection) is tried
+  again after 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours, 12 hours and 24 hours, up to
+  8 attempts (the Delivery events plugin's *Attempts per event* lowers that). A `410 Gone` switches
+  the endpoint off. `GET /api/v1/webhooks/{id}/deliveries` lists every attempt and its answer.
+- **The sweep is the safety net.** Every minute it delivers up to 200 deliveries that are due:
+  retries, and any delivery whose queue message was lost (the broker was down, the worker was
+  killed). Finished and failed deliveries are deleted after 14 days.
+
+**For the receiver**
+
+Every attempt is a `POST` with the same `X-Ifinmail-Event-Id` (`evt_…`) and
+`X-Ifinmail-Signature: t=<unix time>,v1=<hex HMAC-SHA256 of "<t>.<body>" with the endpoint's secret>`.
+Delivery is **at least once**: a delivery in flight when a worker dies is sent again, so
+**deduplicate on the event id**, and reject a signature whose `t` is more than five minutes old.
 
 ### Marketplace (plugins)
 
@@ -345,6 +409,13 @@ you what a key may do and which keys look unsafe. Ask it "how can a program crea
   the Injection shield's verdict, and says the content is untrusted. Actions that change
   something are in the audit trail under the key. The transport is Streamable HTTP with JSON
   answers (protocol versions 2025-06-18, 2025-03-26 and 2024-11-05).
+- **Webhooks.** With the Delivery events plugin, a key with `mail.send` can register URLs that
+  receive signed JSON events for its own mail: `message.queued`, `message.delivered`,
+  `message.deferred` and `message.bounced`. With the Inbox webhooks plugin, a webhook can also
+  receive `message.received` for the agent inboxes the key created (or any mailbox, with
+  `mail.manage`). Delivery is at least once and every attempt carries the same event id, so
+  receivers deduplicate on it; how events are produced, retried and delivered is under [Event
+  scans and webhook delivery](#event-scans-and-webhook-delivery).
 - **Lists are paged**: `?limit=` (default 50, at most 200) and `?offset=`; the reply is
   `{"items": [...], "count": N}`.
 - **Errors** are `{"detail": "..."}` with 401 (credentials), 403 (scope or protected mailbox),
@@ -445,6 +516,11 @@ Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. T
 
 ## Limits to know about
 
+- Webhook events: the delivery scan reads at most 4 MB of the Postfix log a minute (about 30,000
+  lines), so a server that logs more than that falls behind and its events arrive late; webhook
+  delivery is at least once (receivers deduplicate on the event id); and a worker killed outright
+  can skip log lines it had read but not yet handled. See [Event scans and webhook
+  delivery](#event-scans-and-webhook-delivery).
 - Delivery status: **Dashboard** and **Logs → Report** show what happened to outgoing mail (accepted, retried, failed for good, bounce rate, and why, where and from which mailbox), the administrators are emailed when the bounce rate passes 5% or a provider starts refusing the server, and `GET /api/v1/telemetry/delivery` returns the same figures. "Accepted" is not "in the inbox": placement is only visible from the receiver's side.
 - Profile photos: each person adds a photo on **Account**, and an administrator can switch on the **Contact directory** (Settings → Mailboxes). It publishes every mailbox, with its photo, as a read-only address book called "directory" in each mailbox's CardDAV home, so iOS, macOS, Android (DAVx5) and Thunderbird show a sender's photo and complete names without anyone importing anything. It needs the `dav` container, lists everyone to everyone (people can hide themselves), and only helps clients that sync CardDAV contacts: Gmail, Outlook and other apps that keep their own contacts will not show it. Photos can also be set by an integration: `POST /api/v1/mailboxes/{address}/photo`.
 - Calendars and contacts (CalDAV/CardDAV) are served at `https://mail.yourdomain.com/dav/` with the mailbox address and password; apps find them from the domain alone. Back them up with `make backup` (the `dav_data` volume). Not needed? Set `DAV_ENABLED=0` in `provisioning/.env` and run `make provision`: the `dav` container is removed and the calendar DNS records are no longer published.

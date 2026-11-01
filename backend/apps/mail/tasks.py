@@ -51,10 +51,30 @@ def purge_sandbox() -> int:
 
 @shared_task(name='mail.deliver_webhook')
 def deliver_webhook(delivery_id: str) -> bool:
-    """Deliver one webhook event now (queued when the event happens)."""
+    """Deliver one webhook event now. Nothing queues these any more (see ``deliver_webhooks``);
+    it stays so that messages already on the queue when a worker is updated still run."""
     from .services import webhooks
 
     return webhooks.deliver(delivery_id)
+
+
+# A chunk of deliveries to one endpoint (webhooks.deliver_batch): it stops taking new deliveries
+# after BATCH_BUDGET_SECONDS (60) and queues the rest, so a task is at most that plus one attempt
+# (10 s timeout, and a DNS check) long. The limits sit above that; a test pins the arithmetic.
+WEBHOOK_BATCH_SOFT_TIME_LIMIT = 100
+WEBHOOK_BATCH_TIME_LIMIT = 130
+
+
+@shared_task(
+    name='mail.deliver_webhooks',
+    soft_time_limit=WEBHOOK_BATCH_SOFT_TIME_LIMIT,
+    time_limit=WEBHOOK_BATCH_TIME_LIMIT,
+)
+def deliver_webhooks(delivery_ids: list[str]) -> int:
+    """Deliver a chunk of events to one endpoint, one after another (queued when they happen)."""
+    from .services import webhooks
+
+    return webhooks.deliver_batch(delivery_ids)
 
 
 @shared_task(name='mail.sweep_webhooks')

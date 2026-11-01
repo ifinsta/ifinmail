@@ -33,7 +33,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from urllib.parse import urlsplit
@@ -53,6 +53,12 @@ MAX_ENDPOINTS_PER_OWNER = 10
 MAX_RESPONSE_BYTES = 4096
 # Wait before attempt n+1 (seconds): 1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h.
 BACKOFF = (60, 300, 1800, 7200, 21600, 43200, 86400)
+# Deliveries to one endpoint travel to a worker together, DELIVERY_CHUNK per task, instead of one
+# broker message each (about 0.4 ms apiece: 3 s for a busy minute, against 0.02 ms in a chunk).
+# A chunk is tried one after another, so it stops once BATCH_BUDGET_SECONDS are spent and the rest
+# go back on the queue; the task's time limits (mail.tasks) sit above budget + one attempt.
+DELIVERY_CHUNK = 25
+BATCH_BUDGET_SECONDS = 60
 KEEP_DAYS = 14  # delivered and failed attempts kept for this long
 
 _ALWAYS_BLOCKED = (
@@ -326,8 +332,8 @@ def emit_many(events: Sequence[Event]) -> int:
     if not wanted:
         return 0
     made = _insert_new(wanted)
-    for delivery in made:
-        _schedule(str(delivery.pk))
+    if made:
+        _schedule(made)
     return len(made)
 
 
@@ -368,14 +374,35 @@ def ping(row: WebhookEndpoint) -> WebhookDelivery:
     return delivery
 
 
-def _schedule(delivery_id: str) -> None:
-    from backend.apps.mail.tasks import deliver_webhook
+def _chunks(deliveries: Sequence[WebhookDelivery]) -> list[list[str]]:
+    """Delivery ids grouped by endpoint, at most ``DELIVERY_CHUNK`` to a group, in order.
+
+    One endpoint per chunk is what keeps a slow or dead endpoint from holding up the others:
+    a chunk is worked through one delivery after another, so it only ever waits on its own
+    endpoint (and never sends that endpoint two requests at once from the same task).
+    """
+    by_endpoint: dict[object, list[str]] = {}
+    for delivery in deliveries:
+        by_endpoint.setdefault(delivery.endpoint_id, []).append(str(delivery.pk))
+    return [
+        ids[start : start + DELIVERY_CHUNK]
+        for ids in by_endpoint.values()
+        for start in range(0, len(ids), DELIVERY_CHUNK)
+    ]
+
+
+def _schedule(deliveries: Sequence[WebhookDelivery]) -> None:
+    """Queue the delivery tasks once the surrounding transaction commits."""
+    from backend.apps.mail.tasks import deliver_webhooks
+
+    chunks = _chunks(deliveries)
 
     def queue() -> None:
-        try:
-            deliver_webhook.delay(delivery_id)
-        except Exception:  # the broker is down: the sweep (every minute) picks it up
-            logger.warning('Could not queue webhook delivery %s', delivery_id, exc_info=True)
+        for ids in chunks:
+            try:
+                deliver_webhooks.delay(ids)
+            except Exception:  # the broker is down: the sweep (every minute) picks them up
+                logger.warning('Could not queue %d webhook deliveries', len(ids), exc_info=True)
 
     transaction.on_commit(queue)
 
@@ -482,6 +509,37 @@ def deliver(delivery_id: str) -> bool:
         ):
             return False
     return attempt(delivery)
+
+
+def deliver_batch(
+    delivery_ids: Sequence[str],
+    *,
+    budget: float = BATCH_BUDGET_SECONDS,
+    clock: Callable[[], float] = time.monotonic,
+) -> int:
+    """Deliver a chunk one after another; returns how many the receivers accepted.
+
+    A delivery that fails is retried later like any other (it is rescheduled, not repeated here)
+    and does not stop the rest. When the time budget is spent the remaining ids are queued again
+    as a new chunk, so no single task runs longer than its time limit.
+    """
+    started = clock()
+    accepted = 0
+    for index, delivery_id in enumerate(delivery_ids):
+        if index and clock() - started > budget:
+            _requeue(list(delivery_ids[index:]))
+            break
+        accepted += bool(deliver(delivery_id))
+    return accepted
+
+
+def _requeue(delivery_ids: list[str]) -> None:
+    from backend.apps.mail.tasks import deliver_webhooks
+
+    try:
+        deliver_webhooks.delay(delivery_ids)
+    except Exception:  # the broker is down: the sweep picks them up
+        logger.warning('Could not requeue %d webhook deliveries', len(delivery_ids), exc_info=True)
 
 
 def sweep(limit: int = 200) -> int:

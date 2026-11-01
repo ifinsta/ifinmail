@@ -119,12 +119,20 @@ class EmitManyTests(delivery_tests.EventsBase):
         self.assertEqual(webhooks.emit_many([]), 0)
         self.assertFalse(WebhookDelivery.objects.exists())
 
-    def test_deliveries_are_scheduled_after_they_exist(self) -> None:
+    def test_all_new_deliveries_are_scheduled_together_once_they_exist(self) -> None:
         with patch.object(webhooks, '_schedule') as schedule:
             made = webhooks.emit_many(self.events(3))
-        self.assertEqual(schedule.call_count, made)
-        for call in schedule.call_args_list:
-            self.assertTrue(WebhookDelivery.objects.filter(pk=call.args[0]).exists())
+        schedule.assert_called_once()  # one call for the batch, not one per delivery
+        scheduled = schedule.call_args.args[0]
+        self.assertEqual(len(scheduled), made)
+        stored = set(WebhookDelivery.objects.values_list('pk', flat=True))
+        self.assertEqual({d.pk for d in scheduled}, stored)
+
+    def test_nothing_is_scheduled_when_nothing_is_new(self) -> None:
+        webhooks.emit_many(self.events(2))
+        with patch.object(webhooks, '_schedule') as schedule:
+            self.assertEqual(webhooks.emit_many(self.events(2)), 0)
+        schedule.assert_not_called()
 
 
 class BatchedScanTests(delivery_tests.EventsBase):

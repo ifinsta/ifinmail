@@ -109,9 +109,18 @@ def listing(domains: list[str] | None, *, address: str = '') -> list[Suppression
     return list(rows[:1000])
 
 
-def note_bounce(sender: str, recipient: str, category: str, dsn: str, reason: str) -> None:
-    """From the delivery log: a permanent failure for a reason that will not change."""
-    current = settings()
+def note_bounce(
+    sender: str,
+    recipient: str,
+    category: str,
+    dsn: str,
+    reason: str,
+    current: ComplianceSettings | None = None,
+) -> None:
+    """From the delivery log: a permanent failure for a reason that will not change.
+
+    ``current`` lets a caller that records many bounces look the settings up once."""
+    current = current or settings()
     if not current.enabled or not current.suppress_bounces:
         return
     if not dsn.startswith('5') or category not in _HARD_CATEGORIES:

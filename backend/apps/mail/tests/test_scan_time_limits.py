@@ -48,15 +48,17 @@ class TaskLimitTests(SimpleTestCase):
             (tasks.scan_inbox_events, inbox_events),
             (tasks.scan_delivery_events, delivery_events),
         ):
+            # The task's logger is replaced rather than captured with assertLogs: the test
+            # settings disable existing loggers, and which ones depends on import order.
             with (
                 self.subTest(task=task.name),
                 patch.object(module, 'scan', side_effect=STOP()),
-                self.assertLogs('backend', 'WARNING') as logged,
+                patch.object(tasks, 'logger') as log,
             ):
                 self.assertEqual(task(), 0)
-            output = ' '.join(logged.output)
-            self.assertIn('time limit', output)
-            self.assertNotIn('failed', output)
+            said = ' '.join(str(call.args[0]) for call in log.warning.call_args_list)
+            self.assertIn('time limit', said)
+            self.assertNotIn('failed', said)
 
 
 class InboxScanStopTests(inbox_tests.InboxEventsBase):
@@ -120,7 +122,7 @@ class DeliveryScanStopTests(delivery_tests.EventsBase):
     def seen_by_the_next_scan(self) -> list[str]:
         seen: list[str] = []
 
-        def record(line: str) -> int:
+        def record(line: str, *_: object) -> int:  # scan() also passes its batch
             seen.append(line)
             return 0
 

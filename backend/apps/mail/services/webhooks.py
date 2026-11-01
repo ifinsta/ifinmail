@@ -33,12 +33,12 @@ import socket
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from urllib.parse import urlsplit
 
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.utils import timezone
 
 from backend.apps.core.plugins.services import InstallationService
@@ -244,6 +244,17 @@ def new_event_id() -> str:
     return 'evt_' + pysecrets.token_hex(12)
 
 
+@dataclass(frozen=True)
+class Event:
+    """One event to queue (see :func:`emit_many`)."""
+
+    type: str
+    data: dict
+    key_prefix: str = ''
+    mailbox: str = ''
+    event_id: str | None = None
+
+
 def emit(
     event_type: str,
     data: dict,
@@ -257,44 +268,84 @@ def emit(
     Delivery events reach console endpoints and the sending key's own; received-mail events reach
     endpoints that list that mailbox.
     """
-    current = policy()
-    if event_type == EventType.RECEIVED:
-        if not current.inbox_events:
-            return 0
-    elif not current.delivery_events:
+    return emit_many(
+        [Event(event_type, data, key_prefix=key_prefix, mailbox=mailbox, event_id=event_id)]
+    )
+
+
+_LOOKUP_CHUNK = 500  # event ids per duplicate-check query (stays under every database's limit)
+
+
+def emit_many(events: Sequence[Event]) -> int:
+    """Queue a batch of events. Returns how many deliveries were made.
+
+    What :func:`emit` does for one event, with the per-event work done once for the batch: one
+    policy lookup, one endpoint query, one query for deliveries that already exist and one insert,
+    where a loop of ``emit`` calls costs about nine queries per event. Events that were already
+    queued for an endpoint (same event id) are skipped, as before.
+    """
+    if not events:
         return 0
-    event_id = event_id or new_event_id()
-    payload = {
-        'id': event_id,
-        'type': str(event_type),
-        'created': timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'data': data,
-    }
-    made = []
-    for row in WebhookEndpoint.objects.filter(active=True):
-        if str(event_type) not in row.events:
+    current = policy()
+    endpoints = list(WebhookEndpoint.objects.filter(active=True))
+    now = timezone.now()
+    created = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+    wanted: list[WebhookDelivery] = []
+    queued: set[tuple[object, str]] = set()
+    for event in events:
+        received = event.type == EventType.RECEIVED
+        if not (current.inbox_events if received else current.delivery_events):
             continue
-        if event_type == EventType.RECEIVED:
-            if mailbox.lower() not in row.mailboxes:
+        event_id = event.event_id or new_event_id()
+        payload = {
+            'id': event_id,
+            'type': str(event.type),
+            'created': created,
+            'data': event.data,
+        }
+        for row in endpoints:
+            if str(event.type) not in row.events:
                 continue
-        elif row.owner_prefix and row.owner_prefix != key_prefix:
-            continue
-        try:
-            with transaction.atomic():
-                made.append(
-                    WebhookDelivery.objects.create(
-                        endpoint=row,
-                        event_id=event_id,
-                        event_type=str(event_type),
-                        payload=payload,
-                        next_attempt_at=timezone.now(),
-                    )
+            if received:
+                if event.mailbox.lower() not in row.mailboxes:
+                    continue
+            elif row.owner_prefix and row.owner_prefix != event.key_prefix:
+                continue
+            if (row.pk, event_id) in queued:
+                continue
+            queued.add((row.pk, event_id))
+            wanted.append(
+                WebhookDelivery(
+                    endpoint=row,
+                    event_id=event_id,
+                    event_type=str(event.type),
+                    payload=payload,
+                    next_attempt_at=now,
                 )
-        except IntegrityError:  # this event was already queued for this endpoint
-            continue
+            )
+    if not wanted:
+        return 0
+    made = _insert_new(wanted)
     for delivery in made:
         _schedule(str(delivery.pk))
     return len(made)
+
+
+def _insert_new(wanted: list[WebhookDelivery]) -> list[WebhookDelivery]:
+    """Insert the deliveries that do not exist yet; returns those that were new."""
+    with transaction.atomic():
+        existing: set[tuple[object, str]] = set()
+        ids = sorted({delivery.event_id for delivery in wanted})
+        for start in range(0, len(ids), _LOOKUP_CHUNK):
+            existing.update(
+                WebhookDelivery.objects.filter(event_id__in=ids[start : start + _LOOKUP_CHUNK])
+                .values_list('endpoint_id', 'event_id')
+            )
+        fresh = [d for d in wanted if (d.endpoint_id, d.event_id) not in existing]
+        # ignore_conflicts covers a concurrent writer queuing the same event between the check
+        # and the insert; the unique (endpoint, event id) constraint keeps it once.
+        WebhookDelivery.objects.bulk_create(fresh, batch_size=_LOOKUP_CHUNK, ignore_conflicts=True)
+    return fresh
 
 
 def ping(row: WebhookEndpoint) -> WebhookDelivery:

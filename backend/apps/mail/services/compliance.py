@@ -109,6 +109,11 @@ def listing(domains: list[str] | None, *, address: str = '') -> list[Suppression
     return list(rows[:1000])
 
 
+def is_hard_bounce(category: str, dsn: str) -> bool:
+    """A permanent failure for a reason that will not change (the address does not exist)."""
+    return dsn.startswith('5') and category in _HARD_CATEGORIES
+
+
 def note_bounce(
     sender: str,
     recipient: str,
@@ -123,7 +128,7 @@ def note_bounce(
     current = current or settings()
     if not current.enabled or not current.suppress_bounces:
         return
-    if not dsn.startswith('5') or category not in _HARD_CATEGORIES:
+    if not is_hard_bounce(category, dsn):
         return
     if suppress(_domain_of(sender), recipient, Suppression.BOUNCED, detail=f'{dsn} {reason}'[:300]):
         logger.info('Suppressed %s for %s after a permanent bounce', recipient, _domain_of(sender))

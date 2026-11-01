@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.0.75
+- **Marketing campaigns are built in.** The new Marketing plugin, installed by default, sends one
+  message to a list, one email each, over time: `POST /api/v1/campaigns` with a key that has the
+  new `marketing.send` scope (separate from `mail.send`, so a leaked transactional key cannot mail
+  a list). It lifts the limits that made newsletters impossible through `POST /messages`: a bulk
+  message no longer has to go to one recipient per call, and campaign mail is not held to the
+  key's daily cap, Outbound policy's per-minute and per-day limits or containment's hourly pause.
+  It has its own protection instead.
+  - **Personal and compliant:** `{{first_name|friend}}` merge tags (escaped in HTML; a missing
+    value skips the person instead of greeting them with a blank), your postal address and a
+    personal one-click unsubscribe link in every footer, and the `List-Unsubscribe` headers.
+    Unsubscribing stops marketing mail only, through a separate opt-out list: the person still
+    gets receipts and password resets.
+  - **Paced:** a budget per clock minute (60 by default) and a daily ceiling (2,000) that, with
+    warm-up on, starts at 200 and grows by half each day. Several campaigns share the budget, and
+    two runs in the same minute cannot exceed it.
+  - **Safe:** each recipient is claimed right before their email, so a campaign never mails a
+    person twice, and a worker killed mid-run leaves at most the one email in flight in doubt. A
+    campaign pauses itself when the mail system refuses 20 emails in a row, when its sender or key
+    is paused, or when over 5% of what it has sent bounces; hard bounces suppress the address.
+    People on the suppression or opt-out lists are left out, checked again just before each email.
+  - **Control:** list, read progress, pause, resume and cancel campaigns; see who was left out and
+    why; record your application's own unsubscribes with `POST /api/v1/marketing/opt-outs`. See
+    `examples/python/11_marketing_campaign.py`.
+  - **For administrators:** enter the postal address under Marketplace, Marketing (campaigns are
+    refused until it is set), and adjust the pace, the daily ceiling, warm-up and the largest
+    campaign there. Owners and Administrators gain the `marketing.send` permission.
+  - **Not yet:** contact lists and import, reusable templates, scheduled sends, open and click
+    tracking, attachments.
+
 ## v0.0.74
 - **Sign-in lockout no longer locks everybody out.** Behind nginx, the lockout counted every
   visitor as the proxy's own address, so five wrong passwords from anyone, including bots and

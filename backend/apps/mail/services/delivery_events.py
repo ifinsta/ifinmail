@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -55,6 +56,7 @@ class Sent:
     message_id: str
     key_prefix: str
     sender: str
+    campaign: str = ''  # the Marketing campaign it belongs to, when it does
 
 
 def _message_key(message_id: str) -> str:
@@ -65,11 +67,20 @@ def _queue_key(qid: str) -> str:
     return f'apiqid:{qid}'
 
 
+MARKETING_ACTIVE = 'marketing:active'  # set while campaigns are being sent (see campaign_runner)
+
+
 def _wanted() -> bool:
-    """The log is followed for Delivery events and for Sender compliance (bounce handling)."""
+    """The log is followed for Delivery events, for Sender compliance (bounce handling) and while
+    campaigns are being sent (their bounces suppress the address, whichever plugins are on)."""
     from backend.apps.mail.services import compliance
 
-    return webhooks.policy().delivery_events or compliance.settings().enabled
+    if webhooks.policy().delivery_events or compliance.settings().enabled:
+        return True
+    try:
+        return bool(cache.get(MARKETING_ACTIVE))
+    except Exception:
+        return False
 
 
 def remember(message_id: str, key_prefix: str, sender: str, recipients: int) -> None:
@@ -92,14 +103,50 @@ def remember(message_id: str, key_prefix: str, sender: str, recipients: int) -> 
     )
 
 
+def remember_many(items: Sequence[tuple[str, str, str, str]]) -> None:
+    """``remember`` for many messages at once: ``(message_id, key_prefix, sender, campaign)``.
+
+    One policy lookup, one bulk cache write and one bulk insert of the ``message.queued`` events,
+    where a loop of ``remember`` calls costs a lookup, a write and about nine queries each. Used
+    by the campaign runner, which sends hundreds of emails a minute.
+    """
+    if not items or not _wanted():
+        return
+    keyed = {
+        _message_key(mid.strip('<>')): {
+            'key_prefix': prefix,
+            'sender': sender,
+            'campaign': campaign,
+        }
+        for mid, prefix, sender, campaign in items
+    }
+    try:
+        cache.set_many(keyed, REMEMBER_SECONDS)
+    except Exception:
+        logger.warning('Could not remember %d campaign messages for delivery events', len(items))
+    webhooks.emit_many(
+        [
+            webhooks.Event(
+                EventType.QUEUED,
+                {
+                    'message_id': mid.strip('<>'),
+                    'sender': sender,
+                    'recipients': 1,
+                    'campaign': campaign,
+                },
+                key_prefix=prefix,
+            )
+            for mid, prefix, sender, campaign in items
+        ]
+    )
+
+
 def _sent(mid: str) -> Sent | None:
     try:
         found = cache.get(_message_key(mid))
     except Exception:
         return None
-    if not isinstance(found, dict):
-        return None
-    return Sent(mid, str(found.get('key_prefix', '')), str(found.get('sender', '')))
+    return _as_sent(mid, found)
 
 
 _Parsed = tuple[str, re.Match[str]] | None
@@ -116,7 +163,12 @@ def _parse(line: str) -> _Parsed:
 def _as_sent(mid: str, found: object) -> Sent | None:
     if not isinstance(found, dict):
         return None
-    return Sent(mid, str(found.get('key_prefix', '')), str(found.get('sender', '')))
+    return Sent(
+        mid,
+        str(found.get('key_prefix', '')),
+        str(found.get('sender', '')),
+        str(found.get('campaign', '')),
+    )
 
 
 class _Direct:
@@ -139,9 +191,13 @@ class _Direct:
 
         compliance.count(prefix, delivered=delivered, bounced=bounced)
 
-    def bounce(self, sender: str, recipient: str, category: str, dsn: str, reason: str) -> None:
-        from backend.apps.mail.services import compliance
+    def bounce(
+        self, sender: str, recipient: str, category: str, dsn: str, reason: str, campaign: str = ''
+    ) -> None:
+        from backend.apps.mail.services import compliance, marketing
 
+        if campaign:
+            marketing.note_bounce(campaign, sender, recipient, category, dsn, reason)
         compliance.note_bounce(sender, recipient, category, dsn, reason)
 
     def emit(self, event: webhooks.Event) -> int:
@@ -192,7 +248,9 @@ def handle_line(line: str, ctx: _Direct | _Batch | None = None) -> int:
         ctx.count(sent.key_prefix, delivered=1)
     elif kind == EventType.BOUNCED:
         ctx.count(sent.key_prefix, bounced=1)
-        ctx.bounce(sent.sender, data['recipient'], data['category'], data['dsn'], reason)
+        ctx.bounce(
+            sent.sender, data['recipient'], data['category'], data['dsn'], reason, sent.campaign
+        )
     # One event per (message, recipient, outcome, log line): a retry is a new deferral.
     event_id = 'evt_' + _short_hash(f'{sent.message_id}|{status["to"]}|{kind}|{line}')
     return ctx.emit(webhooks.Event(kind, data, key_prefix=sent.key_prefix, event_id=event_id))
@@ -295,7 +353,7 @@ class _Batch:
         self._linked: dict[str, str] = {}  # links made in this read, kept for its later lines
         self._unwritten_links: dict[str, str] = {}
         self._counts: dict[str, list[int]] = {}
-        self._bounces: list[tuple[str, str, str, str, str]] = []
+        self._bounces: list[tuple[str, str, str, str, str, str]] = []
         self._events: list[webhooks.Event] = []
 
     def parse(self, line: str) -> _Parsed:
@@ -322,8 +380,10 @@ class _Batch:
         totals[0] += delivered
         totals[1] += bounced
 
-    def bounce(self, sender: str, recipient: str, category: str, dsn: str, reason: str) -> None:
-        self._bounces.append((sender, recipient, category, dsn, reason))
+    def bounce(
+        self, sender: str, recipient: str, category: str, dsn: str, reason: str, campaign: str = ''
+    ) -> None:
+        self._bounces.append((sender, recipient, category, dsn, reason, campaign))
 
     def emit(self, event: webhooks.Event) -> int:
         self._events.append(event)
@@ -335,7 +395,7 @@ class _Batch:
         Each part is cleared once written, so a flush that is interrupted and then repeated
         (the soft time limit stops a scan part-way) does not write anything twice.
         """
-        from backend.apps.mail.services import compliance
+        from backend.apps.mail.services import compliance, marketing
 
         if self._unwritten_links:
             try:
@@ -353,7 +413,9 @@ class _Batch:
         if bounces:
             try:
                 current = compliance.settings()
-                for bounce in bounces:
+                for *bounce, campaign in bounces:
+                    if campaign:
+                        marketing.note_bounce(campaign, *bounce)
                     compliance.note_bounce(*bounce, current=current)
             except Exception:
                 logger.warning('Delivery events: bounces could not be recorded', exc_info=True)

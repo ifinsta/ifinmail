@@ -437,7 +437,119 @@ class SandboxMessageV1(Schema):
         )
 
 
+class CampaignRecipientIn(Schema):
+    """One person a campaign goes to, with the values for the message's ``{{merge}}`` tags."""
+
+    email: str
+    merge: dict[str, str | int | float | None] = Field(default_factory=dict)
+
+
+class CampaignIn(Schema):
+    """``POST /campaigns``: one message, many recipients, one email each (Marketing plugin).
+
+    The subject, text and html may hold ``{{name}}`` tags (``{{name|fallback}}`` for a person
+    with no value). ``{{email}}`` and ``{{unsubscribe_url}}`` are always available. The footer with
+    your postal address and the unsubscribe link is added to every email.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: str = Field(alias='from', description="The sender; one of the key's allowed senders.")
+    name: str = Field(default='', max_length=120, description='Your own label for the campaign.')
+    subject: str = Field(min_length=1, max_length=255)
+    text: str | None = Field(default=None, max_length=1_000_000)
+    html: str | None = Field(default=None, max_length=1_000_000)
+    reply_to: str | None = None
+    recipients: list[CampaignRecipientIn] = Field(min_length=1, max_length=100_000)
+
+
+class CampaignCreatedV1(Schema):
+    """The campaign exists and is being sent at the server's pace; nothing is sent in this call."""
+
+    id: str
+    status: str  # sending
+    queued: int  # recipients that will be sent to
+    skipped: dict[str, int]  # reason -> how many were left out (suppressed, opted_out, ...)
+
+
+class CampaignV1(Schema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    name: str
+    status: str  # sending | paused | completed | cancelled
+    status_detail: str  # why it is paused
+    from_: str = Field(alias='from')
+    subject: str
+    created_at: str
+    finished_at: str | None
+    # Recipients by status: pending, sending, sent, failed, skipped.
+    recipients: dict[str, int]
+    bounce_rate: float | None  # percent of what was sent that bounced, so far
+
+    @classmethod
+    def of(cls, row, counts: dict[str, int], bounce_rate: float | None) -> CampaignV1:  # noqa: ANN001
+        return cls(
+            id=str(row.pk),
+            name=row.name,
+            status=row.status,
+            status_detail=row.status_detail,
+            from_=row.sender,
+            subject=row.subject,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+            finished_at=row.finished_at.isoformat(timespec='seconds') if row.finished_at else None,
+            recipients=counts,
+            bounce_rate=bounce_rate,
+        )
+
+
+class CampaignRecipientV1(Schema):
+    email: str
+    status: str  # pending | sending | sent | failed | skipped
+    detail: str  # why it was skipped or failed
+    message_id: str
+    sent_at: str | None
+
+    @classmethod
+    def of(cls, row) -> CampaignRecipientV1:  # noqa: ANN001
+        return cls(
+            email=row.address,
+            status=row.status,
+            detail=row.detail,
+            message_id=row.message_id,
+            sent_at=row.sent_at.isoformat(timespec='seconds') if row.sent_at else None,
+        )
+
+
+class MarketingOptOutV1(Schema):
+    domain: str  # our sending domain
+    address: str
+    source: str  # one-click | api | manual
+    created_at: str
+
+    @classmethod
+    def of(cls, row) -> MarketingOptOutV1:  # noqa: ANN001
+        return cls(
+            domain=row.domain,
+            address=row.address,
+            source=row.source,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+        )
+
+
+class MarketingOptOutCreateV1(Schema):
+    address: str
+    domain: str  # one of the domains the key may send from
+
+
 __all__ = [
+    'CampaignCreatedV1',
+    'CampaignIn',
+    'CampaignRecipientIn',
+    'CampaignRecipientV1',
+    'CampaignV1',
+    'MarketingOptOutCreateV1',
+    'MarketingOptOutV1',
     'SuppressionCreateV1',
     'SuppressionV1',
     'ApprovalDecisionV1',

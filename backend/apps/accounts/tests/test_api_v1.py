@@ -827,6 +827,16 @@ class ContractTests(ApiBase):
                 'subject': 's',
                 'text': 't',
             },
+            ('POST', '/campaigns'): {
+                'from': 'a@ifinmail.test',
+                'subject': 's',
+                'text': 't',
+                'recipients': [{'email': 'b@example.org'}],
+            },
+            ('POST', '/marketing/opt-outs'): {
+                'address': 'a@example.org',
+                'domain': 'ifinmail.test',
+            },
         }
         refused = 0
         for op in ops:

@@ -5,6 +5,7 @@ access are read-only here (see ``viewsets.mailboxes.ensure_plain``); the plain r
 stay for in-process callers and tests.
 """
 
+import uuid
 from typing import Annotated
 
 from django.core.cache import cache
@@ -20,6 +21,12 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    CampaignCreatedV1,
+    CampaignIn,
+    CampaignRecipientV1,
+    CampaignV1,
+    MarketingOptOutCreateV1,
+    MarketingOptOutV1,
     SuppressionCreateV1,
     SuppressionV1,
     ApprovalDecisionV1,
@@ -45,7 +52,10 @@ from backend.apps.mail.serializers import (
     MessageAcceptedV1,
     MessageIn,
 )
+from backend.apps.mail.models import Campaign, CampaignRecipient, MarketingOptOut
+from backend.apps.mail.services import marketing
 from backend.apps.mail.services.mailboxes import split_address
+from backend.apps.mail.services.messages import address as clean_address
 from backend.apps.mail.services.messages import (
     MessageService,
     SendingKey,
@@ -78,7 +88,20 @@ from .viewsets import (
 import logging
 
 logger = logging.getLogger('backend')
-router = Router(tags=['mailboxes', 'aliases', 'messages', 'sandbox', 'webhooks', 'inboxes', 'approvals', 'suppressions'])
+router = Router(
+    tags=[
+        'mailboxes',
+        'aliases',
+        'messages',
+        'sandbox',
+        'webhooks',
+        'inboxes',
+        'approvals',
+        'suppressions',
+        'campaigns',
+        'marketing',
+    ]
+)
 IDEMPOTENCY_TTL = 24 * 3600
 
 
@@ -880,6 +903,296 @@ def api_remove_suppression(request: ApiRequest, domain: str, address: str) -> St
     if not compliance.unsuppress(domain, address):
         raise HttpError(404, 'That recipient is not suppressed for that domain.')
     AuditService.record(action='api_suppression_removed', user=actor(request), detail=f'{address} ({domain})')
+    return Status(204, None)
+
+
+# ------------------------------------------------------------------------------ marketing
+# Scope marketing.send (Marketing plugin). A key sees and controls only the campaigns it created;
+# a key with mail.manage sees all of them.
+
+
+class _Mapped:
+    """A queryset that turns only the page being returned into schemas (see ``paginate``)."""
+
+    def __init__(self, queryset, convert) -> None:  # noqa: ANN001
+        self._queryset = queryset
+        self._convert = convert
+
+    def __len__(self) -> int:
+        return self._queryset.count()
+
+    def __getitem__(self, index: slice):  # noqa: ANN204
+        if not isinstance(index, slice):
+            raise TypeError('only slices are supported')
+        return self._convert(list(self._queryset[index]))
+
+
+def _campaign_key(request: ApiRequest) -> marketing.CampaignKey:
+    row = request.auth.row
+    return marketing.CampaignKey(
+        prefix=row.prefix,
+        name=row.name,
+        allowed_senders=tuple(row.allowed_senders or ()),
+        sandbox=row.sandbox,
+    )
+
+
+def _campaigns(request: ApiRequest):  # noqa: ANN202
+    rows = Campaign.objects.all()
+    if 'mail.manage' not in (request.auth.row.scopes or []):
+        rows = rows.filter(key_prefix=request.auth.row.prefix)
+    return rows
+
+
+def _campaign(request: ApiRequest, campaign_id: str) -> Campaign:
+    try:
+        wanted = uuid.UUID(campaign_id)
+    except ValueError:
+        raise HttpError(404, 'No such campaign.') from None
+    found = _campaigns(request).filter(pk=wanted).first()
+    if found is None:
+        raise HttpError(404, 'No such campaign.')
+    return found
+
+
+def _campaign_page(rows: list[Campaign]) -> list[CampaignV1]:
+    counts = marketing.counts_for(rows)
+    return [
+        CampaignV1.of(
+            row,
+            counts[row.pk],
+            marketing.bounce_rate(row, counts[row.pk][CampaignRecipient.SENT])[0],
+        )
+        for row in rows
+    ]
+
+
+@router.post(
+    '/campaigns',
+    response={202: CampaignCreatedV1, **errors(403, 409, 413, 422)},
+    summary='Create a marketing campaign',
+)
+@require_scope('marketing.send')
+def api_create_campaign(
+    request: ApiRequest,
+    payload: CampaignIn,
+    idempotency_key: Annotated[str | None, Header(alias='Idempotency-Key')] = None,
+) -> Status[CampaignCreatedV1]:
+    """Send one message to many recipients, one email each, over time.
+
+    Nothing is sent in this call: the campaign is created and the server sends it at the pace the
+    Marketing plugin allows (emails per minute, a daily ceiling that grows while warming up). Each
+    person gets a personal unsubscribe link, and unsubscribing stops marketing mail only. People
+    on the suppression or marketing opt-out lists, blocked destinations, and recipients missing a
+    value for a merge tag are left out, and ``skipped`` says how many and why. An
+    ``Idempotency-Key`` header (up to 64 characters) makes a retry return the first answer instead
+    of creating the campaign twice.
+    """
+    row = request.auth.row
+    token = (idempotency_key or '').strip()
+    if len(token) > 64:
+        raise HttpError(422, 'The Idempotency-Key is limited to 64 characters.')
+    slot = f'apiidem:{key_id(row.prefix)}:campaign:{token}' if token else ''
+    fingerprint = digest(payload.model_dump_json(by_alias=True))
+    if slot:
+        previous = cache.get(slot)
+        if isinstance(previous, dict):
+            if previous.get('fingerprint') != fingerprint:
+                raise HttpError(422, 'That Idempotency-Key was used with a different campaign.')
+            if previous.get('state') == 'pending':
+                raise HttpError(409, 'A request with this Idempotency-Key is still in progress.')
+            return Status(202, CampaignCreatedV1(**previous['receipt']))
+        cache.set(slot, {'state': 'pending', 'fingerprint': fingerprint}, 3600)
+    campaign_request = marketing.CampaignRequest(
+        sender=payload.from_,
+        subject=payload.subject,
+        text=payload.text,
+        html=payload.html,
+        reply_to=payload.reply_to,
+        name=payload.name,
+        recipients=tuple(
+            marketing.RecipientIn(address=item.email, merge=item.merge)
+            for item in payload.recipients
+        ),
+    )
+    try:
+        created = marketing.create(campaign_request, _campaign_key(request))
+    except SendRefused as exc:
+        if slot:
+            cache.delete(slot)
+        raise HttpError(exc.status, exc.message) from exc
+    accepted = CampaignCreatedV1(
+        id=str(created.campaign.pk),
+        status=created.campaign.status,
+        queued=created.queued,
+        skipped=created.skipped,
+    )
+    if slot:
+        cache.set(
+            slot,
+            {'state': 'done', 'fingerprint': fingerprint, 'receipt': accepted.model_dump()},
+            IDEMPOTENCY_TTL,
+        )
+    AuditService.record(
+        action='api_campaign_created',
+        user=actor(request),
+        detail=(
+            f'{created.campaign.sender} -> {created.queued} recipient(s), '
+            f'{sum(created.skipped.values())} skipped [{created.campaign.pk}]'
+        ),
+    )
+    return Status(202, accepted)
+
+
+@router.get(
+    '/campaigns', response={200: list[CampaignV1], **errors()}, summary='List campaigns',
+    by_alias=True,
+)
+@paginate(LimitOffsetPagination)
+@require_scope('marketing.send')
+def api_campaigns(request: ApiRequest, status: str = '') -> _Mapped:
+    """The campaigns this key created, newest first (all of them with ``mail.manage``)."""
+    rows = _campaigns(request)
+    if status:
+        rows = rows.filter(status=status)
+    return _Mapped(rows, _campaign_page)
+
+
+@router.get(
+    '/campaigns/{campaign_id}',
+    response={200: CampaignV1, **errors(404)},
+    summary='Get a campaign and its progress',    by_alias=True,
+)
+@require_scope('marketing.send')
+def api_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
+    return _campaign_page([_campaign(request, campaign_id)])[0]
+
+
+def _change(request: ApiRequest, campaign_id: str, action: str) -> CampaignV1:
+    campaign = _campaign(request, campaign_id)
+    states = {
+        'pause': (marketing.pause, 'Only a campaign that is sending can be paused.'),
+        'resume': (marketing.resume, 'Only a paused campaign can be resumed.'),
+        'cancel': (marketing.cancel, 'That campaign is already over.'),
+    }
+    function, refusal = states[action]
+    if not function(campaign):
+        raise HttpError(409, refusal)
+    AuditService.record(
+        action=f'api_campaign_{action}', user=actor(request), detail=str(campaign.pk)
+    )
+    campaign.refresh_from_db()
+    return _campaign_page([campaign])[0]
+
+
+@router.post(
+    '/campaigns/{campaign_id}/pause',
+    response={200: CampaignV1, **errors(404, 409)},
+    summary='Pause a campaign',    by_alias=True,
+)
+@require_scope('marketing.send')
+def api_pause_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
+    """Stop sending until it is resumed. What was already sent stays sent."""
+    return _change(request, campaign_id, 'pause')
+
+
+@router.post(
+    '/campaigns/{campaign_id}/resume',
+    response={200: CampaignV1, **errors(404, 409)},
+    summary='Resume a paused campaign',    by_alias=True,
+)
+@require_scope('marketing.send')
+def api_resume_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
+    return _change(request, campaign_id, 'resume')
+
+
+@router.post(
+    '/campaigns/{campaign_id}/cancel',
+    response={200: CampaignV1, **errors(404, 409)},
+    summary='Cancel a campaign',    by_alias=True,
+)
+@require_scope('marketing.send')
+def api_cancel_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
+    """End it for good: what has not been sent will not be."""
+    return _change(request, campaign_id, 'cancel')
+
+
+@router.get(
+    '/campaigns/{campaign_id}/recipients',
+    response={200: list[CampaignRecipientV1], **errors(404)},
+    summary='List a campaign\'s recipients and what became of each',
+)
+@paginate(LimitOffsetPagination)
+@require_scope('marketing.send')
+def api_campaign_recipients(
+    request: ApiRequest, campaign_id: str, status: str = ''
+) -> _Mapped:
+    rows = _campaign(request, campaign_id).recipients.order_by('pk')
+    if status:
+        rows = rows.filter(status=status)
+    return _Mapped(rows, lambda page: [CampaignRecipientV1.of(r) for r in page])
+
+
+@router.get(
+    '/marketing/opt-outs',
+    response={200: list[MarketingOptOutV1], **errors()},
+    summary='List people who opted out of marketing mail',
+)
+@paginate(LimitOffsetPagination)
+@require_scope('marketing.send')
+def api_marketing_opt_outs(request: ApiRequest, address: str = '') -> list[MarketingOptOutV1]:
+    """Marketing opt-outs for the domains this key sends from (all with ``mail.manage``).
+
+    Separate from suppressions: these people still get receipts and password resets.
+    """
+    rows = MarketingOptOut.objects.all()
+    domains = _sending_domains(request)
+    if domains is not None:
+        rows = rows.filter(domain__in=domains)
+    if address:
+        rows = rows.filter(address=address.strip().lower())
+    return [MarketingOptOutV1.of(row) for row in rows[:1000]]
+
+
+@router.post(
+    '/marketing/opt-outs',
+    response={201: MarketingOptOutV1, **errors(403, 409, 422)},
+    summary='Record that someone opted out of marketing mail',
+)
+@require_scope('marketing.send')
+def api_add_marketing_opt_out(
+    request: ApiRequest, payload: MarketingOptOutCreateV1
+) -> Status[MarketingOptOutV1]:
+    """For your application's own unsubscribes: the address is not mailed by campaigns again."""
+    domains = _sending_domains(request)
+    domain = payload.domain.strip().lower()
+    if domains is not None and domain not in domains:
+        raise HttpError(403, f'This key does not send from {domain}.')
+    try:
+        clean = clean_address(payload.address)
+    except SendRefused as exc:
+        raise HttpError(422, exc.message) from exc
+    if not marketing.opt_out(domain, clean, MarketingOptOut.API):
+        raise HttpError(409, f'{clean} has already opted out of marketing mail from {domain}.')
+    row = MarketingOptOut.objects.get(domain=domain, address=clean)
+    return Status(201, MarketingOptOutV1.of(row))
+
+
+@router.delete(
+    '/marketing/opt-outs/{domain}/{address}',
+    response={204: None, **errors(404)},
+    summary='Remove a marketing opt-out',
+)
+@require_scope('mail.manage')
+def api_remove_marketing_opt_out(
+    request: ApiRequest, domain: str, address: str
+) -> Status[None]:
+    """Only with proof the person asked to hear from you again: it undoes their unsubscribe."""
+    if not marketing.remove_opt_out(domain, address):
+        raise HttpError(404, 'That address has not opted out for that domain.')
+    AuditService.record(
+        action='api_marketing_opt_out_removed', user=actor(request), detail=f'{address} ({domain})'
+    )
     return Status(204, None)
 
 

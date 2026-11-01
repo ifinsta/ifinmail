@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.core.storage.views.media import media as storage_media
 from backend.apps.mail.views.mcp import mcp
-from backend.apps.mail.views.unsubscribe import unsubscribe
+from backend.apps.mail.views.unsubscribe import marketing_unsubscribe, unsubscribe
 from backend.apps.mail.web import autoconfig_mozilla, autoconfig_outlook, mta_sts_policy
 from backend.config import api_versions, public_pages
 from backend.config.branding import DEFAULT_BRAND_NAME
@@ -160,6 +160,8 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     # One-click unsubscribe for mail sent through the API (Sender compliance plugin, RFC 8058).
     path('unsubscribe/<str:token>/', unsubscribe, name='unsubscribe'),
+    # The same for campaign email (Marketing plugin): stops marketing mail only.
+    path('unsubscribe/m/<str:token>/', marketing_unsubscribe, name='marketing_unsubscribe'),
     # Model Context Protocol endpoint for AI agents (Agent gateway plugin).
     path('mcp', mcp, name='mcp'),
     # App releases: what devices poll, the newest-build permalink and the console page

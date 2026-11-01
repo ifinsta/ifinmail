@@ -80,6 +80,29 @@ def deliver_webhooks(delivery_ids: list[str]) -> int:
 
 
 @shared_task(
+    name='mail.run_campaigns',
+    soft_time_limit=SCAN_SOFT_TIME_LIMIT,
+    time_limit=SCAN_TIME_LIMIT,
+)
+def run_campaigns() -> dict[str, object]:
+    """Send the emails of running campaigns that the Marketing plugin's pace allows.
+
+    Runs every minute."""
+    from dataclasses import asdict
+
+    from .services import campaign_runner
+
+    try:
+        return asdict(campaign_runner.run())
+    except SoftTimeLimitExceeded:
+        logger.warning('Campaign runner hit its time limit; the rest follows on the next run')
+        return {}
+    except Exception:
+        logger.warning('Campaign runner failed', exc_info=True)
+        return {}
+
+
+@shared_task(
     name='mail.sweep_webhooks',
     soft_time_limit=SCAN_SOFT_TIME_LIMIT,
     time_limit=SCAN_TIME_LIMIT,

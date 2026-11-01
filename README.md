@@ -235,8 +235,10 @@ checked twice (by the console and by the container that applies it).
     and a cap on forwarding rules.
   - *Mailbox care*: empty Trash and Junk (and optionally Sent) after a number of days, and warn
     people at 80% and 95% of their quota.
+  - *Marketing*: campaigns to many people, one email each, with a personal unsubscribe and paced
+    sending; installed by default (see [Marketing campaigns](#marketing-campaigns)).
 
-  All three are safe to install unchanged (defaults follow Google Workspace and Microsoft 365, lists
+  The first four are safe to install unchanged (defaults follow Google Workspace and Microsoft 365, lists
   start empty), and each part can be switched off on its own inside the plugin.
 - **Your own:** Marketplace → Submit a plugin. Someone with `system.manage` approves or rejects it;
   nothing is approved automatically and nothing is fetched from outside the server.
@@ -245,6 +247,95 @@ checked twice (by the console and by the container that applies it).
 - Authoring guide, state machines and the 331 handled edge cases:
   `.agents/skills/ifinmail-plugins/`. In a development checkout, check a manifest with
   `python manage.py validate_plugin path/to/plugin.toml`.
+
+### Marketing campaigns
+
+Marketing mail is built in. A receipt goes to one person who just bought something; a newsletter
+goes to thousands who may or may not want it, and Gmail, Yahoo and Microsoft judge the sender by
+how they react. Sending one `POST /messages` per person does not work for that (a bulk message
+must go to one recipient, the per-key cap is 500 recipients a day, and Outbound policy's
+30-a-minute limit and containment would stop a newsletter), so the **Marketing** plugin, installed
+by default, adds campaigns: one message to a list, one email each, sent over time.
+
+**Set it up once.** Campaigns carry your postal address in every footer, as the law in many
+countries requires (CAN-SPAM), so an administrator enters it under *Marketplace → Marketing →
+Postal address for the footer*. Until then `POST /campaigns` answers `409` and says so. Then create
+a key with the `marketing.send` scope and the addresses it may send as. That scope is separate from
+`mail.send` on purpose: a leaked transactional key cannot mail a list, and a campaign key cannot
+send a password reset.
+
+```bash
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns \
+  -H 'Content-Type: application/json' -H 'Idempotency-Key: spring-2026' \
+  -d '{"from":"news@example.com","name":"Spring sale",
+       "subject":"Spring sale, {{first_name|friend}}",
+       "text":"Hi {{first_name|friend}}, the sale starts today.",
+       "html":"<p>Hi {{first_name|friend}}, the sale starts today.</p>",
+       "recipients":[{"email":"ana@example.org","merge":{"first_name":"Ana"}},
+                     {"email":"bob@example.org"}]}'
+```
+
+The answer is `202` with `{"id", "status": "sending", "queued": n, "skipped": {...}}`. **Nothing is
+sent in the call**; the server sends the campaign over time. The subject, text and html may hold
+`{{name}}` tags filled from each recipient's `merge` values, `{{name|fallback}}` for a person with
+no value, and `{{email}}` and `{{unsubscribe_url}}` for everyone. Values are escaped in HTML, a
+subject stays on one line, and a tag that no recipient has a value for (a typo) refuses the
+campaign. A person missing a value that has no fallback is skipped instead of being greeted with
+"Hi ,". `GET /campaigns/{id}` shows progress, `GET /campaigns/{id}/recipients?status=skipped` shows
+who was left out and why, and `POST /campaigns/{id}/pause`, `/resume` and `/cancel` control it.
+[`examples/python/11_marketing_campaign.py`](examples/python/11_marketing_campaign.py) sends one
+from a CSV.
+
+**Who is left out.** At creation, and again just before each email (somebody can unsubscribe in
+between): addresses on the suppression list (an address that bounced for good, whether or not
+Sender compliance is installed), people who opted out of marketing, destinations Outbound policy
+blocks, invalid and duplicate addresses. `skipped` says how many of each. A campaign from a
+mailbox Outbound policy limits to internal mail is refused.
+
+**Unsubscribing stops marketing only.** Every email has a footer with your postal address and a
+personal unsubscribe link, plus the `List-Unsubscribe` and `List-Unsubscribe-Post` headers mail
+apps use for their own Unsubscribe button. The link's page asks for one click (a link scanner that
+opens it unsubscribes no one); the one-click POST records a **marketing opt-out**, separate from the
+suppression list, which stops all API mail. The person keeps getting receipts and password resets.
+Your application can record its own unsubscribes with `POST /marketing/opt-outs`; removing one
+(`DELETE`, scope `mail.manage`) undoes someone's consent, so it needs more than `marketing.send`.
+
+**How it is sent.** A job (`mail.run_campaigns`, every minute) works through the campaigns that
+are sending.
+
+- **The pace is per clock minute.** The plugin's *Emails per minute* (60 by default, up to 6,000)
+  less what any run already sent in this minute, so extra runs in the same minute add nothing.
+  Several campaigns share the budget. Emails that reach the mail system count, accepted or refused;
+  people skipped for the lists never do.
+- **The daily ceiling grows.** *Emails per day* (2,000 by default), and with *Warm up gradually*
+  on, the ceiling starts at *Emails allowed on the first sending day* (200) and grows by half each
+  day until it reaches it, because a sender that has never mailed anyone and suddenly mails
+  thousands is treated as a spammer.
+- **The transactional limits do not apply.** Campaign mail is not counted against the key's daily
+  cap or Outbound policy's per-minute and per-day limits, and it does not feed containment, which
+  would pause a mailbox for sending a newsletter. It has the pace, the ceiling and the safeguards
+  below instead. Allowed senders, hosted domains, blocked destinations and a sender paused by
+  containment still apply.
+- **A person is never mailed twice.** Each recipient is claimed with one conditional update right
+  before their email, so two runs that overlap cannot both send it. A worker that dies (`kill -9`
+  was tested on a live stack) leaves at most the one email in flight in doubt: it is marked
+  `failed` with "interrupted: may or may not have been sent", and everyone else stays pending and
+  goes out on the next run. A duplicate marketing email is judged worse than a rare miss, so
+  nothing is retried automatically. If the mail system cannot be reached, nothing was sent and the
+  next run tries again.
+- **A campaign stops itself.** It pauses, with the reason in `status_detail`, when the mail system
+  refuses 20 emails in a row (the rest of the list stays pending, not failed); when its sender is
+  paused by containment; when its key is paused by Sender compliance's bounce guard; and when more
+  than 5% of what it has sent (at least 100 emails) has bounced. A hard bounce (the address does
+  not exist) adds the address to the suppression list, whichever plugins are installed. Resume it
+  after fixing the cause, or cancel it.
+- **Events.** With the Delivery events plugin, each campaign email produces the same
+  `message.queued`, `message.delivered`, `message.deferred` and `message.bounced` webhook events as
+  other API mail; `message.queued` also carries the campaign id.
+
+Limits of what is built: a campaign carries its recipients in the request (up to *Most recipients
+in one campaign*, 10,000 by default, 100,000 at most); there are not yet contact lists or import,
+reusable templates, scheduled sends, open and click tracking, or attachments.
 
 ### Assistant
 
@@ -367,6 +458,8 @@ They run against the real API in the test suite, so they cannot drift from it.
 | `mail.send` | `POST /messages`; with the Developer sandbox plugin `GET/DELETE /sandbox/messages`, `GET /sandbox/messages/{id}`; with Delivery events `GET/POST /webhooks`, `DELETE /webhooks/{id}`, `POST /webhooks/{id}/test`, `POST /webhooks/{id}/enable`, `GET /webhooks/{id}/deliveries` |
 | `mail.send` (approvals) | Human approval plugin: `GET /approvals`, `GET /approvals/{id}` (own messages; every key's with `mail.manage`) |
 | `mail.manage` (approvals) | `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` (never a key's own messages) |
+| `marketing.send` | Marketing plugin: `POST/GET /campaigns`, `GET /campaigns/{id}`, `POST /campaigns/{id}/pause`, `/resume`, `/cancel`, `GET /campaigns/{id}/recipients`, `GET/POST /marketing/opt-outs` (a key sees only its own campaigns; all with `mail.manage`) |
+| `mail.manage` (marketing) | `DELETE /marketing/opt-outs/{domain}/{address}` (undoes someone's unsubscribe) |
 | `mail.send` (suppressions) | Sender compliance plugin: `GET/POST /suppressions` (domains the key sends from; all with `mail.manage`), `DELETE /suppressions/{domain}/{address}` (`mail.manage`) |
 | `agents.manage` | Agent inboxes plugin: `GET/POST /inboxes`, `GET/DELETE /inboxes/{address}`, `GET /inboxes/{address}/messages`, `GET/DELETE /inboxes/{address}/messages/{uid}`, `GET /inboxes/{address}/messages/{uid}/code`, `GET /inboxes/{address}/wait` (only inboxes the key created) |
 | any of the above | Agent gateway plugin: `POST /mcp` (Model Context Protocol); the tools offered follow the key's scopes |

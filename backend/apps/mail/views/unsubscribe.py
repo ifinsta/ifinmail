@@ -13,8 +13,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
-from backend.apps.mail.models import Suppression
-from backend.apps.mail.services import compliance
+from backend.apps.mail.models import MarketingOptOut, Suppression
+from backend.apps.mail.services import compliance, marketing
 
 
 @csrf_exempt
@@ -33,4 +33,34 @@ def unsubscribe(request: HttpRequest, token: str) -> HttpResponse:
         request,
         'mail/unsubscribe.html',
         {'state': 'done' if already else 'ask', 'domain': domain, 'address': address},
+    )
+
+
+@csrf_exempt
+def marketing_unsubscribe(request: HttpRequest, token: str) -> HttpResponse:
+    """The same one-click flow for a campaign email (Marketing plugin).
+
+    It records a *marketing* opt-out: the person stops getting campaigns from this domain and
+    keeps getting everything else (receipts, password resets), which the suppression list of
+    Sender compliance would also have blocked.
+    """
+    context = {'kind': 'marketing'}
+    found = marketing.read_optout_token(token)
+    if found is None:
+        return render(request, 'mail/unsubscribe.html', {**context, 'state': 'invalid'}, status=404)
+    domain, address = found
+    if request.method == 'POST':
+        marketing.opt_out(domain, address)
+        return render(
+            request,
+            'mail/unsubscribe.html',
+            {**context, 'state': 'done', 'domain': domain, 'address': address},
+        )
+    if request.method not in ('GET', 'HEAD'):
+        return HttpResponse(status=405)
+    already = MarketingOptOut.objects.filter(domain=domain, address=address).exists()
+    return render(
+        request,
+        'mail/unsubscribe.html',
+        {**context, 'state': 'done' if already else 'ask', 'domain': domain, 'address': address},
     )

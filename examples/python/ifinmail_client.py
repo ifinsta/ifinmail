@@ -303,6 +303,87 @@ class Client:
     def suppressions(self, address: str = '') -> Iterator[dict[str, Any]]:
         return self.paged('/api/v1/suppressions', address=address or None)
 
+    # ------------------------------------------------------------------ Operations: marketing
+    # Needs the Marketing plugin (installed by default) and a key with the marketing.send scope.
+
+    def create_campaign(
+        self,
+        sender: str,
+        subject: str,
+        recipients: list[dict[str, Any]],
+        *,
+        text: str | None = None,
+        html: str | None = None,
+        reply_to: str | None = None,
+        name: str = '',
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Send one message to many people, one email each, over time.
+
+        ``recipients`` is ``[{"email": "ana@example.org", "merge": {"first_name": "Ana"}}, ...]``.
+        The subject, text and html may hold ``{{first_name}}`` or ``{{first_name|friend}}`` tags.
+        Nothing is sent in this call: ``{"id", "status": "sending", "queued": n, "skipped": {...}}``
+        says what the server will send (``skipped`` counts people left out and why). The same
+        ``idempotency_key`` returns the first answer instead of creating the campaign twice; one is
+        generated when you do not pass one, so this call is safe to retry.
+        """
+        body: dict[str, Any] = {
+            'from': sender,
+            'subject': subject,
+            'recipients': recipients,
+            'name': name,
+        }
+        for field, value in (('text', text), ('html', html), ('reply_to', reply_to)):
+            if value is not None:
+                body[field] = value
+        key = idempotency_key or uuid.uuid4().hex
+        return self.request(
+            'POST', '/api/v1/campaigns', json=body, headers={'Idempotency-Key': key}
+        )
+
+    def campaign(self, campaign_id: str) -> dict[str, Any]:
+        """Progress: the status (sending, paused, completed, cancelled), recipients by status and
+        the bounce rate so far."""
+        return self.request('GET', f'/api/v1/campaigns/{campaign_id}')
+
+    def campaigns(self, status: str = '') -> Iterator[dict[str, Any]]:
+        return self.paged('/api/v1/campaigns', status=status or None)
+
+    def campaign_recipients(self, campaign_id: str, status: str = '') -> Iterator[dict[str, Any]]:
+        """What became of each person (``status``: pending, sent, failed or skipped, and why)."""
+        return self.paged(f'/api/v1/campaigns/{campaign_id}/recipients', status=status or None)
+
+    def pause_campaign(self, campaign_id: str) -> dict[str, Any]:
+        return self.request('POST', f'/api/v1/campaigns/{campaign_id}/pause', json={})
+
+    def resume_campaign(self, campaign_id: str) -> dict[str, Any]:
+        return self.request('POST', f'/api/v1/campaigns/{campaign_id}/resume', json={})
+
+    def cancel_campaign(self, campaign_id: str) -> dict[str, Any]:
+        return self.request('POST', f'/api/v1/campaigns/{campaign_id}/cancel', json={})
+
+    def wait_for_campaign(
+        self, campaign_id: str, timeout: float = 3600, every: float = 30
+    ) -> dict[str, Any]:
+        """Poll until the campaign is completed or cancelled (or ``timeout``); returns the last
+        state seen."""
+        deadline = time.monotonic() + timeout
+        while True:
+            state = self.campaign(campaign_id)
+            if state['status'] in ('completed', 'cancelled') or time.monotonic() >= deadline:
+                return state
+            time.sleep(every)
+
+    def opt_out(self, address: str, domain: str) -> dict[str, Any]:
+        """Record that this person does not want marketing mail from ``domain`` (your app's own
+        unsubscribes). Receipts and other account mail still reach them."""
+        return self.request(
+            'POST', '/api/v1/marketing/opt-outs', json={'address': address, 'domain': domain}
+        )
+
+    def opt_outs(self, address: str = '') -> Iterator[dict[str, Any]]:
+        return self.paged('/api/v1/marketing/opt-outs', address=address or None)
+
     # ------------------------------------------------------------------ Operations: sandbox
 
     def sandbox_messages(self, to: str | None = None) -> Iterator[dict[str, Any]]:

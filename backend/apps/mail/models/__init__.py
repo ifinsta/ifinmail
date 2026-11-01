@@ -209,3 +209,86 @@ class Suppression(models.Model):
 
     def __str__(self) -> str:
         return f'{self.address} (from {self.domain}: {self.reason})'
+
+
+class Campaign(models.Model):
+    """One marketing message sent to many recipients, one email each (Marketing plugin).
+
+    Created by an API key with ``marketing.send`` and worked through by the campaign runner at the
+    pace the Marketing plugin allows. The body may hold ``{{merge}}`` tags filled in per recipient.
+    """
+
+    SENDING, PAUSED, COMPLETED, CANCELLED = 'sending', 'paused', 'completed', 'cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120, blank=True, default='')
+    key_prefix = models.CharField(max_length=16, db_index=True)  # the key that made it
+    key_name = models.CharField(max_length=64, blank=True, default='')
+    sender = models.CharField(max_length=254)
+    reply_to = models.CharField(max_length=254, blank=True, default='')
+    subject = models.CharField(max_length=255)
+    text = models.TextField(blank=True, default='')
+    html = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=12, default=SENDING, db_index=True)
+    status_detail = models.CharField(max_length=300, blank=True, default='')  # why it is paused
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'mail_campaign'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name or self.subject} ({self.status})'
+
+
+class CampaignRecipient(models.Model):
+    """One person a campaign goes to, and what became of it."""
+
+    PENDING, SENDING, SENT, FAILED, SKIPPED = 'pending', 'sending', 'sent', 'failed', 'skipped'
+
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='recipients')
+    address = models.CharField(max_length=254)
+    merge = models.JSONField(default=dict, blank=True)  # this person's merge-tag values
+    status = models.CharField(max_length=10, default=PENDING)
+    detail = models.CharField(max_length=300, blank=True, default='')  # why skipped or failed
+    message_id = models.CharField(max_length=255, blank=True, default='')
+    claim_token = models.CharField(max_length=36, blank=True, default='')
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = 'mail_campaign_recipient'
+        constraints = [
+            models.UniqueConstraint(fields=['campaign', 'address'], name='campaign_recipient_once')
+        ]
+        indexes = [models.Index(fields=['campaign', 'status'], name='campaign_status_idx')]
+
+    def __str__(self) -> str:
+        return f'{self.address} ({self.status})'
+
+
+class MarketingOptOut(models.Model):
+    """Someone who does not want marketing mail from one of our domains.
+
+    Separate from ``Suppression`` on purpose: that list stops *all* API mail from the domain, which
+    is right for an address that does not exist but wrong for a person who unsubscribed from a
+    newsletter and still needs their receipts and password resets.
+    """
+
+    ONE_CLICK, API, MANUAL = 'one-click', 'api', 'manual'
+
+    domain = models.CharField(max_length=253)  # our sending domain
+    address = models.CharField(max_length=254)
+    source = models.CharField(max_length=20, default=ONE_CLICK)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_marketing_optout'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['domain', 'address'], name='marketing_optout_once')
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.address} (no marketing from {self.domain})'

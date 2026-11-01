@@ -145,6 +145,15 @@ def _one_domain(value: str) -> str | None:
     return None if _DOMAIN_RE.match(value) else 'must be one domain name'
 
 
+def _postal_address(value: str) -> str | None:
+    """A sender's postal address for the footer of marketing mail: one line of plain text."""
+    if not 5 <= len(value) <= 300:
+        return 'must be 5 to 300 characters'
+    if any(ch in value for ch in '<>'):
+        return 'must be plain text (no < or >)'
+    return None
+
+
 def _int_between(low: int, high: int):
     def check(value: str) -> str | None:
         if not value.isdigit() or not low <= int(value) <= high:
@@ -390,6 +399,25 @@ class DeveloperTarget(AdapterTarget):
         ),
         'gateway_enabled': TargetKey(_one_of('yes', 'no'), 'Serve the MCP agent gateway at /mcp.'),
         'gateway_allow_send': TargetKey(_one_of('yes', 'no'), 'Offer the send_email tool.'),
+        'marketing_enabled': TargetKey(_one_of('yes', 'no'), 'Allow marketing campaigns.'),
+        'marketing_pace_per_minute': TargetKey(
+            _int_between(1, 6000), 'Campaign emails sent per minute, all campaigns together.'
+        ),
+        'marketing_daily_ceiling': TargetKey(
+            _int_between(1, 1000000), 'Campaign emails sent per day, all campaigns together.'
+        ),
+        'marketing_warmup': TargetKey(
+            _one_of('yes', 'no'), 'Raise the daily ceiling gradually from a low start.'
+        ),
+        'marketing_warmup_start': TargetKey(
+            _int_between(10, 100000), 'Campaign emails allowed on the first day of sending.'
+        ),
+        'marketing_max_recipients': TargetKey(
+            _int_between(1, 100000), 'Most recipients one campaign may be created with.'
+        ),
+        'marketing_address': TargetKey(
+            _postal_address, "The sender's postal address, printed in every campaign email."
+        ),
     }
 
 
@@ -773,6 +801,37 @@ def _capabilities() -> tuple[Capability, ...]:
                 'suppress_bounces': _field(
                     (DEV, 'compliance_suppress_bounces'),
                     'yes: an address that does not exist is never written to again.',
+                ),
+            },
+        ),
+        _Capability(
+            'marketing.campaigns',
+            'Marketing campaigns',
+            'Send one message to many people, one email each, with a personal unsubscribe link, '
+            'paced to protect the sending reputation.',
+            {
+                'enabled': _field((DEV, 'marketing_enabled'), 'yes: campaigns may be created.'),
+                'pace_per_minute': _field(
+                    (DEV, 'marketing_pace_per_minute'),
+                    'Emails per minute across all campaigns (1-6000).',
+                ),
+                'daily_ceiling': _field(
+                    (DEV, 'marketing_daily_ceiling'),
+                    'Emails per day across all campaigns, once warmed up.',
+                ),
+                'warmup': _field(
+                    (DEV, 'marketing_warmup'),
+                    'yes: the daily ceiling starts at warmup_start and grows by half each day.',
+                ),
+                'warmup_start': _field(
+                    (DEV, 'marketing_warmup_start'), 'Emails allowed on the first sending day.'
+                ),
+                'max_recipients': _field(
+                    (DEV, 'marketing_max_recipients'), 'Most recipients in one campaign.'
+                ),
+                'postal_address': _field(
+                    (DEV, 'marketing_address'),
+                    "The sender's postal address, one line; campaigns need it (CAN-SPAM).",
                 ),
             },
         ),

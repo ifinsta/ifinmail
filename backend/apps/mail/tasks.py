@@ -11,9 +11,10 @@ from .services.postfix_runtime import PostfixRuntime
 
 logger = logging.getLogger('backend')
 
-# A scan takes seconds. Mail and log lines are written by strangers, so one that makes a scan hang
-# must not hold a worker: the soft limit raises SoftTimeLimitExceeded inside the task (the scan
-# stops cleanly and the next run picks up where it left off); the hard limit kills the worker
+# A scan takes seconds, and so does the webhook sweep, which only queues work. Mail and log lines
+# are written by strangers, so one that makes a scan hang must not hold a worker: the soft limit
+# raises SoftTimeLimitExceeded inside the task (the scan stops cleanly and the next run picks up
+# where it left off); the hard limit kills the worker
 # process if the task is still running, because something swallowed the soft limit (an
 # ``except Exception`` does) or is stuck in a C call that never lets Python handle signals. Both
 # are well above a real run and a few times the 30 and 60 second schedules. With
@@ -78,9 +79,13 @@ def deliver_webhooks(delivery_ids: list[str]) -> int:
     return webhooks.deliver_batch(delivery_ids)
 
 
-@shared_task(name='mail.sweep_webhooks')
+@shared_task(
+    name='mail.sweep_webhooks',
+    soft_time_limit=SCAN_SOFT_TIME_LIMIT,
+    time_limit=SCAN_TIME_LIMIT,
+)
 def sweep_webhooks() -> int:
-    """Retry webhook deliveries that are due, and forget old ones (every minute)."""
+    """Queue webhook deliveries that are due, and forget old ones (every minute)."""
     from .services import webhooks
 
     return webhooks.sweep()

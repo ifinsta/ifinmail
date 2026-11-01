@@ -12,6 +12,11 @@ queues what it has not reached as a new chunk, so a slow endpoint holds a worker
 only. ``sweep`` (every minute) delivers whatever is due, which covers retries and any queue message
 that was lost. The README section "Event scans and webhook delivery" describes the whole design.
 
+Who sends a delivery is decided by ``_claim``, an atomic conditional update with a short lease, so
+a chunk, a requeued chunk and the sweep can all hold the same delivery and it is still sent once
+at a time. Delivery is at least once: a worker that dies mid-request leaves the claim to expire,
+and the delivery goes out again.
+
 What a receiver gets::
 
     POST <url>
@@ -48,6 +53,7 @@ from itertools import zip_longest
 from urllib.parse import urlsplit
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from backend.apps.core.plugins.services import InstallationService
@@ -72,6 +78,10 @@ BACKOFF = (60, 300, 1800, 7200, 21600, 43200, 86400)
 # endpoint waiting 61 s, 15 s kept it to 16 s (the old one-message-per-delivery path: 113 s).
 DELIVERY_CHUNK = 25
 BATCH_BUDGET_SECONDS = 15
+# A worker claims a delivery before sending it, for this long (see _claim): longer than one attempt
+# can take (a 10 s request, a DNS check and the writes), short enough that a worker that dies
+# mid-delivery has the delivery picked up again within a minute.
+CLAIM_SECONDS = 60
 KEEP_DAYS = 14  # delivered and failed attempts kept for this long
 
 _ALWAYS_BLOCKED = (
@@ -514,18 +524,32 @@ def attempt(delivery: WebhookDelivery) -> bool:
     return not error
 
 
+def _claim(delivery_id: str) -> WebhookDelivery | None:
+    """Take a pending, due delivery for sending, or ``None`` when someone else has it.
+
+    One conditional UPDATE: it moves ``next_attempt_at`` out by ``CLAIM_SECONDS`` and succeeds only
+    for a row that is still pending and due, so of any number of workers asking at once (a chunk,
+    the sweep, a requeued chunk) exactly one gets it. Locking the row while reading it, as this
+    used to, did not: the lock ended before the request was sent. The claim is overwritten with
+    the real next attempt time (or cleared) when the attempt ends; a worker that dies in between
+    leaves it to expire, and the sweep then queues the delivery again.
+    """
+    now = timezone.now()
+    claimed = (
+        WebhookDelivery.objects.filter(pk=delivery_id, status=WebhookDelivery.PENDING)
+        .filter(Q(next_attempt_at__isnull=True) | Q(next_attempt_at__lte=now))
+        .update(next_attempt_at=now + timedelta(seconds=CLAIM_SECONDS))
+    )
+    if not claimed:
+        return None
+    return WebhookDelivery.objects.select_related('endpoint').get(pk=delivery_id)
+
+
 def deliver(delivery_id: str) -> bool:
-    with transaction.atomic():
-        delivery = (
-            WebhookDelivery.objects.select_for_update()
-            .select_related('endpoint')
-            .filter(pk=delivery_id, status=WebhookDelivery.PENDING)
-            .first()
-        )
-        if delivery is None or (
-            delivery.next_attempt_at and delivery.next_attempt_at > timezone.now()
-        ):
-            return False
+    """Send one delivery now if it is pending, due and nobody else has it; True when accepted."""
+    delivery = _claim(delivery_id)
+    if delivery is None:
+        return False
     return attempt(delivery)
 
 
@@ -561,16 +585,24 @@ def _requeue(delivery_ids: list[str]) -> None:
 
 
 def sweep(limit: int = 200) -> int:
-    """Deliver what is due (retries, and anything the broker missed). Runs every minute."""
+    """Queue what is due: retries whose wait is over, and anything whose queue message was lost.
+
+    Runs every minute and only queues, in the same chunks as new deliveries (per endpoint,
+    round-robin, with the same time slices). It used to send them itself, one after another, which
+    held a worker for as long as the slowest endpoint took (minutes, with no time limit) and sent
+    again whatever a queued chunk was about to send. Rows that are queued but not yet picked up are
+    due too, so they may be queued twice; the claim in ``deliver`` makes that harmless, and a row a
+    worker is sending is not due while its claim lasts. Returns how many it queued.
+    """
     due = list(
         WebhookDelivery.objects.filter(
             status=WebhookDelivery.PENDING, next_attempt_at__lte=timezone.now()
         )
         .order_by('next_attempt_at')
-        .values_list('pk', flat=True)[:limit]
+        .only('pk', 'endpoint_id')[:limit]
     )
-    for pk in due:
-        deliver(str(pk))
+    if due:
+        _schedule(due)
     cutoff = timezone.now() - timedelta(days=KEEP_DAYS)
     WebhookDelivery.objects.filter(created_at__lt=cutoff).exclude(
         status=WebhookDelivery.PENDING

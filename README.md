@@ -149,7 +149,7 @@ worker jobs make that happen; a job for a plugin that is not installed does noth
 | --- | --- | --- | --- |
 | `mail.scan_delivery_events` | every minute | the new lines of the Postfix log, at most 4 MB a run | turns what became of mail sent through the API into `message.delivered`, `message.deferred` and `message.bounced` (the API itself sends `message.queued`); also feeds Sender compliance's bounce counters and suppressions |
 | `mail.scan_inbox_events` | every 30 seconds | new mail in watched mailboxes, at most 200 mailboxes and 50 new messages in each a run | `message.received`, with the Injection shield's verdict when that plugin is installed |
-| `mail.sweep_webhooks` | every minute | deliveries that are due | retries, and anything the queue lost (see below) |
+| `mail.sweep_webhooks` | every minute | deliveries that are due, at most 200 | queues them for the workers, like new ones: retries whose wait is over, and anything the queue lost (see below). It sends nothing itself |
 
 **How a scan works**
 
@@ -193,16 +193,26 @@ worker jobs make that happen; a job for a plugin that is not installed does noth
   again after 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours, 12 hours and 24 hours, up to
   8 attempts (the Delivery events plugin's *Attempts per event* lowers that). A `410 Gone` switches
   the endpoint off. `GET /api/v1/webhooks/{id}/deliveries` lists every attempt and its answer.
-- **The sweep is the safety net.** Every minute it delivers up to 200 deliveries that are due:
-  retries, and any delivery whose queue message was lost (the broker was down, the worker was
-  killed). Finished and failed deliveries are deleted after 14 days.
+- **A worker claims a delivery before sending it.** The claim is one conditional update that moves
+  the delivery's next attempt a minute ahead and succeeds only for a delivery that is still pending
+  and due, so a chunk, a chunk handed back to the queue and the sweep can all hold the same
+  delivery and it is still sent by one worker at a time. When the attempt ends the real next
+  attempt time replaces the claim. A worker that dies mid-delivery leaves the claim to run out,
+  and the sweep then queues the delivery again.
+- **The sweep is the safety net.** Every minute it queues up to 200 deliveries that are due, in the
+  same chunks and the same order as new ones: retries whose wait is over, and any delivery whose
+  queue message was lost (the broker was down, a worker was killed). It only queues, so it takes
+  seconds (the task has the scans' 90 and 120 second limits); a delivery that is queued but not yet
+  picked up is due too and may be queued twice, which the claim makes harmless. Finished and
+  failed deliveries are deleted after 14 days.
 
 **For the receiver**
 
 Every attempt is a `POST` with the same `X-Ifinmail-Event-Id` (`evt_…`) and
 `X-Ifinmail-Signature: t=<unix time>,v1=<hex HMAC-SHA256 of "<t>.<body>" with the endpoint's secret>`.
-Delivery is **at least once**: a delivery in flight when a worker dies is sent again, so
-**deduplicate on the event id**, and reject a signature whose `t` is more than five minutes old.
+Delivery is **at least once**: a delivery in flight when a worker dies is sent again once its
+claim has run out, so **deduplicate on the event id**, and reject a signature whose `t` is more
+than five minutes old.
 
 ### Marketplace (plugins)
 

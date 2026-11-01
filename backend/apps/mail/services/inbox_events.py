@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import logging
 
+from celery.exceptions import SoftTimeLimitExceeded
 from django.core.cache import cache
 
 from backend.apps.core.plugins.services import InstallationService
@@ -125,7 +126,12 @@ def scan_mailbox(mailbox: str, *, with_body: bool) -> int:
 
 
 def scan() -> int:
-    """Every watched mailbox once (every 30 seconds)."""
+    """Every watched mailbox once (every 30 seconds).
+
+    Runs under a Celery time limit (``mail.tasks``). A mailbox's position is saved only after its
+    batch, so when the soft limit stops a run the batch in flight is read again next time; each
+    event has a fixed id, so that repeats nothing.
+    """
     if not webhooks.policy().inbox_events or not imap_reader.configured():
         return 0
     with_body = include_body()
@@ -133,6 +139,8 @@ def scan() -> int:
     for mailbox in watched():
         try:
             produced += scan_mailbox(mailbox, with_body=with_body)
+        except SoftTimeLimitExceeded:
+            raise
         except imap_reader.ReaderError as exc:
             logger.info('Inbox webhooks: %s skipped (%s)', mailbox, exc)
         except Exception:

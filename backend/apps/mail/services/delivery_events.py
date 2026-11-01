@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from celery.exceptions import SoftTimeLimitExceeded
 from django.core.cache import cache
 
 from backend.apps.core.telemetry.threats import delivery as classify_delivery
@@ -144,13 +145,19 @@ def _short_hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:24]
 
 
-def read_new_lines(path: Path | None = None) -> list[str]:
-    """The lines appended to the Postfix log since the last run (follows rotation)."""
+def _follow(path: Path | None = None) -> tuple[list[str], list[int]]:
+    """``(lines, sizes)`` appended to the Postfix log since the last run (follows rotation).
+
+    ``sizes`` is each line's length in the file, newline included, so a run that stops early can
+    put the saved position back to the first line it did not handle. Records end at a newline (a
+    partial last line waits for next time); a stray ``\\r`` or Unicode separator inside a record
+    does not start a new one, so text in a log field cannot forge a second line.
+    """
     path = path or (log_dir() / 'postfix.log')
     try:
         stat = path.stat()
     except OSError:
-        return []
+        return [], []
     saved = cache.get(_POSITION) or {}
     offset = int(saved.get('offset', 0)) if saved.get('inode') == stat.st_ino else 0
     if stat.st_size < offset:  # truncated in place
@@ -158,26 +165,58 @@ def read_new_lines(path: Path | None = None) -> list[str]:
     if offset == 0 and not saved:
         # First run: start at the end, so a fresh install does not replay old mail.
         cache.set(_POSITION, {'inode': stat.st_ino, 'offset': stat.st_size}, None)
-        return []
+        return [], []
     with path.open('rb') as handle:
         handle.seek(offset)
         chunk = handle.read(MAX_READ)
     # Keep a partial last line for next time.
     end = chunk.rfind(b'\n') + 1
     cache.set(_POSITION, {'inode': stat.st_ino, 'offset': offset + end}, None)
-    return chunk[:end].decode('utf-8', 'replace').splitlines()
+    records = chunk[:end].split(b'\n')[:-1]
+    return (
+        [record.decode('utf-8', 'replace').rstrip('\r') for record in records],
+        [len(record) + 1 for record in records],
+    )
+
+
+def read_new_lines(path: Path | None = None) -> list[str]:
+    """The lines appended to the Postfix log since the last run (follows rotation)."""
+    return _follow(path)[0]
+
+
+def _rewind(unhandled_bytes: int) -> None:
+    """Put the saved position back by the bytes of lines that were read but not handled."""
+    saved = cache.get(_POSITION)
+    if unhandled_bytes > 0 and isinstance(saved, dict):
+        offset = max(0, int(saved.get('offset', 0)) - unhandled_bytes)
+        cache.set(_POSITION, {'inode': saved.get('inode'), 'offset': offset}, None)
 
 
 def scan() -> int:
-    """Turn new log lines into events (every minute)."""
+    """Turn new log lines into events (every minute).
+
+    Runs under a Celery time limit (``mail.tasks``). The position is saved when the lines are
+    read, so when the soft limit stops a run part-way it is put back to the first line not yet
+    handled: nothing is skipped, and at most the one line in flight is handled twice (its event
+    id makes that a no-op for the webhook; only the sender's counters see it again).
+    """
     if not _wanted():
         return 0
     produced = 0
-    for line in read_new_lines():
-        try:
-            produced += handle_line(line)
-        except Exception:
-            logger.warning('Delivery events: a log line could not be handled', exc_info=True)
+    lines, sizes = _follow()
+    handled = 0
+    try:
+        for line in lines:
+            try:
+                produced += handle_line(line)
+            except SoftTimeLimitExceeded:
+                raise
+            except Exception:
+                logger.warning('Delivery events: a log line could not be handled', exc_info=True)
+            handled += 1
+    except SoftTimeLimitExceeded:
+        _rewind(sum(sizes[handled:]))
+        raise
     return produced
 
 

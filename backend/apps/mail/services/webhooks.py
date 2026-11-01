@@ -36,6 +36,7 @@ import urllib.request
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+from itertools import zip_longest
 from urllib.parse import urlsplit
 
 from django.db import transaction
@@ -379,20 +380,25 @@ def ping(row: WebhookEndpoint) -> WebhookDelivery:
 
 
 def _chunks(deliveries: Sequence[WebhookDelivery]) -> list[list[str]]:
-    """Delivery ids grouped by endpoint, at most ``DELIVERY_CHUNK`` to a group, in order.
+    """Delivery ids grouped by endpoint, at most ``DELIVERY_CHUNK`` to a group.
 
     One endpoint per chunk is what keeps a slow or dead endpoint from holding up the others:
     a chunk is worked through one delivery after another, so it only ever waits on its own
     endpoint (and never sends that endpoint two requests at once from the same task).
+
+    The chunks come out round-robin across endpoints (the first endpoint's first chunk, the
+    second's first, ..., then each one's second) and in order within an endpoint. They are
+    queued in this order, so a slow endpoint's chunks do not all sit in front of another's, and
+    which endpoint comes first (the endpoint query has no order) no longer decides who waits.
     """
     by_endpoint: dict[object, list[str]] = {}
     for delivery in deliveries:
         by_endpoint.setdefault(delivery.endpoint_id, []).append(str(delivery.pk))
-    return [
-        ids[start : start + DELIVERY_CHUNK]
+    per_endpoint = [
+        [ids[start : start + DELIVERY_CHUNK] for start in range(0, len(ids), DELIVERY_CHUNK)]
         for ids in by_endpoint.values()
-        for start in range(0, len(ids), DELIVERY_CHUNK)
     ]
+    return [chunk for round_ in zip_longest(*per_endpoint) for chunk in round_ if chunk]
 
 
 def _schedule(deliveries: Sequence[WebhookDelivery]) -> None:

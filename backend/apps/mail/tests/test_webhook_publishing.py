@@ -44,6 +44,24 @@ class ChunkTests(SimpleTestCase):
         a_ids = [i for c in chunks for i in c if i.startswith('A')]
         self.assertEqual(a_ids, [f'A{i}' for i in range(60)])  # order within an endpoint is kept
 
+    def test_chunks_come_out_round_robin_across_endpoints(self) -> None:
+        sizes = {'A': 60, 'B': 60, 'C': 3}
+        chunks_of = {'A': 3, 'B': 3, 'C': 1}  # 25 + 25 + 10, 25 + 25 + 10, 3
+        for order in (('A', 'B', 'C'), ('C', 'B', 'A'), ('B', 'A', 'C')):
+            with self.subTest(first_seen=order):
+                deliveries = [d for name in order for d in fake(name, sizes[name])]
+                got = [chunk[0][0] for chunk in webhooks._chunks(deliveries)]
+                # Round r: each endpoint that still has an r-th chunk, in the order first seen.
+                expected = [name for r in (1, 2, 3) for name in order if chunks_of[name] >= r]
+                self.assertEqual(got, expected)
+
+    def test_a_long_run_for_one_endpoint_does_not_queue_ahead_of_the_others(self) -> None:
+        chunks = webhooks._chunks([*fake('A', 250), *fake('B', 30), *fake('C', 30)])
+        endpoints = [chunk[0][0] for chunk in chunks]
+        # A has 10 chunks, B and C two each: B and C are served in the first rounds, not last.
+        self.assertEqual(endpoints[:6], ['A', 'B', 'C', 'A', 'B', 'C'])
+        self.assertEqual(endpoints[6:], ['A'] * 8)
+
     def test_nothing_gives_no_chunks(self) -> None:
         self.assertEqual(webhooks._chunks([]), [])
 

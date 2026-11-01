@@ -33,6 +33,12 @@ from backend.apps.core.plugins.services import InstallationService
 
 CAPABILITY = 'developer.injection_shield'
 
+# The sender controls every byte of a message, so the work done per message is bounded. A normal
+# message is far below these; anything above is only partly checked and says so in the verdict.
+MAX_ANALYSE_CHARS = 1_000_000  # of text and of HTML, each
+MAX_SUBJECT_CHARS = 10_000
+MAX_LABEL_CHARS = 512  # of a link's visible text that is searched for a domain name
+
 _ZERO_WIDTH = re.compile('[​-‍⁠-⁤﻿­᠎]')
 _BIDI = re.compile('[‪-‮⁦-⁩]')
 _TAGS = re.compile('[\U000e0000-\U000e007f]')  # "ASCII smuggling"
@@ -55,7 +61,9 @@ _INSTRUCTIONS = [
 _HIDING_STYLE = re.compile(
     r'(display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(\.0+)?\s*(;|$)|'
     r'font-size\s*:\s*0(\.\d+)?(px|pt|em|rem|%)?\s*(;|$)|font-size\s*:\s*1px|'
-    r'(max-)?height\s*:\s*0(px)?\s*;.*overflow\s*:\s*hidden|'
+    # Bounded gap, not ".*": an unbounded one rescans the rest of the attribute at every
+    # "height:0;", which is quadratic on a long style attribute.
+    r'(max-)?height\s*:\s*0(px)?\s*;.{0,200}overflow\s*:\s*hidden|'
     r'(left|top|text-indent)\s*:\s*-\d{3,}px|clip\s*:\s*rect\(0)',
     re.I,
 )
@@ -103,11 +111,15 @@ class _Splitter(HTMLParser):
         self.hidden: list[str] = []
         self.comments: list[str] = []
         self.stack: list[tuple[str, bool]] = []  # (tag, hides)
+        # Counters kept beside the stack so no question is answered by walking it: that was
+        # quadratic on deeply nested or unbalanced HTML.
+        self._open: dict[str, int] = {}  # open elements by tag name
+        self._hiding = 0  # open elements that hide their content
         self.skip = 0  # inside <script>/<style>/<head>
         self.links: list[tuple[str, list[str]]] = []
 
     def _hidden_now(self) -> bool:
-        return any(hides for _, hides in self.stack)
+        return self._hiding > 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in ('script', 'style', 'head', 'title'):
@@ -127,6 +139,9 @@ class _Splitter(HTMLParser):
             or tag == 'font' and a.get('size', '') in ('0', '-7')
         )
         self.stack.append((tag, hides))
+        self._open[tag] = self._open.get(tag, 0) + 1
+        if hides:
+            self._hiding += 1
         if tag == 'a':
             self.links.append((a.get('href', ''), []))
         if tag in ('p', 'div', 'tr', 'li', 'h1', 'h2', 'h3', 'h4', 'table'):
@@ -136,8 +151,14 @@ class _Splitter(HTMLParser):
         if tag in ('script', 'style', 'head', 'title'):
             self.skip = max(0, self.skip - 1)
             return
+        if not self._open.get(tag):  # a close tag with nothing to close: ignored in O(1)
+            return
         for i in range(len(self.stack) - 1, -1, -1):
             if self.stack[i][0] == tag:
+                for closed, hides in self.stack[i:]:
+                    self._open[closed] -= 1
+                    if hides:
+                        self._hiding -= 1
                 del self.stack[i:]
                 break
 
@@ -145,7 +166,7 @@ class _Splitter(HTMLParser):
         if self.skip:
             return
         (self.hidden if self._hidden_now() else self.visible).append(data)
-        if self.links and any(t == 'a' for t, _ in self.stack):
+        if self.links and self._open.get('a'):
             self.links[-1][1].append(data)
 
     def handle_comment(self, data: str) -> None:
@@ -169,6 +190,16 @@ def _instructions(text: str) -> list[str]:
 def analyse(subject: str, text: str, html: str = '') -> tuple[Risk, str]:
     """``(risk, safe_text)`` for one message."""
     risk = Risk()
+    subject = (subject or '')[:MAX_SUBJECT_CHARS]
+    text = text or ''
+    html = html or ''
+    if len(text) > MAX_ANALYSE_CHARS or len(html) > MAX_ANALYSE_CHARS:
+        text, html = text[:MAX_ANALYSE_CHARS], html[:MAX_ANALYSE_CHARS]
+        risk.add(
+            30,
+            f'the message is larger than {MAX_ANALYSE_CHARS // 1000} KB, '
+            'so only the start was checked',
+        )
     visible_html = hidden_html = ''
     comments: list[str] = []
     links: list[tuple[str, str]] = []
@@ -215,8 +246,12 @@ def analyse(subject: str, text: str, html: str = '') -> tuple[Risk, str]:
         risk.add(60, 'the hidden text gives instructions')
 
     for href, label in links:
-        shown = re.search(r'(?i)\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b', label or '')
-        target = urlsplit(href).hostname or ''
+        # The label is bounded: this pattern backtracks badly on a long run of "a.a.a.a." text.
+        shown = re.search(r'(?i)\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b', label[:MAX_LABEL_CHARS])
+        try:
+            target = urlsplit(href[:2048]).hostname or ''
+        except ValueError:  # e.g. "http://[x": a malformed link must not fail the whole message
+            continue
         if shown and target and '.' in shown.group(1):
             shown_host = shown.group(1).lower().removeprefix('www.')
             if not target.lower().removeprefix('www.').endswith(shown_host):

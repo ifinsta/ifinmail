@@ -48,7 +48,11 @@
     Marketplace, Marketing). `GET /campaigns/{id}/report` gives opens, clicks, each link and a
     timeline; recipients show their `opens` and `clicks`. Bots and scanners are not counted, and
     opens are an upper bound (mail apps that preload images). No IP address or browser is kept.
-  - **Not yet:** attachments, per-campaign unsubscribe counts, webhook events for opens and clicks.
+  - **Webhook events for opens and clicks:** `message.opened` (a person's first open) and
+    `message.clicked` (the first click of each link by each person, with the address they were
+    sent to) for campaigns with tracking, through the Delivery events plugin. Repeats, bots and
+    scanners make no event; a failure to queue one never affects the pixel or the redirect.
+  - **Not yet:** attachments, per-campaign unsubscribe counts.
 
 ## v0.0.74
 - **Sign-in lockout no longer locks everybody out.** Behind nginx, the lockout counted every

@@ -122,7 +122,7 @@ class EndpointTests(EventsBase):
 
     def test_events_are_checked(self) -> None:
         self.enable()
-        for events in ([], ['message.opened'], ['message.received']):
+        for events in ([], ['message.read'], ['message.received']):
             with self.subTest(events=events), self.assertRaises(webhooks.WebhookError):
                 self.endpoint(events=events)
 

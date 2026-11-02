@@ -549,9 +549,11 @@ def api_list_webhooks(request: ApiRequest) -> list[WebhookV1]:
 @require_scope('mail.send')
 def api_create_webhook(request: ApiRequest, payload: WebhookCreateV1) -> Status[WebhookCreatedV1]:
     """Events: ``message.queued``, ``message.delivered``, ``message.deferred``,
-    ``message.bounced`` (Delivery Events plugin) and ``message.received`` (Inbox Webhooks plugin,
-    with ``mailboxes``). The answer carries the signing ``secret`` once: keep it, it verifies the
-    ``X-Ifinmail-Signature`` header of every event."""
+    ``message.bounced``, ``message.opened`` and ``message.clicked`` (Delivery Events plugin; the
+    last two are for campaigns with tracking: a person's first open, and the first click of each
+    link) and ``message.received`` (Inbox Webhooks plugin, with ``mailboxes``). The answer
+    carries the signing ``secret`` once: keep it, it verifies the ``X-Ifinmail-Signature`` header
+    of every event."""
     from backend.apps.mail.services import webhooks
 
     if payload.mailboxes:

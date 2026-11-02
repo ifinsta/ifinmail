@@ -25,7 +25,9 @@ mail app fetches an image.
 
 from __future__ import annotations
 
+import hashlib
 import html as html_lib
+import logging
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -39,6 +41,10 @@ from django.utils import timezone
 from django.utils.crypto import constant_time_compare, salted_hmac
 
 from backend.apps.mail.models import Campaign, CampaignClick, CampaignLink, CampaignRecipient
+from backend.apps.mail.services import webhooks
+from backend.apps.mail.types.events import EventType
+
+logger = logging.getLogger('backend')
 
 MAX_LINKS = 100  # tracked links per campaign; further ones are left as written
 MAX_URL = 2000
@@ -206,7 +212,8 @@ def record_open(recipient_id: int, *, counted: bool = True, now: datetime | None
         return False
     if counted:
         found.update(opens=F('opens') + 1)
-        found.filter(first_opened_at__isnull=True).update(first_opened_at=now)
+        if found.filter(first_opened_at__isnull=True).update(first_opened_at=now):
+            _emit(EventType.OPENED, recipient_id)
     return True
 
 
@@ -235,7 +242,39 @@ def record_click(
     people = CampaignRecipient.objects.filter(pk=recipient_id)
     people.update(clicks=F('clicks') + 1)
     people.filter(first_clicked_at__isnull=True).update(first_clicked_at=now)
+    if created:
+        _emit(EventType.CLICKED, recipient_id, link)
     return link
+
+
+def _emit(kind: EventType, recipient_id: int, link: CampaignLink | None = None) -> None:
+    """Tell the webhooks (Delivery events plugin) about a person's first open, or first click of
+    a link. Repeats are counted in the report and not sent again. Never raises: an event is a
+    convenience and must not stand in the way of the pixel or the redirect.
+
+    The event id follows from who and what, so a retry or two requests at once make one event.
+    """
+    try:
+        if not webhooks.policy().delivery_events:
+            return
+        person = CampaignRecipient.objects.select_related('campaign').get(pk=recipient_id)
+        data: dict[str, object] = {
+            'message_id': person.message_id,
+            'campaign': str(person.campaign_id),
+            'sender': person.campaign.sender,
+            'recipient': person.address,
+        }
+        if link is not None:
+            data['url'] = destination(link, recipient_id) or link.url
+        seed = f'{kind}:{recipient_id}:{link.pk if link else ""}'
+        webhooks.emit(
+            kind,
+            data,
+            key_prefix=person.campaign.key_prefix,
+            event_id='evt_' + hashlib.sha256(seed.encode()).hexdigest()[:24],
+        )
+    except Exception:
+        logger.warning('Could not queue a %s event', kind, exc_info=True)
 
 
 def destination(link: CampaignLink, recipient_id: int) -> str | None:

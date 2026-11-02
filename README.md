@@ -331,7 +331,13 @@ are sending.
   after fixing the cause, or cancel it.
 - **Events.** With the Delivery events plugin, each campaign email produces the same
   `message.queued`, `message.delivered`, `message.deferred` and `message.bounced` webhook events as
-  other API mail; `message.queued` also carries the campaign id.
+  other API mail; `message.queued` also carries the campaign id. A campaign with tracking also
+  produces `message.opened` (a person's first open) and `message.clicked` (the first click of each
+  link by each person), with `message_id`, `campaign`, `sender` and `recipient`, and `url` (the
+  address the person was sent to) for a click. Repeats are counted in the report but not sent
+  again, so one person opening ten times is one event; bots, scanners and `HEAD` requests make
+  none. The same caveats as the report apply: an open may be a mail app preloading images. The
+  events go to the console's webhooks and to webhooks created by the campaign's own key.
 
 **Audiences: lists kept on the server.** A request can list its recipients (up to *Most recipients
 listed in one campaign request*, 10,000 by default), but a real list is kept and changed over time,
@@ -449,8 +455,7 @@ now (the recipients are listed and checked now) and starts then; its `status` is
 [`examples/python/13_templates.py`](examples/python/13_templates.py) manages templates;
 `11_marketing_campaign.py` has `from-template`, `--send-at`, `start`, `reschedule` and `report`.
 
-Limits of what is built: attachments, per-campaign unsubscribe counts, and webhook events for
-opens and clicks.
+Limits of what is built: attachments, and per-campaign unsubscribe counts.
 
 ### Assistant
 
@@ -629,7 +634,8 @@ you what a key may do and which keys look unsafe. Ask it "how can a program crea
   answers (protocol versions 2025-06-18, 2025-03-26 and 2024-11-05).
 - **Webhooks.** With the Delivery events plugin, a key with `mail.send` can register URLs that
   receive signed JSON events for its own mail: `message.queued`, `message.delivered`,
-  `message.deferred` and `message.bounced`. With the Inbox webhooks plugin, a webhook can also
+  `message.deferred` and `message.bounced` (and `message.opened` and `message.clicked` for
+  campaigns with tracking). With the Inbox webhooks plugin, a webhook can also
   receive `message.received` for the agent inboxes the key created (or any mailbox, with
   `mail.manage`). Delivery is at least once and every attempt carries the same event id, so
   receivers deduplicate on it; how events are produced, retried and delivered is under [Event

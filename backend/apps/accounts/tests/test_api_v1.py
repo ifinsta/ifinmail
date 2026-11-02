@@ -833,6 +833,10 @@ class ContractTests(ApiBase):
                 'text': 't',
                 'recipients': [{'email': 'b@example.org'}],
             },
+            ('POST', '/audiences'): {'name': 'List', 'domain': 'ifinmail.test'},
+            ('POST', '/audiences/{audience_id}/contacts'): {
+                'contacts': [{'email': 'b@example.org'}]
+            },
             ('POST', '/marketing/opt-outs'): {
                 'address': 'a@example.org',
                 'domain': 'ifinmail.test',
@@ -846,6 +850,8 @@ class ContractTests(ApiBase):
                 op.path.replace('{address}', 'a@ifinmail.test')
                 .replace('{name}', 'ifinmail.test')
                 .replace('{alias_id}', 'x')
+                .replace('{audience_id}', '00000000-0000-0000-0000-000000000000')
+                .replace('{email}', 'b@example.org')
                 .replace('{fingerprint}', 'abc')
                 .replace('{uid}', '1')
                 .replace('{approval_id}', '00000000-0000-0000-0000-000000000000')

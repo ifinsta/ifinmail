@@ -3,6 +3,7 @@ Needs a key with the marketing.send scope and the address it may send as.
 
     python 11_marketing_campaign.py send news@example.com "Spring sale, {{first_name|friend}}" \
         body.txt people.csv --html body.html --name "Spring sale"
+    python 11_marketing_campaign.py send news@example.com "Spring sale" body.txt --audience 7d2e...
     python 11_marketing_campaign.py status 1b0c...           # add --watch to follow it
     python 11_marketing_campaign.py pause 1b0c...            # also: resume, cancel
 
@@ -12,6 +13,9 @@ the subject or body (``{{first_name}}`` fills from a ``first_name`` column, and
 itself: the server mails the list over time, at the pace its Marketing plugin allows, and the
 answer says who was left out and why (unsubscribed, bounced before, blocked). The call is safe to
 retry (an Idempotency-Key is sent for you), so a timeout never creates the campaign twice.
+
+With ``--audience`` the campaign goes to everyone on a list kept on the server (see
+``12_audiences.py``) instead of a CSV: the list is copied when the campaign is created.
 """
 
 import argparse
@@ -55,7 +59,8 @@ def main() -> None:
     send.add_argument('sender')
     send.add_argument('subject')
     send.add_argument('text_file', type=Path, help='the plain-text body')
-    send.add_argument('people', type=Path, help='a CSV with an email column')
+    send.add_argument('people', type=Path, nargs='?', help='a CSV with an email column')
+    send.add_argument('--audience', help='send to this audience (its id) instead of a CSV')
     send.add_argument('--html', type=Path, help='an HTML version of the body')
     send.add_argument('--name', default='', help='your own label for the campaign')
     for name in ('status', 'pause', 'resume', 'cancel'):
@@ -68,10 +73,13 @@ def main() -> None:
     api = Client.from_env()
     try:
         if args.command == 'send':
+            if bool(args.people) == bool(args.audience):
+                raise SystemExit('Give a CSV of people, or --audience, but not both.')
             result = api.create_campaign(
                 args.sender,
                 args.subject,
-                read_people(args.people),
+                read_people(args.people) if args.people else None,
+                audience=args.audience,
                 text=args.text_file.read_text(encoding='utf-8'),
                 html=args.html.read_text(encoding='utf-8') if args.html else None,
                 name=args.name,

@@ -27,8 +27,15 @@
   - **For administrators:** enter the postal address under Marketplace, Marketing (campaigns are
     refused until it is set), and adjust the pace, the daily ceiling, warm-up and the largest
     campaign there. Owners and Administrators gain the `marketing.send` permission.
-  - **Not yet:** contact lists and import, reusable templates, scheduled sends, open and click
-    tracking, attachments.
+  - **Audiences:** lists kept on the server. `POST /api/v1/audiences` makes one for a sending
+    domain, `POST /audiences/{id}/contacts` loads it (up to 1,000 people a call, idempotent, with
+    each person's merge values), and a campaign names it with `"audience": "<id>"` instead of
+    listing recipients. Each contact shows as `reachable`, `opted_out` or `suppressed`, looked up
+    from the same lists a campaign uses, so an unsubscribe shows on every audience of the domain.
+    A campaign copies the list when it is created. Administrators set *Most contacts in one
+    audience* (100,000 by default) under Marketplace, Marketing. See
+    `examples/python/12_audiences.py`.
+  - **Not yet:** reusable templates, scheduled sends, open and click tracking, attachments.
 
 ## v0.0.74
 - **Sign-in lockout no longer locks everybody out.** Behind nginx, the lockout counted every

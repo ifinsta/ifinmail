@@ -460,7 +460,12 @@ class CampaignIn(Schema):
     text: str | None = Field(default=None, max_length=1_000_000)
     html: str | None = Field(default=None, max_length=1_000_000)
     reply_to: str | None = None
-    recipients: list[CampaignRecipientIn] = Field(min_length=1, max_length=100_000)
+    recipients: list[CampaignRecipientIn] = Field(default_factory=list, max_length=100_000)
+    audience: str | None = Field(
+        default=None,
+        description='Send to everyone on this audience (its id) instead of listing recipients. '
+        'The list is copied when the campaign is created.',
+    )
 
 
 class CampaignCreatedV1(Schema):
@@ -481,6 +486,7 @@ class CampaignV1(Schema):
     status_detail: str  # why it is paused
     from_: str = Field(alias='from')
     subject: str
+    audience: str | None  # the audience it was sent to, if any
     created_at: str
     finished_at: str | None
     # Recipients by status: pending, sending, sent, failed, skipped.
@@ -496,6 +502,7 @@ class CampaignV1(Schema):
             status_detail=row.status_detail,
             from_=row.sender,
             subject=row.subject,
+            audience=str(row.audience_id) if row.audience_id else None,
             created_at=row.created_at.isoformat(timespec='seconds'),
             finished_at=row.finished_at.isoformat(timespec='seconds') if row.finished_at else None,
             recipients=counts,
@@ -521,6 +528,79 @@ class CampaignRecipientV1(Schema):
         )
 
 
+class AudienceCreateV1(Schema):
+    name: str = Field(min_length=1, max_length=120)
+    domain: str = Field(description='The sending domain this list is for; one the key sends from.')
+    description: str = Field(default='', max_length=300)
+
+
+class AudienceChangeV1(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=300)
+
+
+class AudienceV1(Schema):
+    id: str
+    name: str
+    description: str
+    domain: str
+    created_at: str
+    # How many contacts, and how many of them a campaign would actually reach.
+    contacts: dict[str, int]  # total | reachable | opted_out | suppressed
+
+    @classmethod
+    def of(cls, row, counts: dict[str, int]) -> AudienceV1:  # noqa: ANN001
+        return cls(
+            id=str(row.pk),
+            name=row.name,
+            description=row.description,
+            domain=row.domain,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+            contacts=counts,
+        )
+
+
+class AudienceContactIn(Schema):
+    """One person to add to an audience, or to update if the address is already there."""
+
+    email: str
+    merge: dict[str, str | int | float | None] | None = Field(
+        default=None,
+        description='Values for the message tags. Left out, an existing contact keeps its values.',
+    )
+    source: str = Field(default='', max_length=40, description='Where this person came from.')
+
+
+class AudienceContactsIn(Schema):
+    contacts: list[AudienceContactIn] = Field(min_length=1, max_length=1000)
+
+
+class AudienceImportV1(Schema):
+    added: int
+    updated: int  # already there, with different values
+    unchanged: int  # already there, nothing to change
+    invalid: int  # not an address, or values that cannot be used
+    duplicate: int  # named twice in this request
+
+
+class AudienceContactV1(Schema):
+    email: str
+    merge: dict[str, str]
+    source: str
+    status: str  # reachable | opted_out | suppressed
+    created_at: str
+
+    @classmethod
+    def of(cls, row, status: str) -> AudienceContactV1:  # noqa: ANN001
+        return cls(
+            email=row.address,
+            merge=row.merge,
+            source=row.source,
+            status=status,
+            created_at=row.created_at.isoformat(timespec='seconds'),
+        )
+
+
 class MarketingOptOutV1(Schema):
     domain: str  # our sending domain
     address: str
@@ -543,6 +623,13 @@ class MarketingOptOutCreateV1(Schema):
 
 
 __all__ = [
+    'AudienceChangeV1',
+    'AudienceContactIn',
+    'AudienceContactV1',
+    'AudienceContactsIn',
+    'AudienceCreateV1',
+    'AudienceImportV1',
+    'AudienceV1',
     'CampaignCreatedV1',
     'CampaignIn',
     'CampaignRecipientIn',

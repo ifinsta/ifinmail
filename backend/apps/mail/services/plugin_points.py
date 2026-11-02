@@ -415,6 +415,9 @@ class DeveloperTarget(AdapterTarget):
         'marketing_max_recipients': TargetKey(
             _int_between(1, 100000), 'Most recipients one campaign may be created with.'
         ),
+        'marketing_max_audience': TargetKey(
+            _int_between(1, 1000000), 'Most contacts one audience may hold.'
+        ),
         'marketing_address': TargetKey(
             _postal_address, "The sender's postal address, printed in every campaign email."
         ),
@@ -827,7 +830,12 @@ def _capabilities() -> tuple[Capability, ...]:
                     (DEV, 'marketing_warmup_start'), 'Emails allowed on the first sending day.'
                 ),
                 'max_recipients': _field(
-                    (DEV, 'marketing_max_recipients'), 'Most recipients in one campaign.'
+                    (DEV, 'marketing_max_recipients'),
+                    'Most recipients in a campaign whose recipients are in the request.',
+                ),
+                'max_audience_size': _field(
+                    (DEV, 'marketing_max_audience'),
+                    'Most contacts in one audience, and so in a campaign sent to it.',
                 ),
                 'postal_address': _field(
                     (DEV, 'marketing_address'),

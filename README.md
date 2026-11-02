@@ -333,9 +333,57 @@ are sending.
   `message.queued`, `message.delivered`, `message.deferred` and `message.bounced` webhook events as
   other API mail; `message.queued` also carries the campaign id.
 
-Limits of what is built: a campaign carries its recipients in the request (up to *Most recipients
-in one campaign*, 10,000 by default, 100,000 at most); there are not yet contact lists or import,
-reusable templates, scheduled sends, open and click tracking, or attachments.
+**Audiences: lists kept on the server.** A request can list its recipients (up to *Most recipients
+listed in one campaign request*, 10,000 by default), but a real list is kept and changed over time,
+so a campaign can name one instead:
+
+```bash
+# once: a list for one of your sending domains
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/audiences \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Newsletter","domain":"example.com"}'          # -> {"id": "7d2e...", ...}
+
+# load it, 1,000 people per call; send the whole export again whenever it changes
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/audiences/7d2e.../contacts \
+  -H 'Content-Type: application/json' \
+  -d '{"contacts":[{"email":"ana@example.org","merge":{"first_name":"Ana"}},
+                   {"email":"bob@example.org"}]}'              # -> {"added": 2, "updated": 0, ...}
+
+# then send to all of it
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"news@example.com","subject":"Spring sale, {{first_name|friend}}",
+       "text":"Hi {{first_name|friend}}!","audience":"7d2e..."}'
+```
+
+- **Importing is idempotent.** People are matched by address (case does not matter). The answer
+  counts `added`, `updated` (the values changed), `unchanged`, `invalid` (not an address, or
+  merge values that cannot be used) and `duplicate` (named twice in the call). A contact sent
+  without `merge` keeps the values it has.
+- **Whether someone can be mailed is looked up, never stored on the contact.** Each contact is
+  `reachable`, `opted_out` or `suppressed` (suppressed wins, the same order a campaign uses),
+  read from the same opt-out and suppression lists campaigns read. So someone who unsubscribes
+  from any campaign of the domain is `opted_out` on every audience of that domain at once, and
+  an audience can never disagree with what a campaign will do. `GET /audiences/{id}` gives the
+  counts (`total`, `reachable`, `opted_out`, `suppressed`); `GET /audiences/{id}/contacts` lists
+  people and filters by `?status=` or `?address=`.
+- **A campaign copies the list when it is created.** People added or removed afterwards do not
+  change a campaign that exists, and deleting an audience leaves its campaigns alone. The
+  campaign's `audience` field says which list it was sent to.
+- **One audience, one sending domain.** The opt-outs and suppressions that decide who can be
+  mailed are per domain, so a campaign to an audience must be sent from an address at the
+  audience's domain. A key sees and changes the audiences it created (`mail.manage` sees all)
+  and can create one only for a domain it sends from.
+- **The size limit refuses a batch whole.** *Most contacts in one audience* (100,000 by default,
+  1,000,000 at most) is also the most a campaign to an audience can have. A call that would pass
+  it is refused with nothing added, never cut in two; people already on the list can still be
+  updated.
+
+[`examples/python/12_audiences.py`](examples/python/12_audiences.py) manages a list from a CSV, and
+`11_marketing_campaign.py send ... --audience ID` sends to it.
+
+Limits of what is built: there are not yet reusable templates, scheduled sends, open and click
+tracking, or attachments.
 
 ### Assistant
 

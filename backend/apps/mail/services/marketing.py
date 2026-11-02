@@ -24,7 +24,7 @@ import html as html_lib
 import logging
 import re
 from collections import Counter
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -37,7 +37,13 @@ from django.utils import timezone
 from backend.apps.accounts.services.tokens import sender_allowed
 from backend.apps.core.plugins.services import InstallationService
 from backend.apps.domains.models import Domain
-from backend.apps.mail.models import Campaign, CampaignRecipient, MarketingOptOut, Suppression
+from backend.apps.mail.models import (
+    Audience,
+    Campaign,
+    CampaignRecipient,
+    MarketingOptOut,
+    Suppression,
+)
 from backend.apps.mail.services import containment
 from backend.apps.mail.services.messages import (
     MAX_BODY_CHARS,
@@ -75,6 +81,7 @@ class MarketingSettings:
     warmup: bool
     warmup_start: int
     max_recipients: int
+    max_audience_size: int
     postal_address: str
 
 
@@ -95,6 +102,7 @@ def settings() -> MarketingSettings:
         warmup=values.get('warmup', 'yes') == 'yes',
         warmup_start=_number(values.get('warmup_start'), 200, 10, 100_000),
         max_recipients=_number(values.get('max_recipients'), 10_000, 1, 100_000),
+        max_audience_size=_number(values.get('max_audience_size'), 100_000, 1, 1_000_000),
         postal_address=(values.get('postal_address') or '').strip(),
     )
 
@@ -133,7 +141,7 @@ def render(template: str, values: Mapping[str, str], *, escape: bool) -> str:
     return _TAG.sub(fill, template or '')
 
 
-def _clean_merge(raw: object) -> dict[str, str] | None:
+def clean_merge(raw: object) -> dict[str, str] | None:
     """One recipient's merge values, or ``None`` when they are not acceptable."""
     if raw is None:
         return {}
@@ -154,6 +162,8 @@ def _clean_merge(raw: object) -> dict[str, str] | None:
         clean[name] = text
     return clean
 
+
+_clean_merge = clean_merge  # the name the service and its tests used before it was public
 
 # ------------------------------------------------------------------------------ opt-outs
 
@@ -299,9 +309,10 @@ class CampaignRequest:
     subject: str
     text: str | None
     html: str | None
-    recipients: tuple[RecipientIn, ...]
+    recipients: tuple[RecipientIn, ...] = ()
     reply_to: str | None = None
     name: str = ''
+    audience: Audience | None = None  # instead of ``recipients``: everyone on the list, as now
 
 
 @dataclass(frozen=True)
@@ -351,12 +362,16 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
         raise SendRefused(422, 'Send a text body, an html body, or both.')
     if len(text) + len(html) > MAX_BODY_CHARS:
         raise SendRefused(413, f'The message body is limited to {MAX_BODY_CHARS} characters.')
-    if not request.recipients:
-        raise SendRefused(422, 'Name at least one recipient.')
-    if len(request.recipients) > cfg.max_recipients:
-        raise SendRefused(
-            422, f'A campaign may have at most {cfg.max_recipients} recipients on this server.'
-        )
+    if request.audience is not None and request.recipients:
+        raise SendRefused(422, 'Name an audience or list recipients, not both.')
+    recipients: Sequence[RecipientIn] = request.recipients
+    if request.audience is None:
+        if not recipients:
+            raise SendRefused(422, 'Name at least one recipient, or an audience to send to.')
+        if len(recipients) > cfg.max_recipients:
+            raise SendRefused(
+                422, f'A campaign may have at most {cfg.max_recipients} recipients on this server.'
+            )
 
     if not sender_allowed(list(key.allowed_senders), sender):
         raise SendRefused(403, f'This key may not send as {sender}.')
@@ -379,12 +394,28 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
                 'today bounced. Clean the list, then ask an administrator to resume it.',
             )
 
+    if request.audience is not None:
+        if request.audience.domain != domain:
+            raise SendRefused(
+                422,
+                f'The audience belongs to {request.audience.domain}; a campaign to it must be '
+                f'sent from an address at that domain, not {domain}.',
+            )
+        recipients = [
+            RecipientIn(address=who, merge=merge)
+            for who, merge in request.audience.contacts.order_by('pk').values_list(
+                'address', 'merge'
+            )
+        ]
+        if not recipients:
+            raise SendRefused(422, 'The audience has no contacts yet.')
+
     # Merge tags: a tag nobody can fill is a typo; a person missing a value is skipped.
     without_fallback = {name for name, fallback in tags_in(subject, text, html) if fallback is None}
     required = sorted(without_fallback - BUILTIN_TAGS)
     provided: set[str] = set()
-    for item in request.recipients:
-        clean = _clean_merge(item.merge)
+    for item in recipients:
+        clean = clean_merge(item.merge)
         if clean:
             provided.update(clean)
     typos = [name for name in required if name not in provided]
@@ -398,7 +429,7 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
 
     rows: dict[str, tuple[dict[str, str], str]] = {}  # address -> (merge, skip detail)
     skipped: Counter[str] = Counter()
-    for item in request.recipients:
+    for item in recipients:
         try:
             who = address(item.address)
         except SendRefused:
@@ -407,7 +438,7 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
         if who in rows:
             skipped['duplicate'] += 1
             continue
-        clean = _clean_merge(item.merge)
+        clean = clean_merge(item.merge)
         if clean is None:
             skipped['invalid'] += 1
             continue
@@ -436,6 +467,7 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
             subject=subject,
             text=text,
             html=html,
+            audience=request.audience,
         )
         CampaignRecipient.objects.bulk_create(
             [
@@ -576,6 +608,7 @@ __all__ = [
     'MissingValue',
     'RecipientIn',
     'cancel',
+    'clean_merge',
     'compose',
     'bounce_rate',
     'note_bounce',

@@ -21,6 +21,12 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    AudienceChangeV1,
+    AudienceContactsIn,
+    AudienceContactV1,
+    AudienceCreateV1,
+    AudienceImportV1,
+    AudienceV1,
     CampaignCreatedV1,
     CampaignIn,
     CampaignRecipientV1,
@@ -52,8 +58,8 @@ from backend.apps.mail.serializers import (
     MessageAcceptedV1,
     MessageIn,
 )
-from backend.apps.mail.models import Campaign, CampaignRecipient, MarketingOptOut
-from backend.apps.mail.services import marketing
+from backend.apps.mail.models import Audience, Campaign, CampaignRecipient, MarketingOptOut
+from backend.apps.mail.services import audiences, marketing
 from backend.apps.mail.services.mailboxes import split_address
 from backend.apps.mail.services.messages import address as clean_address
 from backend.apps.mail.services.messages import (
@@ -967,6 +973,174 @@ def _campaign_page(rows: list[Campaign]) -> list[CampaignV1]:
     ]
 
 
+def _audience_key(request: ApiRequest) -> audiences.AudienceKey:
+    row = request.auth.row
+    return audiences.AudienceKey(
+        prefix=row.prefix,
+        domains=tuple(_sending_domains(request) or ()),
+        manager='mail.manage' in (row.scopes or []),
+    )
+
+
+def _audience(request: ApiRequest, audience_id: str) -> Audience:
+    try:
+        wanted = uuid.UUID(audience_id)
+    except ValueError:
+        raise HttpError(404, 'No such audience.') from None
+    found = audiences.visible(_audience_key(request)).filter(pk=wanted).first()
+    if found is None:
+        raise HttpError(404, 'No such audience.')
+    return found
+
+
+def _audience_page(rows: list[Audience]) -> list[AudienceV1]:
+    counts = audiences.counts_for(rows)
+    return [AudienceV1.of(row, counts[row.pk]) for row in rows]
+
+
+@router.post(
+    '/audiences',
+    response={201: AudienceV1, **errors(403, 422)},
+    summary='Create an audience',
+)
+@require_scope('marketing.send')
+def api_create_audience(request: ApiRequest, payload: AudienceCreateV1) -> Status[AudienceV1]:
+    """A list of people for campaigns, kept on the server. It belongs to one sending domain."""
+    try:
+        row = audiences.create(
+            payload.name, payload.domain, payload.description, _audience_key(request)
+        )
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    AuditService.record(
+        action='api_audience_created', user=actor(request), detail=f'{row.name} ({row.domain})'
+    )
+    return Status(201, _audience_page([row])[0])
+
+
+@router.get(
+    '/audiences', response={200: list[AudienceV1], **errors()}, summary='List audiences'
+)
+@paginate(LimitOffsetPagination)
+@require_scope('marketing.send')
+def api_audiences(request: ApiRequest) -> _Mapped:
+    """The audiences this key created, newest first (all of them with ``mail.manage``)."""
+    return _Mapped(audiences.visible(_audience_key(request)), _audience_page)
+
+
+@router.get(
+    '/audiences/{audience_id}',
+    response={200: AudienceV1, **errors(404)},
+    summary='Get an audience and how many people it would reach',
+)
+@require_scope('marketing.send')
+def api_audience(request: ApiRequest, audience_id: str) -> AudienceV1:
+    return _audience_page([_audience(request, audience_id)])[0]
+
+
+@router.patch(
+    '/audiences/{audience_id}',
+    response={200: AudienceV1, **errors(404, 422)},
+    summary='Rename an audience',
+)
+@require_scope('marketing.send')
+def api_change_audience(
+    request: ApiRequest, audience_id: str, payload: AudienceChangeV1
+) -> AudienceV1:
+    row = _audience(request, audience_id)
+    try:
+        audiences.rename(row, payload.name, payload.description)
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    return _audience_page([row])[0]
+
+
+@router.delete(
+    '/audiences/{audience_id}',
+    response={204: None, **errors(404)},
+    summary='Delete an audience and its contacts',
+)
+@require_scope('marketing.send')
+def api_delete_audience(request: ApiRequest, audience_id: str) -> Status[None]:
+    """Campaigns already created from it are not affected: they keep their own recipients."""
+    row = _audience(request, audience_id)
+    AuditService.record(
+        action='api_audience_deleted', user=actor(request), detail=f'{row.name} [{row.pk}]'
+    )
+    row.delete()
+    return Status(204, None)
+
+
+@router.post(
+    '/audiences/{audience_id}/contacts',
+    response={200: AudienceImportV1, **errors(403, 404, 422)},
+    summary='Add or update contacts (up to 1000 per call)',
+)
+@require_scope('marketing.send')
+def api_import_contacts(
+    request: ApiRequest, audience_id: str, payload: AudienceContactsIn
+) -> AudienceImportV1:
+    """Idempotent: send the same list again and nothing is added twice. A contact whose address
+    is there is updated when you send ``merge``, and left alone when you do not. Addresses that
+    are not valid are counted in ``invalid`` and the rest go in. A call that would take the
+    audience over the server's size limit is refused whole.
+    """
+    row = _audience(request, audience_id)
+    try:
+        done = audiences.import_contacts(
+            row,
+            [
+                audiences.ContactIn(email=item.email, merge=item.merge, source=item.source)
+                for item in payload.contacts
+            ],
+        )
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    return AudienceImportV1(
+        added=done.added,
+        updated=done.updated,
+        unchanged=done.unchanged,
+        invalid=done.invalid,
+        duplicate=done.duplicate,
+    )
+
+
+@router.get(
+    '/audiences/{audience_id}/contacts',
+    response={200: list[AudienceContactV1], **errors(404, 422)},
+    summary='List an audience\'s contacts and whether each can be mailed',
+)
+@paginate(LimitOffsetPagination)
+@require_scope('marketing.send')
+def api_audience_contacts(
+    request: ApiRequest, audience_id: str, address: str = '', status: str = ''
+) -> _Mapped:
+    """``status``: ``reachable``, ``opted_out`` or ``suppressed``. ``address`` finds one person."""
+    row = _audience(request, audience_id)
+    try:
+        rows = audiences.contacts(row, address=address, status=status)
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    return _Mapped(
+        rows,
+        lambda page: [
+            AudienceContactV1.of(c, audiences.status_of(c.opted, c.gone)) for c in page
+        ],
+    )
+
+
+@router.delete(
+    '/audiences/{audience_id}/contacts/{email}',
+    response={204: None, **errors(404)},
+    summary='Remove a contact from an audience',
+)
+@require_scope('marketing.send')
+def api_remove_contact(request: ApiRequest, audience_id: str, email: str) -> Status[None]:
+    if not audiences.remove_contact(_audience(request, audience_id), email):
+        raise HttpError(404, 'That address is not on the audience.')
+    return Status(204, None)
+
+
 @router.post(
     '/campaigns',
     response={202: CampaignCreatedV1, **errors(403, 409, 413, 422)},
@@ -1003,8 +1177,17 @@ def api_create_campaign(
                 raise HttpError(409, 'A request with this Idempotency-Key is still in progress.')
             return Status(202, CampaignCreatedV1(**previous['receipt']))
         cache.set(slot, {'state': 'pending', 'fingerprint': fingerprint}, 3600)
+    chosen = None
+    if payload.audience:
+        try:
+            chosen = _audience(request, payload.audience)
+        except HttpError:
+            if slot:
+                cache.delete(slot)
+            raise
     campaign_request = marketing.CampaignRequest(
         sender=payload.from_,
+        audience=chosen,
         subject=payload.subject,
         text=payload.text,
         html=payload.html,

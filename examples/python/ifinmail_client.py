@@ -310,8 +310,9 @@ class Client:
         self,
         sender: str,
         subject: str,
-        recipients: list[dict[str, Any]],
+        recipients: list[dict[str, Any]] | None = None,
         *,
+        audience: str | None = None,
         text: str | None = None,
         html: str | None = None,
         reply_to: str | None = None,
@@ -320,19 +321,20 @@ class Client:
     ) -> dict[str, Any]:
         """Send one message to many people, one email each, over time.
 
-        ``recipients`` is ``[{"email": "ana@example.org", "merge": {"first_name": "Ana"}}, ...]``.
+        ``recipients`` is ``[{"email": "ana@example.org", "merge": {"first_name": "Ana"}}, ...]``;
+        or pass ``audience`` (an id from :meth:`create_audience`) to send to everyone on that list,
+        as it is now. Give one or the other.
         The subject, text and html may hold ``{{first_name}}`` or ``{{first_name|friend}}`` tags.
         Nothing is sent in this call: ``{"id", "status": "sending", "queued": n, "skipped": {...}}``
         says what the server will send (``skipped`` counts people left out and why). The same
         ``idempotency_key`` returns the first answer instead of creating the campaign twice; one is
         generated when you do not pass one, so this call is safe to retry.
         """
-        body: dict[str, Any] = {
-            'from': sender,
-            'subject': subject,
-            'recipients': recipients,
-            'name': name,
-        }
+        body: dict[str, Any] = {'from': sender, 'subject': subject, 'name': name}
+        if recipients is not None:
+            body['recipients'] = recipients
+        if audience is not None:
+            body['audience'] = audience
         for field, value in (('text', text), ('html', html), ('reply_to', reply_to)):
             if value is not None:
                 body[field] = value
@@ -373,6 +375,65 @@ class Client:
             if state['status'] in ('completed', 'cancelled') or time.monotonic() >= deadline:
                 return state
             time.sleep(every)
+
+    # ------------------------------------------------------------------ Operations: audiences
+    # Lists kept on the server, for campaigns to be sent to. Same plugin and scope as campaigns.
+
+    def create_audience(self, name: str, domain: str, description: str = '') -> dict[str, Any]:
+        """A list for one sending domain (one the key may send from)."""
+        return self.request(
+            'POST',
+            '/api/v1/audiences',
+            json={'name': name, 'domain': domain, 'description': description},
+        )
+
+    def audience(self, audience_id: str) -> dict[str, Any]:
+        """The list and how many of its contacts a campaign would reach (``contacts``: total,
+        reachable, opted_out, suppressed)."""
+        return self.request('GET', f'/api/v1/audiences/{audience_id}')
+
+    def audiences(self) -> Iterator[dict[str, Any]]:
+        return self.paged('/api/v1/audiences')
+
+    def update_audience(self, audience_id: str, **changes: Any) -> dict[str, Any]:
+        """Change ``name`` and/or ``description``."""
+        return self.request('PATCH', f'/api/v1/audiences/{audience_id}', json=changes)
+
+    def delete_audience(self, audience_id: str) -> None:
+        """Delete the list and its contacts; campaigns already created from it are unaffected."""
+        self.request('DELETE', f'/api/v1/audiences/{audience_id}')
+
+    def add_contacts(
+        self, audience_id: str, contacts: list[dict[str, Any]], batch: int = 1000
+    ) -> dict[str, int]:
+        """Add people, or update the ones already there; any length (sent 1000 at a time).
+
+        ``contacts`` is ``[{"email": "ana@example.org", "merge": {"first_name": "Ana"}}, ...]``.
+        Safe to repeat. Returns the totals: added, updated, unchanged, invalid, duplicate.
+        """
+        totals = {'added': 0, 'updated': 0, 'unchanged': 0, 'invalid': 0, 'duplicate': 0}
+        for start in range(0, len(contacts), batch):
+            done = self.request(
+                'POST',
+                f'/api/v1/audiences/{audience_id}/contacts',
+                json={'contacts': contacts[start : start + batch]},
+            )
+            for name in totals:
+                totals[name] += done[name]
+        return totals
+
+    def contacts(
+        self, audience_id: str, status: str = '', address: str = ''
+    ) -> Iterator[dict[str, Any]]:
+        """The list's people; ``status`` is reachable, opted_out or suppressed."""
+        return self.paged(
+            f'/api/v1/audiences/{audience_id}/contacts',
+            status=status or None,
+            address=address or None,
+        )
+
+    def remove_contact(self, audience_id: str, email: str) -> None:
+        self.request('DELETE', f'/api/v1/audiences/{audience_id}/contacts/{email}')
 
     def opt_out(self, address: str, domain: str) -> dict[str, Any]:
         """Record that this person does not want marketing mail from ``domain`` (your app's own

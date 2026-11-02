@@ -226,6 +226,11 @@ class Campaign(models.Model):
     key_name = models.CharField(max_length=64, blank=True, default='')
     sender = models.CharField(max_length=254)
     reply_to = models.CharField(max_length=254, blank=True, default='')
+    # The audience it was made from, when it was (a snapshot: later changes to the list do not
+    # change a campaign that exists). Kept as a reference only; deleting the audience keeps it.
+    audience = models.ForeignKey(
+        'mail.Audience', null=True, blank=True, on_delete=models.SET_NULL, related_name='campaigns'
+    )
     subject = models.CharField(max_length=255)
     text = models.TextField(blank=True, default='')
     html = models.TextField(blank=True, default='')
@@ -292,3 +297,53 @@ class MarketingOptOut(models.Model):
 
     def __str__(self) -> str:
         return f'{self.address} (no marketing from {self.domain})'
+
+
+class Audience(models.Model):
+    """A list of people a campaign can be sent to (Marketing plugin).
+
+    It belongs to one sending domain: the opt-outs and suppressions that decide who can be mailed
+    are per domain, so a contact's status can be shown, and a campaign cannot send one brand's
+    list from another brand's address. The key that created it sees and changes it (a key with
+    ``mail.manage`` sees all).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True, default='')
+    domain = models.CharField(max_length=253)  # our sending domain
+    key_prefix = models.CharField(max_length=16, db_index=True)  # the key that made it
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_audience'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.domain})'
+
+
+class Contact(models.Model):
+    """One person on an audience, with the values for the ``{{merge}}`` tags of a campaign.
+
+    Whether they can be mailed is not stored here: it is looked up when asked, from the marketing
+    opt-outs and the suppression list, so there is one source of truth for it.
+    """
+
+    audience = models.ForeignKey(Audience, on_delete=models.CASCADE, related_name='contacts')
+    address = models.CharField(max_length=254)
+    merge = models.JSONField(default=dict, blank=True)
+    source = models.CharField(max_length=40, blank=True, default='')  # e.g. "signup form"
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_contact'
+        ordering = ['pk']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['audience', 'address'], name='contact_once_per_audience'
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.address

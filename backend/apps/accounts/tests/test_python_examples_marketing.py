@@ -176,3 +176,83 @@ class MarketingExampleTests(ExampleBase):
         )
         self.assertNotEqual(code, 0)
         self.assertIn('"email" column', err)
+
+    def test_the_client_keeps_an_audience_and_sends_a_campaign_to_it(self) -> None:
+        made = self.marketer.create_audience('Newsletter', 'ifinmail.test', 'everyone')
+        done = self.marketer.add_contacts(
+            made['id'],
+            [{'email': f'p{i}@example.org', 'merge': {'first_name': f'P{i}'}} for i in range(7)],
+            batch=3,  # three calls
+        )
+        self.assertEqual(
+            done, {'added': 7, 'updated': 0, 'unchanged': 0, 'invalid': 0, 'duplicate': 0}
+        )
+        self.assertEqual(self.marketer.audience(made['id'])['contacts']['total'], 7)
+        self.assertEqual([a['id'] for a in self.marketer.audiences()], [made['id']])
+        self.marketer.opt_out('p0@example.org', 'ifinmail.test')
+        self.assertEqual(
+            [c['email'] for c in self.marketer.contacts(made['id'], status='opted_out')],
+            ['p0@example.org'],
+        )
+        self.assertEqual(
+            self.marketer.update_audience(made['id'], name='Renamed')['name'], 'Renamed'
+        )
+        sent = self.marketer.create_campaign(
+            'news@ifinmail.test', 'Hi {{first_name}}', audience=made['id'], text='Hello'
+        )
+        self.assertEqual((sent['queued'], sent['skipped']), (6, {'opted_out': 1}))
+        self.marketer.remove_contact(made['id'], 'p1@example.org')
+        self.assertEqual(self.marketer.audience(made['id'])['contacts']['total'], 6)
+        self.marketer.delete_audience(made['id'])
+        self.assertEqual(list(self.marketer.audiences()), [])
+        self.assertEqual(self.marketer.campaign(sent['id'])['recipients']['pending'], 6)
+
+    def test_the_audience_script_loads_a_csv_and_the_campaign_script_sends_to_it(self) -> None:
+        people, body = self.files(
+            'email,first_name\nana@example.org,Ana\nbob@example.org,\nnope,x\n'
+        )
+        code, out, err = self.run_script(
+            '12_audiences', 'new', 'Newsletter', 'ifinmail.test', client=self.marketer
+        )
+        self.assertEqual(code, 0, err)
+        audience_id = out.split()[1]
+        code, out, err = self.run_script(
+            '12_audiences', 'import', audience_id, people, client=self.marketer
+        )
+        self.assertEqual((code, out.strip()), (0, '2 added, 1 invalid'), err)
+        code, out, _ = self.run_script(
+            '12_audiences', 'import', audience_id, people, client=self.marketer
+        )
+        self.assertEqual(out.strip(), '2 unchanged, 1 invalid')  # safe to run again
+        code, out, _ = self.run_script('12_audiences', 'show', audience_id, client=self.marketer)
+        self.assertIn('2 people: 2 reachable, 0 opted out, 0 suppressed', out)
+        code, out, err = self.run_script(
+            '11_marketing_campaign', 'send', 'news@ifinmail.test', 'Hi {{first_name|friend}}',
+            body, '--audience', audience_id, client=self.marketer,
+        )  # fmt: skip
+        self.assertEqual(code, 0, err)
+        self.assertIn('2 to be sent', out)
+        code, out, _ = self.run_script(
+            '12_audiences', 'contacts', audience_id, '--status', 'reachable', client=self.marketer
+        )
+        self.assertEqual(
+            sorted(out.split('\n')[:2]),
+            ['ana@example.org  reachable', 'bob@example.org  reachable'],
+        )
+        code, out, _ = self.run_script(
+            '12_audiences', 'remove', audience_id, 'ana@example.org', client=self.marketer
+        )
+        self.assertIn('removed', out)
+        code, out, _ = self.run_script('12_audiences', 'delete', audience_id, client=self.marketer)
+        self.assertIn('deleted', out)
+
+    def test_the_campaign_script_needs_exactly_one_of_a_csv_or_an_audience(self) -> None:
+        people, body = self.files('email\nana@example.org\n')
+        for extra in ((), (people, '--audience', 'x')):
+            with self.subTest(extra=extra):
+                code, _, err = self.run_script(
+                    '11_marketing_campaign', 'send', 'news@ifinmail.test', 'Hi', body, *extra,
+                    client=self.marketer,
+                )  # fmt: skip
+                self.assertNotEqual(code, 0)
+                self.assertIn('not both', err)

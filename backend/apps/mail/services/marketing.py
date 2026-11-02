@@ -26,7 +26,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.core import signing
 from django.core.cache import cache
@@ -43,8 +43,9 @@ from backend.apps.mail.models import (
     CampaignRecipient,
     MarketingOptOut,
     Suppression,
+    Template,
 )
-from backend.apps.mail.services import containment
+from backend.apps.mail.services import containment, tracking
 from backend.apps.mail.services.messages import (
     MAX_BODY_CHARS,
     SendRefused,
@@ -82,6 +83,8 @@ class MarketingSettings:
     warmup_start: int
     max_recipients: int
     max_audience_size: int
+    track_opens: bool  # the default for a campaign that does not say
+    track_clicks: bool
     postal_address: str
 
 
@@ -103,6 +106,8 @@ def settings() -> MarketingSettings:
         warmup_start=_number(values.get('warmup_start'), 200, 10, 100_000),
         max_recipients=_number(values.get('max_recipients'), 10_000, 1, 100_000),
         max_audience_size=_number(values.get('max_audience_size'), 100_000, 1, 1_000_000),
+        track_opens=values.get('track_opens', 'yes') == 'yes',
+        track_clicks=values.get('track_clicks', 'yes') == 'yes',
         postal_address=(values.get('postal_address') or '').strip(),
     )
 
@@ -123,10 +128,18 @@ def tags_in(*texts: str) -> list[tuple[str, str | None]]:
     return [(m.group(1), m.group(2)) for text in texts for m in _TAG.finditer(text or '')]
 
 
-def render(template: str, values: Mapping[str, str], *, escape: bool) -> str:
+def render(
+    template: str,
+    values: Mapping[str, str],
+    *,
+    escape: bool,
+    missing: list[str] | None = None,
+) -> str:
     """Fill the merge tags. ``escape`` for HTML: a value may hold ``<`` and must not become markup.
 
-    A value that is missing or empty uses the tag's fallback; with none, ``MissingValue``.
+    A value that is missing or empty uses the tag's fallback; with none, ``MissingValue``. A caller
+    that passes ``missing`` (a preview) gets the names listed there instead, and the tag is left
+    as written.
     """
 
     def fill(match: re.Match[str]) -> str:
@@ -135,6 +148,10 @@ def render(template: str, values: Mapping[str, str], *, escape: bool) -> str:
         if value is None or value == '':
             value = fallback
         if value is None:
+            if missing is not None:
+                if name not in missing:
+                    missing.append(name)
+                return match.group(0)
             raise MissingValue(name)
         return html_lib.escape(value, quote=True) if escape else value
 
@@ -268,11 +285,17 @@ def _footer_html(postal: str, url: str) -> str:
 
 
 def compose(
-    campaign: Campaign, recipient: str, merge: Mapping[str, str], postal_address: str
+    campaign: Campaign,
+    recipient: str,
+    merge: Mapping[str, str],
+    postal_address: str,
+    track: tracking.Tracking | None = None,
 ) -> Composed:
     """The email one person gets: merge tags filled in, then the footer with the unsubscribe link.
 
-    The footer is always added (it is the law, not a style): a campaign cannot leave it out.
+    The footer is always added (it is the law, not a style): a campaign cannot leave it out. With
+    ``track``, the html's links go through the server and a pixel counts the open; the footer's
+    unsubscribe link never does.
     """
     domain = campaign.sender.rpartition('@')[2]
     url = unsubscribe_url(domain, recipient)
@@ -283,8 +306,13 @@ def compose(
         text = render(campaign.text, values, escape=False)
         text = f'{text.rstrip()}\n\n-- \n{postal_address}\nUnsubscribe: {url}\n'
     if campaign.html.strip():
-        html = render(campaign.html, values, escape=True)
+        source = campaign.html
+        if track is not None and track.links:
+            source = tracking.rewrite_links(source, track.recipient_id, track.links)
+        html = render(source, values, escape=True)
         footer = _footer_html(postal_address, url)
+        if track is not None and track.opens:
+            footer += tracking.pixel_html(track.recipient_id)
         end = html.lower().rfind('</body>')
         html = f'{html[:end]}{footer}{html[end:]}' if end != -1 else f'{html}{footer}'
     return Composed(subject=_one_line(subject), text=text, html=html, unsubscribe_url=url)
@@ -306,13 +334,17 @@ class RecipientIn:
 @dataclass(frozen=True)
 class CampaignRequest:
     sender: str
-    subject: str
-    text: str | None
-    html: str | None
+    subject: str | None = None  # left out: the template's
+    text: str | None = None
+    html: str | None = None
     recipients: tuple[RecipientIn, ...] = ()
     reply_to: str | None = None
     name: str = ''
     audience: Audience | None = None  # instead of ``recipients``: everyone on the list, as now
+    template: Template | None = None  # the message to start from; what is given above wins
+    send_at: datetime | None = None  # start then (with a time zone); left out: start now
+    track_opens: bool | None = None  # left out: the plugin's default
+    track_clicks: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -336,6 +368,44 @@ def _skip_reason_key(detail: str) -> str:
     return detail.split(':', 1)[0]
 
 
+MAX_SCHEDULE_AHEAD = timedelta(days=366)
+MIN_SCHEDULE_AHEAD = timedelta(minutes=1)
+MAX_LATE = timedelta(hours=6)  # a scheduled campaign this far past its time is held, not sent
+
+
+def check_send_at(send_at: datetime, now: datetime | None = None) -> datetime:
+    """A time a campaign can be scheduled for, or ``SendRefused``.
+
+    It must carry a time zone (a bare "09:00" would mean the server's time, not yours), be at least
+    a minute away (the runner works once a minute; to send now, leave it out) and at most a year.
+    """
+    now = now or timezone.now()
+    if send_at.tzinfo is None or send_at.utcoffset() is None:
+        raise SendRefused(
+            422, 'send_at needs a time zone, for example 2026-03-01T09:00:00+01:00 or ...Z.'
+        )
+    if send_at < now + MIN_SCHEDULE_AHEAD:
+        raise SendRefused(
+            422, 'send_at must be at least a minute from now. To send now, leave it out.'
+        )
+    if send_at > now + MAX_SCHEDULE_AHEAD:
+        raise SendRefused(422, 'send_at can be at most a year from now.')
+    return send_at
+
+
+def check_message(subject: str | None, text: str | None, html: str | None) -> tuple[str, str, str]:
+    """The subject and bodies of a message, or ``SendRefused`` when they cannot be sent."""
+    clean_subject = (subject or '').strip()
+    if not clean_subject or '\n' in clean_subject or '\r' in clean_subject:
+        raise SendRefused(422, 'The subject is required and must be a single line.')
+    clean_text, clean_html = text or '', html or ''
+    if not clean_text.strip() and not clean_html.strip():
+        raise SendRefused(422, 'Send a text body, an html body, or both.')
+    if len(clean_text) + len(clean_html) > MAX_BODY_CHARS:
+        raise SendRefused(413, f'The message body is limited to {MAX_BODY_CHARS} characters.')
+    return clean_subject, clean_text, clean_html
+
+
 def create(request: CampaignRequest, key: CampaignKey) -> Created:
     cfg = settings()
     if not cfg.enabled:
@@ -354,14 +424,14 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
     sender = address(request.sender)
     domain = sender.rpartition('@')[2]
     reply_to = address(request.reply_to) if request.reply_to else ''
-    subject = (request.subject or '').strip()
-    if not subject or '\n' in subject or '\r' in subject:
-        raise SendRefused(422, 'The subject is required and must be a single line.')
-    text, html = request.text or '', request.html or ''
-    if not text.strip() and not html.strip():
-        raise SendRefused(422, 'Send a text body, an html body, or both.')
-    if len(text) + len(html) > MAX_BODY_CHARS:
-        raise SendRefused(413, f'The message body is limited to {MAX_BODY_CHARS} characters.')
+    # What the request leaves out comes from its template; what it gives wins.
+    chosen = request.template
+    subject, text, html = check_message(
+        request.subject if request.subject is not None else (chosen.subject if chosen else ''),
+        request.text if request.text is not None else (chosen.text if chosen else ''),
+        request.html if request.html is not None else (chosen.html if chosen else ''),
+    )
+    send_at = check_send_at(request.send_at) if request.send_at is not None else None
     if request.audience is not None and request.recipients:
         raise SendRefused(422, 'Name an audience or list recipients, not both.')
     recipients: Sequence[RecipientIn] = request.recipients
@@ -468,7 +538,16 @@ def create(request: CampaignRequest, key: CampaignKey) -> Created:
             text=text,
             html=html,
             audience=request.audience,
+            template=chosen,
+            status=Campaign.SCHEDULED if send_at else Campaign.SENDING,
+            send_at=send_at,
+            # Only the html part is tracked: a text-only campaign has nothing to count.
+            track_opens=bool(html.strip())
+            and (cfg.track_opens if request.track_opens is None else request.track_opens),
+            track_clicks=bool(html.strip())
+            and (cfg.track_clicks if request.track_clicks is None else request.track_clicks),
         )
+        tracking.create_links(campaign)
         CampaignRecipient.objects.bulk_create(
             [
                 CampaignRecipient(
@@ -528,6 +607,14 @@ def bounce_rate(campaign: Campaign, sent: int | None = None) -> tuple[float | No
     except Exception:
         return None, sent
     return (round(100 * bounced / sent, 1) if sent else None), sent
+
+
+def bounced(campaign: Campaign) -> int | None:
+    """How many emails of the campaign have bounced so far; ``None`` when the count is lost."""
+    try:
+        return int(cache.get(_bounce_key(str(campaign.pk))) or 0)
+    except Exception:
+        return None
 
 
 def over_bounce_limit(campaign: Campaign) -> str:
@@ -593,9 +680,51 @@ def cancel(campaign: Campaign) -> bool:
     """End it for good: what has not been sent will not be. Returns False when already over."""
     now: datetime = timezone.now()
     done = Campaign.objects.filter(
-        pk=campaign.pk, status__in=[Campaign.SENDING, Campaign.PAUSED]
+        pk=campaign.pk, status__in=[Campaign.SCHEDULED, Campaign.SENDING, Campaign.PAUSED]
     ).update(status=Campaign.CANCELLED, status_detail='', finished_at=now)
     return bool(done)
+
+
+def reschedule(campaign: Campaign, send_at: datetime) -> bool:
+    """Move a scheduled campaign to another time. Returns False when it is not scheduled."""
+    when = check_send_at(send_at)
+    return bool(
+        Campaign.objects.filter(pk=campaign.pk, status=Campaign.SCHEDULED).update(send_at=when)
+    )
+
+
+def start_now(campaign: Campaign) -> bool:
+    """Send a scheduled campaign now instead of at its time. Returns False when not scheduled."""
+    return bool(
+        Campaign.objects.filter(pk=campaign.pk, status=Campaign.SCHEDULED).update(
+            status=Campaign.SENDING, status_detail='', send_at=None
+        )
+    )
+
+
+def start_due(now: datetime) -> tuple[int, int]:
+    """Start the scheduled campaigns whose time has come. Returns ``(started, held)``.
+
+    One that is more than ``MAX_LATE`` past its time (the server was down) is **held**, paused with
+    the reason: an email meant for 9 am on Friday should not go out on Sunday without somebody
+    looking. Resuming it sends it.
+    """
+    due = Campaign.objects.filter(status=Campaign.SCHEDULED, send_at__lte=now)
+    held = due.filter(send_at__lt=now - MAX_LATE)
+    held_count = 0
+    for campaign in held:
+        when = timezone.localtime(campaign.send_at).strftime('%Y-%m-%d %H:%M %Z')
+        held_count += Campaign.objects.filter(pk=campaign.pk, status=Campaign.SCHEDULED).update(
+            status=Campaign.PAUSED,
+            status_detail=(
+                f'It was due at {when} and the server was not sending then. Check that it is '
+                'still wanted, then resume it or cancel it.'
+            )[:300],
+        )
+    started = Campaign.objects.filter(status=Campaign.SCHEDULED, send_at__lte=now).update(
+        status=Campaign.SENDING, status_detail=''
+    )
+    return started, held_count
 
 
 __all__ = [
@@ -608,9 +737,12 @@ __all__ = [
     'MissingValue',
     'RecipientIn',
     'cancel',
+    'check_message',
+    'check_send_at',
     'clean_merge',
     'compose',
     'bounce_rate',
+    'bounced',
     'note_bounce',
     'over_bounce_limit',
     'counts',
@@ -622,8 +754,11 @@ __all__ = [
     'read_optout_token',
     'remove_opt_out',
     'render',
+    'reschedule',
     'resume',
     'skip_reasons',
+    'start_due',
+    'start_now',
     'settings',
     'tags_in',
     'unsubscribe_url',

@@ -6,6 +6,8 @@ A campaign is created in one request and sent over time. Each run:
   clock minute), capped by what is left of today's ceiling.
   With warm-up on the ceiling starts low and grows by half each day, because a sender that has
   never mailed anyone and suddenly mails thousands is treated as a spammer;
+* starts the scheduled campaigns whose time has come (one more than six hours late is held
+  instead: see ``marketing.start_due``);
 * shares the budget between the campaigns that are sending, so a big one does not starve a small
   one;
 * claims each recipient with one conditional UPDATE right before its email, so two runs that
@@ -45,7 +47,7 @@ from django.utils.html import strip_tags
 
 from backend.apps.domains.models import Domain
 from backend.apps.mail.models import Campaign, CampaignRecipient
-from backend.apps.mail.services import containment, delivery_events, marketing
+from backend.apps.mail.services import containment, delivery_events, marketing, tracking
 
 logger = logging.getLogger('backend')
 
@@ -67,6 +69,7 @@ class RunResult:
     skipped: int = 0
     completed: int = 0
     paused: int = 0
+    started: int = 0  # scheduled campaigns whose time came
     note: str = ''  # why a run did nothing, when it did nothing
 
 
@@ -143,6 +146,9 @@ def _run(cfg: marketing.MarketingSettings, now: datetime, result: RunResult) -> 
         detail='interrupted: may or may not have been sent',
         claim_token='',
     )
+    started, held = marketing.start_due(now)
+    result.started += started
+    result.paused += held
     active = list(Campaign.objects.filter(status=Campaign.SENDING).order_by('created_at'))
     if not active:
         result.note = 'nothing is sending'
@@ -243,6 +249,7 @@ def _send_batch(
         return 0, False
     token = str(uuid.uuid4())
     domain = campaign.sender.rpartition('@')[2]
+    links = tracking.link_ids(campaign) if campaign.track_clicks else None
     refused = marketing.skip_reasons(domain, [row.address for row in rows])
 
     attempted = 0  # emails handed to the relay, accepted or refused
@@ -262,7 +269,15 @@ def _send_batch(
                 result.skipped += 1
                 continue
             try:
-                composed = marketing.compose(campaign, row.address, row.merge, cfg.postal_address)
+                composed = marketing.compose(
+                    campaign,
+                    row.address,
+                    row.merge,
+                    cfg.postal_address,
+                    tracking.Tracking(row.pk, campaign.track_opens, links)
+                    if campaign.track_opens or links
+                    else None,
+                )
             except marketing.MissingValue as exc:
                 _mark(row, CampaignRecipient.FAILED, f'missing: {exc.name}')
                 result.failed += 1

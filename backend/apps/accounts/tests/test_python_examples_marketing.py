@@ -256,3 +256,107 @@ class MarketingExampleTests(ExampleBase):
                 )  # fmt: skip
                 self.assertNotEqual(code, 0)
                 self.assertIn('not both', err)
+
+    def test_the_client_keeps_templates_and_sends_from_one(self) -> None:
+        made = self.marketer.create_template(
+            'Welcome', 'Hi {{first_name|friend}}', text='Hello {{first_name|friend}} {{offer}}'
+        )
+        self.assertEqual(made['tags'][1], {'name': 'offer', 'required': True})
+        self.assertEqual([t['id'] for t in self.marketer.templates()], [made['id']])
+        shown = self.marketer.preview_template(made['id'], {'first_name': 'Ana'})
+        self.assertEqual((shown['subject'], shown['missing']), ('Hi Ana', ['offer']))
+        updated = self.marketer.update_template(made['id'], text='Hello {{first_name|friend}}')
+        self.assertEqual(updated['text'], 'Hello {{first_name|friend}}')
+        sent = self.marketer.create_campaign(
+            'news@ifinmail.test', None, [{'email': 'ana@example.org'}], template=made['id']
+        )
+        self.assertEqual(sent['queued'], 1)
+        self.assertEqual(self.marketer.campaign(sent['id'])['template'], made['id'])
+        self.marketer.delete_template(made['id'])
+        self.assertEqual(list(self.marketer.templates()), [])
+
+    def test_the_client_schedules_moves_and_starts_a_campaign_and_reads_its_report(self) -> None:
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from backend.apps.mail.services import campaign_runner
+
+        when = (timezone.now() + timedelta(days=2)).isoformat()
+        made = self.marketer.create_campaign(
+            'news@ifinmail.test',
+            'Hi',
+            [{'email': 'ana@example.org'}],
+            html='<a href="https://shop.example.com/">shop</a>',
+            send_at=when,
+            track_opens=True,
+        )
+        self.assertEqual(made['status'], 'scheduled')
+        later = (timezone.now() + timedelta(days=3)).isoformat()
+        self.assertEqual(
+            self.marketer.reschedule_campaign(made['id'], later)['status'], 'scheduled'
+        )
+        self.assertEqual(self.marketer.start_campaign(made['id'])['status'], 'sending')
+        campaign_runner.run()
+        report = self.marketer.campaign_report(made['id'])
+        self.assertEqual((report['sent'], report['opens']['people']), (1, 0))
+        self.assertEqual([link['clicks'] for link in report['links']], [0])
+        self.assertEqual(
+            [r['email'] for r in self.marketer.campaign_recipients(made['id'], opened=False)],
+            ['ana@example.org'],
+        )
+        self.assertEqual(list(self.marketer.campaign_recipients(made['id'], clicked=True)), [])
+
+    def test_the_template_script_and_the_campaign_script_work_together(self) -> None:
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        people, body = self.files(
+            'email,first_name\nana@example.org,Ana\n', text='Hi {{first_name|friend}}'
+        )
+        code, out, err = self.run_script(
+            '13_templates',
+            'new',
+            'Welcome',
+            'Hello {{first_name|friend}}',
+            body,
+            client=self.marketer,
+        )
+        self.assertEqual(code, 0, err)
+        template_id = out.split()[1]
+        code, out, _ = self.run_script('13_templates', 'list', client=self.marketer)
+        self.assertIn('Welcome', out)
+        code, out, _ = self.run_script(
+            '13_templates', 'preview', template_id, 'first_name=Ana', client=self.marketer
+        )
+        self.assertIn('Subject: Hello Ana', out)
+        code, out, _ = self.run_script(
+            '13_templates', 'update', template_id, '--subject', 'Changed {{first_name|x}}',
+            client=self.marketer,
+        )  # fmt: skip
+        self.assertIn('Changed', out)
+        when = (timezone.now() + timedelta(days=1)).isoformat()
+        code, out, err = self.run_script(
+            '11_marketing_campaign', 'from-template', 'news@ifinmail.test', template_id, people,
+            '--send-at', when, '--no-opens', client=self.marketer,
+        )  # fmt: skip
+        self.assertEqual(code, 0, err)
+        self.assertIn('1 to be sent, starting', out)
+        campaign_id = out.split()[1].rstrip(':')
+        code, out, _ = self.run_script(
+            '11_marketing_campaign', 'status', campaign_id, client=self.marketer
+        )
+        self.assertIn('scheduled', out)
+        self.assertIn('starts', out)
+        code, out, _ = self.run_script(
+            '11_marketing_campaign', 'start', campaign_id, client=self.marketer
+        )
+        self.assertIn('sending', out)
+        code, out, _ = self.run_script(
+            '11_marketing_campaign', 'report', campaign_id, client=self.marketer
+        )
+        self.assertEqual(code, 0)
+        self.assertIn('sent 0', out)
+        code, out, _ = self.run_script('13_templates', 'delete', template_id, client=self.marketer)
+        self.assertIn('deleted', out)

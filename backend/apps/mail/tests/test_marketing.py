@@ -528,7 +528,7 @@ class RunnerTests(MarketingBase):
         self.run_once()
         message = mail.outbox[0]
         self.assertIn('&lt;img', message.alternatives[0].content)
-        self.assertNotIn('<img', message.alternatives[0].content)
+        self.assertNotIn('<img src=x', message.alternatives[0].content)  # (the pixel is ours)
         self.assertIn('<img src=x onerror=1>', message.body)  # plain text stays plain
 
     def test_a_campaign_is_not_held_to_the_transactional_limits(self) -> None:

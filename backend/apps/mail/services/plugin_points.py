@@ -418,6 +418,12 @@ class DeveloperTarget(AdapterTarget):
         'marketing_max_audience': TargetKey(
             _int_between(1, 1000000), 'Most contacts one audience may hold.'
         ),
+        'marketing_track_opens': TargetKey(
+            _one_of('yes', 'no'), 'Count opens of campaign emails with a tracking pixel by default.'
+        ),
+        'marketing_track_clicks': TargetKey(
+            _one_of('yes', 'no'), 'Count clicks on campaign links by default.'
+        ),
         'marketing_address': TargetKey(
             _postal_address, "The sender's postal address, printed in every campaign email."
         ),
@@ -836,6 +842,14 @@ def _capabilities() -> tuple[Capability, ...]:
                 'max_audience_size': _field(
                     (DEV, 'marketing_max_audience'),
                     'Most contacts in one audience, and so in a campaign sent to it.',
+                ),
+                'track_opens': _field(
+                    (DEV, 'marketing_track_opens'),
+                    'yes: campaigns count opens unless they say otherwise.',
+                ),
+                'track_clicks': _field(
+                    (DEV, 'marketing_track_clicks'),
+                    'yes: campaigns count clicks unless they say otherwise.',
                 ),
                 'postal_address': _field(
                     (DEV, 'marketing_address'),

@@ -21,6 +21,13 @@ from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
 from backend.apps.mail.serializers import (
+    CampaignReportV1,
+    CampaignScheduleV1,
+    TemplateChangeV1,
+    TemplateCreateV1,
+    TemplatePreviewIn,
+    TemplatePreviewV1,
+    TemplateV1,
     AudienceChangeV1,
     AudienceContactsIn,
     AudienceContactV1,
@@ -58,8 +65,14 @@ from backend.apps.mail.serializers import (
     MessageAcceptedV1,
     MessageIn,
 )
-from backend.apps.mail.models import Audience, Campaign, CampaignRecipient, MarketingOptOut
-from backend.apps.mail.services import audiences, marketing
+from backend.apps.mail.models import (
+    Audience,
+    Campaign,
+    CampaignRecipient,
+    MarketingOptOut,
+    Template,
+)
+from backend.apps.mail.services import audiences, marketing, templates, tracking
 from backend.apps.mail.services.mailboxes import split_address
 from backend.apps.mail.services.messages import address as clean_address
 from backend.apps.mail.services.messages import (
@@ -973,6 +986,131 @@ def _campaign_page(rows: list[Campaign]) -> list[CampaignV1]:
     ]
 
 
+def _template_key(request: ApiRequest) -> templates.TemplateKey:
+    row = request.auth.row
+    return templates.TemplateKey(
+        prefix=row.prefix, manager='mail.manage' in (row.scopes or [])
+    )
+
+
+def _template(request: ApiRequest, template_id: str) -> Template:
+    try:
+        wanted = uuid.UUID(template_id)
+    except ValueError:
+        raise HttpError(404, 'No such template.') from None
+    found = templates.visible(_template_key(request)).filter(pk=wanted).first()
+    if found is None:
+        raise HttpError(404, 'No such template.')
+    return found
+
+
+def _template_page(rows: list[Template]) -> list[TemplateV1]:
+    return [TemplateV1.of(row, templates.tags(row)) for row in rows]
+
+
+@router.post(
+    '/templates',
+    response={201: TemplateV1, **errors(403, 413, 422)},
+    summary='Create a message template',
+)
+@require_scope('marketing.send')
+def api_create_template(request: ApiRequest, payload: TemplateCreateV1) -> Status[TemplateV1]:
+    """A subject and a text and/or html body with ``{{merge}}`` tags, kept to send again.
+
+    A campaign names it with ``"template": "<id>"`` and copies it when it is created.
+    """
+    try:
+        row = templates.create(
+            payload.name, payload.subject, payload.text, payload.html, _template_key(request)
+        )
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    AuditService.record(
+        action='api_template_created', user=actor(request), detail=f'{row.name} [{row.pk}]'
+    )
+    return Status(201, _template_page([row])[0])
+
+
+@router.get('/templates', response={200: list[TemplateV1], **errors()}, summary='List templates')
+@paginate(LimitOffsetPagination)
+@require_scope('marketing.send')
+def api_templates(request: ApiRequest) -> _Mapped:
+    """The templates this key created, newest first (all of them with ``mail.manage``)."""
+    return _Mapped(templates.visible(_template_key(request)), _template_page)
+
+
+@router.get(
+    '/templates/{template_id}',
+    response={200: TemplateV1, **errors(404)},
+    summary='Get a template',
+)
+@require_scope('marketing.send')
+def api_template(request: ApiRequest, template_id: str) -> TemplateV1:
+    return _template_page([_template(request, template_id)])[0]
+
+
+@router.patch(
+    '/templates/{template_id}',
+    response={200: TemplateV1, **errors(403, 404, 413, 422)},
+    summary='Change a template',
+)
+@require_scope('marketing.send')
+def api_change_template(
+    request: ApiRequest, template_id: str, payload: TemplateChangeV1
+) -> TemplateV1:
+    """Only what you send changes. Campaigns already created from it are not affected."""
+    row = _template(request, template_id)
+    try:
+        templates.update(
+            row,
+            name=payload.name,
+            subject=payload.subject,
+            text=payload.text,
+            html=payload.html,
+        )
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    return _template_page([row])[0]
+
+
+@router.delete(
+    '/templates/{template_id}',
+    response={204: None, **errors(404)},
+    summary='Delete a template',
+)
+@require_scope('marketing.send')
+def api_delete_template(request: ApiRequest, template_id: str) -> Status[None]:
+    """Campaigns already created from it keep their own copy."""
+    row = _template(request, template_id)
+    AuditService.record(
+        action='api_template_deleted', user=actor(request), detail=f'{row.name} [{row.pk}]'
+    )
+    row.delete()
+    return Status(204, None)
+
+
+@router.post(
+    '/templates/{template_id}/preview',
+    response={200: TemplatePreviewV1, **errors(404, 422)},
+    summary='See a template as one person would get it',
+)
+@require_scope('marketing.send')
+def api_preview_template(
+    request: ApiRequest, template_id: str, payload: TemplatePreviewIn
+) -> TemplatePreviewV1:
+    """Fills the merge tags with the values you send. Nothing is sent. The footer with your
+    postal address and the unsubscribe link is added when a campaign sends it, so it is not shown.
+    """
+    row = _template(request, template_id)
+    try:
+        shown = templates.preview(row, payload.merge, payload.email)
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    return TemplatePreviewV1(
+        subject=shown.subject, text=shown.text, html=shown.html, missing=shown.missing
+    )
+
+
 def _audience_key(request: ApiRequest) -> audiences.AudienceKey:
     row = request.auth.row
     return audiences.AudienceKey(
@@ -1178,16 +1316,23 @@ def api_create_campaign(
             return Status(202, CampaignCreatedV1(**previous['receipt']))
         cache.set(slot, {'state': 'pending', 'fingerprint': fingerprint}, 3600)
     chosen = None
-    if payload.audience:
-        try:
+    start = None
+    try:
+        if payload.audience:
             chosen = _audience(request, payload.audience)
-        except HttpError:
-            if slot:
-                cache.delete(slot)
-            raise
+        if payload.template:
+            start = _template(request, payload.template)
+    except HttpError:
+        if slot:
+            cache.delete(slot)
+        raise
     campaign_request = marketing.CampaignRequest(
         sender=payload.from_,
         audience=chosen,
+        template=start,
+        send_at=payload.send_at,
+        track_opens=payload.track_opens,
+        track_clicks=payload.track_clicks,
         subject=payload.subject,
         text=payload.text,
         html=payload.html,
@@ -1257,6 +1402,7 @@ def _change(request: ApiRequest, campaign_id: str, action: str) -> CampaignV1:
         'pause': (marketing.pause, 'Only a campaign that is sending can be paused.'),
         'resume': (marketing.resume, 'Only a paused campaign can be resumed.'),
         'cancel': (marketing.cancel, 'That campaign is already over.'),
+        'start': (marketing.start_now, 'Only a scheduled campaign can be started early.'),
     }
     function, refusal = states[action]
     if not function(campaign):
@@ -1290,6 +1436,45 @@ def api_resume_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
 
 
 @router.post(
+    '/campaigns/{campaign_id}/start',
+    response={200: CampaignV1, **errors(404, 409)},
+    summary='Start a scheduled campaign now',
+    by_alias=True,
+)
+@require_scope('marketing.send')
+def api_start_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
+    """Send a scheduled campaign now instead of at its time."""
+    return _change(request, campaign_id, 'start')
+
+
+@router.post(
+    '/campaigns/{campaign_id}/schedule',
+    response={200: CampaignV1, **errors(404, 409, 422)},
+    summary='Move a scheduled campaign to another time',
+    by_alias=True,
+)
+@require_scope('marketing.send')
+def api_schedule_campaign(
+    request: ApiRequest, campaign_id: str, payload: CampaignScheduleV1
+) -> CampaignV1:
+    """Only a campaign that is still scheduled can be moved."""
+    campaign = _campaign(request, campaign_id)
+    try:
+        moved = marketing.reschedule(campaign, payload.send_at)
+    except SendRefused as exc:
+        raise HttpError(exc.status, exc.message) from exc
+    if not moved:
+        raise HttpError(409, 'Only a scheduled campaign can be moved.')
+    AuditService.record(
+        action='api_campaign_rescheduled',
+        user=actor(request),
+        detail=f'{campaign.pk} -> {payload.send_at.isoformat(timespec="minutes")}',
+    )
+    campaign.refresh_from_db()
+    return _campaign_page([campaign])[0]
+
+
+@router.post(
     '/campaigns/{campaign_id}/cancel',
     response={200: CampaignV1, **errors(404, 409)},
     summary='Cancel a campaign',    by_alias=True,
@@ -1308,12 +1493,56 @@ def api_cancel_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
 @paginate(LimitOffsetPagination)
 @require_scope('marketing.send')
 def api_campaign_recipients(
-    request: ApiRequest, campaign_id: str, status: str = ''
+    request: ApiRequest,
+    campaign_id: str,
+    status: str = '',
+    opened: bool | None = None,
+    clicked: bool | None = None,
 ) -> _Mapped:
+    """``opened`` and ``clicked`` (true or false) keep the people who did, or did not."""
     rows = _campaign(request, campaign_id).recipients.order_by('pk')
     if status:
         rows = rows.filter(status=status)
+    if opened is not None:
+        rows = rows.filter(first_opened_at__isnull=not opened)
+    if clicked is not None:
+        rows = rows.filter(first_clicked_at__isnull=not clicked)
     return _Mapped(rows, lambda page: [CampaignRecipientV1.of(r) for r in page])
+
+
+@router.get(
+    '/campaigns/{campaign_id}/report',
+    response={200: CampaignReportV1, **errors(404, 422)},
+    summary='How a campaign did: opens, clicks, links and a timeline',
+)
+@require_scope('marketing.send')
+def api_campaign_report(
+    request: ApiRequest, campaign_id: str, by: str = 'hour'
+) -> CampaignReportV1:
+    """Opens and clicks are counted from a tracking pixel and tracked links in the html part, so
+    read them with care.
+
+    An open is a pixel being fetched: mail apps that load images in advance for privacy (Apple
+    Mail Privacy Protection) fetch it whether or not anybody read the email, and a person who
+    blocks images is never counted, so opens are an upper bound and clicks are the stronger
+    signal. Requests that identify as a bot or a security scanner are not counted. Links in the
+    plain-text part are not tracked. ``people`` counts each person once, ``total`` every time;
+    ``rate`` is a percent of the emails sent. ``by`` is ``hour`` or ``day`` for the timeline.
+    """
+    if by not in ('hour', 'day'):
+        raise HttpError(422, 'by must be hour or day.')
+    campaign = _campaign(request, campaign_id)
+    counts = marketing.counts(campaign)
+    body = tracking.report(campaign, by=by)
+    return CampaignReportV1(
+        id=str(campaign.pk),
+        status=campaign.status,
+        sent=counts[CampaignRecipient.SENT],
+        failed=counts[CampaignRecipient.FAILED],
+        skipped=counts[CampaignRecipient.SKIPPED],
+        bounced=marketing.bounced(campaign),
+        **{k: v for k, v in body.items() if k != 'sent'},
+    )
 
 
 @router.get(

@@ -218,7 +218,13 @@ class Campaign(models.Model):
     pace the Marketing plugin allows. The body may hold ``{{merge}}`` tags filled in per recipient.
     """
 
-    SENDING, PAUSED, COMPLETED, CANCELLED = 'sending', 'paused', 'completed', 'cancelled'
+    SCHEDULED, SENDING, PAUSED, COMPLETED, CANCELLED = (
+        'scheduled',
+        'sending',
+        'paused',
+        'completed',
+        'cancelled',
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=120, blank=True, default='')
@@ -231,11 +237,21 @@ class Campaign(models.Model):
     audience = models.ForeignKey(
         'mail.Audience', null=True, blank=True, on_delete=models.SET_NULL, related_name='campaigns'
     )
+    # The template it started from, when it did (a snapshot: the subject and bodies below are the
+    # campaign's own, so editing the template later does not change a campaign that exists).
+    template = models.ForeignKey(
+        'mail.Template', null=True, blank=True, on_delete=models.SET_NULL, related_name='campaigns'
+    )
     subject = models.CharField(max_length=255)
     text = models.TextField(blank=True, default='')
     html = models.TextField(blank=True, default='')
     status = models.CharField(max_length=12, default=SENDING, db_index=True)
     status_detail = models.CharField(max_length=300, blank=True, default='')  # why it is paused
+    send_at = models.DateTimeField(null=True, blank=True)  # when a scheduled campaign starts
+    # What was asked for at creation: a pixel in the html (opens) and the html's links sent through
+    # the server (clicks). Off for campaigns that predate tracking.
+    track_opens = models.BooleanField(default=False)
+    track_clicks = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
@@ -261,6 +277,11 @@ class CampaignRecipient(models.Model):
     claim_token = models.CharField(max_length=36, blank=True, default='')
     claimed_at = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # Engagement, from the tracking pixel and links (see services/tracking.py).
+    opens = models.PositiveIntegerField(default=0)
+    first_opened_at = models.DateTimeField(null=True, blank=True)
+    clicks = models.PositiveIntegerField(default=0)
+    first_clicked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'mail_campaign_recipient'
@@ -271,6 +292,49 @@ class CampaignRecipient(models.Model):
 
     def __str__(self) -> str:
         return f'{self.address} ({self.status})'
+
+
+class CampaignLink(models.Model):
+    """A link in a campaign's html that is sent through the server so clicks can be counted.
+
+    ``url`` is the address as written in the message, merge tags and all; the person's own values
+    are filled in when they click. A click only ever goes to one of these rows, never to an
+    address taken from the request, so the redirect cannot be used to send people anywhere.
+    """
+
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='links')
+    url = models.TextField()
+    position = models.PositiveSmallIntegerField()  # order of first appearance
+    clicks = models.PositiveIntegerField(default=0)  # every click
+    unique_clicks = models.PositiveIntegerField(default=0)  # people who clicked
+
+    class Meta:
+        db_table = 'mail_campaign_link'
+        ordering = ['position']
+        constraints = [
+            models.UniqueConstraint(fields=['campaign', 'position'], name='campaign_link_once')
+        ]
+
+    def __str__(self) -> str:
+        return self.url[:80]
+
+
+class CampaignClick(models.Model):
+    """That one person clicked one link, and how many times: bounded by people times links."""
+
+    recipient = models.ForeignKey(
+        CampaignRecipient, on_delete=models.CASCADE, related_name='click_rows'
+    )
+    link = models.ForeignKey(CampaignLink, on_delete=models.CASCADE, related_name='click_rows')
+    count = models.PositiveIntegerField(default=1)
+    first_at = models.DateTimeField(auto_now_add=True)
+    last_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'mail_campaign_click'
+        constraints = [
+            models.UniqueConstraint(fields=['recipient', 'link'], name='campaign_click_once')
+        ]
 
 
 class MarketingOptOut(models.Model):
@@ -297,6 +361,31 @@ class MarketingOptOut(models.Model):
 
     def __str__(self) -> str:
         return f'{self.address} (no marketing from {self.domain})'
+
+
+class Template(models.Model):
+    """A message kept to be sent again, with ``{{merge}}`` tags (Marketing plugin).
+
+    A campaign names a template instead of carrying the message in the request. The campaign copies
+    it when it is created, so a template can be edited or deleted without touching campaigns that
+    exist. The key that created it sees and changes it (a key with ``mail.manage`` sees all).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120)
+    key_prefix = models.CharField(max_length=16, db_index=True)  # the key that made it
+    subject = models.CharField(max_length=255)
+    text = models.TextField(blank=True, default='')
+    html = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'mail_template'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Audience(models.Model):

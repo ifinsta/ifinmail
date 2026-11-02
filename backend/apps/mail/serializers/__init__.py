@@ -8,6 +8,7 @@ Passwords are write-only inputs and never serialized back.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from ninja import Schema
 from pydantic import ConfigDict, Field
@@ -456,10 +457,34 @@ class CampaignIn(Schema):
 
     from_: str = Field(alias='from', description="The sender; one of the key's allowed senders.")
     name: str = Field(default='', max_length=120, description='Your own label for the campaign.')
-    subject: str = Field(min_length=1, max_length=255)
+    subject: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Required unless a template gives it. What you give wins over the template's.",
+    )
     text: str | None = Field(default=None, max_length=1_000_000)
     html: str | None = Field(default=None, max_length=1_000_000)
+    template: str | None = Field(
+        default=None,
+        description='Start from this template (its id): the subject and bodies you leave out '
+        'come from it. It is copied when the campaign is created.',
+    )
     reply_to: str | None = None
+    track_opens: bool | None = Field(
+        default=None,
+        description='Count opens with a tracking pixel in the html. Left out: the server default.',
+    )
+    track_clicks: bool | None = Field(
+        default=None,
+        description='Send the html links through the server to count clicks. Left out: the '
+        'server default.',
+    )
+    send_at: datetime | None = Field(
+        default=None,
+        description='Start sending then, with a time zone (2026-03-01T09:00:00+01:00, or ...Z). '
+        'Left out, it starts now. From a minute to a year ahead.',
+    )
     recipients: list[CampaignRecipientIn] = Field(default_factory=list, max_length=100_000)
     audience: str | None = Field(
         default=None,
@@ -472,7 +497,7 @@ class CampaignCreatedV1(Schema):
     """The campaign exists and is being sent at the server's pace; nothing is sent in this call."""
 
     id: str
-    status: str  # sending
+    status: str  # sending, or scheduled when send_at was given
     queued: int  # recipients that will be sent to
     skipped: dict[str, int]  # reason -> how many were left out (suppressed, opted_out, ...)
 
@@ -482,11 +507,15 @@ class CampaignV1(Schema):
 
     id: str
     name: str
-    status: str  # sending | paused | completed | cancelled
+    status: str  # scheduled | sending | paused | completed | cancelled
     status_detail: str  # why it is paused
     from_: str = Field(alias='from')
     subject: str
     audience: str | None  # the audience it was sent to, if any
+    template: str | None  # the template it started from, if any
+    send_at: str | None  # when a scheduled campaign starts
+    track_opens: bool
+    track_clicks: bool
     created_at: str
     finished_at: str | None
     # Recipients by status: pending, sending, sent, failed, skipped.
@@ -503,6 +532,10 @@ class CampaignV1(Schema):
             from_=row.sender,
             subject=row.subject,
             audience=str(row.audience_id) if row.audience_id else None,
+            template=str(row.template_id) if row.template_id else None,
+            send_at=row.send_at.isoformat(timespec='seconds') if row.send_at else None,
+            track_opens=row.track_opens,
+            track_clicks=row.track_clicks,
             created_at=row.created_at.isoformat(timespec='seconds'),
             finished_at=row.finished_at.isoformat(timespec='seconds') if row.finished_at else None,
             recipients=counts,
@@ -516,6 +549,10 @@ class CampaignRecipientV1(Schema):
     detail: str  # why it was skipped or failed
     message_id: str
     sent_at: str | None
+    opens: int  # times the email was opened (see the notes on tracking)
+    first_opened_at: str | None
+    clicks: int
+    first_clicked_at: str | None
 
     @classmethod
     def of(cls, row) -> CampaignRecipientV1:  # noqa: ANN001
@@ -525,7 +562,117 @@ class CampaignRecipientV1(Schema):
             detail=row.detail,
             message_id=row.message_id,
             sent_at=row.sent_at.isoformat(timespec='seconds') if row.sent_at else None,
+            opens=row.opens,
+            first_opened_at=_when(row.first_opened_at),
+            clicks=row.clicks,
+            first_clicked_at=_when(row.first_clicked_at),
         )
+
+
+def _when(value: datetime | None) -> str | None:
+    return value.isoformat(timespec='seconds') if value else None
+
+
+class CampaignReportCountV1(Schema):
+    people: int  # distinct people
+    total: int  # every time
+    rate: float | None  # percent of the emails sent
+
+
+class CampaignClickReportV1(CampaignReportCountV1):
+    of_openers: float | None  # percent of the people who opened that also clicked
+
+
+class CampaignLinkReportV1(Schema):
+    url: str  # as written in the message, merge tags and all
+    clicks: int
+    people: int
+
+
+class CampaignTimelineV1(Schema):
+    at: str  # the start of the hour (or day); people counted at their first open or click
+    opens: int
+    clicks: int
+
+
+class CampaignTrackingV1(Schema):
+    opens: bool
+    clicks: bool
+
+
+class CampaignReportV1(Schema):
+    """How a campaign did. Read the notes under ``GET /campaigns/{id}/report`` before comparing."""
+
+    id: str
+    status: str
+    sent: int
+    failed: int
+    skipped: int
+    bounced: int | None  # None when the count is not available
+    tracking: CampaignTrackingV1
+    opens: CampaignReportCountV1
+    clicks: CampaignClickReportV1
+    links: list[CampaignLinkReportV1]
+    timeline: list[CampaignTimelineV1]
+
+
+class CampaignScheduleV1(Schema):
+    send_at: datetime = Field(description='With a time zone; from a minute to a year ahead.')
+
+
+class TemplateCreateV1(Schema):
+    name: str = Field(min_length=1, max_length=120, description='Your own label for it.')
+    subject: str = Field(min_length=1, max_length=255)
+    text: str | None = Field(default=None, max_length=1_000_000)
+    html: str | None = Field(default=None, max_length=1_000_000)
+
+
+class TemplateChangeV1(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    subject: str | None = Field(default=None, min_length=1, max_length=255)
+    text: str | None = Field(default=None, max_length=1_000_000)
+    html: str | None = Field(default=None, max_length=1_000_000)
+
+
+class TemplateTagV1(Schema):
+    name: str
+    required: bool  # some use has no fallback: a person without a value is skipped
+
+
+class TemplateV1(Schema):
+    id: str
+    name: str
+    subject: str
+    text: str
+    html: str
+    tags: list[TemplateTagV1]  # the merge tags it uses
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def of(cls, row, tags: list[dict]) -> TemplateV1:  # noqa: ANN001
+        return cls(
+            id=str(row.pk),
+            name=row.name,
+            subject=row.subject,
+            text=row.text,
+            html=row.html,
+            tags=[TemplateTagV1(**tag) for tag in tags],
+            created_at=row.created_at.isoformat(timespec='seconds'),
+            updated_at=row.updated_at.isoformat(timespec='seconds'),
+        )
+
+
+class TemplatePreviewIn(Schema):
+    merge: dict[str, str | int | float | None] = Field(default_factory=dict)
+    email: str = Field(default='', description="Fills {{email}}; a made-up address if left out.")
+
+
+class TemplatePreviewV1(Schema):
+    subject: str
+    text: str
+    html: str
+    missing: list[str]  # tags with no value and no fallback: a campaign would skip that person
 
 
 class AudienceCreateV1(Schema):
@@ -623,6 +770,19 @@ class MarketingOptOutCreateV1(Schema):
 
 
 __all__ = [
+    'CampaignClickReportV1',
+    'CampaignLinkReportV1',
+    'CampaignReportCountV1',
+    'CampaignReportV1',
+    'CampaignTimelineV1',
+    'CampaignTrackingV1',
+    'CampaignScheduleV1',
+    'TemplateChangeV1',
+    'TemplateCreateV1',
+    'TemplatePreviewIn',
+    'TemplatePreviewV1',
+    'TemplateTagV1',
+    'TemplateV1',
     'AudienceChangeV1',
     'AudienceContactIn',
     'AudienceContactV1',

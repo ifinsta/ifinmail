@@ -309,10 +309,14 @@ class Client:
     def create_campaign(
         self,
         sender: str,
-        subject: str,
+        subject: str | None,
         recipients: list[dict[str, Any]] | None = None,
         *,
         audience: str | None = None,
+        template: str | None = None,
+        send_at: str | None = None,
+        track_opens: bool | None = None,
+        track_clicks: bool | None = None,
         text: str | None = None,
         html: str | None = None,
         reply_to: str | None = None,
@@ -324,17 +328,31 @@ class Client:
         ``recipients`` is ``[{"email": "ana@example.org", "merge": {"first_name": "Ana"}}, ...]``;
         or pass ``audience`` (an id from :meth:`create_audience`) to send to everyone on that list,
         as it is now. Give one or the other.
+
+        ``template`` (an id from :meth:`create_template`) supplies the subject and bodies you leave
+        out (pass ``None`` for ``subject`` to take the template's); what you give wins.
+        ``send_at`` schedules it: an ISO time with a zone, like ``2026-03-01T09:00:00+01:00``
+        (the answer's ``status`` is then ``scheduled``). ``track_opens`` and ``track_clicks`` turn
+        counting on or off for this campaign; left out, the server's default applies. Only the
+        html part is tracked; see :meth:`campaign_report` for what the numbers mean.
         The subject, text and html may hold ``{{first_name}}`` or ``{{first_name|friend}}`` tags.
         Nothing is sent in this call: ``{"id", "status": "sending", "queued": n, "skipped": {...}}``
         says what the server will send (``skipped`` counts people left out and why). The same
         ``idempotency_key`` returns the first answer instead of creating the campaign twice; one is
         generated when you do not pass one, so this call is safe to retry.
         """
-        body: dict[str, Any] = {'from': sender, 'subject': subject, 'name': name}
-        if recipients is not None:
-            body['recipients'] = recipients
-        if audience is not None:
-            body['audience'] = audience
+        body: dict[str, Any] = {'from': sender, 'name': name}
+        for field, value in (
+            ('subject', subject),
+            ('recipients', recipients),
+            ('audience', audience),
+            ('template', template),
+            ('send_at', send_at),
+            ('track_opens', track_opens),
+            ('track_clicks', track_clicks),
+        ):
+            if value is not None:
+                body[field] = value
         for field, value in (('text', text), ('html', html), ('reply_to', reply_to)):
             if value is not None:
                 body[field] = value
@@ -351,9 +369,42 @@ class Client:
     def campaigns(self, status: str = '') -> Iterator[dict[str, Any]]:
         return self.paged('/api/v1/campaigns', status=status or None)
 
-    def campaign_recipients(self, campaign_id: str, status: str = '') -> Iterator[dict[str, Any]]:
-        """What became of each person (``status``: pending, sent, failed or skipped, and why)."""
-        return self.paged(f'/api/v1/campaigns/{campaign_id}/recipients', status=status or None)
+    def campaign_recipients(
+        self,
+        campaign_id: str,
+        status: str = '',
+        opened: bool | None = None,
+        clicked: bool | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        """What became of each person (``status``: pending, sent, failed or skipped, and why),
+        with their ``opens`` and ``clicks``. ``opened`` / ``clicked`` keep the people who did
+        (``True``) or did not (``False``)."""
+        return self.paged(
+            f'/api/v1/campaigns/{campaign_id}/recipients',
+            status=status or None,
+            opened=None if opened is None else str(opened).lower(),
+            clicked=None if clicked is None else str(clicked).lower(),
+        )
+
+    def campaign_report(self, campaign_id: str, by: str = 'hour') -> dict[str, Any]:
+        """How a campaign did: opens, clicks, each link and a timeline (``by`` is hour or day).
+
+        Read the numbers with care. An open is a tracking pixel being fetched: mail apps that load
+        images in advance (Apple Mail Privacy Protection) fetch it whether or not anyone read the
+        email, so opens are an upper bound, and clicks are the stronger signal. Bots and security
+        scanners are not counted. Links in the plain-text part are not tracked.
+        """
+        return self.request('GET', f'/api/v1/campaigns/{campaign_id}/report', params={'by': by})
+
+    def start_campaign(self, campaign_id: str) -> dict[str, Any]:
+        """Send a scheduled campaign now instead of at its time."""
+        return self.request('POST', f'/api/v1/campaigns/{campaign_id}/start', json={})
+
+    def reschedule_campaign(self, campaign_id: str, send_at: str) -> dict[str, Any]:
+        """Move a scheduled campaign to another time (ISO, with a zone)."""
+        return self.request(
+            'POST', f'/api/v1/campaigns/{campaign_id}/schedule', json={'send_at': send_at}
+        )
 
     def pause_campaign(self, campaign_id: str) -> dict[str, Any]:
         return self.request('POST', f'/api/v1/campaigns/{campaign_id}/pause', json={})
@@ -375,6 +426,49 @@ class Client:
             if state['status'] in ('completed', 'cancelled') or time.monotonic() >= deadline:
                 return state
             time.sleep(every)
+
+    # ------------------------------------------------------------------ Operations: templates
+    # Messages kept on the server for campaigns to start from. Same plugin and scope.
+
+    def create_template(
+        self,
+        name: str,
+        subject: str,
+        *,
+        text: str | None = None,
+        html: str | None = None,
+    ) -> dict[str, Any]:
+        """Keep a message with ``{{merge}}`` tags. A campaign copies it when it is created."""
+        body: dict[str, Any] = {'name': name, 'subject': subject}
+        for field, value in (('text', text), ('html', html)):
+            if value is not None:
+                body[field] = value
+        return self.request('POST', '/api/v1/templates', json=body)
+
+    def template(self, template_id: str) -> dict[str, Any]:
+        """The template and the merge tags it uses (``tags``, each with ``required``)."""
+        return self.request('GET', f'/api/v1/templates/{template_id}')
+
+    def templates(self) -> Iterator[dict[str, Any]]:
+        return self.paged('/api/v1/templates')
+
+    def update_template(self, template_id: str, **changes: Any) -> dict[str, Any]:
+        """Change ``name``, ``subject``, ``text`` and/or ``html``; old campaigns keep theirs."""
+        return self.request('PATCH', f'/api/v1/templates/{template_id}', json=changes)
+
+    def delete_template(self, template_id: str) -> None:
+        self.request('DELETE', f'/api/v1/templates/{template_id}')
+
+    def preview_template(
+        self, template_id: str, merge: dict[str, Any] | None = None, email: str = ''
+    ) -> dict[str, Any]:
+        """The template as one person would get it, nothing sent. ``missing`` names the tags with
+        no value and no fallback: a campaign would skip that person."""
+        return self.request(
+            'POST',
+            f'/api/v1/templates/{template_id}/preview',
+            json={'merge': merge or {}, 'email': email},
+        )
 
     # ------------------------------------------------------------------ Operations: audiences
     # Lists kept on the server, for campaigns to be sent to. Same plugin and scope as campaigns.

@@ -35,7 +35,20 @@
     A campaign copies the list when it is created. Administrators set *Most contacts in one
     audience* (100,000 by default) under Marketplace, Marketing. See
     `examples/python/12_audiences.py`.
-  - **Not yet:** reusable templates, scheduled sends, open and click tracking, attachments.
+  - **Templates:** `POST /api/v1/templates` keeps a subject and bodies with merge tags; a
+    campaign names one with `"template": "<id>"` (what the request gives wins) and copies it when
+    created. `POST /templates/{id}/preview` shows it filled in for one person and lists the tags
+    that would skip someone.
+  - **Scheduled sends:** `"send_at"` (with a time zone, a minute to a year ahead) creates the
+    campaign now and starts it then. It can be moved, started early or cancelled; the lists are
+    checked when it sends; one the server missed by over six hours is held for a person instead
+    of sent late.
+  - **Opens, clicks and reports:** the html gets a tracking pixel and its links go through the
+    server (on by default; per campaign `track_opens` / `track_clicks`, server defaults under
+    Marketplace, Marketing). `GET /campaigns/{id}/report` gives opens, clicks, each link and a
+    timeline; recipients show their `opens` and `clicks`. Bots and scanners are not counted, and
+    opens are an upper bound (mail apps that preload images). No IP address or browser is kept.
+  - **Not yet:** attachments, per-campaign unsubscribe counts, webhook events for opens and clicks.
 
 ## v0.0.74
 - **Sign-in lockout no longer locks everybody out.** Behind nginx, the lockout counted every

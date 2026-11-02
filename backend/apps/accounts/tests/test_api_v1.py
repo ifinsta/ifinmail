@@ -833,6 +833,8 @@ class ContractTests(ApiBase):
                 'text': 't',
                 'recipients': [{'email': 'b@example.org'}],
             },
+            ('POST', '/campaigns/{campaign_id}/schedule'): {'send_at': '2031-01-01T09:00:00Z'},
+            ('POST', '/templates'): {'name': 'T', 'subject': 's', 'text': 't'},
             ('POST', '/audiences'): {'name': 'List', 'domain': 'ifinmail.test'},
             ('POST', '/audiences/{audience_id}/contacts'): {
                 'contacts': [{'email': 'b@example.org'}]
@@ -851,6 +853,7 @@ class ContractTests(ApiBase):
                 .replace('{name}', 'ifinmail.test')
                 .replace('{alias_id}', 'x')
                 .replace('{audience_id}', '00000000-0000-0000-0000-000000000000')
+                .replace('{template_id}', '00000000-0000-0000-0000-000000000000')
                 .replace('{email}', 'b@example.org')
                 .replace('{fingerprint}', 'abc')
                 .replace('{uid}', '1')

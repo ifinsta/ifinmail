@@ -382,8 +382,75 @@ curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns 
 [`examples/python/12_audiences.py`](examples/python/12_audiences.py) manages a list from a CSV, and
 `11_marketing_campaign.py send ... --audience ID` sends to it.
 
-Limits of what is built: there are not yet reusable templates, scheduled sends, open and click
-tracking, or attachments.
+**Templates: messages kept on the server.** A message you send often (a welcome, a monthly
+update) is kept once and named by campaigns:
+
+```bash
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/templates \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Monthly update","subject":"News for {{first_name|you}}",
+       "html":"<p>Hi {{first_name|you}}, ...</p>","text":"Hi {{first_name|you}}, ..."}'   # -> {"id": "4c1a...", "tags": [...]}
+
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"news@example.com","template":"4c1a...","audience":"7d2e..."}'
+```
+
+- **The campaign copies the template when it is created.** Editing (`PATCH /templates/{id}`) or
+  deleting one never changes a campaign that exists. What the campaign request gives (a different
+  `subject`, say) wins over the template; what it leaves out comes from the template.
+- **Preview before sending.** `POST /templates/{id}/preview` with `{"merge": {...}}` fills the tags
+  the way a campaign would for one person and lists in `missing` the tags with no value and no
+  fallback, which would skip that person. Nothing is sent. A template's `tags` say which tags it
+  uses and which are `required` (some use has no fallback). Values are escaped in the html.
+- A key sees and changes the templates it created (`mail.manage` sees all), up to 500 each.
+
+**Scheduled sends.** Give a campaign `"send_at": "2026-03-01T09:00:00+01:00"` and it is created
+now (the recipients are listed and checked now) and starts then; its `status` is `scheduled`.
+
+- The time needs a zone, must be at least a minute away and at most a year. To send now, leave it
+  out. The runner starts campaigns once a minute, so a start is within a minute of the time.
+- Until it starts, a scheduled campaign can be **moved** (`POST /campaigns/{id}/schedule` with a
+  new `send_at`), **started early** (`POST /campaigns/{id}/start`) or **cancelled**. It cannot be
+  paused: it is not sending.
+- **The lists are checked when it sends, not when it was created**: somebody who unsubscribes or
+  bounces in between is left out. The recipients themselves (and an audience's contacts) were
+  copied at creation, so people added afterwards are not in it.
+- **A campaign the server missed is held, not sent late.** If the server was down and the time
+  passed by more than six hours, the campaign is paused with the reason instead of going out on
+  Sunday what was meant for Friday morning; resuming it sends it.
+
+**Opens, clicks and the report.** Campaigns count opens and clicks by default (the plugin's
+*Count opens by default* and *Count clicks by default*; a campaign overrides them with
+`"track_opens"` and `"track_clicks"`).
+
+- **How.** The html of each email ends with a one-pixel image whose address is personal to the
+  person, and each `http(s)` link in the html goes through this server, which counts the click and
+  sends the person on. The unsubscribe link, `mailto:` links and anchors are never touched, and a
+  tracked address is signed and can only lead to the link it was made for, never to an address
+  taken from the request. Merge tags in a link (`https://shop.example.com/u/{{id}}`) are filled in
+  with the person's values, percent-encoded so a value cannot change the address.
+- **`GET /campaigns/{id}/report`** gives the emails sent, failed, skipped and bounced; opens and
+  clicks as `people` (each person once), `total` (every time) and `rate` (a percent of the emails
+  sent); the share of openers that clicked; each link's clicks; and a timeline by hour or day.
+  `GET /campaigns/{id}/recipients` shows each person's `opens` and `clicks` and filters with
+  `?opened=true` and `?clicked=false`.
+- **Read the numbers with care.** An open is an image being fetched. Mail apps that load images in
+  advance for privacy (Apple Mail Privacy Protection) fetch it whether or not anybody read the
+  email, and a person who blocks images is never counted: opens are an upper bound and clicks are
+  the stronger signal. Requests that identify as a bot or a security scanner, and `HEAD` requests,
+  are answered and sent on but not counted; a scanner that looks like a browser cannot be told
+  apart. Only the html part is tracked: links in the plain-text part are not, and a text-only
+  campaign has nothing to count.
+- **Privacy.** Tracking records, per recipient, that the email was opened or a link clicked and
+  when, and nothing else: no IP address, browser or location is kept. Turn it off per campaign, or
+  server-wide in the plugin, when you do not want it. Counts live with the campaign.
+
+[`examples/python/13_templates.py`](examples/python/13_templates.py) manages templates;
+`11_marketing_campaign.py` has `from-template`, `--send-at`, `start`, `reschedule` and `report`.
+
+Limits of what is built: attachments, per-campaign unsubscribe counts, and webhook events for
+opens and clicks.
 
 ### Assistant
 

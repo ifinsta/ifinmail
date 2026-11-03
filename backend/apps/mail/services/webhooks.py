@@ -4,8 +4,6 @@ Used by the Delivery Events plugin (what became of mail sent through the API) an
 Webhooks plugin (mail a mailbox received). Each event is stored once per endpoint and delivered
 by the worker with retries, so a slow or failing receiver never slows mail down.
 
-<<<<<<< HEAD
-=======
 How events travel: ``emit_many`` stores a batch (one policy lookup, one endpoint query, one insert)
 and ``_schedule`` publishes the new deliveries to the workers in chunks of at most
 ``DELIVERY_CHUNK`` to one endpoint, round-robin across endpoints, once the transaction commits.
@@ -14,7 +12,11 @@ queues what it has not reached as a new chunk, so a slow endpoint holds a worker
 only. ``sweep`` (every minute) delivers whatever is due, which covers retries and any queue message
 that was lost. The README section "Event scans and webhook delivery" describes the whole design.
 
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
+Who sends a delivery is decided by ``_claim``, an atomic conditional update with a short lease, so
+a chunk, a requeued chunk and the sweep can all hold the same delivery and it is still sent once
+at a time. Delivery is at least once: a worker that dies mid-request leaves the claim to expire,
+and the delivery goes out again.
+
 What a receiver gets::
 
     POST <url>
@@ -44,14 +46,6 @@ import socket
 import time
 import urllib.error
 import urllib.request
-<<<<<<< HEAD
-from collections.abc import Iterable
-from dataclasses import dataclass
-from datetime import timedelta
-from urllib.parse import urlsplit
-
-from django.db import IntegrityError, transaction
-=======
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
@@ -59,7 +53,7 @@ from itertools import zip_longest
 from urllib.parse import urlsplit
 
 from django.db import transaction
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
+from django.db.models import Q
 from django.utils import timezone
 
 from backend.apps.core.plugins.services import InstallationService
@@ -74,8 +68,6 @@ MAX_ENDPOINTS_PER_OWNER = 10
 MAX_RESPONSE_BYTES = 4096
 # Wait before attempt n+1 (seconds): 1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h.
 BACKOFF = (60, 300, 1800, 7200, 21600, 43200, 86400)
-<<<<<<< HEAD
-=======
 # Deliveries to one endpoint travel to a worker together, DELIVERY_CHUNK per task, instead of one
 # broker message each (about 0.4 ms apiece: 3 s for a busy minute, against 0.02 ms in a chunk).
 # A chunk is tried one after another, so it stops once BATCH_BUDGET_SECONDS are spent and the rest
@@ -86,7 +78,10 @@ BACKOFF = (60, 300, 1800, 7200, 21600, 43200, 86400)
 # endpoint waiting 61 s, 15 s kept it to 16 s (the old one-message-per-delivery path: 113 s).
 DELIVERY_CHUNK = 25
 BATCH_BUDGET_SECONDS = 15
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
+# A worker claims a delivery before sending it, for this long (see _claim): longer than one attempt
+# can take (a 10 s request, a DNS check and the writes), short enough that a worker that dies
+# mid-delivery has the delivery picked up again within a minute.
+CLAIM_SECONDS = 60
 KEEP_DAYS = 14  # delivered and failed attempts kept for this long
 
 _ALWAYS_BLOCKED = (
@@ -278,8 +273,6 @@ def new_event_id() -> str:
     return 'evt_' + pysecrets.token_hex(12)
 
 
-<<<<<<< HEAD
-=======
 @dataclass(frozen=True)
 class Event:
     """One event to queue (see :func:`emit_many`)."""
@@ -291,7 +284,6 @@ class Event:
     event_id: str | None = None
 
 
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 def emit(
     event_type: str,
     data: dict,
@@ -305,48 +297,6 @@ def emit(
     Delivery events reach console endpoints and the sending key's own; received-mail events reach
     endpoints that list that mailbox.
     """
-<<<<<<< HEAD
-    current = policy()
-    if event_type == EventType.RECEIVED:
-        if not current.inbox_events:
-            return 0
-    elif not current.delivery_events:
-        return 0
-    event_id = event_id or new_event_id()
-    payload = {
-        'id': event_id,
-        'type': str(event_type),
-        'created': timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'data': data,
-    }
-    made = []
-    for row in WebhookEndpoint.objects.filter(active=True):
-        if str(event_type) not in row.events:
-            continue
-        if event_type == EventType.RECEIVED:
-            if mailbox.lower() not in row.mailboxes:
-                continue
-        elif row.owner_prefix and row.owner_prefix != key_prefix:
-            continue
-        try:
-            with transaction.atomic():
-                made.append(
-                    WebhookDelivery.objects.create(
-                        endpoint=row,
-                        event_id=event_id,
-                        event_type=str(event_type),
-                        payload=payload,
-                        next_attempt_at=timezone.now(),
-                    )
-                )
-        except IntegrityError:  # this event was already queued for this endpoint
-            continue
-    for delivery in made:
-        _schedule(str(delivery.pk))
-    return len(made)
-
-
-=======
     return emit_many(
         [Event(event_type, data, key_prefix=key_prefix, mailbox=mailbox, event_id=event_id)]
     )
@@ -427,7 +377,6 @@ def _insert_new(wanted: list[WebhookDelivery]) -> list[WebhookDelivery]:
     return fresh
 
 
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 def ping(row: WebhookEndpoint) -> WebhookDelivery:
     """A test event for one endpoint, delivered now (for the Test button and the API)."""
     event_id = new_event_id()
@@ -448,16 +397,6 @@ def ping(row: WebhookEndpoint) -> WebhookDelivery:
     return delivery
 
 
-<<<<<<< HEAD
-def _schedule(delivery_id: str) -> None:
-    from backend.apps.mail.tasks import deliver_webhook
-
-    def queue() -> None:
-        try:
-            deliver_webhook.delay(delivery_id)
-        except Exception:  # the broker is down: the sweep (every minute) picks it up
-            logger.warning('Could not queue webhook delivery %s', delivery_id, exc_info=True)
-=======
 def _chunks(deliveries: Sequence[WebhookDelivery]) -> list[list[str]]:
     """Delivery ids grouped by endpoint, at most ``DELIVERY_CHUNK`` to a group.
 
@@ -492,7 +431,6 @@ def _schedule(deliveries: Sequence[WebhookDelivery]) -> None:
                 deliver_webhooks.delay(ids)
             except Exception:  # the broker is down: the sweep (every minute) picks them up
                 logger.warning('Could not queue %d webhook deliveries', len(ids), exc_info=True)
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 
     transaction.on_commit(queue)
 
@@ -586,23 +524,35 @@ def attempt(delivery: WebhookDelivery) -> bool:
     return not error
 
 
+def _claim(delivery_id: str) -> WebhookDelivery | None:
+    """Take a pending, due delivery for sending, or ``None`` when someone else has it.
+
+    One conditional UPDATE: it moves ``next_attempt_at`` out by ``CLAIM_SECONDS`` and succeeds only
+    for a row that is still pending and due, so of any number of workers asking at once (a chunk,
+    the sweep, a requeued chunk) exactly one gets it. Locking the row while reading it, as this
+    used to, did not: the lock ended before the request was sent. The claim is overwritten with
+    the real next attempt time (or cleared) when the attempt ends; a worker that dies in between
+    leaves it to expire, and the sweep then queues the delivery again.
+    """
+    now = timezone.now()
+    claimed = (
+        WebhookDelivery.objects.filter(pk=delivery_id, status=WebhookDelivery.PENDING)
+        .filter(Q(next_attempt_at__isnull=True) | Q(next_attempt_at__lte=now))
+        .update(next_attempt_at=now + timedelta(seconds=CLAIM_SECONDS))
+    )
+    if not claimed:
+        return None
+    return WebhookDelivery.objects.select_related('endpoint').get(pk=delivery_id)
+
+
 def deliver(delivery_id: str) -> bool:
-    with transaction.atomic():
-        delivery = (
-            WebhookDelivery.objects.select_for_update()
-            .select_related('endpoint')
-            .filter(pk=delivery_id, status=WebhookDelivery.PENDING)
-            .first()
-        )
-        if delivery is None or (
-            delivery.next_attempt_at and delivery.next_attempt_at > timezone.now()
-        ):
-            return False
+    """Send one delivery now if it is pending, due and nobody else has it; True when accepted."""
+    delivery = _claim(delivery_id)
+    if delivery is None:
+        return False
     return attempt(delivery)
 
 
-<<<<<<< HEAD
-=======
 def deliver_batch(
     delivery_ids: Sequence[str],
     *,
@@ -634,18 +584,25 @@ def _requeue(delivery_ids: list[str]) -> None:
         logger.warning('Could not requeue %d webhook deliveries', len(delivery_ids), exc_info=True)
 
 
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 def sweep(limit: int = 200) -> int:
-    """Deliver what is due (retries, and anything the broker missed). Runs every minute."""
+    """Queue what is due: retries whose wait is over, and anything whose queue message was lost.
+
+    Runs every minute and only queues, in the same chunks as new deliveries (per endpoint,
+    round-robin, with the same time slices). It used to send them itself, one after another, which
+    held a worker for as long as the slowest endpoint took (minutes, with no time limit) and sent
+    again whatever a queued chunk was about to send. Rows that are queued but not yet picked up are
+    due too, so they may be queued twice; the claim in ``deliver`` makes that harmless, and a row a
+    worker is sending is not due while its claim lasts. Returns how many it queued.
+    """
     due = list(
         WebhookDelivery.objects.filter(
             status=WebhookDelivery.PENDING, next_attempt_at__lte=timezone.now()
         )
         .order_by('next_attempt_at')
-        .values_list('pk', flat=True)[:limit]
+        .only('pk', 'endpoint_id')[:limit]
     )
-    for pk in due:
-        deliver(str(pk))
+    if due:
+        _schedule(due)
     cutoff = timezone.now() - timedelta(days=KEEP_DAYS)
     WebhookDelivery.objects.filter(created_at__lt=cutoff).exclude(
         status=WebhookDelivery.PENDING

@@ -1,0 +1,96 @@
+manifest_version = 2
+
+[plugin]
+id = "marketing"
+name = "Marketing"
+version = "1.0.0"
+publisher = "ifinmail"
+category = "delivery"
+summary = "Send marketing campaigns to many people from your own server: one email each, a personal one-click unsubscribe, and sending paced to protect your reputation."
+requires_core = "0.0.74"
+install_by_default = true
+description = """
+Marketing mail is not transactional mail. A receipt goes to one person who just bought something; a newsletter goes to thousands who may or may not want it, and the large providers judge the sender by how they react. This plugin gives the server the parts a campaign needs, so you do not need an outside service.
+
+A campaign (POST /api/v1/campaigns, with a key that has the marketing.send scope) is one message sent to many recipients, one email each, either listed in the request or taken from an audience (and the message from a template, and the start time scheduled): a list of people you keep on the server (POST /api/v1/audiences and its contacts), with the values for the merge tags. Each person gets a personal unsubscribe link and the List-Unsubscribe headers Gmail, Yahoo and Microsoft look for, and the body can carry merge tags such as {{first_name}} filled in per person. Unsubscribing stops marketing mail only: the same person still gets receipts and password resets, which the suppression list of Sender compliance would also block.
+
+Sending is paced. Campaigns are worked through in the background at the pace set here, within a daily ceiling that, with warm-up on, starts low and grows by half each day, because a new sender that suddenly mails thousands of people is treated as a spammer. Campaign mail does not count against the per-key daily cap or the per-minute and per-day limits of Outbound policy, and it does not set off containment, which would pause a mailbox that sends a newsletter; it has these limits instead. Addresses on the suppression list, on the marketing opt-out list or blocked by Outbound policy are skipped, and every campaign can be paused, resumed or cancelled.
+
+Every campaign email carries your postal address, as the law in many countries requires (CAN-SPAM). Campaigns are refused until you enter it below.
+"""
+
+[[settings]]
+key = "postal_address"
+type = "text"
+label = "Postal address for the footer"
+max_length = 300
+help = "One line, for example: Acme Ltd, 12 High Street, London N1 1AA, UK. Campaigns cannot be created until this is set."
+
+[[settings]]
+key = "pace_per_minute"
+type = "integer"
+label = "Emails per minute"
+min = 1
+max = 6000
+default = 60
+help = "All campaigns together. Raise it for a big list once your reputation is established."
+
+[[settings]]
+key = "daily_ceiling"
+type = "integer"
+label = "Emails per day"
+min = 1
+max = 1000000
+default = 2000
+help = "All campaigns together, once warmed up."
+
+[[settings]]
+key = "warmup"
+type = "boolean"
+label = "Warm up gradually"
+default = true
+help = "The daily ceiling starts at the value below and grows by half each day until it reaches the ceiling above."
+
+[[settings]]
+key = "warmup_start"
+type = "integer"
+label = "Emails allowed on the first sending day"
+min = 10
+max = 100000
+default = 200
+
+[[settings]]
+key = "max_recipients"
+type = "integer"
+label = "Most recipients listed in one campaign request"
+min = 1
+max = 100000
+default = 10000
+help = "For a campaign whose recipients are in the request. A campaign sent to an audience is limited by the audience size below."
+
+[[settings]]
+key = "max_audience_size"
+type = "integer"
+label = "Most contacts in one audience"
+min = 1
+max = 1000000
+default = 100000
+help = "Also the most a campaign sent to an audience can have."
+
+[[settings]]
+key = "track_opens"
+type = "boolean"
+label = "Count opens by default"
+default = true
+help = "Adds a one-pixel image to the html of each email. Mail apps that load images in advance (Apple Mail Privacy Protection) make opens look higher than they are. A campaign can turn it off for itself."
+
+[[settings]]
+key = "track_clicks"
+type = "boolean"
+label = "Count clicks by default"
+default = true
+help = "The links in the html go through this server, which counts the click and sends the person on. A campaign can turn it off for itself."
+
+[[contributes]]
+capability = "marketing.campaigns"
+values = { enabled = "yes", pace_per_minute = "{pace_per_minute}", daily_ceiling = "{daily_ceiling}", warmup = "{warmup}", warmup_start = "{warmup_start}", max_recipients = "{max_recipients}", max_audience_size = "{max_audience_size}", track_opens = "{track_opens}", track_clicks = "{track_clicks}", postal_address = "{postal_address}" }

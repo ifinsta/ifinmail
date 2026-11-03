@@ -16,13 +16,11 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-<<<<<<< HEAD
-=======
 from celery.exceptions import SoftTimeLimitExceeded
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 from django.core.cache import cache
 
 from backend.apps.core.telemetry.threats import delivery as classify_delivery
@@ -34,11 +32,8 @@ logger = logging.getLogger('backend')
 
 REMEMBER_SECONDS = 7 * 24 * 3600  # a message still being retried after a week has bounced
 MAX_READ = 4 * 1024 * 1024  # bytes per run
-<<<<<<< HEAD
-=======
 FLUSH_EVERY = 500  # lines between writes of what a scan has produced
 _CACHE_CHUNK = 1000  # keys per bulk cache read
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 _POSITION = 'deliveryevents:position'
 _CLEANUP = re.compile(
     r'postfix/(?:\w+/)?cleanup\[\d+\]: (?P<qid>[0-9A-Za-z]+): message-id=<(?P<mid>[^>]+)>'
@@ -61,6 +56,7 @@ class Sent:
     message_id: str
     key_prefix: str
     sender: str
+    campaign: str = ''  # the Marketing campaign it belongs to, when it does
 
 
 def _message_key(message_id: str) -> str:
@@ -71,11 +67,20 @@ def _queue_key(qid: str) -> str:
     return f'apiqid:{qid}'
 
 
+MARKETING_ACTIVE = 'marketing:active'  # set while campaigns are being sent (see campaign_runner)
+
+
 def _wanted() -> bool:
-    """The log is followed for Delivery events and for Sender compliance (bounce handling)."""
+    """The log is followed for Delivery events, for Sender compliance (bounce handling) and while
+    campaigns are being sent (their bounces suppress the address, whichever plugins are on)."""
     from backend.apps.mail.services import compliance
 
-    return webhooks.policy().delivery_events or compliance.settings().enabled
+    if webhooks.policy().delivery_events or compliance.settings().enabled:
+        return True
+    try:
+        return bool(cache.get(MARKETING_ACTIVE))
+    except Exception:
+        return False
 
 
 def remember(message_id: str, key_prefix: str, sender: str, recipients: int) -> None:
@@ -98,31 +103,52 @@ def remember(message_id: str, key_prefix: str, sender: str, recipients: int) -> 
     )
 
 
+def remember_many(items: Sequence[tuple[str, str, str, str]]) -> None:
+    """``remember`` for many messages at once: ``(message_id, key_prefix, sender, campaign)``.
+
+    One policy lookup, one bulk cache write and one bulk insert of the ``message.queued`` events,
+    where a loop of ``remember`` calls costs a lookup, a write and about nine queries each. Used
+    by the campaign runner, which sends hundreds of emails a minute.
+    """
+    if not items or not _wanted():
+        return
+    keyed = {
+        _message_key(mid.strip('<>')): {
+            'key_prefix': prefix,
+            'sender': sender,
+            'campaign': campaign,
+        }
+        for mid, prefix, sender, campaign in items
+    }
+    try:
+        cache.set_many(keyed, REMEMBER_SECONDS)
+    except Exception:
+        logger.warning('Could not remember %d campaign messages for delivery events', len(items))
+    webhooks.emit_many(
+        [
+            webhooks.Event(
+                EventType.QUEUED,
+                {
+                    'message_id': mid.strip('<>'),
+                    'sender': sender,
+                    'recipients': 1,
+                    'campaign': campaign,
+                },
+                key_prefix=prefix,
+            )
+            for mid, prefix, sender, campaign in items
+        ]
+    )
+
+
 def _sent(mid: str) -> Sent | None:
     try:
         found = cache.get(_message_key(mid))
     except Exception:
         return None
-    if not isinstance(found, dict):
-        return None
-    return Sent(mid, str(found.get('key_prefix', '')), str(found.get('sender', '')))
+    return _as_sent(mid, found)
 
 
-<<<<<<< HEAD
-def handle_line(line: str) -> int:
-    """One Postfix log line; returns the number of events it produced."""
-    cleanup = _CLEANUP.search(line)
-    if cleanup:
-        mid = cleanup['mid']
-        if _sent(mid) is not None:
-            cache.set(_queue_key(cleanup['qid']), mid, REMEMBER_SECONDS)
-        return 0
-    status = _STATUS.search(line)
-    if not status:
-        return 0
-    mid = cache.get(_queue_key(status['qid']))
-    sent = _sent(mid) if mid else None
-=======
 _Parsed = tuple[str, re.Match[str]] | None
 
 
@@ -137,7 +163,12 @@ def _parse(line: str) -> _Parsed:
 def _as_sent(mid: str, found: object) -> Sent | None:
     if not isinstance(found, dict):
         return None
-    return Sent(mid, str(found.get('key_prefix', '')), str(found.get('sender', '')))
+    return Sent(
+        mid,
+        str(found.get('key_prefix', '')),
+        str(found.get('sender', '')),
+        str(found.get('campaign', '')),
+    )
 
 
 class _Direct:
@@ -160,9 +191,13 @@ class _Direct:
 
         compliance.count(prefix, delivered=delivered, bounced=bounced)
 
-    def bounce(self, sender: str, recipient: str, category: str, dsn: str, reason: str) -> None:
-        from backend.apps.mail.services import compliance
+    def bounce(
+        self, sender: str, recipient: str, category: str, dsn: str, reason: str, campaign: str = ''
+    ) -> None:
+        from backend.apps.mail.services import compliance, marketing
 
+        if campaign:
+            marketing.note_bounce(campaign, sender, recipient, category, dsn, reason)
         compliance.note_bounce(sender, recipient, category, dsn, reason)
 
     def emit(self, event: webhooks.Event) -> int:
@@ -193,7 +228,6 @@ def handle_line(line: str, ctx: _Direct | _Batch | None = None) -> int:
     status = found
     mid = ctx.queued(status['qid'])
     sent = ctx.message(mid) if mid else None
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
     if sent is None:
         return 0
     kind = _OUTCOME[status['status']]
@@ -210,37 +244,22 @@ def handle_line(line: str, ctx: _Direct | _Batch | None = None) -> int:
     }
     if kind != EventType.DELIVERED:
         data['category'] = classify_delivery.classify(status['dsn'] or '', reason)
-<<<<<<< HEAD
-    from backend.apps.mail.services import compliance
-
-    if kind == EventType.DELIVERED:
-        compliance.count(sent.key_prefix, delivered=1)
-    elif kind == EventType.BOUNCED:
-        compliance.count(sent.key_prefix, bounced=1)
-        compliance.note_bounce(sent.sender, data['recipient'], data['category'], data['dsn'], reason)
-    # One event per (message, recipient, outcome, log line): a retry is a new deferral.
-    event_id = 'evt_' + _short_hash(f'{sent.message_id}|{status["to"]}|{kind}|{line}')
-    return webhooks.emit(kind, data, key_prefix=sent.key_prefix, event_id=event_id)
-=======
     if kind == EventType.DELIVERED:
         ctx.count(sent.key_prefix, delivered=1)
     elif kind == EventType.BOUNCED:
         ctx.count(sent.key_prefix, bounced=1)
-        ctx.bounce(sent.sender, data['recipient'], data['category'], data['dsn'], reason)
+        ctx.bounce(
+            sent.sender, data['recipient'], data['category'], data['dsn'], reason, sent.campaign
+        )
     # One event per (message, recipient, outcome, log line): a retry is a new deferral.
     event_id = 'evt_' + _short_hash(f'{sent.message_id}|{status["to"]}|{kind}|{line}')
     return ctx.emit(webhooks.Event(kind, data, key_prefix=sent.key_prefix, event_id=event_id))
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 
 
 def _short_hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:24]
 
 
-<<<<<<< HEAD
-def read_new_lines(path: Path | None = None) -> list[str]:
-    """The lines appended to the Postfix log since the last run (follows rotation)."""
-=======
 def _follow(path: Path | None = None) -> tuple[list[str], list[int]]:
     """``(lines, sizes)`` appended to the Postfix log since the last run (follows rotation).
 
@@ -249,16 +268,11 @@ def _follow(path: Path | None = None) -> tuple[list[str], list[int]]:
     partial last line waits for next time); a stray ``\\r`` or Unicode separator inside a record
     does not start a new one, so text in a log field cannot forge a second line.
     """
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
     path = path or (log_dir() / 'postfix.log')
     try:
         stat = path.stat()
     except OSError:
-<<<<<<< HEAD
-        return []
-=======
         return [], []
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
     saved = cache.get(_POSITION) or {}
     offset = int(saved.get('offset', 0)) if saved.get('inode') == stat.st_ino else 0
     if stat.st_size < offset:  # truncated in place
@@ -266,32 +280,13 @@ def _follow(path: Path | None = None) -> tuple[list[str], list[int]]:
     if offset == 0 and not saved:
         # First run: start at the end, so a fresh install does not replay old mail.
         cache.set(_POSITION, {'inode': stat.st_ino, 'offset': stat.st_size}, None)
-<<<<<<< HEAD
-        return []
-=======
         return [], []
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
     with path.open('rb') as handle:
         handle.seek(offset)
         chunk = handle.read(MAX_READ)
     # Keep a partial last line for next time.
     end = chunk.rfind(b'\n') + 1
     cache.set(_POSITION, {'inode': stat.st_ino, 'offset': offset + end}, None)
-<<<<<<< HEAD
-    return chunk[:end].decode('utf-8', 'replace').splitlines()
-
-
-def scan() -> int:
-    """Turn new log lines into events (every minute)."""
-    if not _wanted():
-        return 0
-    produced = 0
-    for line in read_new_lines():
-        try:
-            produced += handle_line(line)
-        except Exception:
-            logger.warning('Delivery events: a log line could not be handled', exc_info=True)
-=======
     records = chunk[:end].split(b'\n')[:-1]
     return (
         [record.decode('utf-8', 'replace').rstrip('\r') for record in records],
@@ -358,7 +353,7 @@ class _Batch:
         self._linked: dict[str, str] = {}  # links made in this read, kept for its later lines
         self._unwritten_links: dict[str, str] = {}
         self._counts: dict[str, list[int]] = {}
-        self._bounces: list[tuple[str, str, str, str, str]] = []
+        self._bounces: list[tuple[str, str, str, str, str, str]] = []
         self._events: list[webhooks.Event] = []
 
     def parse(self, line: str) -> _Parsed:
@@ -385,8 +380,10 @@ class _Batch:
         totals[0] += delivered
         totals[1] += bounced
 
-    def bounce(self, sender: str, recipient: str, category: str, dsn: str, reason: str) -> None:
-        self._bounces.append((sender, recipient, category, dsn, reason))
+    def bounce(
+        self, sender: str, recipient: str, category: str, dsn: str, reason: str, campaign: str = ''
+    ) -> None:
+        self._bounces.append((sender, recipient, category, dsn, reason, campaign))
 
     def emit(self, event: webhooks.Event) -> int:
         self._events.append(event)
@@ -398,7 +395,7 @@ class _Batch:
         Each part is cleared once written, so a flush that is interrupted and then repeated
         (the soft time limit stops a scan part-way) does not write anything twice.
         """
-        from backend.apps.mail.services import compliance
+        from backend.apps.mail.services import compliance, marketing
 
         if self._unwritten_links:
             try:
@@ -416,7 +413,9 @@ class _Batch:
         if bounces:
             try:
                 current = compliance.settings()
-                for bounce in bounces:
+                for *bounce, campaign in bounces:
+                    if campaign:
+                        marketing.note_bounce(campaign, *bounce)
                     compliance.note_bounce(*bounce, current=current)
             except Exception:
                 logger.warning('Delivery events: bounces could not be recorded', exc_info=True)
@@ -489,7 +488,6 @@ def scan() -> int:
         finally:
             _rewind(sum(sizes[handled:]))
         raise
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
     return produced
 
 

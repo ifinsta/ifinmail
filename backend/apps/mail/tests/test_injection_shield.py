@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
-=======
 import time
 
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 from django.test import SimpleTestCase
 
 from backend.apps.core.plugins.services import InstallationService
@@ -71,8 +68,6 @@ class AnalysisTests(SimpleTestCase):
         self.assertIsNotNone(risk.level)
 
 
-<<<<<<< HEAD
-=======
 class BoundedWorkTests(SimpleTestCase):
     """The sender controls every byte, so one message must not be able to hold a worker.
 
@@ -188,7 +183,6 @@ class NestingTests(SimpleTestCase):
                 self.assertEqual(risk.level, 'high', risk.reasons)
 
 
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 class AgentInboxTests(inboxes.InboxBase):
     def setUp(self) -> None:
         super().setUp()

@@ -209,3 +209,230 @@ class Suppression(models.Model):
 
     def __str__(self) -> str:
         return f'{self.address} (from {self.domain}: {self.reason})'
+
+
+class Campaign(models.Model):
+    """One marketing message sent to many recipients, one email each (Marketing plugin).
+
+    Created by an API key with ``marketing.send`` and worked through by the campaign runner at the
+    pace the Marketing plugin allows. The body may hold ``{{merge}}`` tags filled in per recipient.
+    """
+
+    SCHEDULED, SENDING, PAUSED, COMPLETED, CANCELLED = (
+        'scheduled',
+        'sending',
+        'paused',
+        'completed',
+        'cancelled',
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120, blank=True, default='')
+    key_prefix = models.CharField(max_length=16, db_index=True)  # the key that made it
+    key_name = models.CharField(max_length=64, blank=True, default='')
+    sender = models.CharField(max_length=254)
+    reply_to = models.CharField(max_length=254, blank=True, default='')
+    # The audience it was made from, when it was (a snapshot: later changes to the list do not
+    # change a campaign that exists). Kept as a reference only; deleting the audience keeps it.
+    audience = models.ForeignKey(
+        'mail.Audience', null=True, blank=True, on_delete=models.SET_NULL, related_name='campaigns'
+    )
+    # The template it started from, when it did (a snapshot: the subject and bodies below are the
+    # campaign's own, so editing the template later does not change a campaign that exists).
+    template = models.ForeignKey(
+        'mail.Template', null=True, blank=True, on_delete=models.SET_NULL, related_name='campaigns'
+    )
+    subject = models.CharField(max_length=255)
+    text = models.TextField(blank=True, default='')
+    html = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=12, default=SENDING, db_index=True)
+    status_detail = models.CharField(max_length=300, blank=True, default='')  # why it is paused
+    send_at = models.DateTimeField(null=True, blank=True)  # when a scheduled campaign starts
+    # What was asked for at creation: a pixel in the html (opens) and the html's links sent through
+    # the server (clicks). Off for campaigns that predate tracking.
+    track_opens = models.BooleanField(default=False)
+    track_clicks = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'mail_campaign'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name or self.subject} ({self.status})'
+
+
+class CampaignRecipient(models.Model):
+    """One person a campaign goes to, and what became of it."""
+
+    PENDING, SENDING, SENT, FAILED, SKIPPED = 'pending', 'sending', 'sent', 'failed', 'skipped'
+
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='recipients')
+    address = models.CharField(max_length=254)
+    merge = models.JSONField(default=dict, blank=True)  # this person's merge-tag values
+    status = models.CharField(max_length=10, default=PENDING)
+    detail = models.CharField(max_length=300, blank=True, default='')  # why skipped or failed
+    message_id = models.CharField(max_length=255, blank=True, default='')
+    claim_token = models.CharField(max_length=36, blank=True, default='')
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # Engagement, from the tracking pixel and links (see services/tracking.py).
+    opens = models.PositiveIntegerField(default=0)
+    first_opened_at = models.DateTimeField(null=True, blank=True)
+    clicks = models.PositiveIntegerField(default=0)
+    first_clicked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'mail_campaign_recipient'
+        constraints = [
+            models.UniqueConstraint(fields=['campaign', 'address'], name='campaign_recipient_once')
+        ]
+        indexes = [models.Index(fields=['campaign', 'status'], name='campaign_status_idx')]
+
+    def __str__(self) -> str:
+        return f'{self.address} ({self.status})'
+
+
+class CampaignLink(models.Model):
+    """A link in a campaign's html that is sent through the server so clicks can be counted.
+
+    ``url`` is the address as written in the message, merge tags and all; the person's own values
+    are filled in when they click. A click only ever goes to one of these rows, never to an
+    address taken from the request, so the redirect cannot be used to send people anywhere.
+    """
+
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='links')
+    url = models.TextField()
+    position = models.PositiveSmallIntegerField()  # order of first appearance
+    clicks = models.PositiveIntegerField(default=0)  # every click
+    unique_clicks = models.PositiveIntegerField(default=0)  # people who clicked
+
+    class Meta:
+        db_table = 'mail_campaign_link'
+        ordering = ['position']
+        constraints = [
+            models.UniqueConstraint(fields=['campaign', 'position'], name='campaign_link_once')
+        ]
+
+    def __str__(self) -> str:
+        return self.url[:80]
+
+
+class CampaignClick(models.Model):
+    """That one person clicked one link, and how many times: bounded by people times links."""
+
+    recipient = models.ForeignKey(
+        CampaignRecipient, on_delete=models.CASCADE, related_name='click_rows'
+    )
+    link = models.ForeignKey(CampaignLink, on_delete=models.CASCADE, related_name='click_rows')
+    count = models.PositiveIntegerField(default=1)
+    first_at = models.DateTimeField(auto_now_add=True)
+    last_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'mail_campaign_click'
+        constraints = [
+            models.UniqueConstraint(fields=['recipient', 'link'], name='campaign_click_once')
+        ]
+
+
+class MarketingOptOut(models.Model):
+    """Someone who does not want marketing mail from one of our domains.
+
+    Separate from ``Suppression`` on purpose: that list stops *all* API mail from the domain, which
+    is right for an address that does not exist but wrong for a person who unsubscribed from a
+    newsletter and still needs their receipts and password resets.
+    """
+
+    ONE_CLICK, API, MANUAL = 'one-click', 'api', 'manual'
+
+    domain = models.CharField(max_length=253)  # our sending domain
+    address = models.CharField(max_length=254)
+    source = models.CharField(max_length=20, default=ONE_CLICK)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_marketing_optout'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['domain', 'address'], name='marketing_optout_once')
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.address} (no marketing from {self.domain})'
+
+
+class Template(models.Model):
+    """A message kept to be sent again, with ``{{merge}}`` tags (Marketing plugin).
+
+    A campaign names a template instead of carrying the message in the request. The campaign copies
+    it when it is created, so a template can be edited or deleted without touching campaigns that
+    exist. The key that created it sees and changes it (a key with ``mail.manage`` sees all).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120)
+    key_prefix = models.CharField(max_length=16, db_index=True)  # the key that made it
+    subject = models.CharField(max_length=255)
+    text = models.TextField(blank=True, default='')
+    html = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'mail_template'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Audience(models.Model):
+    """A list of people a campaign can be sent to (Marketing plugin).
+
+    It belongs to one sending domain: the opt-outs and suppressions that decide who can be mailed
+    are per domain, so a contact's status can be shown, and a campaign cannot send one brand's
+    list from another brand's address. The key that created it sees and changes it (a key with
+    ``mail.manage`` sees all).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True, default='')
+    domain = models.CharField(max_length=253)  # our sending domain
+    key_prefix = models.CharField(max_length=16, db_index=True)  # the key that made it
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_audience'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.domain})'
+
+
+class Contact(models.Model):
+    """One person on an audience, with the values for the ``{{merge}}`` tags of a campaign.
+
+    Whether they can be mailed is not stored here: it is looked up when asked, from the marketing
+    opt-outs and the suppression list, so there is one source of truth for it.
+    """
+
+    audience = models.ForeignKey(Audience, on_delete=models.CASCADE, related_name='contacts')
+    address = models.CharField(max_length=254)
+    merge = models.JSONField(default=dict, blank=True)
+    source = models.CharField(max_length=40, blank=True, default='')  # e.g. "signup form"
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'mail_contact'
+        ordering = ['pk']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['audience', 'address'], name='contact_once_per_audience'
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.address

@@ -331,6 +331,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'mail.scan_inbox_events',
         'schedule': 30.0,
     },
+    'run-campaigns': {
+        # Marketing campaigns are sent at the pace the Marketing plugin allows.
+        'task': 'mail.run_campaigns',
+        'schedule': crontab(minute='*'),
+    },
     'approvals-expire': {
         # Held messages nobody approved in time expire (Human approval plugin).
         'task': 'mail.expire_approvals',

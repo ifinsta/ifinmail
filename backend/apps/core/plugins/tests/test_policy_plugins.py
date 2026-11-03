@@ -258,6 +258,7 @@ class BundledPluginsTests(SimpleTestCase):
                 'inbox-webhooks',
                 'injection-shield',
                 'mailbox-care',
+                'marketing',
                 'object-storage',
                 'outbound-policy',
                 'sender-compliance',
@@ -265,7 +266,8 @@ class BundledPluginsTests(SimpleTestCase):
             ],
         )
         self.assertEqual(
-            [e.plugin_id for e in bundled if e.manifest.install_by_default], ['assistant']
+            [e.plugin_id for e in bundled if e.manifest.install_by_default],
+            ['assistant', 'marketing'],
         )
         claimed = [k for e in bundled for k in e.manifest.claimed_keys()]
         self.assertEqual(len(claimed), len(set(claimed)), 'two bundled plugins claim the same key')

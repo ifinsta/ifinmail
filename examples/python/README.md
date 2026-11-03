@@ -27,6 +27,7 @@ may send as (`billing@example.com`, or `*@example.com`).
 | `audit.view` | Health, delivery and error reports | 06, 07 |
 | `agents.manage` + Agent inboxes plugin | Inboxes for agents, read back with the code found | 10 |
 | `mail.send` + Delivery events plugin | Your own webhooks: what became of what you sent | 09 |
+| `marketing.send` | Campaigns, mailing lists, templates, scheduling and reports, one email each, with a personal unsubscribe | 11, 12, 13 |
 
 A key can never do more than the person who created it can; narrowing that person's role
 narrows the key at once.
@@ -46,6 +47,9 @@ narrows the key at once.
 | `08_aliases.py` | Aliases |
 | `10_agent_signup.py` | An agent gets an address, signs up, and reads the verification code back |
 | `09_webhook_receiver.py` | Receive events: check the signature, skip repeats (standard library only) |
+| `11_marketing_campaign.py` | A campaign from a CSV, an audience or a template: merge values, scheduling, who was left out and why, pause, resume, cancel, opens and clicks report |
+| `12_audiences.py` | Mailing lists on the server: create, load from a CSV (safe to repeat), who can be mailed, remove, delete |
+| `13_templates.py` | Messages kept on the server: create, preview with merge values, update, delete; send one with `11 from-template` |
 
 ## Using the client in your code
 

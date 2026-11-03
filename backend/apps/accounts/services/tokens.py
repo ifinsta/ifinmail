@@ -43,6 +43,7 @@ MAX_GRACE_HOURS = 168  # a rotated secret may overlap the new one for at most a 
 MAX_NETWORKS = 20
 MAX_SENDERS = 20
 SEND_SCOPE = 'mail.send'
+MARKETING_SCOPE = 'marketing.send'
 MAX_RATE_LIMIT = 6000
 MAX_SEND_LIMIT = 100000  # recipients per day a key may be given
 _PREFIX_CHARS = string.ascii_letters + string.digits
@@ -228,9 +229,11 @@ class TokenService:
         allowed = wanted & RoleService.effective_permissions(user)
         if not allowed:
             raise TokenError('None of those scopes are held by this login.')
-        senders = normalize_senders(allowed_senders) if SEND_SCOPE in allowed else []
+        sends = SEND_SCOPE in allowed or MARKETING_SCOPE in allowed
+        senders = normalize_senders(allowed_senders) if sends else []
         # A key with agents.manage may send as the agent inboxes it creates, so it needs no list.
-        if SEND_SCOPE in allowed and not senders and 'agents.manage' not in allowed:
+        # A key that runs campaigns has no such exception: it names its senders.
+        if sends and not senders and (MARKETING_SCOPE in allowed or 'agents.manage' not in allowed):
             raise TokenError(
                 'A key that can send mail must name the addresses it may send as '
                 '(name@domain, or *@domain for a whole domain).'

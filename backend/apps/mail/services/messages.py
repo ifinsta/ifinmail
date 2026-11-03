@@ -128,6 +128,24 @@ def _blocked(recipient: str, patterns: list[str]) -> bool:
     return False
 
 
+def blocked_destinations() -> list[str]:
+    """The addresses and domains Outbound policy forbids sending to (subdomains included)."""
+    return _words(
+        InstallationService.capability_values('sending.blocked_destinations').get('domains', '')
+    )
+
+
+def is_blocked(recipient: str, patterns: list[str]) -> bool:
+    return _blocked(recipient, patterns)
+
+
+def internal_only_senders() -> list[str]:
+    """The mailboxes Outbound policy limits to domains hosted on this server."""
+    return _words(
+        InstallationService.capability_values('sending.internal_only').get('mailboxes', '')
+    )
+
+
 def _seconds_to_midnight(now: datetime) -> int:
     tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return max(int((tomorrow - now).total_seconds()), 1)
@@ -415,4 +433,14 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-__all__ = ['MessageService', 'Receipt', 'SendRefused', 'SendRequest', 'SendingKey', 'address']
+__all__ = [
+    'MessageService',
+    'Receipt',
+    'SendRefused',
+    'SendRequest',
+    'SendingKey',
+    'address',
+    'blocked_destinations',
+    'internal_only_senders',
+    'is_blocked',
+]

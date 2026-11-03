@@ -122,7 +122,7 @@ class EndpointTests(EventsBase):
 
     def test_events_are_checked(self) -> None:
         self.enable()
-        for events in ([], ['message.opened'], ['message.received']):
+        for events in ([], ['message.read'], ['message.received']):
             with self.subTest(events=events), self.assertRaises(webhooks.WebhookError):
                 self.endpoint(events=events)
 
@@ -162,7 +162,11 @@ class DeliveryTests(EventsBase):
         self.assertEqual(len(self.receiver.calls), 1)
         InstallationService.configure(PLUGIN, {'max_attempts': 2}, 'a')
         WebhookDelivery.objects.filter(pk=delivery.pk).update(next_attempt_at=timezone.now())
-        self.assertEqual(webhooks.sweep(), 1)
+        with patch.object(webhooks, '_schedule') as schedule:  # the sweep queues; a worker sends
+            self.assertEqual(webhooks.sweep(), 1)
+        queued = [str(d.pk) for d in schedule.call_args.args[0]]
+        self.assertEqual(queued, [str(delivery.pk)])
+        webhooks.deliver_batch(queued)
         delivery.refresh_from_db()
         self.assertEqual((delivery.status, delivery.attempts), ('failed', 2))
         self.row.refresh_from_db()

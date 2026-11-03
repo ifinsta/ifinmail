@@ -26,6 +26,10 @@ def handle(event: dict) -> None:
         print(f"bounced: {data['recipient']} ({data.get('category')}): {data['reason']}")
     elif kind == 'message.delivered':
         print(f"delivered: {data['message_id']} to {data['recipient']}")
+    elif kind == 'message.opened':
+        print(f"opened: {data['recipient']} (campaign {data['campaign']})")
+    elif kind == 'message.clicked':
+        print(f"clicked: {data['recipient']} -> {data['url']}")
     elif kind == 'message.received':
         print(f"received by {data['mailbox']}: {data['subject']!r} from {data['from']}")
     else:

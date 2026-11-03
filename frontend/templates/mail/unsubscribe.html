@@ -11,10 +11,18 @@
         <p class="ifinmail-login-card__subtitle">{% trans 'It may have been changed or be very old. Reply to the message and ask to be removed.' %}</p>
         {% elif state == 'done' %}
         <h1 class="ifinmail-login-card__title">{% trans 'You are unsubscribed' %}</h1>
+        {% if kind == 'marketing' %}
+        <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed %}{{ address }} will not get marketing email from {{ domain }} again. Messages about your account, such as receipts and password resets, still arrive.{% endblocktrans %}</p>
+        {% else %}
         <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed %}{{ address }} will not get mail sent in bulk from {{ domain }} through this server again.{% endblocktrans %}</p>
+        {% endif %}
         {% else %}
         <h1 class="ifinmail-login-card__title">{% trans 'Unsubscribe?' %}</h1>
+        {% if kind == 'marketing' %}
+        <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed %}Stop marketing email from {{ domain }} to {{ address }}? Account messages such as receipts still arrive.{% endblocktrans %}</p>
+        {% else %}
         <p class="ifinmail-login-card__subtitle">{% blocktrans trimmed %}Stop mail from {{ domain }} to {{ address }}.{% endblocktrans %}</p>
+        {% endif %}
         <form method="post">
             <input type="hidden" name="List-Unsubscribe" value="One-Click">
             <button class="ifinmail-btn ifinmail-btn--primary ifinmail-btn--full" type="submit">{% trans 'Unsubscribe' %}</button>

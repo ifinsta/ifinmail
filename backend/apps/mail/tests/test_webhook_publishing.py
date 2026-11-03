@@ -124,9 +124,12 @@ class PublishingTests(PublishingBase):
         due = WebhookDelivery.objects.filter(status=WebhookDelivery.PENDING)
         self.assertEqual(due.count(), 6)  # every row is pending and due, for the sweep
 
-    def test_the_sweep_still_delivers_what_was_never_published(self) -> None:
+    def test_the_sweep_still_gets_delivered_what_was_never_published(self) -> None:
         webhooks.emit_many(self.events(3))
+        self.delay.reset_mock()  # the first publish "was lost"
         self.assertEqual(webhooks.sweep(), 6)
+        for call in self.delay.call_args_list:  # what a worker does with each queued chunk
+            webhooks.deliver_batch(call.args[0])
         delivered = WebhookDelivery.objects.filter(status=WebhookDelivery.DELIVERED)
         self.assertEqual(delivered.count(), 6)
 

@@ -30,6 +30,9 @@ class PermissionCode(StrEnum):
     # Agent inboxes (plugin): create, read and delete inboxes the key itself owns. It reaches no
     # one else's mailbox, so an agent's key never needs mail.manage.
     AGENTS_MANAGE = 'agents.manage'
+    # Marketing (built-in plugin): create and run campaigns and manage marketing opt-outs. Apart
+    # from mail.send on purpose: a leaked transactional key must not be able to mail a whole list.
+    MARKETING_SEND = 'marketing.send'
 
 
 ALL_PERMISSIONS: tuple[str, ...] = tuple(code.value for code in PermissionCode)

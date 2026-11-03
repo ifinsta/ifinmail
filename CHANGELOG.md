@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.0.75
+- **Marketing campaigns are built in.** The new Marketing plugin, installed by default, sends one
+  message to a list, one email each, over time: `POST /api/v1/campaigns` with a key that has the
+  new `marketing.send` scope (separate from `mail.send`, so a leaked transactional key cannot mail
+  a list). It lifts the limits that made newsletters impossible through `POST /messages`: a bulk
+  message no longer has to go to one recipient per call, and campaign mail is not held to the
+  key's daily cap, Outbound policy's per-minute and per-day limits or containment's hourly pause.
+  It has its own protection instead.
+  - **Personal and compliant:** `{{first_name|friend}}` merge tags (escaped in HTML; a missing
+    value skips the person instead of greeting them with a blank), your postal address and a
+    personal one-click unsubscribe link in every footer, and the `List-Unsubscribe` headers.
+    Unsubscribing stops marketing mail only, through a separate opt-out list: the person still
+    gets receipts and password resets.
+  - **Paced:** a budget per clock minute (60 by default) and a daily ceiling (2,000) that, with
+    warm-up on, starts at 200 and grows by half each day. Several campaigns share the budget, and
+    two runs in the same minute cannot exceed it.
+  - **Safe:** each recipient is claimed right before their email, so a campaign never mails a
+    person twice, and a worker killed mid-run leaves at most the one email in flight in doubt. A
+    campaign pauses itself when the mail system refuses 20 emails in a row, when its sender or key
+    is paused, or when over 5% of what it has sent bounces; hard bounces suppress the address.
+    People on the suppression or opt-out lists are left out, checked again just before each email.
+  - **Control:** list, read progress, pause, resume and cancel campaigns; see who was left out and
+    why; record your application's own unsubscribes with `POST /api/v1/marketing/opt-outs`. See
+    `examples/python/11_marketing_campaign.py`.
+  - **For administrators:** enter the postal address under Marketplace, Marketing (campaigns are
+    refused until it is set), and adjust the pace, the daily ceiling, warm-up and the largest
+    campaign there. Owners and Administrators gain the `marketing.send` permission.
+  - **Audiences:** lists kept on the server. `POST /api/v1/audiences` makes one for a sending
+    domain, `POST /audiences/{id}/contacts` loads it (up to 1,000 people a call, idempotent, with
+    each person's merge values), and a campaign names it with `"audience": "<id>"` instead of
+    listing recipients. Each contact shows as `reachable`, `opted_out` or `suppressed`, looked up
+    from the same lists a campaign uses, so an unsubscribe shows on every audience of the domain.
+    A campaign copies the list when it is created. Administrators set *Most contacts in one
+    audience* (100,000 by default) under Marketplace, Marketing. See
+    `examples/python/12_audiences.py`.
+  - **Templates:** `POST /api/v1/templates` keeps a subject and bodies with merge tags; a
+    campaign names one with `"template": "<id>"` (what the request gives wins) and copies it when
+    created. `POST /templates/{id}/preview` shows it filled in for one person and lists the tags
+    that would skip someone.
+  - **Scheduled sends:** `"send_at"` (with a time zone, a minute to a year ahead) creates the
+    campaign now and starts it then. It can be moved, started early or cancelled; the lists are
+    checked when it sends; one the server missed by over six hours is held for a person instead
+    of sent late.
+  - **Opens, clicks and reports:** the html gets a tracking pixel and its links go through the
+    server (on by default; per campaign `track_opens` / `track_clicks`, server defaults under
+    Marketplace, Marketing). `GET /campaigns/{id}/report` gives opens, clicks, each link and a
+    timeline; recipients show their `opens` and `clicks`. Bots and scanners are not counted, and
+    opens are an upper bound (mail apps that preload images). No IP address or browser is kept.
+  - **Webhook events for opens and clicks:** `message.opened` (a person's first open) and
+    `message.clicked` (the first click of each link by each person, with the address they were
+    sent to) for campaigns with tracking, through the Delivery events plugin. Repeats, bots and
+    scanners make no event; a failure to queue one never affects the pixel or the redirect.
+  - **Not yet:** attachments, per-campaign unsubscribe counts.
+
 ## v0.0.74
 - **Sign-in lockout no longer locks everybody out.** Behind nginx, the lockout counted every
   visitor as the proxy's own address, so five wrong passwords from anyone, including bots and

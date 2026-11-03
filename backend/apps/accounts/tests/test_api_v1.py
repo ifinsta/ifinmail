@@ -827,6 +827,22 @@ class ContractTests(ApiBase):
                 'subject': 's',
                 'text': 't',
             },
+            ('POST', '/campaigns'): {
+                'from': 'a@ifinmail.test',
+                'subject': 's',
+                'text': 't',
+                'recipients': [{'email': 'b@example.org'}],
+            },
+            ('POST', '/campaigns/{campaign_id}/schedule'): {'send_at': '2031-01-01T09:00:00Z'},
+            ('POST', '/templates'): {'name': 'T', 'subject': 's', 'text': 't'},
+            ('POST', '/audiences'): {'name': 'List', 'domain': 'ifinmail.test'},
+            ('POST', '/audiences/{audience_id}/contacts'): {
+                'contacts': [{'email': 'b@example.org'}]
+            },
+            ('POST', '/marketing/opt-outs'): {
+                'address': 'a@example.org',
+                'domain': 'ifinmail.test',
+            },
         }
         refused = 0
         for op in ops:
@@ -836,6 +852,9 @@ class ContractTests(ApiBase):
                 op.path.replace('{address}', 'a@ifinmail.test')
                 .replace('{name}', 'ifinmail.test')
                 .replace('{alias_id}', 'x')
+                .replace('{audience_id}', '00000000-0000-0000-0000-000000000000')
+                .replace('{template_id}', '00000000-0000-0000-0000-000000000000')
+                .replace('{email}', 'b@example.org')
                 .replace('{fingerprint}', 'abc')
                 .replace('{uid}', '1')
                 .replace('{approval_id}', '00000000-0000-0000-0000-000000000000')

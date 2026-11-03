@@ -148,7 +148,7 @@ class SecretSettingTests(_Base):
 
 class DefaultInstallTests(_Base):
     def test_installed_once_inert_and_an_uninstall_is_respected(self) -> None:
-        self.assertEqual(InstallationService.reconcile()['defaults'], ['assistant'])
+        self.assertEqual(InstallationService.reconcile()['defaults'], ['assistant', 'marketing'])
         self.assertEqual(InstallationService.get('assistant').state, 'enabled')
         self.assertIsNone(config.current())  # installed but inert: no endpoint, nothing sent
         with self.assertRaises(NotConfiguredError):
@@ -158,7 +158,9 @@ class DefaultInstallTests(_Base):
         InstallationService.uninstall('assistant', ADMIN)
         self.assertEqual(InstallationService.reconcile()['defaults'], [])
         self.assertIsNone(InstallationService.get('assistant'))
-        self.assertEqual(SystemSettings.get(SettingKey.PLUGIN_DEFAULTS_OFFERED), ['assistant'])
+        self.assertEqual(
+            SystemSettings.get(SettingKey.PLUGIN_DEFAULTS_OFFERED), ['assistant', 'marketing']
+        )
 
 
 class ProviderTests(_Base):

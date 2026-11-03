@@ -149,7 +149,7 @@ worker jobs make that happen; a job for a plugin that is not installed does noth
 | --- | --- | --- | --- |
 | `mail.scan_delivery_events` | every minute | the new lines of the Postfix log, at most 4 MB a run | turns what became of mail sent through the API into `message.delivered`, `message.deferred` and `message.bounced` (the API itself sends `message.queued`); also feeds Sender compliance's bounce counters and suppressions |
 | `mail.scan_inbox_events` | every 30 seconds | new mail in watched mailboxes, at most 200 mailboxes and 50 new messages in each a run | `message.received`, with the Injection shield's verdict when that plugin is installed |
-| `mail.sweep_webhooks` | every minute | deliveries that are due | retries, and anything the queue lost (see below) |
+| `mail.sweep_webhooks` | every minute | deliveries that are due, at most 200 | queues them for the workers, like new ones: retries whose wait is over, and anything the queue lost (see below). It sends nothing itself |
 
 **How a scan works**
 
@@ -193,16 +193,26 @@ worker jobs make that happen; a job for a plugin that is not installed does noth
   again after 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours, 12 hours and 24 hours, up to
   8 attempts (the Delivery events plugin's *Attempts per event* lowers that). A `410 Gone` switches
   the endpoint off. `GET /api/v1/webhooks/{id}/deliveries` lists every attempt and its answer.
-- **The sweep is the safety net.** Every minute it delivers up to 200 deliveries that are due:
-  retries, and any delivery whose queue message was lost (the broker was down, the worker was
-  killed). Finished and failed deliveries are deleted after 14 days.
+- **A worker claims a delivery before sending it.** The claim is one conditional update that moves
+  the delivery's next attempt a minute ahead and succeeds only for a delivery that is still pending
+  and due, so a chunk, a chunk handed back to the queue and the sweep can all hold the same
+  delivery and it is still sent by one worker at a time. When the attempt ends the real next
+  attempt time replaces the claim. A worker that dies mid-delivery leaves the claim to run out,
+  and the sweep then queues the delivery again.
+- **The sweep is the safety net.** Every minute it queues up to 200 deliveries that are due, in the
+  same chunks and the same order as new ones: retries whose wait is over, and any delivery whose
+  queue message was lost (the broker was down, a worker was killed). It only queues, so it takes
+  seconds (the task has the scans' 90 and 120 second limits); a delivery that is queued but not yet
+  picked up is due too and may be queued twice, which the claim makes harmless. Finished and
+  failed deliveries are deleted after 14 days.
 
 **For the receiver**
 
 Every attempt is a `POST` with the same `X-Ifinmail-Event-Id` (`evt_…`) and
 `X-Ifinmail-Signature: t=<unix time>,v1=<hex HMAC-SHA256 of "<t>.<body>" with the endpoint's secret>`.
-Delivery is **at least once**: a delivery in flight when a worker dies is sent again, so
-**deduplicate on the event id**, and reject a signature whose `t` is more than five minutes old.
+Delivery is **at least once**: a delivery in flight when a worker dies is sent again once its
+claim has run out, so **deduplicate on the event id**, and reject a signature whose `t` is more
+than five minutes old.
 
 ### Marketplace (plugins)
 
@@ -225,8 +235,10 @@ checked twice (by the console and by the container that applies it).
     and a cap on forwarding rules.
   - *Mailbox care*: empty Trash and Junk (and optionally Sent) after a number of days, and warn
     people at 80% and 95% of their quota.
+  - *Marketing*: campaigns to many people, one email each, with a personal unsubscribe and paced
+    sending; installed by default (see [Marketing campaigns](#marketing-campaigns)).
 
-  All three are safe to install unchanged (defaults follow Google Workspace and Microsoft 365, lists
+  The first four are safe to install unchanged (defaults follow Google Workspace and Microsoft 365, lists
   start empty), and each part can be switched off on its own inside the plugin.
 - **Your own:** Marketplace → Submit a plugin. Someone with `system.manage` approves or rejects it;
   nothing is approved automatically and nothing is fetched from outside the server.
@@ -235,6 +247,215 @@ checked twice (by the console and by the container that applies it).
 - Authoring guide, state machines and the 331 handled edge cases:
   `.agents/skills/ifinmail-plugins/`. In a development checkout, check a manifest with
   `python manage.py validate_plugin path/to/plugin.toml`.
+
+### Marketing campaigns
+
+Marketing mail is built in. A receipt goes to one person who just bought something; a newsletter
+goes to thousands who may or may not want it, and Gmail, Yahoo and Microsoft judge the sender by
+how they react. Sending one `POST /messages` per person does not work for that (a bulk message
+must go to one recipient, the per-key cap is 500 recipients a day, and Outbound policy's
+30-a-minute limit and containment would stop a newsletter), so the **Marketing** plugin, installed
+by default, adds campaigns: one message to a list, one email each, sent over time.
+
+**Set it up once.** Campaigns carry your postal address in every footer, as the law in many
+countries requires (CAN-SPAM), so an administrator enters it under *Marketplace → Marketing →
+Postal address for the footer*. Until then `POST /campaigns` answers `409` and says so. Then create
+a key with the `marketing.send` scope and the addresses it may send as. That scope is separate from
+`mail.send` on purpose: a leaked transactional key cannot mail a list, and a campaign key cannot
+send a password reset.
+
+```bash
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns \
+  -H 'Content-Type: application/json' -H 'Idempotency-Key: spring-2026' \
+  -d '{"from":"news@example.com","name":"Spring sale",
+       "subject":"Spring sale, {{first_name|friend}}",
+       "text":"Hi {{first_name|friend}}, the sale starts today.",
+       "html":"<p>Hi {{first_name|friend}}, the sale starts today.</p>",
+       "recipients":[{"email":"ana@example.org","merge":{"first_name":"Ana"}},
+                     {"email":"bob@example.org"}]}'
+```
+
+The answer is `202` with `{"id", "status": "sending", "queued": n, "skipped": {...}}`. **Nothing is
+sent in the call**; the server sends the campaign over time. The subject, text and html may hold
+`{{name}}` tags filled from each recipient's `merge` values, `{{name|fallback}}` for a person with
+no value, and `{{email}}` and `{{unsubscribe_url}}` for everyone. Values are escaped in HTML, a
+subject stays on one line, and a tag that no recipient has a value for (a typo) refuses the
+campaign. A person missing a value that has no fallback is skipped instead of being greeted with
+"Hi ,". `GET /campaigns/{id}` shows progress, `GET /campaigns/{id}/recipients?status=skipped` shows
+who was left out and why, and `POST /campaigns/{id}/pause`, `/resume` and `/cancel` control it.
+[`examples/python/11_marketing_campaign.py`](examples/python/11_marketing_campaign.py) sends one
+from a CSV.
+
+**Who is left out.** At creation, and again just before each email (somebody can unsubscribe in
+between): addresses on the suppression list (an address that bounced for good, whether or not
+Sender compliance is installed), people who opted out of marketing, destinations Outbound policy
+blocks, invalid and duplicate addresses. `skipped` says how many of each. A campaign from a
+mailbox Outbound policy limits to internal mail is refused.
+
+**Unsubscribing stops marketing only.** Every email has a footer with your postal address and a
+personal unsubscribe link, plus the `List-Unsubscribe` and `List-Unsubscribe-Post` headers mail
+apps use for their own Unsubscribe button. The link's page asks for one click (a link scanner that
+opens it unsubscribes no one); the one-click POST records a **marketing opt-out**, separate from the
+suppression list, which stops all API mail. The person keeps getting receipts and password resets.
+Your application can record its own unsubscribes with `POST /marketing/opt-outs`; removing one
+(`DELETE`, scope `mail.manage`) undoes someone's consent, so it needs more than `marketing.send`.
+
+**How it is sent.** A job (`mail.run_campaigns`, every minute) works through the campaigns that
+are sending.
+
+- **The pace is per clock minute.** The plugin's *Emails per minute* (60 by default, up to 6,000)
+  less what any run already sent in this minute, so extra runs in the same minute add nothing.
+  Several campaigns share the budget. Emails that reach the mail system count, accepted or refused;
+  people skipped for the lists never do.
+- **The daily ceiling grows.** *Emails per day* (2,000 by default), and with *Warm up gradually*
+  on, the ceiling starts at *Emails allowed on the first sending day* (200) and grows by half each
+  day until it reaches it, because a sender that has never mailed anyone and suddenly mails
+  thousands is treated as a spammer.
+- **The transactional limits do not apply.** Campaign mail is not counted against the key's daily
+  cap or Outbound policy's per-minute and per-day limits, and it does not feed containment, which
+  would pause a mailbox for sending a newsletter. It has the pace, the ceiling and the safeguards
+  below instead. Allowed senders, hosted domains, blocked destinations and a sender paused by
+  containment still apply.
+- **A person is never mailed twice.** Each recipient is claimed with one conditional update right
+  before their email, so two runs that overlap cannot both send it. A worker that dies (`kill -9`
+  was tested on a live stack) leaves at most the one email in flight in doubt: it is marked
+  `failed` with "interrupted: may or may not have been sent", and everyone else stays pending and
+  goes out on the next run. A duplicate marketing email is judged worse than a rare miss, so
+  nothing is retried automatically. If the mail system cannot be reached, nothing was sent and the
+  next run tries again.
+- **A campaign stops itself.** It pauses, with the reason in `status_detail`, when the mail system
+  refuses 20 emails in a row (the rest of the list stays pending, not failed); when its sender is
+  paused by containment; when its key is paused by Sender compliance's bounce guard; and when more
+  than 5% of what it has sent (at least 100 emails) has bounced. A hard bounce (the address does
+  not exist) adds the address to the suppression list, whichever plugins are installed. Resume it
+  after fixing the cause, or cancel it.
+- **Events.** With the Delivery events plugin, each campaign email produces the same
+  `message.queued`, `message.delivered`, `message.deferred` and `message.bounced` webhook events as
+  other API mail; `message.queued` also carries the campaign id. A campaign with tracking also
+  produces `message.opened` (a person's first open) and `message.clicked` (the first click of each
+  link by each person), with `message_id`, `campaign`, `sender` and `recipient`, and `url` (the
+  address the person was sent to) for a click. Repeats are counted in the report but not sent
+  again, so one person opening ten times is one event; bots, scanners and `HEAD` requests make
+  none. The same caveats as the report apply: an open may be a mail app preloading images. The
+  events go to the console's webhooks and to webhooks created by the campaign's own key.
+
+**Audiences: lists kept on the server.** A request can list its recipients (up to *Most recipients
+listed in one campaign request*, 10,000 by default), but a real list is kept and changed over time,
+so a campaign can name one instead:
+
+```bash
+# once: a list for one of your sending domains
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/audiences \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Newsletter","domain":"example.com"}'          # -> {"id": "7d2e...", ...}
+
+# load it, 1,000 people per call; send the whole export again whenever it changes
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/audiences/7d2e.../contacts \
+  -H 'Content-Type: application/json' \
+  -d '{"contacts":[{"email":"ana@example.org","merge":{"first_name":"Ana"}},
+                   {"email":"bob@example.org"}]}'              # -> {"added": 2, "updated": 0, ...}
+
+# then send to all of it
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"news@example.com","subject":"Spring sale, {{first_name|friend}}",
+       "text":"Hi {{first_name|friend}}!","audience":"7d2e..."}'
+```
+
+- **Importing is idempotent.** People are matched by address (case does not matter). The answer
+  counts `added`, `updated` (the values changed), `unchanged`, `invalid` (not an address, or
+  merge values that cannot be used) and `duplicate` (named twice in the call). A contact sent
+  without `merge` keeps the values it has.
+- **Whether someone can be mailed is looked up, never stored on the contact.** Each contact is
+  `reachable`, `opted_out` or `suppressed` (suppressed wins, the same order a campaign uses),
+  read from the same opt-out and suppression lists campaigns read. So someone who unsubscribes
+  from any campaign of the domain is `opted_out` on every audience of that domain at once, and
+  an audience can never disagree with what a campaign will do. `GET /audiences/{id}` gives the
+  counts (`total`, `reachable`, `opted_out`, `suppressed`); `GET /audiences/{id}/contacts` lists
+  people and filters by `?status=` or `?address=`.
+- **A campaign copies the list when it is created.** People added or removed afterwards do not
+  change a campaign that exists, and deleting an audience leaves its campaigns alone. The
+  campaign's `audience` field says which list it was sent to.
+- **One audience, one sending domain.** The opt-outs and suppressions that decide who can be
+  mailed are per domain, so a campaign to an audience must be sent from an address at the
+  audience's domain. A key sees and changes the audiences it created (`mail.manage` sees all)
+  and can create one only for a domain it sends from.
+- **The size limit refuses a batch whole.** *Most contacts in one audience* (100,000 by default,
+  1,000,000 at most) is also the most a campaign to an audience can have. A call that would pass
+  it is refused with nothing added, never cut in two; people already on the list can still be
+  updated.
+
+[`examples/python/12_audiences.py`](examples/python/12_audiences.py) manages a list from a CSV, and
+`11_marketing_campaign.py send ... --audience ID` sends to it.
+
+**Templates: messages kept on the server.** A message you send often (a welcome, a monthly
+update) is kept once and named by campaigns:
+
+```bash
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/templates \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Monthly update","subject":"News for {{first_name|you}}",
+       "html":"<p>Hi {{first_name|you}}, ...</p>","text":"Hi {{first_name|you}}, ..."}'   # -> {"id": "4c1a...", "tags": [...]}
+
+curl -u ifm_KEY:ifs_SECRET -X POST https://mail.yourdomain.com/api/v1/campaigns \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"news@example.com","template":"4c1a...","audience":"7d2e..."}'
+```
+
+- **The campaign copies the template when it is created.** Editing (`PATCH /templates/{id}`) or
+  deleting one never changes a campaign that exists. What the campaign request gives (a different
+  `subject`, say) wins over the template; what it leaves out comes from the template.
+- **Preview before sending.** `POST /templates/{id}/preview` with `{"merge": {...}}` fills the tags
+  the way a campaign would for one person and lists in `missing` the tags with no value and no
+  fallback, which would skip that person. Nothing is sent. A template's `tags` say which tags it
+  uses and which are `required` (some use has no fallback). Values are escaped in the html.
+- A key sees and changes the templates it created (`mail.manage` sees all), up to 500 each.
+
+**Scheduled sends.** Give a campaign `"send_at": "2026-03-01T09:00:00+01:00"` and it is created
+now (the recipients are listed and checked now) and starts then; its `status` is `scheduled`.
+
+- The time needs a zone, must be at least a minute away and at most a year. To send now, leave it
+  out. The runner starts campaigns once a minute, so a start is within a minute of the time.
+- Until it starts, a scheduled campaign can be **moved** (`POST /campaigns/{id}/schedule` with a
+  new `send_at`), **started early** (`POST /campaigns/{id}/start`) or **cancelled**. It cannot be
+  paused: it is not sending.
+- **The lists are checked when it sends, not when it was created**: somebody who unsubscribes or
+  bounces in between is left out. The recipients themselves (and an audience's contacts) were
+  copied at creation, so people added afterwards are not in it.
+- **A campaign the server missed is held, not sent late.** If the server was down and the time
+  passed by more than six hours, the campaign is paused with the reason instead of going out on
+  Sunday what was meant for Friday morning; resuming it sends it.
+
+**Opens, clicks and the report.** Campaigns count opens and clicks by default (the plugin's
+*Count opens by default* and *Count clicks by default*; a campaign overrides them with
+`"track_opens"` and `"track_clicks"`).
+
+- **How.** The html of each email ends with a one-pixel image whose address is personal to the
+  person, and each `http(s)` link in the html goes through this server, which counts the click and
+  sends the person on. The unsubscribe link, `mailto:` links and anchors are never touched, and a
+  tracked address is signed and can only lead to the link it was made for, never to an address
+  taken from the request. Merge tags in a link (`https://shop.example.com/u/{{id}}`) are filled in
+  with the person's values, percent-encoded so a value cannot change the address.
+- **`GET /campaigns/{id}/report`** gives the emails sent, failed, skipped and bounced; opens and
+  clicks as `people` (each person once), `total` (every time) and `rate` (a percent of the emails
+  sent); the share of openers that clicked; each link's clicks; and a timeline by hour or day.
+  `GET /campaigns/{id}/recipients` shows each person's `opens` and `clicks` and filters with
+  `?opened=true` and `?clicked=false`.
+- **Read the numbers with care.** An open is an image being fetched. Mail apps that load images in
+  advance for privacy (Apple Mail Privacy Protection) fetch it whether or not anybody read the
+  email, and a person who blocks images is never counted: opens are an upper bound and clicks are
+  the stronger signal. Requests that identify as a bot or a security scanner, and `HEAD` requests,
+  are answered and sent on but not counted; a scanner that looks like a browser cannot be told
+  apart. Only the html part is tracked: links in the plain-text part are not, and a text-only
+  campaign has nothing to count.
+- **Privacy.** Tracking records, per recipient, that the email was opened or a link clicked and
+  when, and nothing else: no IP address, browser or location is kept. Turn it off per campaign, or
+  server-wide in the plugin, when you do not want it. Counts live with the campaign.
+
+[`examples/python/13_templates.py`](examples/python/13_templates.py) manages templates;
+`11_marketing_campaign.py` has `from-template`, `--send-at`, `start`, `reschedule` and `report`.
+
+Limits of what is built: attachments, and per-campaign unsubscribe counts.
 
 ### Assistant
 
@@ -357,6 +578,8 @@ They run against the real API in the test suite, so they cannot drift from it.
 | `mail.send` | `POST /messages`; with the Developer sandbox plugin `GET/DELETE /sandbox/messages`, `GET /sandbox/messages/{id}`; with Delivery events `GET/POST /webhooks`, `DELETE /webhooks/{id}`, `POST /webhooks/{id}/test`, `POST /webhooks/{id}/enable`, `GET /webhooks/{id}/deliveries` |
 | `mail.send` (approvals) | Human approval plugin: `GET /approvals`, `GET /approvals/{id}` (own messages; every key's with `mail.manage`) |
 | `mail.manage` (approvals) | `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` (never a key's own messages) |
+| `marketing.send` | Marketing plugin: `POST/GET /campaigns`, `GET /campaigns/{id}`, `POST /campaigns/{id}/pause`, `/resume`, `/cancel`, `GET /campaigns/{id}/recipients`, `GET/POST /marketing/opt-outs` (a key sees only its own campaigns; all with `mail.manage`) |
+| `mail.manage` (marketing) | `DELETE /marketing/opt-outs/{domain}/{address}` (undoes someone's unsubscribe) |
 | `mail.send` (suppressions) | Sender compliance plugin: `GET/POST /suppressions` (domains the key sends from; all with `mail.manage`), `DELETE /suppressions/{domain}/{address}` (`mail.manage`) |
 | `agents.manage` | Agent inboxes plugin: `GET/POST /inboxes`, `GET/DELETE /inboxes/{address}`, `GET /inboxes/{address}/messages`, `GET/DELETE /inboxes/{address}/messages/{uid}`, `GET /inboxes/{address}/messages/{uid}/code`, `GET /inboxes/{address}/wait` (only inboxes the key created) |
 | any of the above | Agent gateway plugin: `POST /mcp` (Model Context Protocol); the tools offered follow the key's scopes |
@@ -409,16 +632,14 @@ you what a key may do and which keys look unsafe. Ask it "how can a program crea
   the Injection shield's verdict, and says the content is untrusted. Actions that change
   something are in the audit trail under the key. The transport is Streamable HTTP with JSON
   answers (protocol versions 2025-06-18, 2025-03-26 and 2024-11-05).
-<<<<<<< HEAD
-=======
 - **Webhooks.** With the Delivery events plugin, a key with `mail.send` can register URLs that
   receive signed JSON events for its own mail: `message.queued`, `message.delivered`,
-  `message.deferred` and `message.bounced`. With the Inbox webhooks plugin, a webhook can also
+  `message.deferred` and `message.bounced` (and `message.opened` and `message.clicked` for
+  campaigns with tracking). With the Inbox webhooks plugin, a webhook can also
   receive `message.received` for the agent inboxes the key created (or any mailbox, with
   `mail.manage`). Delivery is at least once and every attempt carries the same event id, so
   receivers deduplicate on it; how events are produced, retried and delivered is under [Event
   scans and webhook delivery](#event-scans-and-webhook-delivery).
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 - **Lists are paged**: `?limit=` (default 50, at most 200) and `?offset=`; the reply is
   `{"items": [...], "count": N}`.
 - **Errors** are `{"detail": "..."}` with 401 (credentials), 403 (scope or protected mailbox),
@@ -519,14 +740,11 @@ Smart-host relay, SMTP proxy and the hop limit are set from **Domains & DNS**. T
 
 ## Limits to know about
 
-<<<<<<< HEAD
-=======
 - Webhook events: the delivery scan reads at most 4 MB of the Postfix log a minute (about 30,000
   lines), so a server that logs more than that falls behind and its events arrive late; webhook
   delivery is at least once (receivers deduplicate on the event id); and a worker killed outright
   can skip log lines it had read but not yet handled. See [Event scans and webhook
   delivery](#event-scans-and-webhook-delivery).
->>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 - Delivery status: **Dashboard** and **Logs → Report** show what happened to outgoing mail (accepted, retried, failed for good, bounce rate, and why, where and from which mailbox), the administrators are emailed when the bounce rate passes 5% or a provider starts refusing the server, and `GET /api/v1/telemetry/delivery` returns the same figures. "Accepted" is not "in the inbox": placement is only visible from the receiver's side.
 - Profile photos: each person adds a photo on **Account**, and an administrator can switch on the **Contact directory** (Settings → Mailboxes). It publishes every mailbox, with its photo, as a read-only address book called "directory" in each mailbox's CardDAV home, so iOS, macOS, Android (DAVx5) and Thunderbird show a sender's photo and complete names without anyone importing anything. It needs the `dav` container, lists everyone to everyone (people can hide themselves), and only helps clients that sync CardDAV contacts: Gmail, Outlook and other apps that keep their own contacts will not show it. Photos can also be set by an integration: `POST /api/v1/mailboxes/{address}/photo`.
 - Calendars and contacts (CalDAV/CardDAV) are served at `https://mail.yourdomain.com/dav/` with the mailbox address and password; apps find them from the domain alone. Back them up with `make backup` (the `dav_data` volume). Not needed? Set `DAV_ENABLED=0` in `provisioning/.env` and run `make provision`: the `dav` container is removed and the calendar DNS records are no longer published.

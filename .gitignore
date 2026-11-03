@@ -123,3 +123,7 @@ provisioning/docker/certs/
 
 # Backups
 backups/
+
+# Signed release builds made by clients/android/scripts/release.py (see clients/releases/README.md)
+clients/releases/*.apk
+clients/releases/*.sha256

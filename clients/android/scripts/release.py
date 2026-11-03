@@ -7,9 +7,9 @@ Standard library only; works on Windows, macOS and Linux.
     release.py keygen                       create the release signing key (once, then back it up)
     release.py bump minor|major|patch|X.Y.Z raise the version in gradle.properties
     release.py notes                        draft release notes from the commits since the last release
-    release.py build [--version X.Y.Z]      signed, minified release APK in dist/, verified
-    release.py verify dist/app.apk          check an APK the way the server and the phone will
-    release.py publish dist/app.apk         upload it (checks first; --dry-run only checks)
+    release.py build [--version X.Y.Z]      signed, minified release APK in clients/releases/
+    release.py verify <apk>               check an APK the way the server and the phone will
+    release.py publish <apk>             upload it (checks first; --dry-run only checks)
     release.py release --version X.Y.Z      build + verify + publish in one go
     release.py tag                          git-tag the current version (android-vX.Y.Z)
 
@@ -41,7 +41,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent  # clients/android
 REPO = ROOT.parent.parent
 PROPS = ROOT / 'gradle.properties'
-DIST = ROOT / 'dist'
+RELEASES = REPO / 'clients' / 'releases'  # where finished builds land
 PACKAGE = 'com.ifinmail'
 APK_TYPE = 'application/vnd.android.package-archive'
 DEFAULT_KEYSTORE = Path.home() / '.ifinmail' / 'android' / 'ifinmail-release.jks'
@@ -364,8 +364,8 @@ def build(version: tuple[int, int, int], channel: str | None, server: str | None
     signed = built / 'androidApp-release.apk'
     if not signed.is_file():
         raise ToolError('Gradle produced no signed APK (only an unsigned one). Check the signing key.')
-    DIST.mkdir(exist_ok=True)
-    out = DIST / f'ifinmail-{version_name(version)}-{version_code(version)}.apk'
+    RELEASES.mkdir(parents=True, exist_ok=True)
+    out = RELEASES / f'ifinmail-android-{version_name(version)}-{version_code(version)}.apk'
     shutil.copy2(signed, out)
     return out
 
@@ -493,7 +493,7 @@ def parser() -> argparse.ArgumentParser:
     p = sub.add_parser('bump', help='raise the version'); p.add_argument('to', help='major | minor | patch | X.Y.Z')
     p.set_defaults(fn=cmd_bump)
     p = sub.add_parser('notes', help='draft release notes'); p.add_argument('--out'); p.set_defaults(fn=cmd_notes)
-    p = sub.add_parser('build', help='signed release APK in dist/'); common(p); p.add_argument('--version')
+    p = sub.add_parser('build', help='signed release APK in clients/releases/'); common(p); p.add_argument('--version')
     p.set_defaults(fn=cmd_build)
     p = sub.add_parser('verify', help='check an APK'); common(p); p.add_argument('apk'); p.set_defaults(fn=cmd_verify)
     p = sub.add_parser('publish', help='upload an APK'); publishing(p); p.add_argument('apk')

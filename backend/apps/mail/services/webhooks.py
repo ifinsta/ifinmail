@@ -4,6 +4,17 @@ Used by the Delivery Events plugin (what became of mail sent through the API) an
 Webhooks plugin (mail a mailbox received). Each event is stored once per endpoint and delivered
 by the worker with retries, so a slow or failing receiver never slows mail down.
 
+<<<<<<< HEAD
+=======
+How events travel: ``emit_many`` stores a batch (one policy lookup, one endpoint query, one insert)
+and ``_schedule`` publishes the new deliveries to the workers in chunks of at most
+``DELIVERY_CHUNK`` to one endpoint, round-robin across endpoints, once the transaction commits.
+``deliver_batch`` works through a chunk one delivery at a time and, after ``BATCH_BUDGET_SECONDS``,
+queues what it has not reached as a new chunk, so a slow endpoint holds a worker for a short time
+only. ``sweep`` (every minute) delivers whatever is due, which covers retries and any queue message
+that was lost. The README section "Event scans and webhook delivery" describes the whole design.
+
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 What a receiver gets::
 
     POST <url>
@@ -33,12 +44,22 @@ import socket
 import time
 import urllib.error
 import urllib.request
+<<<<<<< HEAD
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
 from urllib.parse import urlsplit
 
 from django.db import IntegrityError, transaction
+=======
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
+from datetime import timedelta
+from itertools import zip_longest
+from urllib.parse import urlsplit
+
+from django.db import transaction
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 from django.utils import timezone
 
 from backend.apps.core.plugins.services import InstallationService
@@ -53,6 +74,19 @@ MAX_ENDPOINTS_PER_OWNER = 10
 MAX_RESPONSE_BYTES = 4096
 # Wait before attempt n+1 (seconds): 1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h.
 BACKOFF = (60, 300, 1800, 7200, 21600, 43200, 86400)
+<<<<<<< HEAD
+=======
+# Deliveries to one endpoint travel to a worker together, DELIVERY_CHUNK per task, instead of one
+# broker message each (about 0.4 ms apiece: 3 s for a busy minute, against 0.02 ms in a chunk).
+# A chunk is tried one after another, so it stops once BATCH_BUDGET_SECONDS are spent and the rest
+# go back on the queue; the task's time limits (mail.tasks) sit above budget + one attempt.
+# The budget is also how long a slow or dead endpoint can hold a worker before the others get a
+# turn: its remaining deliveries rejoin the back of the queue. Measured on a real worker with one
+# endpoint answering in 3 s and another instantly, 4 worker processes: a 60 s budget kept the fast
+# endpoint waiting 61 s, 15 s kept it to 16 s (the old one-message-per-delivery path: 113 s).
+DELIVERY_CHUNK = 25
+BATCH_BUDGET_SECONDS = 15
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 KEEP_DAYS = 14  # delivered and failed attempts kept for this long
 
 _ALWAYS_BLOCKED = (
@@ -244,6 +278,20 @@ def new_event_id() -> str:
     return 'evt_' + pysecrets.token_hex(12)
 
 
+<<<<<<< HEAD
+=======
+@dataclass(frozen=True)
+class Event:
+    """One event to queue (see :func:`emit_many`)."""
+
+    type: str
+    data: dict
+    key_prefix: str = ''
+    mailbox: str = ''
+    event_id: str | None = None
+
+
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 def emit(
     event_type: str,
     data: dict,
@@ -257,6 +305,7 @@ def emit(
     Delivery events reach console endpoints and the sending key's own; received-mail events reach
     endpoints that list that mailbox.
     """
+<<<<<<< HEAD
     current = policy()
     if event_type == EventType.RECEIVED:
         if not current.inbox_events:
@@ -297,6 +346,88 @@ def emit(
     return len(made)
 
 
+=======
+    return emit_many(
+        [Event(event_type, data, key_prefix=key_prefix, mailbox=mailbox, event_id=event_id)]
+    )
+
+
+_LOOKUP_CHUNK = 500  # event ids per duplicate-check query (stays under every database's limit)
+
+
+def emit_many(events: Sequence[Event]) -> int:
+    """Queue a batch of events. Returns how many deliveries were made.
+
+    What :func:`emit` does for one event, with the per-event work done once for the batch: one
+    policy lookup, one endpoint query, one query for deliveries that already exist and one insert,
+    where a loop of ``emit`` calls costs about nine queries per event. Events that were already
+    queued for an endpoint (same event id) are skipped, as before.
+    """
+    if not events:
+        return 0
+    current = policy()
+    endpoints = list(WebhookEndpoint.objects.filter(active=True))
+    now = timezone.now()
+    created = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+    wanted: list[WebhookDelivery] = []
+    queued: set[tuple[object, str]] = set()
+    for event in events:
+        received = event.type == EventType.RECEIVED
+        if not (current.inbox_events if received else current.delivery_events):
+            continue
+        event_id = event.event_id or new_event_id()
+        payload = {
+            'id': event_id,
+            'type': str(event.type),
+            'created': created,
+            'data': event.data,
+        }
+        for row in endpoints:
+            if str(event.type) not in row.events:
+                continue
+            if received:
+                if event.mailbox.lower() not in row.mailboxes:
+                    continue
+            elif row.owner_prefix and row.owner_prefix != event.key_prefix:
+                continue
+            if (row.pk, event_id) in queued:
+                continue
+            queued.add((row.pk, event_id))
+            wanted.append(
+                WebhookDelivery(
+                    endpoint=row,
+                    event_id=event_id,
+                    event_type=str(event.type),
+                    payload=payload,
+                    next_attempt_at=now,
+                )
+            )
+    if not wanted:
+        return 0
+    made = _insert_new(wanted)
+    if made:
+        _schedule(made)
+    return len(made)
+
+
+def _insert_new(wanted: list[WebhookDelivery]) -> list[WebhookDelivery]:
+    """Insert the deliveries that do not exist yet; returns those that were new."""
+    with transaction.atomic():
+        existing: set[tuple[object, str]] = set()
+        ids = sorted({delivery.event_id for delivery in wanted})
+        for start in range(0, len(ids), _LOOKUP_CHUNK):
+            existing.update(
+                WebhookDelivery.objects.filter(event_id__in=ids[start : start + _LOOKUP_CHUNK])
+                .values_list('endpoint_id', 'event_id')
+            )
+        fresh = [d for d in wanted if (d.endpoint_id, d.event_id) not in existing]
+        # ignore_conflicts covers a concurrent writer queuing the same event between the check
+        # and the insert; the unique (endpoint, event id) constraint keeps it once.
+        WebhookDelivery.objects.bulk_create(fresh, batch_size=_LOOKUP_CHUNK, ignore_conflicts=True)
+    return fresh
+
+
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 def ping(row: WebhookEndpoint) -> WebhookDelivery:
     """A test event for one endpoint, delivered now (for the Test button and the API)."""
     event_id = new_event_id()
@@ -317,6 +448,7 @@ def ping(row: WebhookEndpoint) -> WebhookDelivery:
     return delivery
 
 
+<<<<<<< HEAD
 def _schedule(delivery_id: str) -> None:
     from backend.apps.mail.tasks import deliver_webhook
 
@@ -325,6 +457,42 @@ def _schedule(delivery_id: str) -> None:
             deliver_webhook.delay(delivery_id)
         except Exception:  # the broker is down: the sweep (every minute) picks it up
             logger.warning('Could not queue webhook delivery %s', delivery_id, exc_info=True)
+=======
+def _chunks(deliveries: Sequence[WebhookDelivery]) -> list[list[str]]:
+    """Delivery ids grouped by endpoint, at most ``DELIVERY_CHUNK`` to a group.
+
+    One endpoint per chunk is what keeps a slow or dead endpoint from holding up the others:
+    a chunk is worked through one delivery after another, so it only ever waits on its own
+    endpoint (and never sends that endpoint two requests at once from the same task).
+
+    The chunks come out round-robin across endpoints (the first endpoint's first chunk, the
+    second's first, ..., then each one's second) and in order within an endpoint. They are
+    queued in this order, so a slow endpoint's chunks do not all sit in front of another's, and
+    which endpoint comes first (the endpoint query has no order) no longer decides who waits.
+    """
+    by_endpoint: dict[object, list[str]] = {}
+    for delivery in deliveries:
+        by_endpoint.setdefault(delivery.endpoint_id, []).append(str(delivery.pk))
+    per_endpoint = [
+        [ids[start : start + DELIVERY_CHUNK] for start in range(0, len(ids), DELIVERY_CHUNK)]
+        for ids in by_endpoint.values()
+    ]
+    return [chunk for round_ in zip_longest(*per_endpoint) for chunk in round_ if chunk]
+
+
+def _schedule(deliveries: Sequence[WebhookDelivery]) -> None:
+    """Queue the delivery tasks once the surrounding transaction commits."""
+    from backend.apps.mail.tasks import deliver_webhooks
+
+    chunks = _chunks(deliveries)
+
+    def queue() -> None:
+        for ids in chunks:
+            try:
+                deliver_webhooks.delay(ids)
+            except Exception:  # the broker is down: the sweep (every minute) picks them up
+                logger.warning('Could not queue %d webhook deliveries', len(ids), exc_info=True)
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 
     transaction.on_commit(queue)
 
@@ -433,6 +601,40 @@ def deliver(delivery_id: str) -> bool:
     return attempt(delivery)
 
 
+<<<<<<< HEAD
+=======
+def deliver_batch(
+    delivery_ids: Sequence[str],
+    *,
+    budget: float = BATCH_BUDGET_SECONDS,
+    clock: Callable[[], float] = time.monotonic,
+) -> int:
+    """Deliver a chunk one after another; returns how many the receivers accepted.
+
+    A delivery that fails is retried later like any other (it is rescheduled, not repeated here)
+    and does not stop the rest. When the time budget is spent the remaining ids are queued again
+    as a new chunk, so no single task runs longer than its time limit.
+    """
+    started = clock()
+    accepted = 0
+    for index, delivery_id in enumerate(delivery_ids):
+        if index and clock() - started > budget:
+            _requeue(list(delivery_ids[index:]))
+            break
+        accepted += bool(deliver(delivery_id))
+    return accepted
+
+
+def _requeue(delivery_ids: list[str]) -> None:
+    from backend.apps.mail.tasks import deliver_webhooks
+
+    try:
+        deliver_webhooks.delay(delivery_ids)
+    except Exception:  # the broker is down: the sweep picks them up
+        logger.warning('Could not requeue %d webhook deliveries', len(delivery_ids), exc_info=True)
+
+
+>>>>>>> a89b50807c62ed180805ae9afbb8536879432ee7
 def sweep(limit: int = 200) -> int:
     """Deliver what is due (retries, and anything the broker missed). Runs every minute."""
     due = list(

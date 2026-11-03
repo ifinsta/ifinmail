@@ -24,5 +24,3 @@ keystore.properties
 *.keystore
 !keystore.properties.example
 
-# Signed release artefacts made by scripts/release.py
-dist/

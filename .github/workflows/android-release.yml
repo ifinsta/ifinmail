@@ -88,7 +88,7 @@ jobs:
         with:
           name: ifinmail-android-${{ inputs.version }}
           path: |
-            clients/android/dist/*.apk
-            clients/android/dist/*.sha256
+            clients/releases/*.apk
+            clients/releases/*.sha256
           if-no-files-found: ignore
           retention-days: 30

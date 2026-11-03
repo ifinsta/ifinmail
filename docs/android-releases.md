@@ -35,7 +35,7 @@ python clients/android/scripts/release.py tag               # android-v1.1.0, th
 
 - **Versions:** `versionName` is `MAJOR.MINOR.PATCH`; `versionCode` is derived (`MAJOR*10000 + MINOR*100 +
   PATCH`, so 1.4.2 is 10402). It always rises with the version and nobody can pick a clashing number.
-- **`build`** makes a signed, minified APK in `clients/android/dist/` (git-ignored) and verifies it with the
+- **`build`** makes a signed, minified APK in `clients/releases/` (`ifinmail-android-<version>-<build>.apk` plus a `.sha256`; the binaries are git-ignored) and verifies it with the
   platform's own tools (`aapt2`, `apksigner`): package, build number, minSdk, v2+ signature and certificate.
 - **`publish`** repeats those checks, then asks the server what it would refuse (repeated or lower build,
   different signing key) before uploading, uploads, and finally compares the manifest's SHA-256 with the file.

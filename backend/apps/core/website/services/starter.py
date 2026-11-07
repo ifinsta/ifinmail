@@ -13,7 +13,18 @@ from html.parser import HTMLParser
 
 from backend.apps.core.website.services import markup
 
-_SKIP = {'script', 'style', 'svg', 'button', 'form', 'nav', 'header', 'footer', 'select', 'textarea'}
+_SKIP = {
+    'script',
+    'style',
+    'svg',
+    'button',
+    'form',
+    'nav',
+    'header',
+    'footer',
+    'select',
+    'textarea',
+}
 _VOID = {'br', 'hr', 'img', 'input', 'meta', 'link', 'path'}
 _BLOCKS = {
     'p', 'div', 'section', 'article', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'pre',

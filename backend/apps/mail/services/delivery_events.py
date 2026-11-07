@@ -343,7 +343,8 @@ class _Batch:
             mid: _as_sent(mid, raw.get(_message_key(mid))) for mid in cleanup_mids
         }
         self._queues: dict[str, str | None] = {
-            qid: raw.get(_queue_key(qid)) for qid in status_qids  # type: ignore[misc]
+            qid: raw.get(_queue_key(qid))
+            for qid in status_qids  # type: ignore[misc]
         }
         # Second hop: the messages that queue ids already in the cache point at.
         more = {mid for mid in self._queues.values() if mid and mid not in self._messages}

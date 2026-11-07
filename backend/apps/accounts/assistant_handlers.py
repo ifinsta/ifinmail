@@ -12,8 +12,8 @@ Nothing here returns a secret: only key identifiers, which are public by design.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 from collections import Counter
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # Scopes that change things; a key holding one without a network list deserves a mention.

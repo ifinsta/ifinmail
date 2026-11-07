@@ -20,7 +20,10 @@ NEW = 'Chosen-By-Admin-2'
 class EnsureAdminCommandTests(MailTablesTestCase):
     def _run(self, password: str = PRINTED) -> str:
         out = StringIO()
-        env = {'DJANGO_SUPERUSER_EMAIL': 'admin@ifinmail.test', 'DJANGO_SUPERUSER_PASSWORD': password}
+        env = {
+            'DJANGO_SUPERUSER_EMAIL': 'admin@ifinmail.test',
+            'DJANGO_SUPERUSER_PASSWORD': password,
+        }
         with patch.dict(os.environ, env):
             call_command('ensure_admin', stdout=out)
         return out.getvalue()

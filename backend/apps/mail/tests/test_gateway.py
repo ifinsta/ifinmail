@@ -242,8 +242,10 @@ class InboxToolTests(GatewayBase):
 
     def test_a_revoked_permission_removes_the_tools(self) -> None:
         from backend.apps.accounts.models import MailUser
+        from backend.apps.accounts.services.roles import RoleService
 
         person = MailUser.objects.create_user('ops@ifinmail.test', base.GOOD, is_staff=True)
+        RoleService.assign(person, 'administrator')
         _row, token = TokenService.create(person, 'agent', ['agents.manage'], expires_in_days=30)
         self.assertIn('create_inbox', self.tool_names(token))
         MailUser.objects.filter(pk=person.pk).update(is_staff=False)  # the person lost the rights

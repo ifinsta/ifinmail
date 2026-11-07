@@ -11,6 +11,7 @@ in a watched mailbox becomes an event).
 
 from __future__ import annotations
 
+import contextlib
 import email
 import html as html_lib
 import imaplib
@@ -134,10 +135,9 @@ def session(address: str, *, writable: bool = False) -> Iterator[imaplib.IMAP4]:
             raise ReaderError(f'The inbox of {address} cannot be opened.')
         yield imap
     finally:
-        try:
+        # the connection may already be gone
+        with contextlib.suppress(Exception):
             imap.logout()
-        except Exception:  # the connection may already be gone
-            pass
 
 
 # ------------------------------------------------------------------------------ reading
@@ -229,7 +229,9 @@ def _list(imap: imaplib.IMAP4, *, since_uid: int, limit: int) -> list[Summary]:
     )
     if status != 'OK':
         return []
-    rows = [summary_of(uid, payload, size, flags) for uid, size, flags, payload in _parse_fetch(data)]
+    rows = [
+        summary_of(uid, payload, size, flags) for uid, size, flags, payload in _parse_fetch(data)
+    ]
     return sorted(rows, key=lambda r: r.uid, reverse=True)
 
 
@@ -261,8 +263,21 @@ def parse(uid: int, raw: bytes, size: int, flags: str = '') -> Message:
         )
         for part in msg.iter_attachments()
     ]
-    keep = ('From', 'To', 'Cc', 'Reply-To', 'Subject', 'Date', 'Message-ID', 'In-Reply-To',
-            'References', 'List-Unsubscribe', 'Authentication-Results', 'X-Spam', 'X-Agent-Risk')  # fmt: skip
+    keep = (
+        'From',
+        'To',
+        'Cc',
+        'Reply-To',
+        'Subject',
+        'Date',
+        'Message-ID',
+        'In-Reply-To',
+        'References',
+        'List-Unsubscribe',
+        'Authentication-Results',
+        'X-Spam',
+        'X-Agent-Risk',
+    )
     headers = {name: _decode(str(msg.get(name))) for name in keep if msg.get(name) is not None}
     summary = summary_of(uid, raw.split(b'\r\n\r\n', 1)[0].split(b'\n\n', 1)[0], size, flags)
     return Message(
@@ -336,7 +351,9 @@ def mailbox_state(address: str) -> tuple[int, int]:
     return (int(validity.group(1)) if validity else 0, int(following.group(1)) if following else 1)
 
 
-def wait_for(address: str, *, since_uid: int, timeout: float, interval: float = 1.0) -> list[Summary]:
+def wait_for(
+    address: str, *, since_uid: int, timeout: float, interval: float = 1.0
+) -> list[Summary]:
     """Messages newer than ``since_uid``, waiting up to ``timeout`` seconds for the first one."""
     deadline = time.monotonic() + max(0.0, timeout)
     with session(address) as imap:

@@ -24,6 +24,7 @@ class MetricsTests(MailTablesTestCase):
         RoleService.ensure_seed()
         Domain.objects.create(name='ifinmail.test')
         self.user = MailUser.objects.create_user('api@ifinmail.test', GOOD, is_staff=True)
+        RoleService.assign(self.user, 'administrator')
         _, self.plain = TokenService.create(
             self.user, 'scraper', ['audit.view'], expires_in_days=30
         )

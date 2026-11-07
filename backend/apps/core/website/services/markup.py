@@ -73,7 +73,11 @@ def render(source: str) -> SafeString:
             html.append(f'<p>{_inline(" ".join(paragraph))}</p>')
             paragraph.clear()
         if items:
-            html.append(f'<{list_kind}>' + ''.join(f'<li>{_inline(i)}</li>' for i in items) + f'</{list_kind}>')
+            html.append(
+                f'<{list_kind}>'
+                + ''.join(f'<li>{_inline(i)}</li>' for i in items)
+                + f'</{list_kind}>'
+            )
             items.clear()
             list_kind = ''
         if quote:

@@ -47,7 +47,9 @@ def overview(platform: str, channel: str | None = None) -> ReleaseOverviewV1:
     )
 
 
-def publish(platform: str, upload: UploadedFile, form: ReleasePublishV1, *, actor: str) -> ReleaseV1:
+def publish(
+    platform: str, upload: UploadedFile, form: ReleasePublishV1, *, actor: str
+) -> ReleaseV1:
     release = ReleaseService.publish(
         upload=upload,
         platform=_platform(platform),

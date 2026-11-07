@@ -227,6 +227,7 @@ def mailbox_token_create(request: HttpRequest, mailbox_id: uuid.UUID) -> HttpRes
             form.cleaned_data['name'],
             list(form.cleaned_data['scopes'] or []),
             expires_in_days=form.cleaned_data['expires_in_days'],
+            actor=request.user,
         )
     except TokenError as exc:
         messages.error(request, str(exc))

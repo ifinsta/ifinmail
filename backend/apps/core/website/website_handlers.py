@@ -103,11 +103,13 @@ class WebsiteCapability(Capability):
             (TARGET, 'project_links'),
         ),
         'tagline': CapabilityField(
-            _line, 'The sentence under the name in the footer; empty keeps the standard one.',
+            _line,
+            'The sentence under the name in the footer; empty keeps the standard one.',
             (TARGET, 'tagline'),
         ),
         'footer_note': CapabilityField(
-            _line, 'Replaces the "Powered by" line of the footer; empty keeps it.',
+            _line,
+            'Replaces the "Powered by" line of the footer; empty keeps it.',
             (TARGET, 'footer_note'),
         ),
     }

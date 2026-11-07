@@ -210,8 +210,14 @@ class TokenService:
         allowed_senders: list[str] | None = None,
         send_limit_per_day: int | None = None,
         sandbox: bool = False,
+        actor: MailUser | None = None,
     ) -> tuple[APIToken, str]:
-        """Create a token; returns ``(row, plaintext)`` — plaintext shown once."""
+        """Create a token; returns ``(row, plaintext)`` — plaintext shown once.
+
+        ``user`` is the token's owner. ``actor`` is the person minting it; when it
+        differs from the owner, the scopes are bounded by both logins so a manager
+        can never grant a key carrying permissions they do not themselves hold.
+        """
         clean_name = (name or '').strip()[:64]
         if not clean_name:
             raise TokenError('Give the token a name, e.g. "uptime monitor".')
@@ -227,6 +233,9 @@ class TokenService:
             raise TokenError('Pick at least one scope for the token.')
         # A token can never exceed its owner's current permissions.
         allowed = wanted & RoleService.effective_permissions(user)
+        # Nor may it exceed the minter's: a manager grants only what they hold.
+        if actor is not None and actor.pk != user.pk:
+            allowed &= RoleService.effective_permissions(actor)
         if not allowed:
             raise TokenError('None of those scopes are held by this login.')
         sends = SEND_SCOPE in allowed or MARKETING_SCOPE in allowed

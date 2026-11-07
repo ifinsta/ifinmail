@@ -132,7 +132,9 @@ class PageIdentityTests(TestCase):
 
 class ConsoleIdentityTests(MailTablesTestCase):
     def _login_console(self) -> None:
-        admin = MailUser.objects.create_user('root@ifinmail.test', 'Correct-Horse-9', is_staff=True)
+        admin = MailUser.objects.create_user(
+            'root@ifinmail.test', 'Correct-Horse-9', is_staff=True, is_superuser=True
+        )
         self.client.force_login(admin, backend='django.contrib.auth.backends.ModelBackend')
         session = self.client.session
         session['mfa_verified_at'] = timezone.now().isoformat()

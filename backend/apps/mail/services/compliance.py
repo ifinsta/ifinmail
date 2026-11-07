@@ -18,6 +18,7 @@ not exist, ignore unsubscribes, or have no one-click unsubscribe on bulk mail. T
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from dataclasses import dataclass
 
@@ -74,8 +75,9 @@ def _domain_of(sender: str) -> str:
 def suppressed(sender: str, recipients: list[str]) -> list[str]:
     domain = _domain_of(sender)
     found = set(
-        Suppression.objects.filter(domain=domain, address__in=[r.lower() for r in recipients])
-        .values_list('address', flat=True)
+        Suppression.objects.filter(
+            domain=domain, address__in=[r.lower() for r in recipients]
+        ).values_list('address', flat=True)
     )
     return [r for r in recipients if r.lower() in found]
 
@@ -96,7 +98,9 @@ def suppress(domain: str, address: str, reason: str, *, detail: str = '', by: st
 
 
 def unsuppress(domain: str, address: str) -> int:
-    deleted, _ = Suppression.objects.filter(domain=domain.lower(), address=address.strip().lower()).delete()
+    deleted, _ = Suppression.objects.filter(
+        domain=domain.lower(), address=address.strip().lower()
+    ).delete()
     return deleted
 
 
@@ -138,7 +142,9 @@ def note_bounce(
 
 
 def unsubscribe_token(sender: str, recipient: str) -> str:
-    return signing.dumps({'d': _domain_of(sender), 'r': recipient.lower()}, salt=_SALT, compress=True)
+    return signing.dumps(
+        {'d': _domain_of(sender), 'r': recipient.lower()}, salt=_SALT, compress=True
+    )
 
 
 def read_token(token: str) -> tuple[str, str] | None:
@@ -195,15 +201,19 @@ def _check_guard(prefix: str) -> None:
     if not current.enabled or not current.bounce_limit:
         return
     rate, total = bounce_rate(prefix)
-    if rate is not None and total >= _GUARD_MIN_MESSAGES and rate > current.bounce_limit:
-        if cache.add(f'compliance:paused:{prefix}', {'rate': rate, 'total': total}, None):
-            from backend.apps.core.platform.services.audit import AuditService
+    if (
+        rate is not None
+        and total >= _GUARD_MIN_MESSAGES
+        and rate > current.bounce_limit
+        and cache.add(f'compliance:paused:{prefix}', {'rate': rate, 'total': total}, None)
+    ):
+        from backend.apps.core.platform.services.audit import AuditService
 
-            AuditService.record(
-                action='api_key_paused_for_bounces',
-                user='compliance',
-                detail=f'ifm_{prefix}: {rate}% of {total} messages bounced',
-            )
+        AuditService.record(
+            action='api_key_paused_for_bounces',
+            user='compliance',
+            detail=f'ifm_{prefix}: {rate}% of {total} messages bounced',
+        )
 
 
 def paused(prefix: str) -> dict | None:
@@ -216,7 +226,5 @@ def paused(prefix: str) -> dict | None:
 
 def resume(prefix: str) -> None:
     for key in (f'compliance:paused:{prefix}', _counter(prefix, 'ok'), _counter(prefix, 'bounced')):
-        try:
+        with contextlib.suppress(Exception):
             cache.delete(key)
-        except Exception:
-            pass

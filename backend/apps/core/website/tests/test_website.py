@@ -32,9 +32,15 @@ class PolicyTests(SimpleTestCase):
 
     def test_values_parse_and_junk_is_ignored(self) -> None:
         p = policy.from_values(
-            {'modes': 'pricing=off,docs=custom,nope=off,about=weird', 'powered_by': 'no', 'tagline': ' Hi '}
+            {
+                'modes': 'pricing=off,docs=custom,nope=off,about=weird',
+                'powered_by': 'no',
+                'tagline': ' Hi ',
+            }
         )
-        self.assertEqual((p.mode('pricing'), p.mode('docs'), p.mode('about')), ('off', 'custom', 'standard'))
+        self.assertEqual(
+            (p.mode('pricing'), p.mode('docs'), p.mode('about')), ('off', 'custom', 'standard')
+        )
         self.assertFalse(p.powered_by)
         self.assertEqual(p.tagline, 'Hi')
 
@@ -45,15 +51,17 @@ class SiteTests(SimpleTestCase):
 
     def test_menus_follow_the_pages_that_are_on(self) -> None:
         site = self.site(modes='pricing=off,changelog=off,download=off')
-        self.assertEqual([l.key for l in site.nav_links], ['features', 'security', 'docs'])
-        titles = {c.title: [l.key for l in c.links] for c in site.footer_columns}
+        self.assertEqual([link.key for link in site.nav_links], ['features', 'security', 'docs'])
+        titles = {c.title: [link.key for link in c.links] for c in site.footer_columns}
         self.assertNotIn('pricing', titles['Product'])
 
     def test_project_links_can_be_hidden(self) -> None:
-        shown = [l.url for c in self.site().footer_columns for l in c.links if l.external]
+        shown = [link.url for c in self.site().footer_columns for link in c.links if link.external]
         self.assertIn('https://git.example/x', shown)
         hidden = self.site(project_links='no')
-        self.assertEqual([l for c in hidden.footer_columns for l in c.links if l.external], [])
+        self.assertEqual(
+            [link for c in hidden.footer_columns for link in c.links if link.external], []
+        )
 
     def test_a_column_with_nothing_in_it_is_dropped(self) -> None:
         site = self.site(modes='terms=off,privacy=off', project_links='no')
@@ -70,7 +78,9 @@ class SiteTests(SimpleTestCase):
 
 class ContentTests(MailTablesTestCase):
     def test_save_read_and_clear(self) -> None:
-        saved = content.save('about', {'heading': ' Who we are ', 'body': '## Us\n\nHello'}, 'a@x.test')
+        saved = content.save(
+            'about', {'heading': ' Who we are ', 'body': '## Us\n\nHello'}, 'a@x.test'
+        )
         self.assertEqual(saved.heading, 'Who we are')
         self.assertEqual(content.get('about').body, '## Us\n\nHello')
         self.assertEqual(content.has_text(), {'about'})
@@ -200,7 +210,9 @@ class PublicPagesTests(MailTablesTestCase):
         content.save('about', {'heading': 'Us', 'body': 'x'}, 'a@x.test')
         self.install(**modes(about='off'))
         self.assertEqual(self.client.get(PAGE_URLS['about'] + '?preview=custom').status_code, 404)
-        admin = MailUser.objects.create_user('root@ifinmail.test', 'Correct-Horse-9', is_staff=True)
+        admin = MailUser.objects.create_user(
+            'root@ifinmail.test', 'Correct-Horse-9', is_staff=True, is_superuser=True
+        )
         self.client.force_login(admin, backend=MODEL_BACKEND)
         session = self.client.session
         session['mfa_verified_at'] = timezone.now().isoformat()
@@ -212,8 +224,9 @@ class PublicPagesTests(MailTablesTestCase):
 
 class StarterTests(MailTablesTestCase):
     def test_the_standard_text_becomes_editable_markdown(self) -> None:
-        from backend.config import public_pages
         from django.test import RequestFactory
+
+        from backend.config import public_pages
 
         request = RequestFactory().get('/')
         request.user = AnonymousUser()
@@ -229,8 +242,9 @@ class StarterTests(MailTablesTestCase):
         self.assertTrue(start.description)
 
     def test_every_standard_page_converts(self) -> None:
-        from backend.config import public_pages
         from django.test import RequestFactory
+
+        from backend.config import public_pages
 
         request = RequestFactory().get('/')
         request.user = AnonymousUser()
@@ -244,7 +258,9 @@ class StarterTests(MailTablesTestCase):
 class EditorTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
-        admin = MailUser.objects.create_user('root@ifinmail.test', 'Correct-Horse-9', is_staff=True)
+        admin = MailUser.objects.create_user(
+            'root@ifinmail.test', 'Correct-Horse-9', is_staff=True, is_superuser=True
+        )
         self.client.force_login(admin, backend=MODEL_BACKEND)
         session = self.client.session
         session['mfa_verified_at'] = timezone.now().isoformat()
@@ -259,7 +275,10 @@ class EditorTests(MailTablesTestCase):
     def test_write_save_and_remove(self) -> None:
         url = reverse('accounts:website_page', args=['about'])
         self.assertEqual(self.client.get(url).status_code, 200)
-        response = self.client.post(url, {'action': 'save', 'heading': 'Us', 'body': 'Hello', 'cta_label': '', 'cta_url': ''})
+        response = self.client.post(
+            url,
+            {'action': 'save', 'heading': 'Us', 'body': 'Hello', 'cta_label': '', 'cta_url': ''},
+        )
         self.assertRedirects(response, url)
         self.assertEqual(content.get('about').heading, 'Us')
         self.client.post(url, {'action': 'clear'})
@@ -267,7 +286,9 @@ class EditorTests(MailTablesTestCase):
 
     def test_errors_are_shown_next_to_the_field_and_nothing_is_saved(self) -> None:
         url = reverse('accounts:website_page', args=['about'])
-        response = self.client.post(url, {'action': 'save', 'heading': 'Us', 'cta_url': 'javascript:x', 'cta_label': 'Go'})
+        response = self.client.post(
+            url, {'action': 'save', 'heading': 'Us', 'cta_url': 'javascript:x', 'cta_label': 'Go'}
+        )
         self.assertContains(response, 'Use an https')
         self.assertContains(response, 'value="Us"')  # what was typed is kept
         self.assertFalse(content.get('about').usable)

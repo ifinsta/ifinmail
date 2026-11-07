@@ -153,7 +153,9 @@ class TOTPService:
         """Stop prompting this login for two-factor setup for ``days`` (default a week)."""
         if TOTPService.enforced():
             raise MFAError('Two-factor sign-in is required by your administrator.')
-        user.mfa_remind_after = timezone.now() + timedelta(days=days or TOTPService.REMIND_AFTER_DAYS)
+        user.mfa_remind_after = timezone.now() + timedelta(
+            days=days or TOTPService.REMIND_AFTER_DAYS
+        )
         user.save(update_fields=['mfa_remind_after'])
 
     @staticmethod

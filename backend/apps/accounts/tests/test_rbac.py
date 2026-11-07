@@ -51,8 +51,8 @@ class EffectivePermissionTests(MailTablesTestCase):
         staff = MailUser.objects.create_user('ops@ifinmail.test', GOOD, is_staff=True)
         plain = MailUser.objects.create_user('plain@ifinmail.test', GOOD)
         self.assertEqual(RoleService.effective_permissions(admin), set(ALL_PERMISSIONS))
-        # Legacy staff (no role): today's behavior, unchanged.
-        self.assertEqual(RoleService.effective_permissions(staff), set(ALL_PERMISSIONS))
+        # Staff without a role hold nothing: access is granted, never implicit.
+        self.assertEqual(RoleService.effective_permissions(staff), set())
         self.assertEqual(RoleService.effective_permissions(plain), set())
         inactive = MailUser.objects.create_user(
             'off@ifinmail.test', GOOD, is_staff=True, is_active=False
@@ -68,27 +68,58 @@ class EffectivePermissionTests(MailTablesTestCase):
         self.assertTrue(RoleService.has_perm(staff, PermissionCode.AUDIT_VIEW))
         self.assertFalse(RoleService.has_perm(staff, PermissionCode.MAIL_MANAGE))
 
-    def test_unknown_role_is_refused_and_clear_restores_legacy(self) -> None:
+    def test_unknown_role_is_refused_and_clear_revokes(self) -> None:
         MailUser.objects.create_user('root@ifinmail.test', GOOD, is_staff=True, is_superuser=True)
         staff = MailUser.objects.create_user('ops@ifinmail.test', GOOD, is_staff=True)
         with self.assertRaises(RoleError):
             RoleService.assign(staff, 'nope')
         RoleService.assign(staff, 'support')
         RoleService.assign(staff, None)
-        self.assertEqual(RoleService.effective_permissions(staff), set(ALL_PERMISSIONS))
+        self.assertEqual(RoleService.effective_permissions(staff), set())
+
+    def test_dangling_role_reference_fails_closed(self) -> None:
+        from backend.apps.accounts.models import Role
+
+        staff = MailUser.objects.create_user('ops@ifinmail.test', GOOD, is_staff=True)
+        RoleService.assign(staff, 'administrator')
+        Role.objects.filter(key='administrator').delete()
+        staff.refresh_from_db()
+        self.assertIsNone(staff.role_id)
+        self.assertEqual(RoleService.effective_permissions(staff), set())
+
+    def test_deleting_a_role_never_escalates_members(self) -> None:
+        from backend.apps.accounts.models import Role
+
+        narrow = Role.objects.create(
+            key='triage', name='Triage', permissions=['console.access', 'audit.view']
+        )
+        member = MailUser.objects.create_user('ops@ifinmail.test', GOOD, is_staff=True)
+        member.role = narrow
+        member.save(update_fields=['role'])
+        before = RoleService.effective_permissions(member)
+        narrow.delete()
+        member.refresh_from_db()
+        after = RoleService.effective_permissions(member)
+        self.assertTrue(after <= before)
+        self.assertNotIn('roles.manage', after)
+        self.assertEqual(after, set())
 
     def test_last_role_granter_is_protected(self) -> None:
         first = MailUser.objects.create_user('a@ifinmail.test', GOOD, is_staff=True)
         second = MailUser.objects.create_user('b@ifinmail.test', GOOD, is_staff=True)
-        # Both legacy holders: narrowing one is fine.
+        RoleService.assign(first, 'owner')
+        RoleService.assign(second, 'owner')
+        # Two owners: narrowing one is fine.
         RoleService.assign(first, 'support')
-        self.assertEqual(RoleService.effective_permissions(second), set(ALL_PERMISSIONS))
-        # Second is now the last holder: narrowing them is refused.
+        self.assertEqual(RoleService.effective_permissions(first), {'console.access', 'audit.view'})
+        # Second is now the last holder: narrowing or clearing them is refused.
         with self.assertRaises(RoleError):
             RoleService.assign(second, 'support')
+        with self.assertRaises(RoleError):
+            RoleService.assign(second, None)
         # ...unless someone else can still grant roles.
-        RoleService.assign(second, 'owner')
-        RoleService.assign(first, 'support')
+        RoleService.assign(first, 'owner')
+        RoleService.assign(second, 'support')
 
 
 class RoleGateTests(MailTablesTestCase):

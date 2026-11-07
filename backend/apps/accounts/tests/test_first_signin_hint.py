@@ -1,4 +1,5 @@
-"""No logo uploaded → the brand name, never a broken image; the login page says how to sign in first."""
+"""No logo uploaded → the brand name, never a broken image; the login page says how to sign in
+first."""
 
 from __future__ import annotations
 
@@ -23,7 +24,10 @@ class MissingLogoTests(SimpleTestCase):
             os.makedirs(os.path.join(base, 'media', 'branding'))
             with open(os.path.join(base, 'media', 'branding', 'logo.png'), 'wb') as handle:
                 handle.write(b'png')
-        env = {'BRAND_LOGO_URL': logo_url, 'BRANDING_OVERRIDES_PATH': os.path.join(base, 'none.json')}
+        env = {
+            'BRAND_LOGO_URL': logo_url,
+            'BRANDING_OVERRIDES_PATH': os.path.join(base, 'none.json'),
+        }
         with patch.dict(os.environ, env):
             os.environ.pop('MEDIA_ROOT', None)
             return BrandingConfig.from_env(base)
@@ -51,7 +55,9 @@ class MissingLogoTests(SimpleTestCase):
 
         from django.conf import settings
 
-        with open(os.path.join(settings.BASE_DIR, 'branding_overrides.json'), encoding='utf-8') as f:
+        with open(
+            os.path.join(settings.BASE_DIR, 'branding_overrides.json'), encoding='utf-8'
+        ) as f:
             self.assertNotIn('logo_url', json.load(f))
 
 

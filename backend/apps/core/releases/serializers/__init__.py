@@ -80,7 +80,9 @@ class AdoptionV1(Schema):
 
     @classmethod
     def from_row(cls, row: AdoptionRow) -> AdoptionV1:
-        return cls(version_code=row.version_code, version_name=row.version_name, devices=row.devices)
+        return cls(
+            version_code=row.version_code, version_name=row.version_name, devices=row.devices
+        )
 
 
 class ReleaseOverviewV1(Schema):

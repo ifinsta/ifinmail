@@ -86,7 +86,9 @@ def test_production_csp_forbids_inline_scripts() -> None:
 def test_production_csp_is_enforced_by_default() -> None:
     """Report-only never protects anyone. The switch exists for emergencies, not as the default."""
     settings = _read(ROOT / 'backend' / 'config' / 'settings' / 'production.py')
-    assert re.search(r"CSP_REPORT_ONLY\s*=\s*os\.environ\.get\('CSP_REPORT_ONLY', 'False'\)", settings)
+    assert re.search(
+        r"CSP_REPORT_ONLY\s*=\s*os\.environ\.get\('CSP_REPORT_ONLY', 'False'\)", settings
+    )
     assert 'CSP_REPORT_URI' in settings, 'violations must still be reported'
 
 

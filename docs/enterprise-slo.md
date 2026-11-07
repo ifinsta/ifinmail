@@ -43,7 +43,9 @@ exposes it.
 ## Dependencies
 
 * Production dependencies are pinned with SHA-256 hashes (`requirements/prod.lock`) and installed
-  with `--require-hashes`, so a swapped release fails the image build.
+  with `--require-hashes`, so a swapped release fails the image build. CI installs that same lock
+  before the test suite; test-only tools come from `requirements/ci.txt`, never a re-resolution of
+  the runtime set.
 * `pip-audit` runs on every change and **weekly** (CI schedule); a failing weekly run is the
   reminder. There is deliberately no automated update bot: one maintainer reviews `make lock` output.
 * Fix targets: critical vulnerability ≤ 7 days, high ≤ 30 days, medium at the next release.

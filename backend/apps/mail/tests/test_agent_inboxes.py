@@ -47,7 +47,9 @@ class InboxBase(base.ApiBase):
 
     def api(self, method: str, path: str, body: dict | None = None, auth: dict | None = None):  # noqa: ANN201
         auth = auth or self.agent
-        return self.call(method, '/api/v1' + path, key=auth['key'], secret=auth['secret'], body=body)
+        return self.call(
+            method, '/api/v1' + path, key=auth['key'], secret=auth['secret'], body=body
+        )
 
     def new_inbox(self, **body: object) -> str:
         response = self.api('post', '/inboxes', body or {})
@@ -79,10 +81,10 @@ class LifecycleTests(InboxBase):
         self.assertEqual(chosen, f'signup-bot@{DOMAIN}')
         row = AgentInbox.objects.get(address=chosen)
         self.assertEqual(row.label, 'GitHub sign-up')
-        self.assertAlmostEqual(
-            (row.expires_at - timezone.now()).total_seconds(), 7200, delta=60
+        self.assertAlmostEqual((row.expires_at - timezone.now()).total_seconds(), 7200, delta=60)
+        self.assertTrue(
+            Mailbox.objects.filter(local_part='signup-bot', domain__name=DOMAIN).exists()
         )
-        self.assertTrue(Mailbox.objects.filter(local_part='signup-bot', domain__name=DOMAIN).exists())
 
     def test_names_and_limits(self) -> None:
         for name in ('Bad Name', 'x+y', 'postmaster', '-dash'):
@@ -100,7 +102,9 @@ class LifecycleTests(InboxBase):
         self.assertEqual(self.api('get', '/inboxes', auth=other).json(), [])
         for method, path in (('get', ''), ('get', '/messages'), ('delete', '')):
             with self.subTest(path=path):
-                self.assertEqual(self.api(method, f'/inboxes/{address}{path}', auth=other).status_code, 404)
+                self.assertEqual(
+                    self.api(method, f'/inboxes/{address}{path}', auth=other).status_code, 404
+                )
         # Not even a person's mailbox through this route.
         self.assertEqual(self.api('get', '/inboxes/root@ifinmail.test/messages').status_code, 404)
 
@@ -115,7 +119,9 @@ class LifecycleTests(InboxBase):
     def test_expired_inboxes_are_removed(self) -> None:
         keep = self.new_inbox(ttl_hours=0)
         gone = self.new_inbox()
-        AgentInbox.objects.filter(address=gone).update(expires_at=timezone.now() - timedelta(minutes=1))
+        AgentInbox.objects.filter(address=gone).update(
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
         self.assertEqual(agent_inboxes.expire(), 1)
         self.assertEqual(list(AgentInbox.objects.values_list('address', flat=True)), [keep])
 
@@ -149,8 +155,13 @@ class ReadingTests(InboxBase):
         uid = self.store.deliver(
             self.address,
             message(
-                'Sign in to Acme', 'Sign in below', to=self.address,
-                html='<p>Click</p><a href="https://acme.example.com/magic-login?token=xyz">Sign in</a>',
+                'Sign in to Acme',
+                'Sign in below',
+                to=self.address,
+                html=(
+                    '<p>Click</p><a href="https://acme.example.com/magic-login?token=xyz">'
+                    'Sign in</a>'
+                ),
             ),
         )
         found = self.api('get', f'/inboxes/{self.address}/messages/{uid}/code').json()
@@ -163,7 +174,10 @@ class ReadingTests(InboxBase):
         def arrive() -> None:
             if not arriving['done']:
                 arriving['done'] = True
-                self.store.deliver(self.address, message('Verify', 'Your verification code is 739204', to=self.address))
+                self.store.deliver(
+                    self.address,
+                    message('Verify', 'Your verification code is 739204', to=self.address),
+                )
 
         self.store.on_noop = arrive
         response = self.api('get', f'/inboxes/{self.address}/wait?since_uid=1&timeout=5')
@@ -172,7 +186,9 @@ class ReadingTests(InboxBase):
         self.assertEqual(response.json()['message']['uid'], 2)
 
     def test_wait_answers_204_when_nothing_comes(self) -> None:
-        self.assertEqual(self.api('get', f'/inboxes/{self.address}/wait?timeout=0').status_code, 204)
+        self.assertEqual(
+            self.api('get', f'/inboxes/{self.address}/wait?timeout=0').status_code, 204
+        )
 
     def test_plus_tags_tell_tasks_apart(self) -> None:
         self.store.deliver(self.address, message('A', 'code 111222', to=f'bot+github@{DOMAIN}'))
@@ -184,7 +200,9 @@ class ReadingTests(InboxBase):
 
     def test_delete_one_message(self) -> None:
         uid = self.store.deliver(self.address, message(to=self.address))
-        self.assertEqual(self.api('delete', f'/inboxes/{self.address}/messages/{uid}').status_code, 204)
+        self.assertEqual(
+            self.api('delete', f'/inboxes/{self.address}/messages/{uid}').status_code, 204
+        )
         self.assertEqual(self.api('get', f'/inboxes/{self.address}/messages').json(), [])
 
     def test_a_missing_master_password_is_a_clear_503(self) -> None:
@@ -205,4 +223,7 @@ class SendingAsAnInboxTests(InboxBase):
         foreign = self.api('post', '/messages', {**body, 'from': 'root@ifinmail.test'}, auth=agent)
         self.assertEqual(foreign.status_code, 403)
         someone_elses = self.new_inbox()  # created by a different key
-        self.assertEqual(self.api('post', '/messages', {**body, 'from': someone_elses}, auth=agent).status_code, 403)
+        self.assertEqual(
+            self.api('post', '/messages', {**body, 'from': someone_elses}, auth=agent).status_code,
+            403,
+        )

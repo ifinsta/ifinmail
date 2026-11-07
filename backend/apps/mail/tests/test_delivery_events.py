@@ -29,14 +29,18 @@ _REAL_GETADDRINFO = socket.getaddrinfo
 def fake_dns(host, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN201
     """Webhook hosts in the tests resolve to a public address; everything else (Redis, the
     database) resolves as usual so nothing waits on a connection to a fake address."""
-    if isinstance(host, str) and (host.endswith('.example') or '.example.' in host or host.endswith('example.com')):
+    if isinstance(host, str) and (
+        host.endswith('.example') or '.example.' in host or host.endswith('example.com')
+    ):
         return PUBLIC
     return _REAL_GETADDRINFO(host, *args, **kwargs)
 
 
 def resolves_to(address: str):  # noqa: ANN201
     return patch.object(
-        socket, 'getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', (address, 443))]
+        socket,
+        'getaddrinfo',
+        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', (address, 443))],
     )
 
 
@@ -73,8 +77,17 @@ class EventsBase(send_base.SendBase):
     def enable(self, **settings: object) -> None:
         InstallationService.install(PLUGIN, settings, 'root@ifinmail.test')
 
-    def endpoint(self, events=('message.bounced', 'message.delivered', 'message.queued', 'message.deferred'), **kw):  # noqa: ANN001, ANN201
-        return webhooks.create_endpoint(name=kw.pop('name', 'app'), url=kw.pop('url', 'https://hooks.example.com/in'), events=events, **kw)
+    def endpoint(
+        self,
+        events=('message.bounced', 'message.delivered', 'message.queued', 'message.deferred'),
+        **kw,
+    ):  # noqa: ANN001, ANN201
+        return webhooks.create_endpoint(
+            name=kw.pop('name', 'app'),
+            url=kw.pop('url', 'https://hooks.example.com/in'),
+            events=events,
+            **kw,
+        )
 
 
 class UrlSafetyTests(EventsBase):
@@ -91,11 +104,17 @@ class UrlSafetyTests(EventsBase):
         for host in ('localhost', 'redis', 'api', 'metadata.google.internal', 'x.localhost'):
             with self.subTest(host=host), self.assertRaises(webhooks.WebhookError):
                 webhooks.check_url(f'https://{host}/hook')
-        self.assertEqual(webhooks.check_url('https://hooks.example.com/in'), 'https://hooks.example.com/in')
+        self.assertEqual(
+            webhooks.check_url('https://hooks.example.com/in'), 'https://hooks.example.com/in'
+        )
 
     def test_addresses_that_reach_this_server_are_refused_whatever_the_name(self) -> None:
         for address in ('127.0.0.1', '169.254.169.254', '0.0.0.0'):
-            with self.subTest(address=address), resolves_to(address), self.assertRaises(webhooks.WebhookError):
+            with (
+                self.subTest(address=address),
+                resolves_to(address),
+                self.assertRaises(webhooks.WebhookError),
+            ):
                 webhooks.check_url('https://innocent.example.com/')
         with resolves_to('172.18.0.5'), self.assertRaisesMessage(webhooks.WebhookError, 'private'):
             webhooks.check_url('https://innocent.example.com/')
@@ -221,9 +240,21 @@ class LogScanTests(EventsBase):
         self.assertEqual(queued.payload['data']['message_id'], message_id)
         lines = [
             f'Oct 15 09:00:00 mail postfix/cleanup[11]: 4ABC123: message-id=<{message_id}>',
-            'Oct 15 09:00:01 mail postfix/smtp[12]: 4ABC123: to=<ana@example.org>, relay=mx.example.org[198.51.100.1]:25, delay=1, dsn=2.0.0, status=sent (250 2.0.0 OK)',
-            'Oct 15 09:00:02 mail postfix/smtp[12]: 4ABC123: to=<bob@gmail.com>, relay=gmail-smtp-in.l.google.com[142.250.1.1]:25, delay=1, dsn=5.7.25, status=bounced (host said: 550-5.7.25 The IP address sending this message does not have a PTR record, bob@gmail.com)',
-            'Oct 15 09:00:03 mail postfix/smtp[12]: 9OTHER9: to=<x@example.net>, relay=a[1.2.3.4]:25, dsn=2.0.0, status=sent (250 ok)',
+            (
+                'Oct 15 09:00:01 mail postfix/smtp[12]: 4ABC123: to=<ana@example.org>, '
+                'relay=mx.example.org[198.51.100.1]:25, delay=1, dsn=2.0.0, '
+                'status=sent (250 2.0.0 OK)'
+            ),
+            (
+                'Oct 15 09:00:02 mail postfix/smtp[12]: 4ABC123: to=<bob@gmail.com>, '
+                'relay=gmail-smtp-in.l.google.com[142.250.1.1]:25, delay=1, dsn=5.7.25, '
+                'status=bounced (host said: 550-5.7.25 The IP address sending this message '
+                'does not have a PTR record, bob@gmail.com)'
+            ),
+            (
+                'Oct 15 09:00:03 mail postfix/smtp[12]: 9OTHER9: to=<x@example.net>, '
+                'relay=a[1.2.3.4]:25, dsn=2.0.0, status=sent (250 ok)'
+            ),
         ]
         made = sum(delivery_events.handle_line(line) for line in lines)
         self.assertEqual(made, 2)  # the unrelated message produced nothing
@@ -268,18 +299,22 @@ class WebhookApiTests(EventsBase):
         return self.call(method, path, key=self.auth['key'], secret=self.auth['secret'], body=body)
 
     def test_a_key_manages_its_own_webhooks(self) -> None:
-        created = self.api('post', '/api/v1/webhooks', {'name': 'app', 'url': 'https://hooks.example.com/x', 'events': ['message.bounced']})
+        created = self.api(
+            'post',
+            '/api/v1/webhooks',
+            {'name': 'app', 'url': 'https://hooks.example.com/x', 'events': ['message.bounced']},
+        )
         self.assertEqual(created.status_code, 201, created.content)
         body = created.json()
         self.assertTrue(body['secret'].startswith('whsec_'))
         listing = self.api('get', '/api/v1/webhooks').json()
         self.assertEqual([w['id'] for w in listing], [body['id']])
         self.assertNotIn('secret', listing[0])
-        ping = self.api('post', f"/api/v1/webhooks/{body['id']}/test")
+        ping = self.api('post', f'/api/v1/webhooks/{body["id"]}/test')
         self.assertEqual(ping.json()['status'], 'delivered')
-        deliveries = self.api('get', f"/api/v1/webhooks/{body['id']}/deliveries").json()
+        deliveries = self.api('get', f'/api/v1/webhooks/{body["id"]}/deliveries').json()
         self.assertEqual(deliveries['items'][0]['event_type'], 'webhook.ping')
-        self.assertEqual(self.api('delete', f"/api/v1/webhooks/{body['id']}").status_code, 204)
+        self.assertEqual(self.api('delete', f'/api/v1/webhooks/{body["id"]}').status_code, 204)
 
     def test_another_key_cannot_see_or_touch_it(self) -> None:
         row, _ = self.endpoint()  # a console webhook
@@ -288,9 +323,22 @@ class WebhookApiTests(EventsBase):
         self.assertEqual(self.api('delete', f'/api/v1/webhooks/{row.pk}').status_code, 404)
 
     def test_bad_requests(self) -> None:
-        bad_url = self.api('post', '/api/v1/webhooks', {'name': 'a', 'url': 'https://localhost/x', 'events': ['message.bounced']})
+        bad_url = self.api(
+            'post',
+            '/api/v1/webhooks',
+            {'name': 'a', 'url': 'https://localhost/x', 'events': ['message.bounced']},
+        )
         self.assertEqual(bad_url.status_code, 422)
-        foreign_box = self.api('post', '/api/v1/webhooks', {'name': 'a', 'url': 'https://h.example.com/', 'events': ['message.received'], 'mailboxes': ['ceo@ifinmail.test']})
+        foreign_box = self.api(
+            'post',
+            '/api/v1/webhooks',
+            {
+                'name': 'a',
+                'url': 'https://h.example.com/',
+                'events': ['message.received'],
+                'mailboxes': ['ceo@ifinmail.test'],
+            },
+        )
         self.assertEqual(foreign_box.status_code, 403)
 
 
@@ -303,7 +351,9 @@ class WebhookConsoleTests(EventsBase):
         session.save()
 
     def test_create_test_and_remove_from_the_console(self) -> None:
-        self.assertContains(self.client.get(reverse('accounts:webhooks')), 'No events are being sent')
+        self.assertContains(
+            self.client.get(reverse('accounts:webhooks')), 'No events are being sent'
+        )
         self.enable()
         response = self.client.post(
             reverse('accounts:webhooks_create'),
@@ -315,5 +365,7 @@ class WebhookConsoleTests(EventsBase):
         self.assertEqual(row.owner_prefix, '')
         self.client.post(reverse('accounts:webhooks_action'), {'webhook': row.pk, 'action': 'test'})
         self.assertEqual(len(self.receiver.calls), 1)
-        self.client.post(reverse('accounts:webhooks_action'), {'webhook': row.pk, 'action': 'delete'})
+        self.client.post(
+            reverse('accounts:webhooks_action'), {'webhook': row.pk, 'action': 'delete'}
+        )
         self.assertFalse(WebhookEndpoint.objects.exists())

@@ -205,16 +205,23 @@ class CheckTests(ReleaseTestCase):
     def test_widening_a_rollout_only_adds_devices(self) -> None:
         release = self.publish(2, rollout_percent=10)
         devices = [f'device-{n:05d}' for n in range(300)]
-        small = {d for d in devices if ReleaseService.check(version_code=1, device_id=d).update_available}
+        small = {
+            d for d in devices if ReleaseService.check(version_code=1, device_id=d).update_available
+        }
         ReleaseService.update(release, rollout_percent=50)
-        wider = {d for d in devices if ReleaseService.check(version_code=1, device_id=d).update_available}
+        wider = {
+            d for d in devices if ReleaseService.check(version_code=1, device_id=d).update_available
+        }
         self.assertTrue(small <= wider)
         self.assertGreater(len(wider), len(small))
 
     def test_buckets_are_spread_and_deterministic(self) -> None:
         counts = Counter(rollout_bucket(f'd{n}', 'android', 'stable', 7) // 10 for n in range(2000))
         self.assertEqual(set(counts), set(range(10)))
-        self.assertEqual(rollout_bucket('abc', 'android', 'stable', 7), rollout_bucket('abc', 'android', 'stable', 7))
+        self.assertEqual(
+            rollout_bucket('abc', 'android', 'stable', 7),
+            rollout_bucket('abc', 'android', 'stable', 7),
+        )
 
 
 class ManifestTests(ReleaseTestCase):
@@ -234,10 +241,14 @@ class ManifestTests(ReleaseTestCase):
         self.assertEqual(latest['size_bytes'], release.size_bytes)
         self.assertEqual(latest['signing_cert_sha256'], release.signing_cert_sha256)
         self.assertEqual(latest['package'], 'com.ifinmail')
-        self.assertTrue(latest['download_url'].startswith('https://mail.example.org/media/storage/'))
+        self.assertTrue(
+            latest['download_url'].startswith('https://mail.example.org/media/storage/')
+        )
 
     def test_an_empty_manifest_is_well_formed(self) -> None:
-        body = manifest_for(ReleaseService.check(version_code=1), platform='android', channel='stable')
+        body = manifest_for(
+            ReleaseService.check(version_code=1), platform='android', channel='stable'
+        )
         self.assertIsNone(body['latest'])
         self.assertFalse(body['update_available'])
 
@@ -246,12 +257,20 @@ class CheckinTests(ReleaseTestCase):
     def test_checkins_are_upserted_and_counted_per_version(self) -> None:
         for device, code in (('device-aaaa1', 1), ('device-bbbb2', 1), ('device-cccc3', 2)):
             ReleaseService.record_checkin(
-                platform='android', device_id=device, channel='stable', version_code=code,
-                version_name=f'1.{code}.0', sdk_int=34,
+                platform='android',
+                device_id=device,
+                channel='stable',
+                version_code=code,
+                version_name=f'1.{code}.0',
+                sdk_int=34,
             )
         ReleaseService.record_checkin(
-            platform='android', device_id='device-aaaa1', channel='stable', version_code=2,
-            version_name='1.2.0', sdk_int=34,
+            platform='android',
+            device_id='device-aaaa1',
+            channel='stable',
+            version_code=2,
+            version_name='1.2.0',
+            sdk_int=34,
         )
         self.assertEqual(DeviceCheckin.objects.count(), 3)
         self.assertEqual(DeviceCheckin.objects.get(device_id='device-aaaa1').checks, 2)
@@ -260,11 +279,15 @@ class CheckinTests(ReleaseTestCase):
         self.assertEqual(ReleaseService.active_device_count(), 3)
 
     def test_a_missing_device_id_records_nothing(self) -> None:
-        ReleaseService.record_checkin(platform='android', device_id='', channel='stable', version_code=1)
+        ReleaseService.record_checkin(
+            platform='android', device_id='', channel='stable', version_code=1
+        )
         self.assertEqual(DeviceCheckin.objects.count(), 0)
 
     def test_silent_devices_leave_the_active_count_and_are_pruned(self) -> None:
-        ReleaseService.record_checkin(platform='android', device_id='device-old-1', channel='stable', version_code=1)
+        ReleaseService.record_checkin(
+            platform='android', device_id='device-old-1', channel='stable', version_code=1
+        )
         DeviceCheckin.objects.update(last_seen=timezone.now() - timedelta(days=45))
         self.assertEqual(ReleaseService.active_device_count(), 0)
         self.assertEqual(ReleaseService.prune_checkins(days=30), 1)
@@ -281,10 +304,14 @@ class CommandTests(ReleaseTestCase):
         apk = Path(self.media, 'build.apk')
         apk.write_bytes(build_apk(version_code=9, version_name='2.0.0'))
         out = io.StringIO()
-        call_command('publish_release', str(apk), '--notes', 'From CI', '--rollout', '40', stdout=out)
+        call_command(
+            'publish_release', str(apk), '--notes', 'From CI', '--rollout', '40', stdout=out
+        )
         self.assertIn('2.0.0', out.getvalue())
         release = AppRelease.objects.get()
-        self.assertEqual((release.version_code, release.rollout_percent, release.notes), (9, 40, 'From CI'))
+        self.assertEqual(
+            (release.version_code, release.rollout_percent, release.notes), (9, 40, 'From CI')
+        )
         listing = io.StringIO()
         call_command('publish_release', '--list', stdout=listing)
         self.assertIn('2.0.0', listing.getvalue())

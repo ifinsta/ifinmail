@@ -17,9 +17,9 @@ from backend.apps.core.telemetry import report
 from backend.apps.core.telemetry.models import ThreatDigest
 from backend.apps.core.telemetry.threats import spam as spam_stats
 from backend.apps.core.tests.mail_base import MailTablesTestCase
+from backend.apps.core.types import SettingKey
 from backend.apps.mail.services import spam_policy
 from backend.apps.mail.services.spam_policy import SpamSettingError
-from backend.apps.core.types import SettingKey
 
 MODEL_BACKEND = 'django.contrib.auth.backends.ModelBackend'
 
@@ -201,7 +201,9 @@ class FigureTests(SimpleTestCase):
 class _PageCase(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
-        admin = MailUser.objects.create_user('root@ifinmail.test', 'Correct-Horse-9', is_staff=True)
+        admin = MailUser.objects.create_user(
+            'root@ifinmail.test', 'Correct-Horse-9', is_staff=True, is_superuser=True
+        )
         self.client.force_login(admin, backend=MODEL_BACKEND)
         session = self.client.session
         session['mfa_verified_at'] = timezone.now().isoformat()
@@ -262,7 +264,12 @@ class PageTests(_PageCase):
             'bl.example.org/dnsbl',
         )
 
-        verdict = {'state': 'works', 'ms': 42, 'detail': 'It answered for its test entry.', 'at': ''}
+        verdict = {
+            'state': 'works',
+            'ms': 42,
+            'detail': 'It answered for its test entry.',
+            'at': '',
+        }
         with patch.object(spam_policy, 'probe', return_value=verdict):
             response = self.client.post(
                 reverse('accounts:spam_test_provider'), {'host': 'bl.example.org'}, follow=True
@@ -310,7 +317,9 @@ class PageTests(_PageCase):
         self.client.logout()
         self.client.force_login(plain, backend=MODEL_BACKEND)
         for name in ('spam_sensitivity', 'spam_add_provider'):
-            response = self.client.post(reverse(f'accounts:{name}'), {'level': '9', 'host': 'x.example.org'})
+            response = self.client.post(
+                reverse(f'accounts:{name}'), {'level': '9', 'host': 'x.example.org'}
+            )
             self.assertIn(response.status_code, (302, 403), name)
         self.assertIsNone(SystemSettings.get(SettingKey.SPAM_SENSITIVITY))
         self.assertEqual(spam_policy.providers(), [])
@@ -320,9 +329,7 @@ class PageTests(_PageCase):
         ThreatDigest.objects.create(
             hour=now.replace(minute=0),
             summary={
-                'sources': {
-                    'rspamd': {'actions': {'no_action': 40, 'add_header': 6, 'reject': 3}}
-                }
+                'sources': {'rspamd': {'actions': {'no_action': 40, 'add_header': 6, 'reject': 3}}}
             },
         )
         ThreatDigest.objects.create(
@@ -353,9 +360,7 @@ class EngineValuesTests(_PageCase):
         )
         InstallationService.publish_all()
         text = (Path(self.runtime_dir) / 'rspamd-plugins.conf').read_text()
-        values = dict(
-            line.split(' = ', 1) for line in text.splitlines() if ' = ' in line
-        )
+        values = dict(line.split(' = ', 1) for line in text.splitlines() if ' = ' in line)
         t = spam_policy.thresholds(8)
         self.assertEqual(values['spam_reject_score'], f'{t["reject"]:.1f}')
         self.assertEqual(values['spam_greylist_score'], f'{t["greylist"]:.1f}')

@@ -16,7 +16,7 @@ CUSTOM_LAYOUT = (
     'optional single button, then the body. The body is Markdown (## and ### headings, - and 1. '
     'lists, **bold**, *italic*, [text](link), > quotes, --- rules, ``` code blocks); there are no '
     'images, tables, columns, cards or icons. The browser tab title and the search description '
-    'are separate fields. The header, footer and navigation are the site\'s own and are not '
+    "are separate fields. The header, footer and navigation are the site's own and are not "
     'part of the text.'
 )
 
@@ -35,11 +35,11 @@ class PageGuide:
 
 GUIDES: dict[str, PageGuide] = {
     'landing': PageGuide(
-        purpose='The front door at the site\'s root: says what this mail service is and sends '
+        purpose="The front door at the site's root: says what this mail service is and sends "
         'people to sign in or learn more. It is the first thing a visitor, a prospective '
         'user or a partner sees.',
         audience='Employees, customers or members who were told about the service; '
-        'occasionally a partner\'s IT team.',
+        "occasionally a partner's IT team.",
         layout='Hero (heading, introduction, two buttons, three short facts), an illustrative '
         'health panel, a six-card feature grid, a three-step "how it starts" sequence, a '
         'security teaser, a pricing teaser and a closing call to action.',
@@ -112,7 +112,7 @@ GUIDES: dict[str, PageGuide] = {
         'instructions (mail app settings, ports) lock people out of their mail.',
         risk='medium',
         write='If people need help: how to set up a mail app (IMAP server and port 993, '
-        'SMTP port 587 or 465, username is the full address) using this server\'s real mail '
+        "SMTP port 587 or 465, username is the full address) using this server's real mail "
         'hostname, and who to ask. Nothing about installing the server.',
         typical='Off, or Custom as a short "set up your mail app" help page.',
         body_words='100-350',
@@ -122,7 +122,7 @@ GUIDES: dict[str, PageGuide] = {
         audience='Operators following the project.',
         layout='Heading and introduction, then one block per release with its notes, and a '
         'link to older releases.',
-        stakes='It is the project\'s own history: it names the software and its versions, and '
+        stakes="It is the project's own history: it names the software and its versions, and "
         'can disclose when security fixes shipped. It says nothing about this organisation.',
         risk='low',
         write='Rarely worth writing. If the organisation wants a notice page ("what changed '
@@ -136,7 +136,7 @@ GUIDES: dict[str, PageGuide] = {
         layout='Heading and introduction, then either the newest build with its version, size '
         'and checksum and install steps, or a notice that no build is published yet.',
         stakes='Installing an app from a page is a trust decision: the page must point only at '
-        'the organisation\'s own signed build. The standard page shows the real build and '
+        "the organisation's own signed build. The standard page shows the real build and "
         'checksum; custom text replaces that and can send people to the wrong place.',
         risk='high',
         write='Prefer keeping this page Standard: it is data-driven. If custom, say which '
@@ -164,7 +164,7 @@ GUIDES: dict[str, PageGuide] = {
         layout='Heading and introduction, then sections: questions and bugs, security reports '
         '(with a private reporting link), and read-first links to documentation.',
         stakes='A wrong or dead address means abuse and security reports go nowhere, and users '
-        'cannot get help. The standard page points at the open-source project\'s issue tracker.',
+        "cannot get help. The standard page points at the open-source project's issue tracker.",
         risk='high',
         write='A working help address or form, a security/abuse address, expected response '
         'times only if the organisation gave them. Use mailto: links.',
@@ -189,7 +189,7 @@ GUIDES: dict[str, PageGuide] = {
         body_words='150-600',
     ),
     'privacy': PageGuide(
-        purpose='What personal data is stored, why, and the people\'s rights.',
+        purpose="What personal data is stored, why, and the people's rights.",
         audience='Users and regulators (GDPR and similar).',
         layout='Heading with last-updated date, then sections: who is responsible, what is '
         'stored, cookies and browser storage, what leaves this server, your choices, security, '
@@ -200,7 +200,7 @@ GUIDES: dict[str, PageGuide] = {
         'own retention and contact details.',
         risk='high',
         write='Name the organisation as controller, list what is stored (mailbox contents, '
-        'login and security logs) as the standard page does, add the organisation\'s retention '
+        "login and security logs) as the standard page does, add the organisation's retention "
         'and a data-protection contact. Do not claim data locations or processors you were '
         'not told.',
         typical='Custom, reviewed by whoever owns data protection; the sign-in page links to it.',

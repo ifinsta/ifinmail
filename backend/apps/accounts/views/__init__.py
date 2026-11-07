@@ -10,6 +10,7 @@ from .dashboard import (
     dashboard_rescan,
     dashboard_shell,
 )
+from .first_password import first_password
 from .logs import logs, logs_export, logs_full_history, logs_live_data, logs_report, logs_trace
 from .mailboxes import (
     aliases_create,
@@ -21,8 +22,6 @@ from .mailboxes import (
     mailboxes_page,
     registration_toggle,
 )
-from .first_password import first_password
-from .system_health import system_health, system_health_recheck, system_health_updates
 from .mfa import mailbox_mfa_reset, mfa_setup, mfa_verify
 from .password_reset import (
     password_reset,
@@ -48,7 +47,6 @@ from .registration import (
 )
 from .settings_hub import appearance_default, settings_hub, settings_page
 from .setup import setup_advance, setup_step, setup_wizard
-from .website import website_page, website_pages
 from .spam import (
     spam_add_provider,
     spam_filtering,
@@ -57,7 +55,9 @@ from .spam import (
     spam_test_provider,
     spam_toggle_provider,
 )
+from .system_health import system_health, system_health_recheck, system_health_updates
 from .users import user_management, users_export, users_kill_sessions
+from .website import website_page, website_pages
 
 __all__ = [
     'account_name',

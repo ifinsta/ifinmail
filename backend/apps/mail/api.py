@@ -5,6 +5,7 @@ access are read-only here (see ``viewsets.mailboxes.ensure_plain``); the plain r
 stay for in-process callers and tests.
 """
 
+import logging
 import uuid
 from typing import Annotated
 
@@ -20,14 +21,19 @@ from backend.apps.accounts.services.tokens import key_id
 from backend.apps.accounts.viewsets.auth import ApiRequest, actor, require_scope
 from backend.apps.accounts.viewsets.errors import errors, problem
 from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.mail.models import (
+    Audience,
+    Campaign,
+    CampaignRecipient,
+    MarketingOptOut,
+    Template,
+)
 from backend.apps.mail.serializers import (
-    CampaignReportV1,
-    CampaignScheduleV1,
-    TemplateChangeV1,
-    TemplateCreateV1,
-    TemplatePreviewIn,
-    TemplatePreviewV1,
-    TemplateV1,
+    AliasCreateIn,
+    AliasCreateV1,
+    AliasV1,
+    ApprovalDecisionV1,
+    ApprovalV1,
     AudienceChangeV1,
     AudienceContactsIn,
     AudienceContactV1,
@@ -37,44 +43,38 @@ from backend.apps.mail.serializers import (
     CampaignCreatedV1,
     CampaignIn,
     CampaignRecipientV1,
+    CampaignReportV1,
+    CampaignScheduleV1,
     CampaignV1,
-    MarketingOptOutCreateV1,
-    MarketingOptOutV1,
-    SuppressionCreateV1,
-    SuppressionV1,
-    ApprovalDecisionV1,
-    ApprovalV1,
     InboxCodeV1,
     InboxCreateV1,
     InboxMessageFullV1,
     InboxMessageV1,
     InboxV1,
     InboxWaitV1,
-    WebhookCreatedV1,
-    WebhookCreateV1,
-    WebhookDeliveryV1,
-    WebhookV1,
-    SandboxMessageV1,
-    AliasCreateIn,
-    AliasCreateV1,
-    AliasV1,
     MailboxCreateIn,
     MailboxCreateV1,
     MailboxUpdateV1,
     MailboxV1,
+    MarketingOptOutCreateV1,
+    MarketingOptOutV1,
     MessageAcceptedV1,
     MessageIn,
-)
-from backend.apps.mail.models import (
-    Audience,
-    Campaign,
-    CampaignRecipient,
-    MarketingOptOut,
-    Template,
+    SandboxMessageV1,
+    SuppressionCreateV1,
+    SuppressionV1,
+    TemplateChangeV1,
+    TemplateCreateV1,
+    TemplatePreviewIn,
+    TemplatePreviewV1,
+    TemplateV1,
+    WebhookCreatedV1,
+    WebhookCreateV1,
+    WebhookDeliveryV1,
+    WebhookV1,
 )
 from backend.apps.mail.services import audiences, marketing, templates, tracking
 from backend.apps.mail.services.mailboxes import split_address
-from backend.apps.mail.services.messages import address as clean_address
 from backend.apps.mail.services.messages import (
     MessageService,
     SendingKey,
@@ -82,6 +82,7 @@ from backend.apps.mail.services.messages import (
     SendRequest,
     digest,
 )
+from backend.apps.mail.services.messages import address as clean_address
 from backend.apps.mail.types.provisioning import MailboxError
 from backend.apps.mail.types.quota import DEFAULT_QUOTA_BYTES
 
@@ -103,8 +104,6 @@ from .viewsets import (
     set_smart_host,
     set_smtp_proxy,
 )
-
-import logging
 
 logger = logging.getLogger('backend')
 router = Router(
@@ -651,7 +650,9 @@ def _inbox(request: ApiRequest, address: str):  # noqa: ANN202
 
     try:
         if not agent_inboxes.settings().enabled:
-            raise agent_inboxes.InboxError('Agent inboxes are off. Install the Agent inboxes plugin.', 403)
+            raise agent_inboxes.InboxError(
+                'Agent inboxes are off. Install the Agent inboxes plugin.', 403
+            )
         return agent_inboxes.get(request.auth.row.prefix, address)
     except agent_inboxes.InboxError as exc:
         raise HttpError(exc.status, str(exc)) from exc
@@ -666,7 +667,9 @@ def _inbox_call(fn, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
         raise HttpError(exc.status, str(exc)) from exc
 
 
-@router.post('/inboxes', response={201: InboxV1, **errors(409, 422, 503)}, summary='Create an agent inbox')
+@router.post(
+    '/inboxes', response={201: InboxV1, **errors(409, 422, 503)}, summary='Create an agent inbox'
+)
 @require_scope('agents.manage')
 def api_create_inbox(request: ApiRequest, payload: InboxCreateV1) -> Status[InboxV1]:
     """A real mailbox for an agent, on the plugin's domain. Only this key can read or delete it,
@@ -693,13 +696,17 @@ def api_list_inboxes(request: ApiRequest) -> list[InboxV1]:
     return [InboxV1.of(r) for r in agent_inboxes.owned(request.auth.row.prefix)]
 
 
-@router.get('/inboxes/{address}', response={200: InboxV1, **errors(404)}, summary='Get an agent inbox')
+@router.get(
+    '/inboxes/{address}', response={200: InboxV1, **errors(404)}, summary='Get an agent inbox'
+)
 @require_scope('agents.manage')
 def api_get_inbox(request: ApiRequest, address: str) -> InboxV1:
     return InboxV1.of(_inbox(request, address))
 
 
-@router.delete('/inboxes/{address}', response={204: None, **errors(404)}, summary='Delete an agent inbox')
+@router.delete(
+    '/inboxes/{address}', response={204: None, **errors(404)}, summary='Delete an agent inbox'
+)
 @require_scope('agents.manage')
 def api_delete_inbox(request: ApiRequest, address: str) -> Status[None]:
     """Its mail is erased and the mailbox removed."""
@@ -816,17 +823,25 @@ def _visible_to(request: ApiRequest) -> str | None:
     return None if 'mail.manage' in (row.scopes or []) else row.prefix
 
 
-@router.get('/approvals', response={200: list[ApprovalV1], **errors()}, summary='List held messages')
+@router.get(
+    '/approvals', response={200: list[ApprovalV1], **errors()}, summary='List held messages'
+)
 @paginate(LimitOffsetPagination)
 @require_scope('mail.send')
 def api_approvals(request: ApiRequest, status: str = '') -> list[ApprovalV1]:
     """This key's held messages (every key's, with ``mail.manage``). ``?status=pending``."""
     from backend.apps.mail.services import approvals
 
-    return [ApprovalV1.of(r) for r in approvals.listing(key_prefix=_visible_to(request), status=status)]
+    return [
+        ApprovalV1.of(r) for r in approvals.listing(key_prefix=_visible_to(request), status=status)
+    ]
 
 
-@router.get('/approvals/{approval_id}', response={200: ApprovalV1, **errors(404)}, summary='Get a held message')
+@router.get(
+    '/approvals/{approval_id}',
+    response={200: ApprovalV1, **errors(404)},
+    summary='Get a held message',
+)
 @require_scope('mail.send')
 def api_approval(request: ApiRequest, approval_id: str) -> ApprovalV1:
     """Poll this after ``"status": "pending_approval"``: sent, rejected, expired or failed."""
@@ -850,7 +865,10 @@ def api_approve(request: ApiRequest, approval_id: str, payload: ApprovalDecision
     from backend.apps.mail.services import approvals
 
     row = _approval_call(
-        approvals.approve, approval_id, actor=actor(request), actor_prefix=request.auth.row.prefix,
+        approvals.approve,
+        approval_id,
+        actor=actor(request),
+        actor_prefix=request.auth.row.prefix,
         note=payload.note,
     )
     return ApprovalV1.of(row)
@@ -866,7 +884,10 @@ def api_reject(request: ApiRequest, approval_id: str, payload: ApprovalDecisionV
     from backend.apps.mail.services import approvals
 
     row = _approval_call(
-        approvals.reject, approval_id, actor=actor(request), actor_prefix=request.auth.row.prefix,
+        approvals.reject,
+        approval_id,
+        actor=actor(request),
+        actor_prefix=request.auth.row.prefix,
         note=payload.note,
     )
     return ApprovalV1.of(row)
@@ -884,17 +905,27 @@ def _sending_domains(request: ApiRequest) -> list[str] | None:
     return sorted({s.rpartition('@')[2].lower() for s in (row.allowed_senders or [])})
 
 
-@router.get('/suppressions', response={200: list[SuppressionV1], **errors()}, summary='List suppressed recipients')
+@router.get(
+    '/suppressions',
+    response={200: list[SuppressionV1], **errors()},
+    summary='List suppressed recipients',
+)
 @paginate(LimitOffsetPagination)
 @require_scope('mail.send')
 def api_suppressions(request: ApiRequest, address: str = '') -> list[SuppressionV1]:
     """Recipients mail from your domains will not be sent to: bounced, unsubscribed or added."""
     from backend.apps.mail.services import compliance
 
-    return [SuppressionV1.of(r) for r in compliance.listing(_sending_domains(request), address=address)]
+    return [
+        SuppressionV1.of(r) for r in compliance.listing(_sending_domains(request), address=address)
+    ]
 
 
-@router.post('/suppressions', response={201: SuppressionV1, **errors(403, 409, 422)}, summary='Suppress a recipient')
+@router.post(
+    '/suppressions',
+    response={201: SuppressionV1, **errors(403, 409, 422)},
+    summary='Suppress a recipient',
+)
 @require_scope('mail.send')
 def api_add_suppression(request: ApiRequest, payload: SuppressionCreateV1) -> Status[SuppressionV1]:
     """For your application's own unsubscribes and complaints."""
@@ -910,20 +941,28 @@ def api_add_suppression(request: ApiRequest, payload: SuppressionCreateV1) -> St
         clean = address(payload.address)
     except SendRefused as exc:
         raise HttpError(422, exc.message) from exc
-    if not compliance.suppress(domain, clean, Suppression.MANUAL, detail=payload.detail, by=actor(request)):
+    if not compliance.suppress(
+        domain, clean, Suppression.MANUAL, detail=payload.detail, by=actor(request)
+    ):
         raise HttpError(409, f'{clean} is already suppressed for {domain}.')
     row = Suppression.objects.get(domain=domain, address=clean)
     return Status(201, SuppressionV1.of(row))
 
 
-@router.delete('/suppressions/{domain}/{address}', response={204: None, **errors(404)}, summary='Remove a suppression')
+@router.delete(
+    '/suppressions/{domain}/{address}',
+    response={204: None, **errors(404)},
+    summary='Remove a suppression',
+)
 @require_scope('mail.manage')
 def api_remove_suppression(request: ApiRequest, domain: str, address: str) -> Status[None]:
     from backend.apps.mail.services import compliance
 
     if not compliance.unsuppress(domain, address):
         raise HttpError(404, 'That recipient is not suppressed for that domain.')
-    AuditService.record(action='api_suppression_removed', user=actor(request), detail=f'{address} ({domain})')
+    AuditService.record(
+        action='api_suppression_removed', user=actor(request), detail=f'{address} ({domain})'
+    )
     return Status(204, None)
 
 
@@ -990,9 +1029,7 @@ def _campaign_page(rows: list[Campaign]) -> list[CampaignV1]:
 
 def _template_key(request: ApiRequest) -> templates.TemplateKey:
     row = request.auth.row
-    return templates.TemplateKey(
-        prefix=row.prefix, manager='mail.manage' in (row.scopes or [])
-    )
+    return templates.TemplateKey(prefix=row.prefix, manager='mail.manage' in (row.scopes or []))
 
 
 def _template(request: ApiRequest, template_id: str) -> Template:
@@ -1158,9 +1195,7 @@ def api_create_audience(request: ApiRequest, payload: AudienceCreateV1) -> Statu
     return Status(201, _audience_page([row])[0])
 
 
-@router.get(
-    '/audiences', response={200: list[AudienceV1], **errors()}, summary='List audiences'
-)
+@router.get('/audiences', response={200: list[AudienceV1], **errors()}, summary='List audiences')
 @paginate(LimitOffsetPagination)
 @require_scope('marketing.send')
 def api_audiences(request: ApiRequest) -> _Mapped:
@@ -1248,7 +1283,7 @@ def api_import_contacts(
 @router.get(
     '/audiences/{audience_id}/contacts',
     response={200: list[AudienceContactV1], **errors(404, 422)},
-    summary='List an audience\'s contacts and whether each can be mailed',
+    summary="List an audience's contacts and whether each can be mailed",
 )
 @paginate(LimitOffsetPagination)
 @require_scope('marketing.send')
@@ -1263,9 +1298,7 @@ def api_audience_contacts(
         raise HttpError(exc.status, exc.message) from exc
     return _Mapped(
         rows,
-        lambda page: [
-            AudienceContactV1.of(c, audiences.status_of(c.opted, c.gone)) for c in page
-        ],
+        lambda page: [AudienceContactV1.of(c, audiences.status_of(c.opted, c.gone)) for c in page],
     )
 
 
@@ -1375,7 +1408,9 @@ def api_create_campaign(
 
 
 @router.get(
-    '/campaigns', response={200: list[CampaignV1], **errors()}, summary='List campaigns',
+    '/campaigns',
+    response={200: list[CampaignV1], **errors()},
+    summary='List campaigns',
     by_alias=True,
 )
 @paginate(LimitOffsetPagination)
@@ -1391,7 +1426,8 @@ def api_campaigns(request: ApiRequest, status: str = '') -> _Mapped:
 @router.get(
     '/campaigns/{campaign_id}',
     response={200: CampaignV1, **errors(404)},
-    summary='Get a campaign and its progress',    by_alias=True,
+    summary='Get a campaign and its progress',
+    by_alias=True,
 )
 @require_scope('marketing.send')
 def api_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
@@ -1419,7 +1455,8 @@ def _change(request: ApiRequest, campaign_id: str, action: str) -> CampaignV1:
 @router.post(
     '/campaigns/{campaign_id}/pause',
     response={200: CampaignV1, **errors(404, 409)},
-    summary='Pause a campaign',    by_alias=True,
+    summary='Pause a campaign',
+    by_alias=True,
 )
 @require_scope('marketing.send')
 def api_pause_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
@@ -1430,7 +1467,8 @@ def api_pause_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
 @router.post(
     '/campaigns/{campaign_id}/resume',
     response={200: CampaignV1, **errors(404, 409)},
-    summary='Resume a paused campaign',    by_alias=True,
+    summary='Resume a paused campaign',
+    by_alias=True,
 )
 @require_scope('marketing.send')
 def api_resume_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
@@ -1479,7 +1517,8 @@ def api_schedule_campaign(
 @router.post(
     '/campaigns/{campaign_id}/cancel',
     response={200: CampaignV1, **errors(404, 409)},
-    summary='Cancel a campaign',    by_alias=True,
+    summary='Cancel a campaign',
+    by_alias=True,
 )
 @require_scope('marketing.send')
 def api_cancel_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
@@ -1490,7 +1529,7 @@ def api_cancel_campaign(request: ApiRequest, campaign_id: str) -> CampaignV1:
 @router.get(
     '/campaigns/{campaign_id}/recipients',
     response={200: list[CampaignRecipientV1], **errors(404)},
-    summary='List a campaign\'s recipients and what became of each',
+    summary="List a campaign's recipients and what became of each",
 )
 @paginate(LimitOffsetPagination)
 @require_scope('marketing.send')
@@ -1598,9 +1637,7 @@ def api_add_marketing_opt_out(
     summary='Remove a marketing opt-out',
 )
 @require_scope('mail.manage')
-def api_remove_marketing_opt_out(
-    request: ApiRequest, domain: str, address: str
-) -> Status[None]:
+def api_remove_marketing_opt_out(request: ApiRequest, domain: str, address: str) -> Status[None]:
     """Only with proof the person asked to hear from you again: it undoes their unsubscribe."""
     if not marketing.remove_opt_out(domain, address):
         raise HttpError(404, 'That address has not opted out for that domain.')

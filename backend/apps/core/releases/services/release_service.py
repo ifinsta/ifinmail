@@ -100,9 +100,7 @@ class ReleaseService:
     @staticmethod
     def get(platform: str, channel: str, version_code: int) -> AppRelease | None:
         return (
-            AppRelease.objects.filter(
-                platform=platform, channel=channel, version_code=version_code
-            )
+            AppRelease.objects.filter(platform=platform, channel=channel, version_code=version_code)
             .select_related('stored_file')
             .first()
         )
@@ -140,7 +138,9 @@ class ReleaseService:
         if platform not in PLATFORM_VALUES:
             raise ValueError(f'Unsupported platform: {platform}.')
         if channel not in CHANNEL_VALUES:
-            raise ValueError(f'Unknown channel: {channel}. Use one of: {", ".join(CHANNEL_VALUES)}.')
+            raise ValueError(
+                f'Unknown channel: {channel}. Use one of: {", ".join(CHANNEL_VALUES)}.'
+            )
         if not 0 <= rollout_percent <= 100:
             raise ValueError('The rollout share must be between 0 and 100.')
         if mandatory and rollout_percent != 100:

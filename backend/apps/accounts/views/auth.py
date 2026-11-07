@@ -258,7 +258,8 @@ def login_view(request: HttpRequest) -> HttpResponse:
             severity='warn',
         )
         error = (
-            'Invalid email or password. If this login uses a passkey, choose "Sign in with a passkey".'
+            'Invalid email or password. If this login uses a passkey, '
+            'choose "Sign in with a passkey".'
         )
     from backend.apps.accounts.services.initial_admin import InitialAdminService
 

@@ -185,7 +185,9 @@ def listing(*, key_prefix: str | None, status: str = '') -> list[PendingMessage]
 
 
 @transaction.atomic
-def approve(pending_id: str, *, actor: str, actor_prefix: str = '', note: str = '') -> PendingMessage:
+def approve(
+    pending_id: str, *, actor: str, actor_prefix: str = '', note: str = ''
+) -> PendingMessage:
     """Send it now, with every check of a normal send. Raises ``ApprovalError``."""
     from backend.apps.accounts.models import APIToken
     from backend.apps.accounts.services.tokens import key_id
@@ -240,7 +242,9 @@ def approve(pending_id: str, *, actor: str, actor_prefix: str = '', note: str = 
     return _decide(row, PendingMessage.SENT, actor, note)
 
 
-def reject(pending_id: str, *, actor: str, actor_prefix: str = '', note: str = '') -> PendingMessage:
+def reject(
+    pending_id: str, *, actor: str, actor_prefix: str = '', note: str = ''
+) -> PendingMessage:
     row = get(pending_id)
     if row is None:
         raise ApprovalError('No such message.', 404)
@@ -270,6 +274,6 @@ def _decide(row: PendingMessage, status: str, actor: str, note: str) -> PendingM
 def expire(now=None) -> int:  # noqa: ANN001
     hours = settings().expire_hours
     cutoff = (now or timezone.now()) - timedelta(hours=hours)
-    return PendingMessage.objects.filter(status=PendingMessage.PENDING, created_at__lt=cutoff).update(
-        status=PendingMessage.EXPIRED, decided_at=timezone.now(), decided_by='expired'
-    )
+    return PendingMessage.objects.filter(
+        status=PendingMessage.PENDING, created_at__lt=cutoff
+    ).update(status=PendingMessage.EXPIRED, decided_at=timezone.now(), decided_by='expired')

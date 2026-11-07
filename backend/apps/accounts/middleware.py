@@ -8,9 +8,9 @@ administrator the installer created, whose password was printed) to the first-pa
 before anything else, including MFA enrollment.
 
 MFAEnforcementMiddleware offers two-factor enrollment to staff sessions without MFA
-proof (``mfa_verified_at``); people who have not set it up can postpone the prompt a week — including sessions established
-before MFA shipped. Exempt paths keep enrollment, logout, login, the setup
-wizard and non-console endpoints reachable.
+proof (``mfa_verified_at``); people who have not set it up can postpone the prompt a week —
+including sessions established before MFA shipped. Exempt paths keep enrollment, logout,
+login, the setup wizard and non-console endpoints reachable.
 
 SessionIdleTimeoutMiddleware ends sessions idle longer than
 ``SESSION_IDLE_TIMEOUT`` (default 30 min). Activity timestamps update at most

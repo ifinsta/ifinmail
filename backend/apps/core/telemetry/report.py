@@ -160,7 +160,9 @@ def spam_section(period: str = 'day', now: datetime | None = None) -> dict[str, 
     floor = min((now - span).replace(minute=0, second=0, microsecond=0), chart_from)
     digests = [
         (d['hour'], d['summary'] or {})
-        for d in ThreatDigest.objects.filter(hour__gte=floor).order_by('hour').values('hour', 'summary')
+        for d in ThreatDigest.objects.filter(hour__gte=floor)
+        .order_by('hour')
+        .values('hour', 'summary')
     ]
     period_start = (now - span).replace(minute=0, second=0, microsecond=0)
     counts = spam.totals([row for hour, row in digests if hour >= period_start])

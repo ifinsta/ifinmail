@@ -793,7 +793,7 @@ def _capabilities() -> tuple[Capability, ...]:
         _Capability(
             'developer.compliance',
             'Sender compliance',
-            'Mail sent through the API follows the large providers\' sender rules: suppressed '
+            "Mail sent through the API follows the large providers' sender rules: suppressed "
             'recipients, one-click unsubscribe, and a pause when too much bounces.',
             {
                 'enabled': _field((DEV, 'compliance_enabled'), 'yes: apply the rules.'),
@@ -860,8 +860,8 @@ def _capabilities() -> tuple[Capability, ...]:
         _Capability(
             'developer.gateway',
             'Agent gateway (MCP)',
-            'AI agents connect to /mcp with an API key and use this server\'s tools (agent '
-            'inboxes, codes, sending, delivery reports) under the key\'s scopes and every rule.',
+            "AI agents connect to /mcp with an API key and use this server's tools (agent "
+            "inboxes, codes, sending, delivery reports) under the key's scopes and every rule.",
             {
                 'enabled': _field((DEV, 'gateway_enabled'), 'yes: serve /mcp.'),
                 'allow_send': _field(

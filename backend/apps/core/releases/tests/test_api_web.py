@@ -17,7 +17,9 @@ from backend.apps.core.releases.tests.apk_factory import build_apk
 
 def apk_file(**kwargs: object) -> SimpleUploadedFile:
     return SimpleUploadedFile(
-        'app-release.apk', build_apk(**kwargs), content_type='application/vnd.android.package-archive'
+        'app-release.apk',
+        build_apk(**kwargs),
+        content_type='application/vnd.android.package-archive',
     )
 
 
@@ -29,10 +31,19 @@ class ReleaseHttpBase(ApiBase):
         override.enable()
         self.addCleanup(override.disable)
         self.addCleanup(shutil.rmtree, self.media, ignore_errors=True)
-        row, token = TokenService.create(self.owner, 'releases', ['system.manage'], expires_in_days=30)
+        row, token = TokenService.create(
+            self.owner, 'releases', ['system.manage'], expires_in_days=30
+        )
         self.rel_key, self.rel_secret = key_id(row.prefix), token.split('.', 2)[2]
 
-    def upload(self, version_code: int = 1, *, fields: dict | None = None, key: str | None = None, **apk: object):
+    def upload(
+        self,
+        version_code: int = 1,
+        *,
+        fields: dict | None = None,
+        key: str | None = None,
+        **apk: object,
+    ):
         apk.setdefault('version_name', f'1.{version_code}.0')
         data = {'file': apk_file(version_code=version_code, **apk), **(fields or {})}
         auth = basic(key or self.rel_key, self.rel_secret if key is None else self.secret)
@@ -87,13 +98,22 @@ class ManagementApiTests(ReleaseHttpBase):
         other_key = self.upload(4, certificate=b'certificate-B')
         self.assertEqual(other_key.status_code, 422)
         self.assertIn('different key', other_key.json()['detail'])
-        self.assertEqual(self.upload(5, fields={'mandatory': 'true', 'rollout_percent': '10'}).status_code, 422)
+        self.assertEqual(
+            self.upload(5, fields={'mandatory': 'true', 'rollout_percent': '10'}).status_code, 422
+        )
         self.assertEqual(AppRelease.objects.count(), 1)
 
     def test_unknown_things_are_404(self) -> None:
         self.assertEqual(self.call_rel('get', '/api/v1/releases/windows').status_code, 404)
-        self.assertEqual(self.call_rel('patch', '/api/v1/releases/android/stable/99', {'notes': 'x'}).status_code, 404)
-        self.assertEqual(self.call_rel('delete', '/api/v1/releases/android/stable/99').status_code, 404)
+        self.assertEqual(
+            self.call_rel(
+                'patch', '/api/v1/releases/android/stable/99', {'notes': 'x'}
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.call_rel('delete', '/api/v1/releases/android/stable/99').status_code, 404
+        )
 
     def test_the_scope_is_required_and_the_contract_says_so(self) -> None:
         # the shared key carries console/mail/dns/audit scopes but not system.manage
@@ -108,7 +128,11 @@ class ManagementApiTests(ReleaseHttpBase):
 
         self.upload(1)
         self.call_rel('patch', '/api/v1/releases/android/stable/1', {'mandatory': True})
-        actions = [e['action'] for e in AuditService.get_events(limit=20)] if hasattr(AuditService, 'get_events') else []
+        actions = (
+            [e['action'] for e in AuditService.get_events(limit=20)]
+            if hasattr(AuditService, 'get_events')
+            else []
+        )
         if actions:  # the audit reader is optional in this build; the writes are what matter
             self.assertIn('app_release_published', actions)
             self.assertIn('app_release_updated', actions)
@@ -130,9 +154,15 @@ class PublicSurfaceTests(ReleaseHttpBase):
 
     def test_a_check_with_a_device_id_is_counted_in_the_adoption_stats(self) -> None:
         self.upload(2)
-        self.client.get(self.MANIFEST, {'version_code': 1, 'device': 'install-0001-aaaa', 'sdk': 34})
-        self.client.get(self.MANIFEST, {'version_code': 2, 'device': 'install-0002-bbbb', 'sdk': 35})
-        self.client.get(self.MANIFEST, {'version_code': 2, 'device': 'bad id with spaces'})  # ignored
+        self.client.get(
+            self.MANIFEST, {'version_code': 1, 'device': 'install-0001-aaaa', 'sdk': 34}
+        )
+        self.client.get(
+            self.MANIFEST, {'version_code': 2, 'device': 'install-0002-bbbb', 'sdk': 35}
+        )
+        self.client.get(
+            self.MANIFEST, {'version_code': 2, 'device': 'bad id with spaces'}
+        )  # ignored
         stats = self.call_rel('get', '/api/v1/releases/android').json()
         self.assertEqual(stats['active_devices'], 2)
         self.assertEqual({a['version_code']: a['devices'] for a in stats['adoption']}, {1: 1, 2: 1})
@@ -194,4 +224,3 @@ class DownloadPageTests(ReleaseHttpBase):
 
     def test_the_page_is_linked_from_the_site_navigation(self) -> None:
         self.assertContains(self.client.get('/changelog/'), 'href="/download/"')
-

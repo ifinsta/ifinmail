@@ -21,7 +21,11 @@ class ManifestTests(SimpleTestCase):
     def test_reads_package_version_and_sdk_levels(self) -> None:
         found = parse_manifest(
             manifest_xml(
-                package='com.ifinmail', version_code=42, version_name='2.1.0', min_sdk=24, target_sdk=36
+                package='com.ifinmail',
+                version_code=42,
+                version_name='2.1.0',
+                min_sdk=24,
+                target_sdk=36,
             )
         )
         self.assertEqual(found['manifest.package'], 'com.ifinmail')

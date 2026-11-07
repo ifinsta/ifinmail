@@ -58,9 +58,7 @@ class HealthReport:
     checks: list[HealthCheck]
 
     def _with(self, *states: str) -> list[HealthCheck]:
-        return sorted(
-            (c for c in self.checks if c.state in states), key=lambda c: _ORDER[c.state]
-        )
+        return sorted((c for c in self.checks if c.state in states), key=lambda c: _ORDER[c.state])
 
     @property
     def attention(self) -> list[HealthCheck]:
@@ -162,13 +160,19 @@ def _mail_queue() -> HealthCheck:
             data = json.load(handle)
     except (OSError, ValueError):
         return HealthCheck(
-            'mail-queue', GROUP_DELIVERY, title, UNKNOWN,
+            'mail-queue',
+            GROUP_DELIVERY,
+            title,
+            UNKNOWN,
             'The mail server has not reported its queue yet.',
             'It reports every minute; if this stays, check that the postfix container runs.',
         )
     if time.time() - float(data.get('updated', 0)) > 600:
         return HealthCheck(
-            'mail-queue', GROUP_DELIVERY, title, WARNING,
+            'mail-queue',
+            GROUP_DELIVERY,
+            title,
+            WARNING,
             'The queue report is more than 10 minutes old.',
             'Check that the postfix container is running (make ps).',
         )
@@ -177,12 +181,18 @@ def _mail_queue() -> HealthCheck:
     oldest_h = int(data.get('oldest_deferred_seconds', 0)) // 3600
     if deferred == 0 and held == 0:
         return HealthCheck(
-            'mail-queue', GROUP_DELIVERY, title, OK,
+            'mail-queue',
+            GROUP_DELIVERY,
+            title,
+            OK,
             f'Nothing waiting ({int(data.get("active", 0))} message(s) being delivered now).',
         )
     state = ERROR if deferred > 50 or oldest_h >= 24 else WARNING
     return HealthCheck(
-        'mail-queue', GROUP_DELIVERY, title, state,
+        'mail-queue',
+        GROUP_DELIVERY,
+        title,
+        state,
         f'{deferred} message(s) are waiting to be retried'
         + (f', the oldest for {oldest_h} hour(s)' if oldest_h else '')
         + (f'; {held} held' if held else '')
@@ -199,14 +209,20 @@ def _blocklists(server_ip: str) -> HealthCheck:
     listed = [rbl for rbl, v in result.get('listings', {}).items() if v.get('listed')]
     if listed:
         return HealthCheck(
-            'blocklists', GROUP_DELIVERY, 'Blocklists', ERROR,
+            'blocklists',
+            GROUP_DELIVERY,
+            'Blocklists',
+            ERROR,
             f'{server_ip} is listed on: {", ".join(listed)}.',
-            'Mail from this server is likely rejected. Follow each list\'s delisting page; '
+            "Mail from this server is likely rejected. Follow each list's delisting page; "
             'common causes are a previous owner of the IP or a compromised account.',
         )
     state = OK if result.get('status') == 'pass' else UNKNOWN
     return HealthCheck(
-        'blocklists', GROUP_DELIVERY, 'Blocklists', state,
+        'blocklists',
+        GROUP_DELIVERY,
+        'Blocklists',
+        state,
         f'{server_ip} is not on {len(result.get("listings", {}))} checked blocklists.'
         if state == OK
         else result.get('detail', 'Blocklists could not be checked.'),
@@ -233,9 +249,14 @@ def _hostname_resolves(mail_hostname: str, server_ip: str) -> HealthCheck:
     if answers is None:
         return HealthCheck('mail-host-a', GROUP_IDENTITY, title, UNKNOWN, 'Could not look it up.')
     if server_ip in answers:
-        return HealthCheck('mail-host-a', GROUP_IDENTITY, title, OK, f'{mail_hostname} → {server_ip}.')
+        return HealthCheck(
+            'mail-host-a', GROUP_IDENTITY, title, OK, f'{mail_hostname} → {server_ip}.'
+        )
     return HealthCheck(
-        'mail-host-a', GROUP_IDENTITY, title, ERROR,
+        'mail-host-a',
+        GROUP_IDENTITY,
+        title,
+        ERROR,
         f'{mail_hostname} resolves to {", ".join(answers) or "nothing"}, not {server_ip}.',
         'Other servers find this server by this name; it must point at this server.',
         [('A record', f'{mail_hostname} → {server_ip}')],
@@ -247,24 +268,33 @@ def _reverse_dns(mail_hostname: str, server_ip: str) -> HealthCheck:
 
     title = 'Reverse DNS (PTR)'
     fix = (
-        'Set it in your VPS provider\'s control panel (often under Networking or the IP '
+        "Set it in your VPS provider's control panel (often under Networking or the IP "
         'address), not at your domain registrar. Gmail, Yahoo and Microsoft reject or '
         'spam-folder mail from addresses without matching reverse DNS.'
     )
     values = [('IP address', server_ip), ('Reverse DNS name', mail_hostname)]
     ptr = _public(dns.reversename.from_address(server_ip).to_text(), 'PTR')
     if ptr is None:
-        return HealthCheck('ptr', GROUP_IDENTITY, title, UNKNOWN, 'Could not look it up.', '', values)
+        return HealthCheck(
+            'ptr', GROUP_IDENTITY, title, UNKNOWN, 'Could not look it up.', '', values
+        )
     if mail_hostname not in ptr:
         return HealthCheck(
-            'ptr', GROUP_IDENTITY, title, ERROR,
+            'ptr',
+            GROUP_IDENTITY,
+            title,
+            ERROR,
             f'{server_ip} points back to {", ".join(ptr) or "nothing"}, not {mail_hostname}.',
-            fix, values,
+            fix,
+            values,
         )
     forward = _public(mail_hostname, 'A') or []
     if server_ip not in forward:
         return HealthCheck(
-            'ptr', GROUP_IDENTITY, title, WARNING,
+            'ptr',
+            GROUP_IDENTITY,
+            title,
+            WARNING,
             f'Reverse DNS names {mail_hostname}, but that name does not point back to {server_ip}.',
             'Receiving servers check both directions (forward-confirmed reverse DNS).',
         )
@@ -281,19 +311,33 @@ def _certificate(mail_hostname: str) -> HealthCheck:
     link = {'link': _url('accounts:certificates'), 'link_label': 'TLS certificates'}
     if cert is None:
         return HealthCheck(
-            'tls', GROUP_IDENTITY, title, ERROR, 'No certificate is installed.',
-            'Open TLS certificates and issue one.', **link,
+            'tls',
+            GROUP_IDENTITY,
+            title,
+            ERROR,
+            'No certificate is installed.',
+            'Open TLS certificates and issue one.',
+            **link,
         )
     if cert.self_signed:
         return HealthCheck(
-            'tls', GROUP_IDENTITY, title, WAITING,
+            'tls',
+            GROUP_IDENTITY,
+            title,
+            WAITING,
             'A temporary self-signed certificate is in use; mail apps and browsers warn about it.',
-            'Let\'s Encrypt replaces it automatically once DNS points here.', **link,
+            "Let's Encrypt replaces it automatically once DNS points here.",
+            **link,
         )
     if not cert.covers(mail_hostname):
         return HealthCheck(
-            'tls', GROUP_IDENTITY, title, ERROR,
-            f'The certificate does not cover {mail_hostname}.', 'Issue a new one.', **link,
+            'tls',
+            GROUP_IDENTITY,
+            title,
+            ERROR,
+            f'The certificate does not cover {mail_hostname}.',
+            'Issue a new one.',
+            **link,
         )
     days = cert.days_left
     if days <= 7:
@@ -303,9 +347,14 @@ def _certificate(mail_hostname: str) -> HealthCheck:
     else:
         state = OK
     return HealthCheck(
-        'tls', GROUP_IDENTITY, title, state,
+        'tls',
+        GROUP_IDENTITY,
+        title,
+        state,
         f'Issued by {cert.issuer}, valid for {days} more days.',
-        '' if state == OK else 'It renews automatically 30 days before expiry; renewal seems '
+        ''
+        if state == OK
+        else 'It renews automatically 30 days before expiry; renewal seems '
         'to be failing. Open TLS certificates and renew now.',
         **({} if state == OK else link),
     )
@@ -340,35 +389,64 @@ def _domain_checks(domain: str, mail_hostname: str, server_ip: str) -> list[Heal
             if ns == domain or ns.endswith(f'.{domain}')
         ]
         if status.delegated:
-            checks.append(HealthCheck('nameservers', group, 'Nameservers', OK, 'Delegated to this server.'))
+            checks.append(
+                HealthCheck('nameservers', group, 'Nameservers', OK, 'Delegated to this server.')
+            )
         else:
-            checks.append(HealthCheck(
-                'nameservers', group, 'Nameservers',
-                UNKNOWN if status.delegated is None else ERROR,
-                f'The registrar lists {", ".join(status.public_ns) or "no nameservers"}.',
-                'At your registrar, add the glue records, then set the nameservers below.',
-                ns_values, **dns_link,
-            ))
+            checks.append(
+                HealthCheck(
+                    'nameservers',
+                    group,
+                    'Nameservers',
+                    UNKNOWN if status.delegated is None else ERROR,
+                    f'The registrar lists {", ".join(status.public_ns) or "no nameservers"}.',
+                    'At your registrar, add the glue records, then set the nameservers below.',
+                    ns_values,
+                    **dns_link,
+                )
+            )
         ds = ZoneService.ds_records(domain)
         ds_values = [('DS record', d.text()) for d in ds]
         if not ds:
-            checks.append(HealthCheck('dnssec', group, 'DNSSEC', WAITING, 'The zone is being signed.'))
+            checks.append(
+                HealthCheck('dnssec', group, 'DNSSEC', WAITING, 'The zone is being signed.')
+            )
         elif status.ds_published:
-            checks.append(HealthCheck('dnssec', group, 'DNSSEC', OK, 'Signed, and the registrar publishes the DS record.'))
+            checks.append(
+                HealthCheck(
+                    'dnssec',
+                    group,
+                    'DNSSEC',
+                    OK,
+                    'Signed, and the registrar publishes the DS record.',
+                )
+            )
         elif status.delegated:
-            checks.append(HealthCheck(
-                'dnssec', group, 'DNSSEC', WARNING,
-                'The zone is signed, but the registrar does not publish its DS record yet.',
-                'Add this DS record in the DNSSEC settings at your registrar (recommended: it '
-                'protects your mail records from spoofing).',
-                ds_values, **dns_link,
-            ))
+            checks.append(
+                HealthCheck(
+                    'dnssec',
+                    group,
+                    'DNSSEC',
+                    WARNING,
+                    'The zone is signed, but the registrar does not publish its DS record yet.',
+                    'Add this DS record in the DNSSEC settings at your registrar (recommended: it '
+                    'protects your mail records from spoofing).',
+                    ds_values,
+                    **dns_link,
+                )
+            )
         else:
-            checks.append(HealthCheck(
-                'dnssec', group, 'DNSSEC', WAITING,
-                'Add the DS record at your registrar once the nameserver change is live.',
-                '', ds_values,
-            ))
+            checks.append(
+                HealthCheck(
+                    'dnssec',
+                    group,
+                    'DNSSEC',
+                    WAITING,
+                    'Add the DS record at your registrar once the nameserver change is live.',
+                    '',
+                    ds_values,
+                )
+            )
 
     result = DomainVerificationService.check(domain)
     labels = {
@@ -385,19 +463,29 @@ def _domain_checks(domain: str, mail_hostname: str, server_ip: str) -> list[Heal
             state = UNKNOWN
         else:
             state = WAITING if authoritative and not _delegated_cached(checks) else ERROR
-        checks.append(HealthCheck(
-            key, group, title, state, check.detail or ('Published.' if state == OK else ''),
-            '' if state in (OK, WAITING)
-            else 'This server publishes it once the domain is delegated here.'
-            if authoritative
-            else 'Add the record shown on the domain page at your DNS provider.',
-            **({} if state == OK else dns_link),
-        ))
+        checks.append(
+            HealthCheck(
+                key,
+                group,
+                title,
+                state,
+                check.detail or ('Published.' if state == OK else ''),
+                ''
+                if state in (OK, WAITING)
+                else 'This server publishes it once the domain is delegated here.'
+                if authoritative
+                else 'Add the record shown on the domain page at your DNS provider.',
+                **({} if state == OK else dns_link),
+            )
+        )
         if key == 'dmarc' and state == OK:
             policy = _dmarc_policy(domain)
             if policy == 'none':
                 checks[-1] = HealthCheck(
-                    'dmarc', group, 'DMARC', WARNING,
+                    'dmarc',
+                    group,
+                    'DMARC',
+                    WARNING,
                     'DMARC is published with p=none: spoofed mail is still delivered.',
                     'Once reports show your own mail passes, raise the policy to quarantine.',
                 )
@@ -427,9 +515,14 @@ def _mta_sts(domain: str, group: str) -> HealthCheck:
 
     mode = MtaStsService.mode()
     if mode == 'enforce':
-        return HealthCheck('mta-sts', group, 'MTA-STS', OK, 'Enforced: senders must use TLS to reach you.')
+        return HealthCheck(
+            'mta-sts', group, 'MTA-STS', OK, 'Enforced: senders must use TLS to reach you.'
+        )
     return HealthCheck(
-        'mta-sts', group, 'MTA-STS', INFO,
+        'mta-sts',
+        group,
+        'MTA-STS',
+        INFO,
         f'Published in {mode} mode: senders report TLS problems but still deliver without TLS.',
         'After two weeks without TLS failure reports, switch MTA-STS to enforce.',
     )
@@ -440,10 +533,16 @@ def _tls_rpt(domain: str, group: str) -> HealthCheck:
     records = _public(name, 'TXT')
     title = 'TLS reporting (TLS-RPT)'
     if records and any('v=tlsrptv1' in r.replace('"', '').lower() for r in records):
-        return HealthCheck('tls-rpt', group, title, OK, 'Published: senders report TLS delivery problems.')
+        return HealthCheck(
+            'tls-rpt', group, title, OK, 'Published: senders report TLS delivery problems.'
+        )
     return HealthCheck(
-        'tls-rpt', group, title, INFO,
-        'Not published. Optional: daily reports from large senders about TLS problems reaching you.',
+        'tls-rpt',
+        group,
+        title,
+        INFO,
+        'Not published. Optional: daily reports from large senders about TLS problems '
+        'reaching you.',
         'Add this TXT record (as a custom record on the DNS server page, or at your DNS host).',
         [('TXT ' + name, f'v=TLSRPTv1; rua=mailto:postmaster@{domain}')],
     )
@@ -478,11 +577,15 @@ def _role_addresses(domain: str, group: str) -> HealthCheck:
     if not problems:
         return HealthCheck('role-addresses', group, title, OK, 'Both deliver to a mailbox.')
     return HealthCheck(
-        'role-addresses', group, title, WARNING,
+        'role-addresses',
+        group,
+        title,
+        WARNING,
         '; '.join(problems) + '.',
         'Mail providers and RFC 2142 expect these addresses to reach a person (DMARC reports go '
         'to postmaster@). Point them at a mailbox you read under Settings → Aliases.',
-        link=_url('accounts:aliases'), link_label='Aliases',
+        link=_url('accounts:aliases'),
+        link_label='Aliases',
     )
 
 
@@ -516,9 +619,18 @@ def _services() -> HealthCheck:
         if not alive:
             down.append('DNS server')
     if not down:
-        return HealthCheck('services', GROUP_SERVER, 'Services', OK, 'All mail, spam, database and DNS services answer.')
+        return HealthCheck(
+            'services',
+            GROUP_SERVER,
+            'Services',
+            OK,
+            'All mail, spam, database and DNS services answer.',
+        )
     return HealthCheck(
-        'services', GROUP_SERVER, 'Services', ERROR,
+        'services',
+        GROUP_SERVER,
+        'Services',
+        ERROR,
         f'Not answering: {", ".join(down)}.',
         'Check the containers with "make ps" and their logs with "make logs" in the install '
         'directory.',
@@ -532,9 +644,14 @@ def _disk() -> HealthCheck:
     free_gb = usage.free / 1024**3
     state = ERROR if free_pct < 10 else WARNING if free_pct < 20 else OK
     return HealthCheck(
-        'disk', GROUP_SERVER, 'Disk space', state,
+        'disk',
+        GROUP_SERVER,
+        'Disk space',
+        state,
         f'{free_gb:.1f} GB free ({free_pct:.0f}%).',
-        '' if state == OK else 'Mail stops being accepted when the disk is full. Remove old '
+        ''
+        if state == OK
+        else 'Mail stops being accepted when the disk is full. Remove old '
         'backups or grow the disk.',
     )
 
@@ -551,9 +668,14 @@ def _memory() -> HealthCheck:
     pct = available * 100 / total
     state = ERROR if pct < 10 else WARNING if pct < 20 else OK
     return HealthCheck(
-        'memory', GROUP_SERVER, 'Memory', state,
+        'memory',
+        GROUP_SERVER,
+        'Memory',
+        state,
         f'{available / 1024**2:.1f} GB of {total / 1024**2:.1f} GB available ({pct:.0f}%).',
-        '' if state == OK else 'Services may be stopped by the system when memory runs out. '
+        ''
+        if state == OK
+        else 'Services may be stopped by the system when memory runs out. '
         'Add swap or memory, or stop other programs on the server.',
     )
 
@@ -565,21 +687,30 @@ def _backups() -> HealthCheck:
     title = 'Backups'
     if not raw:
         return HealthCheck(
-            'backups', GROUP_SERVER, title, WAITING,
+            'backups',
+            GROUP_SERVER,
+            title,
+            WAITING,
             'No backup has completed yet. The first runs tonight at 03:15 (server time).',
             'To run one now: "make backup" in the install directory.',
         )
     try:
         when = datetime.fromisoformat(raw.replace('Z', '+00:00'))
     except ValueError:
-        return HealthCheck('backups', GROUP_SERVER, title, UNKNOWN, f'Unreadable backup time: {raw}.')
+        return HealthCheck(
+            'backups', GROUP_SERVER, title, UNKNOWN, f'Unreadable backup time: {raw}.'
+        )
     hours = (datetime.now(UTC) - when).total_seconds() / 3600
     state = OK if hours < 30 else WARNING if hours < 72 else ERROR
     return HealthCheck(
-        'backups', GROUP_SERVER, title, state,
+        'backups',
+        GROUP_SERVER,
+        title,
+        state,
         f'Last successful backup {int(hours)} hour(s) ago.',
-        '' if state == OK else 'The daily backup is not succeeding. See '
-        '/var/log/ifinmail-backup.log on the server.',
+        ''
+        if state == OK
+        else 'The daily backup is not succeeding. See /var/log/ifinmail-backup.log on the server.',
     )
 
 
@@ -591,7 +722,9 @@ def _offsite_backup() -> HealthCheck:
     raw = (read_runtime_file('offsite-status') or '').strip()
     if not raw:
         if not (read_runtime_file('last-backup-at') or '').strip():
-            return HealthCheck('offsite', GROUP_SERVER, title, WAITING, 'Shown after the first backup.')
+            return HealthCheck(
+                'offsite', GROUP_SERVER, title, WAITING, 'Shown after the first backup.'
+            )
         raw = 'disabled'
     state, _, rest = raw.partition(' ')
     when_raw, _, detail = rest.partition(' ')
@@ -599,27 +732,42 @@ def _offsite_backup() -> HealthCheck:
         try:
             when = datetime.fromisoformat(when_raw.replace('Z', '+00:00'))
         except ValueError:
-            return HealthCheck('offsite', GROUP_SERVER, title, UNKNOWN, f'Unreadable status: {raw}.')
+            return HealthCheck(
+                'offsite', GROUP_SERVER, title, UNKNOWN, f'Unreadable status: {raw}.'
+            )
         hours = (datetime.now(UTC) - when).total_seconds() / 3600
         level = OK if hours < 30 else WARNING if hours < 72 else ERROR
         return HealthCheck(
-            'offsite', GROUP_SERVER, title, level,
+            'offsite',
+            GROUP_SERVER,
+            title,
+            level,
             f'A verified copy reached {detail or "the target"} {int(hours)} hour(s) ago.',
-            '' if level == OK else 'The nightly off-site copy has stopped. Check '
+            ''
+            if level == OK
+            else 'The nightly off-site copy has stopped. Check '
             '/var/log/ifinmail-backup.log, then run "make offsite-check".',
         )
     if state == 'failed':
         return HealthCheck(
-            'offsite', GROUP_SERVER, title, ERROR,
+            'offsite',
+            GROUP_SERVER,
+            title,
+            ERROR,
             f'The last off-site copy failed: {detail or "no detail recorded"}.',
             'Run "make offsite-check" in the install directory to see why.',
         )
     return HealthCheck(
-        'offsite', GROUP_SERVER, title, WARNING,
+        'offsite',
+        GROUP_SERVER,
+        title,
+        WARNING,
         'Backups are stored only on this server. If its disk is lost, so are they.',
         'Point the nightly backup at another host you control over SSH, then test it:',
-        [('Setting (provisioning/.env)', 'BACKUP_OFFSITE_TARGET=user@host:/backups/ifinmail'),
-         ('Test', 'make offsite-check')],
+        [
+            ('Setting (provisioning/.env)', 'BACKUP_OFFSITE_TARGET=user@host:/backups/ifinmail'),
+            ('Test', 'make offsite-check'),
+        ],
     )
 
 
@@ -631,12 +779,18 @@ def _backup_key() -> HealthCheck:
     raw = (read_runtime_file('backup-key-exported-at') or '').strip()
     if raw:
         return HealthCheck(
-            'backup-key', GROUP_SERVER, title, OK,
+            'backup-key',
+            GROUP_SERVER,
+            title,
+            OK,
             f'Exported {raw[:10]} and proven to open the newest backup. Keep the key file and its '
             'passphrase off this server.',
         )
     return HealthCheck(
-        'backup-key', GROUP_SERVER, title, WARNING,
+        'backup-key',
+        GROUP_SERVER,
+        title,
+        WARNING,
         'The key that opens your backups exists only on this server. Lose the server and '
         'the backups cannot be read.',
         'Export it once and store it somewhere other than this server:',
@@ -656,28 +810,46 @@ def _plugins() -> list[HealthCheck]:
     link = _url('accounts:marketplace') + '?tab=installed'
     failed = [r.plugin_id for r in rows if r.state == InstallationState.FAILED]
     if failed:
-        return [HealthCheck(
-            'plugins', GROUP_SERVER, title, ERROR,
-            f'A change to {", ".join(failed)} failed and is not in effect.',
-            'Open the plugin and choose Retry, or uninstall it.',
-            link=link, link_label='Marketplace',
-        )]
+        return [
+            HealthCheck(
+                'plugins',
+                GROUP_SERVER,
+                title,
+                ERROR,
+                f'A change to {", ".join(failed)} failed and is not in effect.',
+                'Open the plugin and choose Retry, or uninstall it.',
+                link=link,
+                link_label='Marketplace',
+            )
+        ]
     statuses = InstallationService.apply_status()
     waiting = sorted(
         {t.service for t in registry.targets() if statuses.get(t.key) == ApplyStatus.NOT_APPLIED}
     )
     if waiting:
-        return [HealthCheck(
-            'plugins', GROUP_SERVER, title, WARNING,
-            f'Plugin settings are waiting for the {", ".join(waiting)} container(s) to apply them.',
-            'Check that those containers are running ("make ps").',
-            link=link, link_label='Marketplace',
-        )]
+        return [
+            HealthCheck(
+                'plugins',
+                GROUP_SERVER,
+                title,
+                WARNING,
+                f'Plugin settings are waiting for the {", ".join(waiting)} container(s) '
+                'to apply them.',
+                'Check that those containers are running ("make ps").',
+                link=link,
+                link_label='Marketplace',
+            )
+        ]
     enabled = sum(1 for r in rows if r.state == InstallationState.ENABLED)
-    return [HealthCheck(
-        'plugins', GROUP_SERVER, title, OK,
-        f'{enabled} of {len(rows)} installed plugin(s) enabled.',
-    )]
+    return [
+        HealthCheck(
+            'plugins',
+            GROUP_SERVER,
+            title,
+            OK,
+            f'{enabled} of {len(rows)} installed plugin(s) enabled.',
+        )
+    ]
 
 
 def _sending() -> list[HealthCheck]:
@@ -690,19 +862,30 @@ def _sending() -> list[HealthCheck]:
         each = '; '.join(
             f'{login} ({held[login].get("reason", "unusual sending")})' for login in sorted(held)
         )
-        return [HealthCheck(
-            'sending-paused', GROUP_SECURITY, 'Paused senders', ERROR,
-            f'Sending is paused for {each}.',
-            'Check the mailbox for a compromised password, change it if needed, then resume '
-            'sending.',
-            link=link, link_label='Paused senders',
-        )]
+        return [
+            HealthCheck(
+                'sending-paused',
+                GROUP_SECURITY,
+                'Paused senders',
+                ERROR,
+                f'Sending is paused for {each}.',
+                'Check the mailbox for a compromised password, change it if needed, then resume '
+                'sending.',
+                link=link,
+                link_label='Paused senders',
+            )
+        ]
     if containment.thresholds() is None:
         return []
-    return [HealthCheck(
-        'sending-watch', GROUP_SECURITY, 'Outbound containment', OK,
-        'Mailboxes are watched for a sudden burst of sending.',
-    )]
+    return [
+        HealthCheck(
+            'sending-watch',
+            GROUP_SECURITY,
+            'Outbound containment',
+            OK,
+            'Mailboxes are watched for a sudden burst of sending.',
+        )
+    ]
 
 
 def _background_jobs() -> HealthCheck:
@@ -713,7 +896,10 @@ def _background_jobs() -> HealthCheck:
     title = 'Background jobs'
     if not raw:
         return HealthCheck(
-            'jobs', GROUP_SERVER, title, WAITING,
+            'jobs',
+            GROUP_SERVER,
+            title,
+            WAITING,
             'DNS re-verification has not run yet (it runs every 15 minutes).',
         )
     when = datetime.fromisoformat(str(raw))
@@ -721,10 +907,16 @@ def _background_jobs() -> HealthCheck:
         when = when.replace(tzinfo=UTC)
     minutes = (datetime.now(UTC) - when).total_seconds() / 60
     if minutes <= 40:
-        return HealthCheck('jobs', GROUP_SERVER, title, OK, f'DNS last re-verified {int(minutes)} minute(s) ago.')
+        return HealthCheck(
+            'jobs', GROUP_SERVER, title, OK, f'DNS last re-verified {int(minutes)} minute(s) ago.'
+        )
     return HealthCheck(
-        'jobs', GROUP_SERVER, title, WARNING,
-        f'DNS was last re-verified {int(minutes // 60)} hour(s) ago; it should run every 15 minutes.',
+        'jobs',
+        GROUP_SERVER,
+        title,
+        WARNING,
+        f'DNS was last re-verified {int(minutes // 60)} hour(s) ago; '
+        'it should run every 15 minutes.',
         'The worker or beat container may be stopped: check "make ps".',
     )
 
@@ -736,7 +928,10 @@ def _software_version() -> HealthCheck:
     status = UpdateService.status()
     if not status.enabled:
         return HealthCheck(
-            'version', GROUP_SERVER, title, INFO,
+            'version',
+            GROUP_SERVER,
+            title,
+            INFO,
             f'Running {status.current}. Update checks are switched off.',
             'Switch them on at the bottom of this page to hear about new releases.',
         )
@@ -749,18 +944,29 @@ def _software_version() -> HealthCheck:
     install_dir = os.environ.get('IFINMAIL_INSTALL_DIR', '') or 'the install directory'
     if status.available:
         return HealthCheck(
-            'version', GROUP_SERVER, title, WARNING,
+            'version',
+            GROUP_SERVER,
+            title,
+            WARNING,
             f'{status.latest} is available; this server runs {status.current}.',
             'Updating takes a database snapshot first and rolls back by itself if the new version '
             'does not come up healthy. Run on the server:',
-            [('Update', f'cd {install_dir} && sudo make update'),
-             ('Undo the update', f'cd {install_dir} && sudo make rollback')],
-            link=status.changes_url, link_label=f'What changed in {status.latest}',
+            [
+                ('Update', f'cd {install_dir} && sudo make update'),
+                ('Undo the update', f'cd {install_dir} && sudo make rollback'),
+            ],
+            link=status.changes_url,
+            link_label=f'What changed in {status.latest}',
         )
     if status.error and not status.latest:
-        return HealthCheck('version', GROUP_SERVER, title, UNKNOWN, f'Running {status.current}. {status.error}')
+        return HealthCheck(
+            'version', GROUP_SERVER, title, UNKNOWN, f'Running {status.current}. {status.error}'
+        )
     return HealthCheck(
-        'version', GROUP_SERVER, title, OK,
+        'version',
+        GROUP_SERVER,
+        title,
+        OK,
         f'Running {status.current}, the latest release.'
         if status.latest
         else f'Running {status.current}; no release published yet.',
@@ -771,7 +977,8 @@ def _software_version() -> HealthCheck:
 
 
 def _firewall() -> HealthCheck:
-    """Are the entry-point rules (closed ports, blocked networks, connection cap) really in force?"""
+    """Are the entry-point rules (closed ports, blocked networks, connection cap) really in
+    force?"""
     from backend.apps.core.platform.services.entrypoints import RULES_FILE, EntryPointService
     from backend.apps.core.platform.services.runtime import read_runtime_file
 
@@ -780,7 +987,10 @@ def _firewall() -> HealthCheck:
     status = EntryPointService.agent_status()
     if not status.reporting:
         return HealthCheck(
-            'firewall', GROUP_SECURITY, title, WARNING,
+            'firewall',
+            GROUP_SECURITY,
+            title,
+            WARNING,
             'The firewall agent is not reporting, so no entry-point rule can be in force.',
             'It should be a container named docker-firewall-1; `make ps` shows whether it runs '
             'and is healthy.',
@@ -792,7 +1002,10 @@ def _firewall() -> HealthCheck:
             from backend.apps.core.platform.services.entrypoints import FLOOD_WEB_PER_MINUTE
 
             return HealthCheck(
-                'firewall', GROUP_SECURITY, title, WARNING,
+                'firewall',
+                GROUP_SECURITY,
+                title,
+                WARNING,
                 f'Flood mode is on: one address is held to {counts["rate_per_minute"]} new '
                 f'connections a minute on the mail ports and {FLOOD_WEB_PER_MINUTE} on the web '
                 'ports.',
@@ -810,7 +1023,10 @@ def _firewall() -> HealthCheck:
             else ''
         )
         return HealthCheck(
-            'firewall', GROUP_SECURITY, title, OK,
+            'firewall',
+            GROUP_SECURITY,
+            title,
+            OK,
             f'In force: {counts["closed"]} port(s) closed, {counts["blocked"]} network(s) '
             f'blocked, and at most {counts["rate_per_minute"]} new connections a minute from one '
             f'address to {counts["rate_limited_ports"]} mail ports, with the web ports guarded '
@@ -822,19 +1038,30 @@ def _firewall() -> HealthCheck:
         )
     if status.message.startswith('Rules rejected'):
         return HealthCheck(
-            'firewall', GROUP_SECURITY, title, ERROR,
+            'firewall',
+            GROUP_SECURITY,
+            title,
+            ERROR,
             'The firewall refused the last rule set, so the previous one is still in force.',
-            status.message[:240], **link,
+            status.message[:240],
+            **link,
         )
     if read_runtime_file(RULES_FILE) is None:
         return HealthCheck(
-            'firewall', GROUP_SECURITY, title, WAITING,
+            'firewall',
+            GROUP_SECURITY,
+            title,
+            WAITING,
             'The console has not published the rules yet; it does so within five minutes.',
             **link,
         )
     return HealthCheck(
-        'firewall', GROUP_SECURITY, title, WAITING,
-        'New rules were published and the firewall is applying them.', **link,
+        'firewall',
+        GROUP_SECURITY,
+        title,
+        WAITING,
+        'New rules were published and the firewall is applying them.',
+        **link,
     )
 
 
@@ -847,26 +1074,40 @@ def _file_storage() -> HealthCheck:
     chosen = config.current()
     if chosen is None:
         return HealthCheck(
-            'file-storage', GROUP_SERVER, title, OK,
-            'Media and backups are kept on this server’s disk.', **link,
+            'file-storage',
+            GROUP_SERVER,
+            title,
+            OK,
+            'Media and backups are kept on this server’s disk.',
+            **link,
         )
     where = ', '.join(sorted(chosen.purposes))
     probe = health.last()
     if not probe:
         return HealthCheck(
-            'file-storage', GROUP_SERVER, title, WAITING,
-            f'{where} go to object storage; the first check runs within half an hour.', **link,
+            'file-storage',
+            GROUP_SERVER,
+            title,
+            WAITING,
+            f'{where} go to object storage; the first check runs within half an hour.',
+            **link,
         )
     if not probe.get('ok'):
         return HealthCheck(
-            'file-storage', GROUP_SERVER, title, ERROR,
+            'file-storage',
+            GROUP_SERVER,
+            title,
+            ERROR,
             f'The object store for {where} is failing: {probe.get("detail", "")}',
             'New uploads and backups cannot be stored until it answers. Check the key, the bucket '
             'and the endpoint in Marketplace → Object storage.',
             **link,
         )
     return HealthCheck(
-        'file-storage', GROUP_SERVER, title, OK,
+        'file-storage',
+        GROUP_SERVER,
+        title,
+        OK,
         f'{where} in object storage; it answered the last check in '
         f'{probe.get("milliseconds", 0)} ms.',
         **link,
@@ -882,26 +1123,43 @@ def _exposure() -> HealthCheck:
     summary = exposure.summarise(exposure.last())
     if summary['state'] == 'never':
         return HealthCheck(
-            'exposure', GROUP_SECURITY, title, WAITING,
-            'It has not run yet; it runs weekly, or press Run now on the Network page.', **link,
+            'exposure',
+            GROUP_SECURITY,
+            title,
+            WAITING,
+            'It has not run yet; it runs weekly, or press Run now on the Network page.',
+            **link,
         )
     when = summary['at'].strftime('%Y-%m-%d') if summary['at'] else 'an unknown date'
     if summary['errors']:
         names = '; '.join(f'{c["title"]}: {c["detail"]}' for c in summary['errors'][:3])
         return HealthCheck(
-            'exposure', GROUP_SECURITY, title, ERROR,
-            f'{len(summary["errors"])} thing(s) a stranger can use ({when}).', names[:300], **link,
+            'exposure',
+            GROUP_SECURITY,
+            title,
+            ERROR,
+            f'{len(summary["errors"])} thing(s) a stranger can use ({when}).',
+            names[:300],
+            **link,
         )
     if summary['warnings'] or summary['stale']:
         what = '; '.join(f'{c["title"]}: {c["detail"]}' for c in summary['warnings'][:3])
         if summary['stale']:
             what = (what + '; ' if what else '') + 'the last check is old: run it again.'
         return HealthCheck(
-            'exposure', GROUP_SECURITY, title, WARNING,
-            f'Worth a look ({when}).', what[:300], **link,
+            'exposure',
+            GROUP_SECURITY,
+            title,
+            WARNING,
+            f'Worth a look ({when}).',
+            what[:300],
+            **link,
         )
     return HealthCheck(
-        'exposure', GROUP_SECURITY, title, OK,
+        'exposure',
+        GROUP_SECURITY,
+        title,
+        OK,
         f'{summary["ok"]} checks passed on {when}: no scanner path served, internal ports closed, '
         'no open relay, no open resolver.',
         **link,
@@ -920,12 +1178,17 @@ def _security() -> list[HealthCheck]:
     printed = [u.email for u in admins if getattr(u, 'password_change_required', False)]
     checks.append(
         HealthCheck(
-            'installer-password', GROUP_SECURITY, 'Installer password', ERROR,
+            'installer-password',
+            GROUP_SECURITY,
+            'Installer password',
+            ERROR,
             f'{", ".join(printed)} still uses the password the installer printed.',
             'Sign in with it once; you will be asked to choose a new one.',
         )
         if printed
-        else HealthCheck('installer-password', GROUP_SECURITY, 'Installer password', OK, 'Replaced.')
+        else HealthCheck(
+            'installer-password', GROUP_SECURITY, 'Installer password', OK, 'Replaced.'
+        )
     )
     from backend.apps.accounts.models import Passkey
 
@@ -944,42 +1207,61 @@ def _security() -> list[HealthCheck]:
     title = 'Two-factor sign-in'
     if without and enforced:
         two_factor = HealthCheck(
-            'admin-2fa', GROUP_SECURITY, title, WARNING,
+            'admin-2fa',
+            GROUP_SECURITY,
+            title,
+            WARNING,
             f'Required, and not yet set up for: {", ".join(without)}.',
             'They are sent to set up an authenticator app at their next password sign-in '
             '(signing in with a passkey instead satisfies it).',
-            link=_url('accounts:mfa_setup'), link_label='Set up an authenticator app',
+            link=_url('accounts:mfa_setup'),
+            link_label='Set up an authenticator app',
         )
     elif without:
         two_factor = HealthCheck(
-            'admin-2fa', GROUP_SECURITY, title, WARNING,
+            'admin-2fa',
+            GROUP_SECURITY,
+            title,
+            WARNING,
             f'Optional, and not set up for: {", ".join(without)}.',
             'A stolen password alone can open the console. Set up an authenticator app (a '
             'passkey signs in without the password, but does not stop the password from being '
-            'used), then set MFA_ENFORCEMENT=required in the install directory\'s '
+            "used), then set MFA_ENFORCEMENT=required in the install directory's "
             'provisioning/.env and restart to make it mandatory.',
-            link=_url('accounts:mfa_setup'), link_label='Set up an authenticator app',
+            link=_url('accounts:mfa_setup'),
+            link_label='Set up an authenticator app',
         )
     elif not enforced:
         two_factor = HealthCheck(
-            'admin-2fa', GROUP_SECURITY, title, INFO,
+            'admin-2fa',
+            GROUP_SECURITY,
+            title,
+            INFO,
             f'Every administrator has an authenticator app ({with_passkey} also sign in with a '
             'passkey), but it is optional.',
             'Set MFA_ENFORCEMENT=required so new administrators cannot skip it.',
         )
     else:
         two_factor = HealthCheck(
-            'admin-2fa', GROUP_SECURITY, title, OK,
+            'admin-2fa',
+            GROUP_SECURITY,
+            title,
+            OK,
             f'Required, and every administrator has an authenticator app ({with_passkey} also '
-            'sign in with a passkey).'
+            'sign in with a passkey).',
         )
     checks.append(two_factor)
     if SystemSettings.get_bool(SettingKey.REGISTRATION_OPEN, False):
-        checks.append(HealthCheck(
-            'registration', GROUP_SECURITY, 'Public sign-up', INFO,
-            'Anyone can create a mailbox on this server.',
-            'Turn it off under Settings → Mailboxes unless you mean to run an open service.',
-        ))
+        checks.append(
+            HealthCheck(
+                'registration',
+                GROUP_SECURITY,
+                'Public sign-up',
+                INFO,
+                'Anyone can create a mailbox on this server.',
+                'Turn it off under Settings → Mailboxes unless you mean to run an open service.',
+            )
+        )
     return checks
 
 

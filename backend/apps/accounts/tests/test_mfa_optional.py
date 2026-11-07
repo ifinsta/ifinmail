@@ -26,7 +26,9 @@ class MFASnoozeTests(MailTablesTestCase):
         from backend.apps.accounts.services.setup_state import SetupState
 
         SetupState.mark_complete()
-        self.user = MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
+        self.user = MailUser.objects.create_user(
+            'admin@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
         self.client.force_login(self.user)
 
     def test_without_a_snooze_console_pages_offer_enrollment(self) -> None:
@@ -65,9 +67,13 @@ class MFASnoozeTests(MailTablesTestCase):
         self.client.post(reverse('accounts:mfa_setup'), {'action': 'snooze'})
         self.user.refresh_from_db()
         self.assertIsNone(self.user.mfa_remind_after)
-        self.assertNotContains(self.client.get(reverse('accounts:mfa_setup')), 'Remind me in a week')
+        self.assertNotContains(
+            self.client.get(reverse('accounts:mfa_setup')), 'Remind me in a week'
+        )
         self.client.logout()
         response = self.client.post(
             reverse('accounts:login'), {'email': self.user.email, 'password': GOOD}
         )
-        self.assertRedirects(response, reverse('accounts:mfa_verify'), fetch_redirect_response=False)
+        self.assertRedirects(
+            response, reverse('accounts:mfa_verify'), fetch_redirect_response=False
+        )

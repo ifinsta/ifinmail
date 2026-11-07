@@ -1,0 +1,10 @@
+# CI-only tooling. The runtime set comes from the hashed prod.lock, which CI installs first;
+# this file must not include base.txt, or pip would re-resolve (and possibly upgrade) what ships.
+pip-audit>=2.10,<3.0
+pytest>=8.0,<9.0
+pytest-django>=4.10,<6.0
+pytest-cov>=6.0,<7.0
+pytest-xdist>=3.0,<4.0
+pyyaml>=6.0,<7.0
+ruff>=0.9,<1.0
+mypy>=1.10,<2.0

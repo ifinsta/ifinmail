@@ -7,6 +7,7 @@ exactly what the site did before the plugin existed.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from collections.abc import Mapping
@@ -105,10 +106,8 @@ def current() -> Policy:
         if parsed is not None:
             return parsed
     policy = _compute()
-    try:
+    with contextlib.suppress(Exception):
         cache.set(CACHE_KEY, json.dumps(policy.as_dict()), FALLBACK_TTL)
-    except Exception:
-        pass
     return policy
 
 

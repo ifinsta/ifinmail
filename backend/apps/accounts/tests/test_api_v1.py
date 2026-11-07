@@ -605,6 +605,35 @@ class ConsolePageTests(MailTablesTestCase):
         for name in ('api_key_created', 'api_key_rotated', 'api_key_revoked'):
             self.assertTrue(AuditService.has(name), name)
 
+    def test_cross_owner_rotation_is_refused_and_reveals_nothing(self) -> None:
+        other = MailUser.objects.create_user(
+            'victim@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
+        row, plain = TokenService.create(other, 'Victim', ['mail.manage'], expires_in_days=30)
+        response = self.client.post(
+            reverse('accounts:api_key_action'),
+            {
+                'token_id': str(row.id),
+                'action': 'rotate',
+                'grace_hours': '6',
+                'confirm_password': GOOD,
+            },
+            follow=True,
+        )
+        self.assertContains(response, 'owner can rotate it')
+        row.refresh_from_db()
+        self.assertIsNone(row.previous_expires_at)
+        self.assertIsNotNone(TokenService.verify(plain))
+        self.assertNotIn('api_key_secret', self.client.session)
+        page = self.client.get(reverse('accounts:api_keys')).content.decode()
+        self.assertNotIn('value="rotate"', page)
+        # Revoking another owner's key stays available as the admin kill switch.
+        self.client.post(
+            reverse('accounts:api_key_action'), {'token_id': str(row.id), 'action': 'revoke'}
+        )
+        self.assertFalse(APIToken.objects.filter(pk=row.pk).exists())
+        self.assertTrue(AuditService.has('api_key_revoked'))
+
     def test_only_people_who_manage_users_may_open_it(self) -> None:
         helper = MailUser.objects.create_user('help@ifinmail.test', GOOD, is_staff=True)
         RoleService.assign(helper, 'support')
@@ -818,7 +847,11 @@ class ContractTests(ApiBase):
             ('POST', '/domains'): {'name': 'example.com'},
             ('POST', '/inboxes'): {},
             ('POST', '/suppressions'): {'address': 'a@example.org', 'domain': 'ifinmail.test'},
-            ('POST', '/webhooks'): {'name': 'w', 'url': 'https://h.example.com/', 'events': ['message.bounced']},
+            ('POST', '/webhooks'): {
+                'name': 'w',
+                'url': 'https://h.example.com/',
+                'events': ['message.bounced'],
+            },
             ('PATCH', '/mailboxes/{address}'): {'quota_bytes': 1},
             ('POST', '/telemetry/fingerprints/{fingerprint}/ack'): {'status': 'ACKED'},
             ('POST', '/messages'): {

@@ -24,7 +24,9 @@ class MarkupTests(SimpleTestCase):
         self.assertIn('href="https://example.com/a?b=1&amp;c=2" rel="noopener noreferrer"', html)
 
     def test_html_and_scripts_are_text(self) -> None:
-        html = markup.render('<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>\n\n**<b>x</b>**')
+        html = markup.render(
+            '<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>\n\n**<b>x</b>**'
+        )
         self.assertNotIn('<script', html)
         self.assertNotIn('<img', html)
         self.assertNotIn('<b>', html)
@@ -57,7 +59,21 @@ class MarkupTests(SimpleTestCase):
         self.assertNotIn('<strong>', html)
 
     def test_safe_link(self) -> None:
-        for good in ('https://a.example', 'http://a.example', 'mailto:a@b.example', '/docs/', '#install', 'tel:+123'):
+        for good in (
+            'https://a.example',
+            'http://a.example',
+            'mailto:a@b.example',
+            '/docs/',
+            '#install',
+            'tel:+123',
+        ):
             self.assertTrue(markup.safe_link(good), good)
-        for bad in ('', 'javascript:x', '//a.example', 'ftp://a.example', 'a.example', 'https://a\nb'):
+        for bad in (
+            '',
+            'javascript:x',
+            '//a.example',
+            'ftp://a.example',
+            'a.example',
+            'https://a\nb',
+        ):
             self.assertFalse(markup.safe_link(bad), bad)

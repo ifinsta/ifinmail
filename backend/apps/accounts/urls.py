@@ -3,8 +3,6 @@ from django.views.generic import RedirectView
 
 from .views.api_keys import api_key_action, api_key_create, api_key_sandbox, api_keys
 from .views.approvals import approvals_decide, approvals_page
-from .views.suppressions import suppressions_action, suppressions_page
-from .views.webhooks import webhooks_action, webhooks_create, webhooks_page
 from .views.assistant import (
     assistant,
     assistant_apply,
@@ -58,7 +56,9 @@ from .views.server import (
     network_toggle,
     network_unblock,
 )
+from .views.suppressions import suppressions_action, suppressions_page
 from .views.threats import threats, threats_ack, threats_block, threats_run
+from .views.webhooks import webhooks_action, webhooks_create, webhooks_page
 from .web import (
     account_name,
     account_page,
@@ -66,6 +66,7 @@ from .web import (
     aliases_create,
     aliases_delete,
     aliases_page,
+    appearance_default,
     branding_identity,
     branding_reset,
     branding_save,
@@ -101,7 +102,6 @@ from .web import (
     password_reset_confirm,
     password_reset_done,
     registration_toggle,
-    appearance_default,
     settings_hub,
     settings_page,
     setup_advance,
@@ -110,8 +110,6 @@ from .web import (
     spam_add_provider,
     spam_filtering,
     spam_remove_provider,
-    website_page,
-    website_pages,
     spam_set_sensitivity,
     spam_test_provider,
     spam_toggle_provider,
@@ -127,6 +125,8 @@ from .web import (
     user_management,
     users_export,
     users_kill_sessions,
+    website_page,
+    website_pages,
 )
 
 app_name = 'accounts'

@@ -106,6 +106,7 @@
                             <form method="post" action="{% url 'accounts:api_key_action' %}" class="ifinmail-inline-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="token_id" value="{{ k.id }}">
+                                {% if k.user_id == viewer_pk %}
                                 <div class="ifinmail-field">
                                     <label for="grace-{{ k.id }}">{% trans 'Keep the old secret working for' %}</label>
                                     <select class="ifinmail-input" id="grace-{{ k.id }}" name="grace_hours">
@@ -119,8 +120,13 @@
                                     <label for="confirm-{{ k.id }}">{% trans 'Your password (to rotate)' %}</label>
                                     <input class="ifinmail-input" id="confirm-{{ k.id }}" name="confirm_password" type="password" autocomplete="current-password">
                                 </div>
+                                {% else %}
+                                <p class="ifinmail-help-text">{% trans 'Only the owner can rotate this key, because rotation reveals the new secret. You can revoke it.' %}</p>
+                                {% endif %}
                                 <div class="ifinmail-inline-form--row">
+                                    {% if k.user_id == viewer_pk %}
                                     <button class="ifinmail-btn ifinmail-btn--outline" type="submit" name="action" value="rotate">{% trans 'Rotate' %}</button>
+                                    {% endif %}
                                     <button class="ifinmail-btn ifinmail-btn--danger" type="submit" name="action" value="revoke" data-confirm="{% trans 'Revoke this key? Integrations using it stop working immediately.' %}">{% trans 'Revoke' %}</button>
                                 </div>
                             </form>

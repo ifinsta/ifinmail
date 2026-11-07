@@ -62,19 +62,45 @@ class SuppressionTests(ComplianceBase):
 
     def test_the_api_adds_lists_and_removes(self) -> None:
         self.enable()
-        added = self.call('post', '/api/v1/suppressions', key=self.auth['key'], secret=self.auth['secret'],
-                          body={'address': 'Ana@Example.org', 'domain': 'ifinmail.test', 'detail': 'app unsubscribe'})
+        added = self.call(
+            'post',
+            '/api/v1/suppressions',
+            key=self.auth['key'],
+            secret=self.auth['secret'],
+            body={
+                'address': 'Ana@Example.org',
+                'domain': 'ifinmail.test',
+                'detail': 'app unsubscribe',
+            },
+        )
         self.assertEqual(added.status_code, 201, added.content)
         self.assertEqual(added.json()['address'], 'ana@example.org')
-        again = self.call('post', '/api/v1/suppressions', key=self.auth['key'], secret=self.auth['secret'],
-                          body={'address': 'ana@example.org', 'domain': 'ifinmail.test'})
+        again = self.call(
+            'post',
+            '/api/v1/suppressions',
+            key=self.auth['key'],
+            secret=self.auth['secret'],
+            body={'address': 'ana@example.org', 'domain': 'ifinmail.test'},
+        )
         self.assertEqual(again.status_code, 409)
-        foreign = self.call('post', '/api/v1/suppressions', key=self.auth['key'], secret=self.auth['secret'],
-                            body={'address': 'x@example.org', 'domain': 'elsewhere.test'})
+        foreign = self.call(
+            'post',
+            '/api/v1/suppressions',
+            key=self.auth['key'],
+            secret=self.auth['secret'],
+            body={'address': 'x@example.org', 'domain': 'elsewhere.test'},
+        )
         self.assertEqual(foreign.status_code, 403)
-        listed = self.call('get', '/api/v1/suppressions', key=self.auth['key'], secret=self.auth['secret']).json()
+        listed = self.call(
+            'get', '/api/v1/suppressions', key=self.auth['key'], secret=self.auth['secret']
+        ).json()
         self.assertEqual(listed['count'], 1)
-        removed = self.call('delete', '/api/v1/suppressions/ifinmail.test/ana@example.org', key=self.key, secret=self.secret)
+        removed = self.call(
+            'delete',
+            '/api/v1/suppressions/ifinmail.test/ana@example.org',
+            key=self.key,
+            secret=self.secret,
+        )
         self.assertEqual(removed.status_code, 204)  # the owner's key has mail.manage
 
 
@@ -91,7 +117,10 @@ class UnsubscribeTests(ComplianceBase):
         self.assertFalse(Suppression.objects.exists())  # opening the link is not enough
         self.client.post(path, {'List-Unsubscribe': 'One-Click'})  # what Gmail sends
         row = Suppression.objects.get()
-        self.assertEqual((row.domain, row.address, row.reason), ('ifinmail.test', 'ana@example.org', 'unsubscribed'))
+        self.assertEqual(
+            (row.domain, row.address, row.reason),
+            ('ifinmail.test', 'ana@example.org', 'unsubscribed'),
+        )
         self.assertEqual(self.send_body().status_code, 422)  # never again
 
     def test_transactional_mail_has_no_unsubscribe_unless_asked(self) -> None:
@@ -116,10 +145,13 @@ class UnsubscribeTests(ComplianceBase):
 
 class BounceTests(ComplianceBase):
     def deliver_lines(self, message_id: str, outcomes: list[tuple[str, str, str]]) -> None:
-        delivery_events.handle_line(f'Oct 15 09:00:00 mail postfix/cleanup[1]: Q1: message-id=<{message_id}>')
+        delivery_events.handle_line(
+            f'Oct 15 09:00:00 mail postfix/cleanup[1]: Q1: message-id=<{message_id}>'
+        )
         for to, dsn, status in outcomes:
             delivery_events.handle_line(
-                f'Oct 15 09:00:01 mail postfix/smtp[2]: Q1: to=<{to}>, relay=mx.example.org[198.51.100.1]:25, '
+                f'Oct 15 09:00:01 mail postfix/smtp[2]: Q1: to=<{to}>, '
+                f'relay=mx.example.org[198.51.100.1]:25, '
                 f'delay=1, dsn={dsn}, status={status} (host said: 550 5.1.1 <{to}>: User unknown)'
             )
 
@@ -160,11 +192,15 @@ class ConsoleTests(ComplianceBase):
         session['mfa_verified_at'] = timezone.now().isoformat()
         session.save()
         url = reverse('accounts:suppressions_action')
-        self.client.post(url, {'action': 'add', 'address': 'x@example.org', 'domain': 'ifinmail.test'})
+        self.client.post(
+            url, {'action': 'add', 'address': 'x@example.org', 'domain': 'ifinmail.test'}
+        )
         self.assertContains(self.client.get(reverse('accounts:suppressions')), 'x@example.org')
         compliance.count(self.row.prefix, delivered=40, bounced=20)
         self.assertContains(self.client.get(reverse('accounts:suppressions')), 'paused for bounces')
         self.client.post(url, {'action': 'resume', 'prefix': self.row.prefix})
         self.assertIsNone(compliance.paused(self.row.prefix))
-        self.client.post(url, {'action': 'remove', 'address': 'x@example.org', 'domain': 'ifinmail.test'})
+        self.client.post(
+            url, {'action': 'remove', 'address': 'x@example.org', 'domain': 'ifinmail.test'}
+        )
         self.assertFalse(Suppression.objects.exists())

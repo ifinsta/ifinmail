@@ -31,7 +31,9 @@ LOOKUP = 'backend.apps.domains.services.verification._lookup'
 
 
 def _login(client) -> None:
-    admin = MailUser.objects.create_user('root@ifinmail.test', 'Correct-Horse-9', is_staff=True)
+    admin = MailUser.objects.create_user(
+        'root@ifinmail.test', 'Correct-Horse-9', is_staff=True, is_superuser=True
+    )
     client.force_login(admin, backend=MODEL_BACKEND)
     session = client.session
     session['mfa_verified_at'] = timezone.now().isoformat()

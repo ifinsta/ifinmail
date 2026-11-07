@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('mail', '0006_approvals'),
     ]
@@ -13,7 +12,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Suppression',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                (
+                    'id',
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name='ID'
+                    ),
+                ),
                 ('domain', models.CharField(max_length=253)),
                 ('address', models.CharField(max_length=254)),
                 ('reason', models.CharField(max_length=20)),
@@ -24,7 +28,11 @@ class Migration(migrations.Migration):
             options={
                 'db_table': 'mail_suppression',
                 'ordering': ['-created_at'],
-                'constraints': [models.UniqueConstraint(fields=('domain', 'address'), name='suppressed_once_per_domain')],
+                'constraints': [
+                    models.UniqueConstraint(
+                        fields=('domain', 'address'), name='suppressed_once_per_domain'
+                    )
+                ],
             },
         ),
     ]

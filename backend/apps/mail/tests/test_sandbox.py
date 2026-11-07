@@ -1,4 +1,5 @@
-"""Developer sandbox: mail from sandbox keys is checked like real mail, kept, and never delivered."""
+"""Developer sandbox: mail from sandbox keys is checked like real mail, kept, and never
+delivered."""
 
 from __future__ import annotations
 
@@ -75,7 +76,12 @@ class SandboxCaptureTests(SandboxBase):
         with patch.object(containment, 'record_send') as counted:
             response = self.send_as(
                 self.auth,
-                {**GOOD, 'cc': ['bob@example.org'], 'html': '<p>Hi</p>', 'reply_to': 'help@ifinmail.test'},
+                {
+                    **GOOD,
+                    'cc': ['bob@example.org'],
+                    'html': '<p>Hi</p>',
+                    'reply_to': 'help@ifinmail.test',
+                },
             )
         self.assertEqual(response.status_code, 202, response.content)
         self.assertEqual(response.json()['status'], 'captured')
@@ -119,9 +125,11 @@ class SandboxCaptureTests(SandboxBase):
         only_ana = self.get_as(self.auth, '/api/v1/sandbox/messages?to=ANA@example.org').json()
         self.assertEqual([m['subject'] for m in only_ana['items']], ['One'])
         one = only_ana['items'][0]
-        detail = self.get_as(self.auth, f"/api/v1/sandbox/messages/{one['id']}")
+        detail = self.get_as(self.auth, f'/api/v1/sandbox/messages/{one["id"]}')
         self.assertEqual(detail.json()['text'], GOOD['text'])
-        cleared = self.call('delete', '/api/v1/sandbox/messages', key=self.auth['key'], secret=self.auth['secret'])
+        cleared = self.call(
+            'delete', '/api/v1/sandbox/messages', key=self.auth['key'], secret=self.auth['secret']
+        )
         self.assertEqual(cleared.status_code, 204)
         self.assertEqual(self.get_as(self.auth, '/api/v1/sandbox/messages').json()['count'], 0)
 
@@ -134,7 +142,9 @@ class SandboxCaptureTests(SandboxBase):
 
     def test_a_normal_key_has_no_sandbox(self) -> None:
         auth, _ = self.sender_key()
-        response = self.call('get', '/api/v1/sandbox/messages', key=auth['key'], secret=auth['secret'])
+        response = self.call(
+            'get', '/api/v1/sandbox/messages', key=auth['key'], secret=auth['secret']
+        )
         self.assertEqual(response.status_code, 403)
 
     def test_idempotency_still_holds(self) -> None:

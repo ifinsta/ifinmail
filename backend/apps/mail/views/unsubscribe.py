@@ -25,7 +25,11 @@ def unsubscribe(request: HttpRequest, token: str) -> HttpResponse:
     domain, address = found
     if request.method == 'POST':
         compliance.suppress(domain, address, Suppression.UNSUBSCRIBED, detail='one-click')
-        return render(request, 'mail/unsubscribe.html', {'state': 'done', 'domain': domain, 'address': address})
+        return render(
+            request,
+            'mail/unsubscribe.html',
+            {'state': 'done', 'domain': domain, 'address': address},
+        )
     if request.method not in ('GET', 'HEAD'):
         return HttpResponse(status=405)
     already = Suppression.objects.filter(domain=domain, address=address).exists()

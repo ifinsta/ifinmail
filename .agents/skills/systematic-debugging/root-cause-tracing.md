@@ -101,10 +101,11 @@ If something appears during tests but you don't know which test:
 Use the bisection script `find-polluter.sh` in this directory:
 
 ```bash
-./find-polluter.sh '.git' 'src/**/*.test.ts'
+./find-polluter.sh 'db.sqlite3' 'backend/apps/**/test_*.py'
 ```
 
-Runs tests one-by-one, stops at first polluter. See script for usage.
+Runs pytest one file at a time, stops at the first polluter, and exits non-zero if pytest itself
+cannot run. See script for usage.
 
 ## Real Example: Empty projectDir
 

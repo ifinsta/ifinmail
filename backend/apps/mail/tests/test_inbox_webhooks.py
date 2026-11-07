@@ -125,8 +125,16 @@ class KeyPermissionTests(InboxEventsBase):
 
     def create(self, auth, boxes):  # noqa: ANN001, ANN201
         return self.call(
-            'post', '/api/v1/webhooks', key=auth['key'], secret=auth['secret'],
-            body={'name': 'w', 'url': 'https://h.example.com/', 'events': ['message.received'], 'mailboxes': boxes},
+            'post',
+            '/api/v1/webhooks',
+            key=auth['key'],
+            secret=auth['secret'],
+            body={
+                'name': 'w',
+                'url': 'https://h.example.com/',
+                'events': ['message.received'],
+                'mailboxes': boxes,
+            },
         )
 
     def test_sending_rights_do_not_grant_reading_people_mail(self) -> None:
@@ -140,7 +148,11 @@ class KeyPermissionTests(InboxEventsBase):
     def test_a_key_may_watch_its_own_agent_inbox(self) -> None:
         Domain.objects.create(name='agents.ifinmail.test')
         InstallationService.install('agent-inboxes', {'domain': 'agents.ifinmail.test'}, 'a')
-        row, token = TokenService.create(self.owner, 'agent', ['agents.manage', 'mail.send'], expires_in_days=30)
+        row, token = TokenService.create(
+            self.owner, 'agent', ['agents.manage', 'mail.send'], expires_in_days=30
+        )
         auth = {'key': key_id(row.prefix), 'secret': token.split('.', 2)[2]}
-        inbox = self.call('post', '/api/v1/inboxes', key=auth['key'], secret=auth['secret'], body={}).json()['address']
+        inbox = self.call(
+            'post', '/api/v1/inboxes', key=auth['key'], secret=auth['secret'], body={}
+        ).json()['address']
         self.assertEqual(self.create(auth, [inbox]).status_code, 201)

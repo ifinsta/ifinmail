@@ -33,7 +33,9 @@ class RequiredPolicyTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
         SetupState.mark_complete()
-        self.user = MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
+        self.user = MailUser.objects.create_user(
+            'admin@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
         self.client.force_login(self.user)
 
     def _enroll(self) -> str:

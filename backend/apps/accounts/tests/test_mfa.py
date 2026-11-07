@@ -99,7 +99,9 @@ class MFAEnrollmentTests(MailTablesTestCase):
 class MFASecondFactorOffTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
-        self.user = MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
+        self.user = MailUser.objects.create_user(
+            'admin@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
         _, secret = TOTPService.start_enrollment(self.user)
         self.secret = secret
         TOTPService.confirm_enrollment(self.user, _code_now(secret))
@@ -155,7 +157,9 @@ class MFASecondFactorOffTests(MailTablesTestCase):
 class MFALoginFlowTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
-        self.user = MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
+        self.user = MailUser.objects.create_user(
+            'admin@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
 
     def _staff_session(self) -> None:
         session = self.client.session
@@ -273,7 +277,9 @@ class MFALoginFlowTests(MailTablesTestCase):
 class SessionIdleTests(MailTablesTestCase):
     def setUp(self) -> None:
         super().setUp()
-        self.user = MailUser.objects.create_user('admin@ifinmail.test', GOOD, is_staff=True)
+        self.user = MailUser.objects.create_user(
+            'admin@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
         self.client.force_login(self.user, backend=MODEL_BACKEND)
         session = self.client.session
         session['mfa_verified_at'] = timezone.now().isoformat()
@@ -310,14 +316,18 @@ class SessionInventoryTests(MailTablesTestCase):
     def test_live_counts_attribute_sessions_to_users(self) -> None:
         from backend.apps.accounts.services.sessions import UserSessionService
 
-        admin = MailUser.objects.create_user('root@ifinmail.test', GOOD, is_staff=True)
+        admin = MailUser.objects.create_user(
+            'root@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
         self.client.force_login(admin, backend=MODEL_BACKEND)
         self.client.get(reverse('accounts:dashboard'))
         counts = UserSessionService.live_counts()
         self.assertGreaterEqual(counts.get('root@ifinmail.test', 0), 1)
 
     def test_users_page_lists_live_sessions(self) -> None:
-        admin = MailUser.objects.create_user('root@ifinmail.test', GOOD, is_staff=True)
+        admin = MailUser.objects.create_user(
+            'root@ifinmail.test', GOOD, is_staff=True, is_superuser=True
+        )
         self.client.force_login(admin, backend=MODEL_BACKEND)
         session = self.client.session
         session['mfa_verified_at'] = timezone.now().isoformat()

@@ -5,118 +5,117 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("mail", "0011_scheduled_sends"),
+        ('mail', '0011_scheduled_sends'),
     ]
 
     operations = [
         migrations.AddField(
-            model_name="campaign",
-            name="track_clicks",
+            model_name='campaign',
+            name='track_clicks',
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name="campaign",
-            name="track_opens",
+            model_name='campaign',
+            name='track_opens',
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name="campaignrecipient",
-            name="clicks",
+            model_name='campaignrecipient',
+            name='clicks',
             field=models.PositiveIntegerField(default=0),
         ),
         migrations.AddField(
-            model_name="campaignrecipient",
-            name="first_clicked_at",
+            model_name='campaignrecipient',
+            name='first_clicked_at',
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name="campaignrecipient",
-            name="first_opened_at",
+            model_name='campaignrecipient',
+            name='first_opened_at',
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name="campaignrecipient",
-            name="opens",
+            model_name='campaignrecipient',
+            name='opens',
             field=models.PositiveIntegerField(default=0),
         ),
         migrations.CreateModel(
-            name="CampaignLink",
+            name='CampaignLink',
             fields=[
                 (
-                    "id",
+                    'id',
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name="ID",
+                        verbose_name='ID',
                     ),
                 ),
-                ("url", models.TextField()),
-                ("position", models.PositiveSmallIntegerField()),
-                ("clicks", models.PositiveIntegerField(default=0)),
-                ("unique_clicks", models.PositiveIntegerField(default=0)),
+                ('url', models.TextField()),
+                ('position', models.PositiveSmallIntegerField()),
+                ('clicks', models.PositiveIntegerField(default=0)),
+                ('unique_clicks', models.PositiveIntegerField(default=0)),
                 (
-                    "campaign",
+                    'campaign',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="links",
-                        to="mail.campaign",
+                        related_name='links',
+                        to='mail.campaign',
                     ),
                 ),
             ],
             options={
-                "db_table": "mail_campaign_link",
-                "ordering": ["position"],
+                'db_table': 'mail_campaign_link',
+                'ordering': ['position'],
             },
         ),
         migrations.CreateModel(
-            name="CampaignClick",
+            name='CampaignClick',
             fields=[
                 (
-                    "id",
+                    'id',
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name="ID",
+                        verbose_name='ID',
                     ),
                 ),
-                ("count", models.PositiveIntegerField(default=1)),
-                ("first_at", models.DateTimeField(auto_now_add=True)),
-                ("last_at", models.DateTimeField(auto_now=True)),
+                ('count', models.PositiveIntegerField(default=1)),
+                ('first_at', models.DateTimeField(auto_now_add=True)),
+                ('last_at', models.DateTimeField(auto_now=True)),
                 (
-                    "recipient",
+                    'recipient',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="click_rows",
-                        to="mail.campaignrecipient",
+                        related_name='click_rows',
+                        to='mail.campaignrecipient',
                     ),
                 ),
                 (
-                    "link",
+                    'link',
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="click_rows",
-                        to="mail.campaignlink",
+                        related_name='click_rows',
+                        to='mail.campaignlink',
                     ),
                 ),
             ],
             options={
-                "db_table": "mail_campaign_click",
+                'db_table': 'mail_campaign_click',
             },
         ),
         migrations.AddConstraint(
-            model_name="campaignlink",
+            model_name='campaignlink',
             constraint=models.UniqueConstraint(
-                fields=("campaign", "position"), name="campaign_link_once"
+                fields=('campaign', 'position'), name='campaign_link_once'
             ),
         ),
         migrations.AddConstraint(
-            model_name="campaignclick",
+            model_name='campaignclick',
             constraint=models.UniqueConstraint(
-                fields=("recipient", "link"), name="campaign_click_once"
+                fields=('recipient', 'link'), name='campaign_click_once'
             ),
         ),
     ]

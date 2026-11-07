@@ -109,12 +109,17 @@ def scan_mailbox(mailbox: str, *, with_body: bool) -> int:
         return 0
     produced = 0
     newest = last
-    for summary in sorted(imap_reader.list_messages(mailbox, since_uid=last, limit=MAX_NEW_PER_MAILBOX), key=lambda s: s.uid):
+    for summary in sorted(
+        imap_reader.list_messages(mailbox, since_uid=last, limit=MAX_NEW_PER_MAILBOX),
+        key=lambda s: s.uid,
+    ):
         message = imap_reader.get_message(mailbox, summary.uid)
         newest = max(newest, summary.uid)
         if message is None:
             continue
-        event_id = 'evt_' + hashlib.sha256(f'{mailbox}|{validity}|{summary.uid}'.encode()).hexdigest()[:24]
+        event_id = (
+            'evt_' + hashlib.sha256(f'{mailbox}|{validity}|{summary.uid}'.encode()).hexdigest()[:24]
+        )
         produced += webhooks.emit(
             EventType.RECEIVED,
             event_for(mailbox, message, with_body=with_body),

@@ -5,8 +5,8 @@ Design notes (deliberate, keep them):
   Finer splits can be added without touching the model (permissions is a list).
 * Codes say nothing about any identity provider. A future OIDC login maps
   IdP groups/claims onto local Role rows; enforcement never reads the IdP.
-* Legacy mapping lives in ``RoleService`` (staff without a role keeps full
-  access), so existing installs and tests keep working unchanged.
+* Enforcement lives in ``RoleService``: superusers hold everything, staff hold
+  exactly their role's codes, and staff without a role hold nothing.
 """
 
 from __future__ import annotations

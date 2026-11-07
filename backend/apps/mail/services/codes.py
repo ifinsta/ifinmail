@@ -27,9 +27,7 @@ _KEYWORDS = re.compile(
     r'bestätigung|sicherheitscode|kod|codice|verifica)\b'
 )
 # Numbers (optionally grouped "482 913" / "482-913"), and mixed letters+digits like "K7M-29Q".
-_NUMERIC = re.compile(
-    r'(?<![\w.,/:$€£#-])(\d{3,4}[ -]\d{3,4}|\d{4,8})(?![\w/%:-]|[.,]\d)'
-)
+_NUMERIC = re.compile(r'(?<![\w.,/:$€£#-])(\d{3,4}[ -]\d{3,4}|\d{4,8})(?![\w/%:-]|[.,]\d)')
 _ALNUM = re.compile(
     r'(?<![\w-])([A-Z]{1,3}-\d{4,8}|'
     r'(?=[A-Z0-9-]*\d)(?=[A-Z0-9-]*[A-Z])[A-Z0-9]{3,5}-[A-Z0-9]{3,5}|'
@@ -40,7 +38,7 @@ _NOT_A_CODE = re.compile(
     r'zip|postal|street|suite|apt|price|total|amount|usd|eur|gbp|\$|€|£|#)\s*:?\s*$'
 )
 _URL = re.compile(r'https?://[^\s<>"\')\]]+', re.I)
-_HREF = re.compile(r'''(?is)<a\b[^>]*?href\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>''')
+_HREF = re.compile(r"""(?is)<a\b[^>]*?href\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>""")
 _LINK_WORDS = re.compile(
     r'(?i)(verif|confirm|activat|magic|sign[-_]?in|signin|log[-_]?in|login|auth|token|reset|'
     r'validate|callback|one[-_]?time|otp|invite|accept|approve)'
@@ -121,7 +119,9 @@ def find_codes(subject: str, text: str, html: str = '') -> list[Code]:
             for match in pattern.finditer(source):
                 shown = match.group(1)
                 value = re.sub(r'[ -]', '', shown) if re.fullmatch(r'[\d -]+', shown) else shown
-                score = _score_code(shown, source, match.start(1), match.end(1), subject=where == 'subject')
+                score = _score_code(
+                    shown, source, match.start(1), match.end(1), subject=where == 'subject'
+                )
                 if score is None:
                     continue
                 best = found.get(value)
@@ -165,6 +165,9 @@ def extract(subject: str, text: str, html: str = '') -> dict:
     return {
         'code': codes[0].value if codes else None,
         'link': links[0].url if links else None,
-        'codes': [{'value': c.value, 'shown': c.shown, 'score': c.score, 'where': c.where} for c in codes[:5]],
+        'codes': [
+            {'value': c.value, 'shown': c.shown, 'score': c.score, 'where': c.where}
+            for c in codes[:5]
+        ],
         'links': [{'url': link.url, 'text': link.text, 'score': link.score} for link in links[:5]],
     }

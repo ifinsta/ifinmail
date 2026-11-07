@@ -97,7 +97,7 @@ def _overview(arguments: dict, context: ToolContext) -> dict:
         'plugin_installed': row is not None,
         'modes': {
             'standard': 'the page as shipped (written for the open-source project)',
-            'custom': 'the organisation\'s own text from this tool, in the same layout',
+            'custom': "the organisation's own text from this tool, in the same layout",
             'off': 'not served: 404, or sign-in for the home page; removed from every menu',
         },
         'footer': {
@@ -175,7 +175,11 @@ def _propose(arguments: dict, context: ToolContext) -> dict:
     if not (cleaned['heading'].strip() or cleaned['body'].strip()):
         return {'error': 'a page needs at least a heading or some text'}
     changes = [
-        {'setting': name.replace('_', ' ').capitalize(), 'before': _short(saved[name]), 'after': _short(cleaned[name])}
+        {
+            'setting': name.replace('_', ' ').capitalize(),
+            'before': _short(saved[name]),
+            'after': _short(cleaned[name]),
+        }
         for name in FIELDS
         if cleaned[name] != saved[name]
     ]
@@ -228,7 +232,7 @@ def _apply(proposal: dict, user: str) -> str:
     label = BY_KEY[key].label
     if not mode:
         shown = policy.current().mode(key)
-        tail = '' if shown == 'custom' else f' It is not shown to visitors until its mode is Custom.'
+        tail = '' if shown == 'custom' else ' It is not shown to visitors until its mode is Custom.'
         return f'Text for the {label} page saved.{tail}'
     setting = {f'mode_{key}': mode}
     if InstallationService.get(PLUGIN_ID) is None:
@@ -265,8 +269,8 @@ def register() -> None:
     tools.register(
         Tool(
             'propose_website_page',
-            'Draft the organisation\'s own text for one public page. Validated with the '
-            'editor\'s rules and shown to the administrator with an Apply button; changes '
+            "Draft the organisation's own text for one public page. Validated with the "
+            "editor's rules and shown to the administrator with an Apply button; changes "
             'nothing by itself. Fields you leave out keep their saved value. Set mode to '
             '"custom" so the text is shown, or "off" to remove the page. Use '
             'propose_plugin_settings (plugin website-pages) for the footer and project links.',

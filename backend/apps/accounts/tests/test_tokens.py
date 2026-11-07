@@ -44,6 +44,7 @@ class TokenServiceTests(MailTablesTestCase):
         RoleService.ensure_seed()
         MailUser.objects.create_user('root@ifinmail.test', GOOD, is_staff=True, is_superuser=True)
         self.user = MailUser.objects.create_user('api@ifinmail.test', GOOD, is_staff=True)
+        RoleService.assign(self.user, 'administrator')
 
     def test_create_verify_rotate_revoke(self) -> None:
         row, plain = TokenService.create(
@@ -104,6 +105,7 @@ class TokenEndpointTests(MailTablesTestCase):
         RoleService.ensure_seed()
         Domain.objects.create(name='ifinmail.test')
         self.user = MailUser.objects.create_user('api@ifinmail.test', GOOD, is_staff=True)
+        RoleService.assign(self.user, 'administrator')
         _, self.plain = TokenService.create(
             self.user, 'reader', ['console.access', 'dns.manage'], expires_in_days=30
         )
@@ -163,6 +165,7 @@ class TokenProfileFlowTests(MailTablesTestCase):
         from backend.apps.mail.services import MailboxService
 
         mailbox, _ = MailboxService.create('ifinmail.test', local, GOOD, is_admin=True)
+        RoleService.assign(MailUser.objects.get(email=f'{local}@ifinmail.test'), 'administrator')
         return mailbox
 
     def test_create_shows_secret_once_then_lists(self) -> None:
@@ -240,3 +243,49 @@ class TokenProfileFlowTests(MailTablesTestCase):
             follow=True,
         )
         self.assertContains(response, 'None of those scopes are held by this login.')
+
+    def test_minter_cannot_grant_scopes_they_do_not_hold(self) -> None:
+        from backend.apps.accounts.models import APIToken, Role
+        from backend.apps.mail.services import MailboxService
+
+        # A mail.manage-only manager who does not hold dns.manage.
+        Role.objects.create(
+            key='mailops', name='Mail ops', permissions=['console.access', 'mail.manage']
+        )
+        manager = MailUser.objects.create_user('mgr@ifinmail.test', GOOD, is_staff=True)
+        RoleService.assign(manager, 'mailops')
+        # The target mailbox login holds everything (superuser).
+        mailbox, _ = MailboxService.create('ifinmail.test', 'alice', GOOD, is_admin=True)
+        target = MailUser.objects.get(email='alice@ifinmail.test')
+        target.is_superuser = True
+        target.save(update_fields=['is_superuser'])
+        self.client.force_login(manager, backend=MODEL_BACKEND)
+        _verified_session(self.client)
+        url = reverse('accounts:mailbox_token_create', kwargs={'mailbox_id': mailbox.id})
+        # dns.manage is held by the target but not the minter: it must be refused.
+        response = self.client.post(
+            url,
+            {
+                'address': 'alice@ifinmail.test',
+                'name': 'escalate',
+                'scopes': ['dns.manage'],
+                'expires_in_days': '30',
+                'confirm_password': GOOD,
+            },
+            follow=True,
+        )
+        self.assertContains(response, 'None of those scopes are held by this login.')
+        self.assertFalse(APIToken.objects.filter(user=target).exists())
+        # A scope the manager does hold is still grantable.
+        self.client.post(
+            url,
+            {
+                'address': 'alice@ifinmail.test',
+                'name': 'legit',
+                'scopes': ['mail.manage'],
+                'expires_in_days': '30',
+                'confirm_password': GOOD,
+            },
+        )
+        row = APIToken.objects.get(user=target, name='legit')
+        self.assertEqual(row.scopes, ['mail.manage'])

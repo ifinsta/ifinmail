@@ -57,5 +57,7 @@ class DefaultThemeTests(MailTablesTestCase):
 
     def test_the_appearance_page_offers_the_setting_to_administrators_only(self) -> None:
         self.sign_in(is_staff=True, is_superuser=True)
-        html = self.client.get(reverse('accounts:settings_page', args=['appearance'])).content.decode()
+        html = self.client.get(
+            reverse('accounts:settings_page', args=['appearance'])
+        ).content.decode()
         self.assertIn('Default for everyone', html)

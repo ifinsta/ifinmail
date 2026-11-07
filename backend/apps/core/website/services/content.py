@@ -6,6 +6,7 @@ cache. Nothing is ever executed or rendered raw: the body goes through ``markup.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from dataclasses import dataclass
@@ -95,10 +96,8 @@ def get(page: str) -> PageContent:
         return PageContent(**{k: str(cached.get(k, '')) for k in FIELDS})
     row = _load_all().get(page) or {}
     content = PageContent(**{k: str(row.get(k, '')) for k in FIELDS if isinstance(row, dict)})
-    try:
+    with contextlib.suppress(Exception):
         cache.set(_cache_key(page), content.as_dict(), 600)
-    except Exception:
-        pass
     return content
 
 

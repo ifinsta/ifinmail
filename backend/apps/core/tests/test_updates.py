@@ -24,7 +24,9 @@ class VersionParsingTests(SimpleTestCase):
 
     def test_available_only_for_a_newer_release(self) -> None:
         def status(current: str, latest: str) -> UpdateStatus:
-            return UpdateStatus(enabled=True, current=current, latest=latest, repo='ifinsta/ifinmail')
+            return UpdateStatus(
+                enabled=True, current=current, latest=latest, repo='ifinsta/ifinmail'
+            )
 
         self.assertTrue(status('v0.0.3', 'v0.0.4').available)
         self.assertTrue(status('v0.0.3-5-gabc1234', 'v0.1.0').available)
@@ -47,7 +49,9 @@ class UpdateCheckTests(MailTablesTestCase):
         return response
 
     def test_check_picks_the_highest_release_tag_and_remembers_it(self) -> None:
-        with patch('requests.get', return_value=self._github(['v0.0.2', 'v0.0.10', 'v0.0.4', 'nightly'])):
+        with patch(
+            'requests.get', return_value=self._github(['v0.0.2', 'v0.0.10', 'v0.0.4', 'nightly'])
+        ):
             status = UpdateService.check()
         self.assertEqual(status.latest, 'v0.0.10')
         self.assertTrue(status.available)
@@ -101,5 +105,7 @@ class UpdateBannerTests(MailTablesTestCase):
 
     def test_admins_can_switch_the_check_off(self) -> None:
         response = self.client.post(reverse('accounts:system_health_updates'), {'enabled': '0'})
-        self.assertRedirects(response, reverse('accounts:system_health'), fetch_redirect_response=False)
+        self.assertRedirects(
+            response, reverse('accounts:system_health'), fetch_redirect_response=False
+        )
         self.assertFalse(UpdateService.enabled())

@@ -50,8 +50,16 @@ class DjangoSession:
             extra['HTTP_' + name.upper().replace('-', '_')] = value
         self.calls.append((method.upper(), path))
         fn = getattr(self.client, method.lower())
-        kwargs = {'data': json_dumps(json), 'content_type': 'application/json'} if json is not None else {}
-        response = fn(path, params or {}, **kwargs, **extra) if method.upper() == 'GET' else fn(path, **kwargs, **extra)
+        kwargs = (
+            {'data': json_dumps(json), 'content_type': 'application/json'}
+            if json is not None
+            else {}
+        )
+        response = (
+            fn(path, params or {}, **kwargs, **extra)
+            if method.upper() == 'GET'
+            else fn(path, **kwargs, **extra)
+        )
         return Reply(response)
 
 
@@ -85,7 +93,11 @@ class ExampleBase(base.ApiBase):
             self.owner, 'mailer', ['mail.send'], expires_in_days=30, allowed_senders=senders
         )
         return self.module.Client(
-            'http://testserver', key_id(row.prefix), token.split('.', 2)[2], session=DjangoSession(self.client), max_retries=0
+            'http://testserver',
+            key_id(row.prefix),
+            token.split('.', 2)[2],
+            session=DjangoSession(self.client),
+            max_retries=0,
         )
 
     def run_script(self, name: str, *argv: str, client=None) -> tuple[int, str, str]:  # noqa: ANN001
@@ -94,7 +106,9 @@ class ExampleBase(base.ApiBase):
         code = 0
         with (
             patch.object(sys, 'argv', [name + '.py', *argv]),
-            patch.object(self.module.Client, 'from_env', classmethod(lambda cls, **kw: client or self.api)),
+            patch.object(
+                self.module.Client, 'from_env', classmethod(lambda cls, **kw: client or self.api)
+            ),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -112,7 +126,11 @@ class ClientTests(ExampleBase):
     def test_status_and_authentication(self) -> None:
         self.assertEqual(self.api.status()['ok'], True)
         bad = self.module.Client(
-            'http://testserver', self.key, 'ifs_wrong', session=DjangoSession(self.client), max_retries=0
+            'http://testserver',
+            self.key,
+            'ifs_wrong',
+            session=DjangoSession(self.client),
+            max_retries=0,
         )
         with self.assertRaises(self.module.IfinmailError) as caught:
             bad.status()
@@ -156,8 +174,12 @@ class ClientTests(ExampleBase):
 
     def test_sending_is_idempotent_and_reports_what_was_accepted(self) -> None:
         sender = self.sender(['billing@ifinmail.test'])
-        first = sender.send('billing@ifinmail.test', ['ana@example.org'], 'Hi', text='Hello', idempotency_key='k-1')
-        again = sender.send('billing@ifinmail.test', ['ana@example.org'], 'Hi', text='Hello', idempotency_key='k-1')
+        first = sender.send(
+            'billing@ifinmail.test', ['ana@example.org'], 'Hi', text='Hello', idempotency_key='k-1'
+        )
+        again = sender.send(
+            'billing@ifinmail.test', ['ana@example.org'], 'Hi', text='Hello', idempotency_key='k-1'
+        )
         self.assertEqual(first, again)
         self.assertEqual(first['status'], 'queued')
         self.assertEqual(len(mail.outbox), 1)  # the retry did not send a second message
@@ -170,12 +192,19 @@ class ClientTests(ExampleBase):
 
         InstallationService.install('developer-sandbox', {}, 'root@ifinmail.test')
         row, token = TokenService.create(
-            self.owner, 'ci', ['mail.send'], expires_in_days=30,
-            allowed_senders=['billing@ifinmail.test'], sandbox=True,
+            self.owner,
+            'ci',
+            ['mail.send'],
+            expires_in_days=30,
+            allowed_senders=['billing@ifinmail.test'],
+            sandbox=True,
         )
         ci = self.module.Client(
-            'http://testserver', key_id(row.prefix), token.split('.', 2)[2],
-            session=DjangoSession(self.client), max_retries=0,
+            'http://testserver',
+            key_id(row.prefix),
+            token.split('.', 2)[2],
+            session=DjangoSession(self.client),
+            max_retries=0,
         )
         ci.clear_sandbox()
         result = ci.send('billing@ifinmail.test', ['ana@example.org'], 'Welcome', text='Hi')
@@ -192,24 +221,39 @@ class ClientTests(ExampleBase):
 
         InstallationService.install('delivery-events', {}, 'root@ifinmail.test')
         row, token = TokenService.create(
-            self.owner, 'app', ['mail.send'], expires_in_days=30,
+            self.owner,
+            'app',
+            ['mail.send'],
+            expires_in_days=30,
             allowed_senders=['billing@ifinmail.test'],
         )
         app = self.module.Client(
-            'http://testserver', key_id(row.prefix), token.split('.', 2)[2],
-            session=DjangoSession(self.client), max_retries=0,
+            'http://testserver',
+            key_id(row.prefix),
+            token.split('.', 2)[2],
+            session=DjangoSession(self.client),
+            max_retries=0,
         )
         received: list[tuple[bytes, dict]] = []
         public = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('203.0.113.9', 443))]
-        with patch.object(socket, 'getaddrinfo', return_value=public), patch.object(
-            webhooks, '_post', side_effect=lambda url, body, headers: received.append((body, headers)) or 200
+        with (
+            patch.object(socket, 'getaddrinfo', return_value=public),
+            patch.object(
+                webhooks,
+                '_post',
+                side_effect=lambda url, body, headers: received.append((body, headers)) or 200,
+            ),
         ):
             hook = app.create_webhook('app', 'https://hooks.example.com/in', ['message.bounced'])
             answer = app.test_webhook(hook['id'])
         self.assertEqual(answer['status'], 'delivered')
         body, headers = received[0]
-        self.assertTrue(self.module.verify_webhook(hook['secret'], body, headers['X-Ifinmail-Signature']))
-        self.assertFalse(self.module.verify_webhook('whsec_other', body, headers['X-Ifinmail-Signature']))
+        self.assertTrue(
+            self.module.verify_webhook(hook['secret'], body, headers['X-Ifinmail-Signature'])
+        )
+        self.assertFalse(
+            self.module.verify_webhook('whsec_other', body, headers['X-Ifinmail-Signature'])
+        )
         self.assertEqual([w['id'] for w in app.webhooks()], [hook['id']])
         app.delete_webhook(hook['id'])
         self.assertEqual(app.webhooks(), [])
@@ -236,8 +280,11 @@ class ClientTests(ExampleBase):
             calls['n'] += 1
             if calls['n'] == 1:
                 return SimpleNamespace(
-                    status_code=429, content=b'{"detail": "slow down"}', text='{"detail": "slow down"}',
-                    headers={'Retry-After': '3'}, json=lambda: {'detail': 'slow down'},
+                    status_code=429,
+                    content=b'{"detail": "slow down"}',
+                    text='{"detail": "slow down"}',
+                    headers={'Retry-After': '3'},
+                    json=lambda: {'detail': 'slow down'},
                 )
             return real(*args, **kwargs)
 
@@ -299,8 +346,11 @@ class AgentInboxClientTests(ExampleBase):
             self.addCleanup(active.stop)
         row, token = TokenService.create(self.owner, 'agent', ['agents.manage'], expires_in_days=30)
         self.agent = self.module.Client(
-            'http://testserver', key_id(row.prefix), token.split('.', 2)[2],
-            session=DjangoSession(self.client), max_retries=0,
+            'http://testserver',
+            key_id(row.prefix),
+            token.split('.', 2)[2],
+            session=DjangoSession(self.client),
+            max_retries=0,
         )
 
     def test_create_wait_for_the_code_and_delete(self) -> None:
@@ -310,8 +360,11 @@ class AgentInboxClientTests(ExampleBase):
         address = inbox['address']
         self.store.boxes.setdefault(address, [])
         self.assertEqual(self.agent.inboxes.newest_uid(address), 0)
-        self.store.on_noop = lambda: self.store.boxes[address] or self.store.deliver(
-            address, message('Verify', 'Your verification code is 739204', to=address)
+        self.store.on_noop = lambda: (
+            self.store.boxes[address]
+            or self.store.deliver(
+                address, message('Verify', 'Your verification code is 739204', to=address)
+            )
         )
         found = self.agent.inboxes.wait(address, since_uid=0, timeout=5)
         self.assertEqual(found['code'], '739204')
@@ -359,7 +412,9 @@ class ScriptTests(ExampleBase):
         code, out, _ = self.run_script('03_mailboxes', 'list', '--domain', 'ifinmail.test')
         self.assertIn('ana@ifinmail.test', out)
         self.assertIn('invited', out)
-        self.assertEqual(self.run_script('03_mailboxes', 'quota', 'ana@ifinmail.test', '2048')[0], 0)
+        self.assertEqual(
+            self.run_script('03_mailboxes', 'quota', 'ana@ifinmail.test', '2048')[0], 0
+        )
         self.assertEqual(self.run_script('03_mailboxes', 'pause', 'ana@ifinmail.test')[0], 0)
         self.assertFalse(self.api.mailbox('ana@ifinmail.test')['is_active'])
         self.assertEqual(self.run_script('03_mailboxes', 'delete', 'ana@ifinmail.test')[0], 0)
@@ -371,7 +426,9 @@ class ScriptTests(ExampleBase):
         import tempfile
 
         with tempfile.NamedTemporaryFile('w', suffix='.csv', delete=False) as handle:
-            handle.write('address,quota_mb,password\nann@ifinmail.test,512,\nbo@ifinmail.test,,\n,,\n')
+            handle.write(
+                'address,quota_mb,password\nann@ifinmail.test,512,\nbo@ifinmail.test,,\n,,\n'
+            )
         dry = self.run_script('04_bulk_provision', handle.name, '--dry-run')
         self.assertEqual(dry[0], 0)
         self.assertEqual(list(self.api.mailboxes('ifinmail.test')), [])  # a dry run changes nothing
@@ -394,13 +451,23 @@ class ScriptTests(ExampleBase):
     def test_send_message(self) -> None:
         sender = self.sender(['billing@ifinmail.test'])
         code, out, _ = self.run_script(
-            '05_send_message', 'billing@ifinmail.test', 'ana@example.org', 'Hi', 'Hello', client=sender
+            '05_send_message',
+            'billing@ifinmail.test',
+            'ana@example.org',
+            'Hi',
+            'Hello',
+            client=sender,
         )
         self.assertEqual(code, 0)
         self.assertIn('accepted', out)
         self.assertEqual(len(mail.outbox), 1)
         code, _, err = self.run_script(
-            '05_send_message', 'other@ifinmail.test', 'ana@example.org', 'Hi', 'Hello', client=sender
+            '05_send_message',
+            'other@ifinmail.test',
+            'ana@example.org',
+            'Hi',
+            'Hello',
+            client=sender,
         )
         self.assertNotEqual(code, 0)
         self.assertIn('may not send as that address', err)
@@ -414,7 +481,10 @@ class ScriptTests(ExampleBase):
         self.assertRegex(out, r'^(OK|WARNING|CRITICAL): ')
 
     def test_monitor_reads_the_report_a_503_carries(self) -> None:
-        report = {'status': 'err', 'checks': {'database': {'status': 'err'}, 'disk': {'status': 'ok'}}}
+        report = {
+            'status': 'err',
+            'checks': {'database': {'status': 'err'}, 'disk': {'status': 'ok'}},
+        }
 
         def unwell(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
             raise self.module.IfinmailError(503, 'unwell', body=report)
@@ -426,7 +496,9 @@ class ScriptTests(ExampleBase):
 
     def test_aliases_script(self) -> None:
         self.api.create_mailbox('ana@ifinmail.test')
-        self.assertEqual(self.run_script('08_aliases', 'add', 'sales@ifinmail.test', 'ana@ifinmail.test')[0], 0)
+        self.assertEqual(
+            self.run_script('08_aliases', 'add', 'sales@ifinmail.test', 'ana@ifinmail.test')[0], 0
+        )
         code, out, _ = self.run_script('08_aliases', 'list')
         self.assertIn('sales@ifinmail.test -> ana@ifinmail.test', out)
 

@@ -81,7 +81,9 @@ def webhooks_create(request: HttpRequest) -> HttpResponse:
         messages.error(request, str(exc))
         return redirect('accounts:webhooks')
     request.session[_SESSION_SECRET] = {'name': row.name, 'secret': secret}
-    AuditService.record(action='webhook_created', user=_actor(request), detail=f'{row.name} {row.url}')
+    AuditService.record(
+        action='webhook_created', user=_actor(request), detail=f'{row.name} {row.url}'
+    )
     messages.success(request, f'Webhook {row.name} created. Copy its signing secret below.')
     return redirect('accounts:webhooks')
 

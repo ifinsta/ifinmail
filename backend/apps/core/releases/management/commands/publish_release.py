@@ -34,8 +34,12 @@ class Command(BaseCommand):
         parser.add_argument('--notes', default='', help='What is new (Markdown).')
         parser.add_argument('--notes-file', help='Read the notes from a file instead.')
         parser.add_argument('--rollout', type=int, default=100, help='Percent of devices (0-100).')
-        parser.add_argument('--mandatory', action='store_true', help='Force older installs to update.')
-        parser.add_argument('--no-publish', action='store_true', help='Store it but do not offer it.')
+        parser.add_argument(
+            '--mandatory', action='store_true', help='Force older installs to update.'
+        )
+        parser.add_argument(
+            '--no-publish', action='store_true', help='Store it but do not offer it.'
+        )
         parser.add_argument('--actor', default='cli', help='Name recorded in the audit trail.')
 
     def handle(self, *args: Any, **options: Any) -> None:

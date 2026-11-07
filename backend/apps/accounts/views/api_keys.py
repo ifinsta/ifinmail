@@ -49,6 +49,7 @@ def api_keys(request: HttpRequest) -> HttpResponse:
             'active_section': 'api-keys',
             'show_settings_icon': True,
             'keys': TokenService.list_all(),
+            'viewer_pk': request.user.pk,
             'scope_choices': [code for code in TOKEN_SCOPES if code in held],
             'max_days': MAX_TOKEN_DAYS,
             'max_grace': MAX_GRACE_HOURS,
@@ -117,6 +118,16 @@ def api_key_action(request: HttpRequest) -> HttpResponse:
         return redirect('accounts:api_keys')
     try:
         if form.cleaned_data['action'] == 'rotate':
+            # Rotating reveals the new secret, so only the owner may do it:
+            # a users.manage login must not be able to take over another
+            # owner's integrations. Revoking stays an admin-wide kill switch.
+            if row.user_id != request.user.pk:
+                messages.error(
+                    request,
+                    "Only the key's owner can rotate it, because rotation reveals the new "
+                    'secret. You can revoke it instead.',
+                )
+                return redirect('accounts:api_keys')
             problem = StepUpService.confirm(request)
             if problem:
                 messages.error(request, problem)

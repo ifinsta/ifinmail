@@ -1,4 +1,5 @@
-"""releases — console views: publish and manage builds (web flow: web.py → views → forms → services).
+"""releases — console views: publish and manage builds (web flow: web.py → views → forms →
+services).
 
 The page lives under Settings (``system.manage``). Publishing and deleting re-ask for the
 administrator's password: a build published here is installed on every device that updates.
@@ -89,7 +90,8 @@ def release_publish(request: HttpRequest) -> HttpResponse:
         )
     else:
         messages.success(
-            request, f'Version {release.version_name} was uploaded but is not offered to devices yet.'
+            request,
+            f'Version {release.version_name} was uploaded but is not offered to devices yet.',
         )
     return redirect('releases:console')
 
@@ -121,7 +123,9 @@ def release_action(request: HttpRequest) -> HttpResponse:
             messages.success(request, f'Version {label} and its file were deleted.')
         elif action == 'withdraw':
             ReleaseService.update(release, is_published=False, actor=actor)
-            messages.success(request, f'Version {label} is withdrawn. Devices will not be offered it.')
+            messages.success(
+                request, f'Version {label} is withdrawn. Devices will not be offered it.'
+            )
         elif action == 'restore':
             ReleaseService.update(release, is_published=True, actor=actor)
             messages.success(request, f'Version {label} is offered to devices again.')

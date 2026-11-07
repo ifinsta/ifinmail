@@ -74,8 +74,15 @@ class FakeIMAP:
                 if m.uid not in wanted:
                     continue
                 flags = ' '.join(sorted(m.flags))
-                meta = f'{m.uid} (UID {m.uid} RFC822.SIZE {len(m.raw)} FLAGS ({flags}) BODY[] {{{len(m.raw)}}}'
-                body = m.raw.split(b'\r\n\r\n')[0] + b'\r\n\r\n' if 'HEADER.FIELDS' in args[1] else m.raw
+                meta = (
+                    f'{m.uid} (UID {m.uid} RFC822.SIZE {len(m.raw)} FLAGS ({flags}) '
+                    f'BODY[] {{{len(m.raw)}}}'
+                )
+                body = (
+                    m.raw.split(b'\r\n\r\n')[0] + b'\r\n\r\n'
+                    if 'HEADER.FIELDS' in args[1]
+                    else m.raw
+                )
                 parts.append((meta.encode(), body))
                 parts.append(b')')
             return 'OK', parts

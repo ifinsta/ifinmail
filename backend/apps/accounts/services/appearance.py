@@ -6,6 +6,7 @@ for browsers that have not chosen: one setting, read through the cache because e
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from django.core.cache import cache
@@ -30,10 +31,8 @@ def default_theme() -> str:
         return cached
     value = SystemSettings.get(SettingKey.DEFAULT_THEME, DEFAULT)
     value = value if value in THEMES else DEFAULT
-    try:
+    with contextlib.suppress(Exception):
         cache.set(_CACHE_KEY, value, 3600)
-    except Exception:
-        pass
     return value
 
 

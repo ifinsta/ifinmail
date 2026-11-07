@@ -4,15 +4,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('ifinmail_storage', '0002_rename_ifinmail_st_entity_93fa19_idx_ifinmail_st_entity__d2b0a7_idx'),
+        (
+            'ifinmail_storage',
+            '0002_rename_ifinmail_st_entity_93fa19_idx_ifinmail_st_entity__d2b0a7_idx',
+        ),
     ]
 
     operations = [
         migrations.AlterField(
             model_name='storedfile',
             name='entity_type',
-            field=models.CharField(choices=[('PRODUCT', 'PRODUCT'), ('USER', 'USER'), ('MESSAGE', 'MESSAGE'), ('DOCUMENT', 'DOCUMENT'), ('APP_RELEASE', 'APP_RELEASE')], max_length=32),
+            field=models.CharField(
+                choices=[
+                    ('PRODUCT', 'PRODUCT'),
+                    ('USER', 'USER'),
+                    ('MESSAGE', 'MESSAGE'),
+                    ('DOCUMENT', 'DOCUMENT'),
+                    ('APP_RELEASE', 'APP_RELEASE'),
+                ],
+                max_length=32,
+            ),
         ),
     ]

@@ -12,7 +12,9 @@ from backend.apps.accounts.views.mfa import _qr_data_uri
 
 class MFAQRCodeTests(SimpleTestCase):
     def test_enrollment_uri_renders_as_an_svg_qr_code(self) -> None:
-        uri = _qr_data_uri('otpauth://totp/ifinmail:admin@ifinmail.test?secret=ABCDEF&issuer=ifinmail')
+        uri = _qr_data_uri(
+            'otpauth://totp/ifinmail:admin@ifinmail.test?secret=ABCDEF&issuer=ifinmail'
+        )
         self.assertTrue(uri.startswith('data:image/svg+xml;base64,'))
 
     def test_production_lock_installs_qrcode(self) -> None:

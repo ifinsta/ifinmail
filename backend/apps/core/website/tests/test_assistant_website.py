@@ -8,8 +8,8 @@ from backend.apps.core.assistant.services import ConversationService, tools
 from backend.apps.core.assistant.tests.fake_provider import answer, tool_call
 from backend.apps.core.assistant.tests.test_assistant import ADMIN, _Base
 from backend.apps.core.assistant.types import AssistantError
-from backend.apps.core.plugins.services import InstallationService
 from backend.apps.core.platform.services.audit import AuditService
+from backend.apps.core.plugins.services import InstallationService
 from backend.apps.core.website.services import content, guide
 from backend.apps.core.website.types import KEYS, PLUGIN_ID
 
@@ -54,8 +54,8 @@ class WebsiteToolsTests(_Base):
 
     def test_every_page_fits_in_one_tool_result(self) -> None:
         from backend.apps.core.assistant.services.redaction import redact
-        from backend.apps.core.assistant.types import MAX_TOOL_OUTPUT_CHARS
         from backend.apps.core.assistant.services.tools import ToolContext
+        from backend.apps.core.assistant.types import MAX_TOOL_OUTPUT_CHARS
         from backend.apps.core.website import assistant_handlers as handlers
 
         context = ToolContext(user=ADMIN)
@@ -108,7 +108,9 @@ class WebsiteToolsTests(_Base):
 
     def test_text_without_a_mode_is_saved_but_not_shown(self) -> None:
         InstallationService.install(PLUGIN_ID, {}, ADMIN)
-        step = self.run_tool('propose_website_page', {'page': 'about', 'heading': 'Us', 'body': 'x'})
+        step = self.run_tool(
+            'propose_website_page', {'page': 'about', 'heading': 'Us', 'body': 'x'}
+        )
         self.assertTrue(step.proposal['installed'])
         summary = ConversationService.apply_proposal(ADMIN, str(step.pk))
         self.assertIn('not shown to visitors until its mode is Custom', summary)
@@ -132,7 +134,9 @@ class WebsiteToolsTests(_Base):
         self.assertIn('unknown argument', step.content)
 
     def test_a_page_edited_since_the_draft_is_not_overwritten(self) -> None:
-        step = self.run_tool('propose_website_page', {'page': 'about', 'heading': 'Draft', 'body': 'a'})
+        step = self.run_tool(
+            'propose_website_page', {'page': 'about', 'heading': 'Draft', 'body': 'a'}
+        )
         content.save('about', {'heading': 'Typed by a person', 'body': 'b'}, ADMIN)
         with self.assertRaisesMessage(AssistantError, 'changed since this draft'):
             ConversationService.apply_proposal(ADMIN, str(step.pk))
@@ -141,8 +145,13 @@ class WebsiteToolsTests(_Base):
     def test_a_forged_proposal_with_unsafe_content_is_refused_on_apply(self) -> None:
         from backend.apps.core.assistant.models import AssistantMessage
 
-        step = self.run_tool('propose_website_page', {'page': 'about', 'heading': 'Us', 'body': 'a'})
-        bad = {**step.proposal, 'content': {**step.proposal['content'], 'cta_label': 'x', 'cta_url': 'javascript:1'}}
+        step = self.run_tool(
+            'propose_website_page', {'page': 'about', 'heading': 'Us', 'body': 'a'}
+        )
+        bad = {
+            **step.proposal,
+            'content': {**step.proposal['content'], 'cta_label': 'x', 'cta_url': 'javascript:1'},
+        }
         AssistantMessage.objects.filter(pk=step.pk).update(proposal=bad)
         with self.assertRaisesMessage(AssistantError, 'no longer validates'):
             ConversationService.apply_proposal(ADMIN, str(step.pk))

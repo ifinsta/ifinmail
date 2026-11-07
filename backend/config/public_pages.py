@@ -80,7 +80,9 @@ def _may_preview(request: HttpRequest) -> bool:
 
 
 def _serve(
-    request: HttpRequest, key: str, standard: Callable[[HttpRequest, dict[str, object]], HttpResponse]
+    request: HttpRequest,
+    key: str,
+    standard: Callable[[HttpRequest, dict[str, object]], HttpResponse],
 ) -> HttpResponse:
     """One public page: off, the administrator's text, or as shipped."""
     site = website_site.current(_external())
@@ -96,7 +98,12 @@ def _serve(
             return render(
                 request,
                 'site/custom.html',
-                _context(site=site, text=text, page=BY_KEY[key], previewing=preview and mode != Mode.CUSTOM),
+                _context(
+                    site=site,
+                    text=text,
+                    page=BY_KEY[key],
+                    previewing=preview and mode != Mode.CUSTOM,
+                ),
             )
     return standard(request, _context(site=site))
 

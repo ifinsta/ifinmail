@@ -665,7 +665,7 @@ class TemplateV1(Schema):
 
 class TemplatePreviewIn(Schema):
     merge: dict[str, str | int | float | None] = Field(default_factory=dict)
-    email: str = Field(default='', description="Fills {{email}}; a made-up address if left out.")
+    email: str = Field(default='', description='Fills {{email}}; a made-up address if left out.')
 
 
 class TemplatePreviewV1(Schema):

@@ -119,7 +119,11 @@ class ConsoleTests(MailTablesTestCase):
     def test_a_refused_build_says_why_and_leaves_nothing(self) -> None:
         response = self.client.post(
             reverse('releases:console_publish'),
-            {'file': apk(1, package='com.other.app'), 'channel': 'stable', 'confirm_password': GOOD},
+            {
+                'file': apk(1, package='com.other.app'),
+                'channel': 'stable',
+                'confirm_password': GOOD,
+            },
             follow=True,
         )
         self.assertContains(response, 'com.other.app')

@@ -801,4 +801,3 @@ class ExposureHardeningContractTests(SimpleTestCase):
         for path in ('.env', 'wp-login', 'phpmyadmin', 'xmlrpc'):
             self.assertIn(path, agent)
         self.assertNotIn('security.txt', agent.split('CANARY=')[1].split('\n')[0])  # a convention
-

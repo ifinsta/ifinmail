@@ -7,17 +7,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("mail", "0009_audiences"),
+        ('mail', '0009_audiences'),
     ]
 
     operations = [
         migrations.CreateModel(
-            name="Template",
+            name='Template',
             fields=[
                 (
-                    "id",
+                    'id',
                     models.UUIDField(
                         default=uuid.uuid4,
                         editable=False,
@@ -25,28 +24,28 @@ class Migration(migrations.Migration):
                         serialize=False,
                     ),
                 ),
-                ("name", models.CharField(max_length=120)),
-                ("key_prefix", models.CharField(db_index=True, max_length=16)),
-                ("subject", models.CharField(max_length=255)),
-                ("text", models.TextField(blank=True, default="")),
-                ("html", models.TextField(blank=True, default="")),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
+                ('name', models.CharField(max_length=120)),
+                ('key_prefix', models.CharField(db_index=True, max_length=16)),
+                ('subject', models.CharField(max_length=255)),
+                ('text', models.TextField(blank=True, default='')),
+                ('html', models.TextField(blank=True, default='')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
             ],
             options={
-                "db_table": "mail_template",
-                "ordering": ["-created_at"],
+                'db_table': 'mail_template',
+                'ordering': ['-created_at'],
             },
         ),
         migrations.AddField(
-            model_name="campaign",
-            name="template",
+            model_name='campaign',
+            name='template',
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
-                related_name="campaigns",
-                to="mail.template",
+                related_name='campaigns',
+                to='mail.template',
             ),
         ),
     ]

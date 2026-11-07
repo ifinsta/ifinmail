@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("mail", "0010_templates"),
+        ('mail', '0010_templates'),
     ]
 
     operations = [
         migrations.AddField(
-            model_name="campaign",
-            name="send_at",
+            model_name='campaign',
+            name='send_at',
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

@@ -41,8 +41,9 @@ KINDS: dict[str, tuple[str, str, float]] = {
     'uribl': ('Link blocklist', 'A site linked from the message is listed.', 3.0),
     'dnswl': ('Allow list', 'The server that delivered the message is trusted.', -2.0),
 }
-# The base thresholds are Rspamd's ifinmail defaults (provisioning/docker/rspamd/local.d/actions.conf)
-# and are what sensitivity 5 means. Each step stricter lowers them by a tenth of the base.
+# The base thresholds are Rspamd's ifinmail defaults
+# (provisioning/docker/rspamd/local.d/actions.conf) and are what sensitivity 5 means.
+# Each step stricter lowers them by a tenth of the base.
 BASE = {'greylist': 4.0, 'junk': 6.0, 'rewrite': 8.0, 'reject': 15.0}
 STEP = 0.1
 
@@ -147,10 +148,7 @@ def providers() -> list[Provider]:
 def _store(items: list[Provider]) -> None:
     SystemSettings.set(
         SettingKey.SPAM_PROVIDERS,
-        [
-            {'host': p.host, 'type': p.kind, 'enabled': p.enabled, 'tested': p.tested}
-            for p in items
-        ],
+        [{'host': p.host, 'type': p.kind, 'enabled': p.enabled, 'tested': p.tested} for p in items],
     )
 
 

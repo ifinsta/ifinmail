@@ -72,7 +72,9 @@ CONSOLE_PREFIXES: tuple[str, ...] = ('accounts/', 'dns/')
 CONSOLE: dict[str, str] = {
     'dns/status/': 'console DNS refresh (session); integrations use GET /api/v1/dns/status',
     'dns/configure/': 'setup wizard stores DNS provider credentials; never offered to keys',
-    'dns/verify-domain/': 'console Verify button; integrations use POST /api/v1/domains/{name}/verify',
+    'dns/verify-domain/': (
+        'console Verify button; integrations use POST /api/v1/domains/{name}/verify'
+    ),
 }
 
 

@@ -42,20 +42,40 @@ class OceanicThemeTests(SimpleTestCase):
 
     def test_text_and_accent_stay_legible_on_every_surface(self) -> None:
         t = self.tokens
-        surfaces = ('--ifinmail-color-surface-1', '--ifinmail-color-surface-2', '--ifinmail-surface-container-lowest')
+        surfaces = (
+            '--ifinmail-color-surface-1',
+            '--ifinmail-color-surface-2',
+            '--ifinmail-surface-container-lowest',
+        )
         for surface in surfaces:
-            for name in ('--ifinmail-color-text-primary', '--ifinmail-color-text-secondary', '--ifinmail-color-text-muted'):
+            for name in (
+                '--ifinmail-color-text-primary',
+                '--ifinmail-color-text-secondary',
+                '--ifinmail-color-text-muted',
+            ):
                 self.assertGreaterEqual(_ratio(t[name], t[surface]), 4.5, f'{name} on {surface}')
             self.assertGreaterEqual(_ratio(t['--ifinmail-color-primary'], t[surface]), 4.5, surface)
 
     def test_primary_buttons_and_selected_items_are_legible(self) -> None:
         t = self.tokens
-        self.assertGreaterEqual(_ratio(t['--ifinmail-on-primary'], t['--ifinmail-color-primary']), 4.5)
-        self.assertGreaterEqual(_ratio(t['--ifinmail-on-primary'], t['--ifinmail-color-primary-hover']), 4.5)
-        self.assertGreaterEqual(_ratio(t['--ifinmail-color-primary'], t['--ifinmail-color-primary-tint']), 4.5)
-        self.assertGreaterEqual(_ratio(t['--ifinmail-sidebar-active-color'], t['--ifinmail-sidebar-active-bg']), 4.5)
-        self.assertGreaterEqual(_ratio(t['--ifinmail-sidebar-text'], t['--ifinmail-sidebar-hover-bg']), 4.5)
-        self.assertGreaterEqual(_ratio(t['--ifinmail-sidebar-text-muted'], t['--ifinmail-color-surface-1']), 4.5)
+        self.assertGreaterEqual(
+            _ratio(t['--ifinmail-on-primary'], t['--ifinmail-color-primary']), 4.5
+        )
+        self.assertGreaterEqual(
+            _ratio(t['--ifinmail-on-primary'], t['--ifinmail-color-primary-hover']), 4.5
+        )
+        self.assertGreaterEqual(
+            _ratio(t['--ifinmail-color-primary'], t['--ifinmail-color-primary-tint']), 4.5
+        )
+        self.assertGreaterEqual(
+            _ratio(t['--ifinmail-sidebar-active-color'], t['--ifinmail-sidebar-active-bg']), 4.5
+        )
+        self.assertGreaterEqual(
+            _ratio(t['--ifinmail-sidebar-text'], t['--ifinmail-sidebar-hover-bg']), 4.5
+        )
+        self.assertGreaterEqual(
+            _ratio(t['--ifinmail-sidebar-text-muted'], t['--ifinmail-color-surface-1']), 4.5
+        )
 
     def test_status_colours_are_not_replaced(self) -> None:
         """Success, warning and danger keep their meaning: green, amber, red."""

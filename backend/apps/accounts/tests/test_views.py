@@ -52,6 +52,7 @@ class DashboardViewTests(TransactionTestCase):
             email='admin@ifinmail.test',
             password='testpass123',
             is_staff=True,
+            is_superuser=True,
         )
 
     def test_dashboard_redirects_when_unauthenticated(self) -> None:
@@ -67,6 +68,18 @@ class DashboardViewTests(TransactionTestCase):
         session.save()
         response = self.client.get(reverse('accounts:dashboard'))
         self.assertEqual(response.status_code, 200)
+
+    def test_roleless_staff_cannot_open_the_console(self) -> None:
+        from django.utils import timezone
+
+        roleless = MailUser.objects.create_user(
+            email='ops@ifinmail.test', password='testpass123', is_staff=True
+        )
+        self.client.force_login(roleless)
+        session = self.client.session
+        session['mfa_verified_at'] = timezone.now().isoformat()
+        session.save()
+        self.assertEqual(self.client.get(reverse('accounts:dashboard')).status_code, 403)
 
     def test_admin_pages_redirect_when_unauthenticated(self) -> None:
         for route in [
@@ -132,6 +145,7 @@ class LoginViewTests(TransactionTestCase):
             email='admin@ifinmail.test',
             password='testpass123',
             is_staff=True,
+            is_superuser=True,
         )
         response = self.client.post(
             reverse('accounts:login'),

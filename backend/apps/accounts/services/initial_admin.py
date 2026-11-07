@@ -32,9 +32,7 @@ class InitialAdminService:
                 _('A password needs at least %(count)s characters.')
                 % {'count': MIN_PASSWORD_LENGTH}
             )
-        user = MailUser.objects.create_superuser(
-            email, password, password_change_required=True
-        )
+        user = MailUser.objects.create_superuser(email, password, password_change_required=True)
         return user, True
 
     @staticmethod

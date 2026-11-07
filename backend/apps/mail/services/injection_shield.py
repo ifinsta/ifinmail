@@ -46,13 +46,21 @@ _INSTRUCTIONS = [
     re.compile(p, re.I)
     for p in (
         r'\b(ignore|disregard|forget|override)\b.{0,40}\b(previous|prior|above|earlier|all|any|your)\b.{0,30}\b(instructions?|prompts?|rules|guidelines|directives)\b',
-        r'\byou are (now )?(an? )?(ai|assistant|agent|language model|llm|chatbot|gpt|claude|copilot)\b',
+        r'\byou are (now )?(an? )?(ai|assistant|agent|language model|llm|chatbot|gpt|'
+        r'claude|copilot)\b',
         r'\b(system|developer) (prompt|message|instructions?)\b',
         r'\bnew (instructions?|task|objective|orders?)\s*[:\-]',
-        r'\b(do not|don\'t|never) (tell|inform|mention|reveal|alert) (this )?(to )?(the )?(user|human|owner|recipient)\b',
-        r'\b(forward|send|email|upload|exfiltrate|post)\b.{0,40}\b(all|every|the last|recent|these)\b.{0,30}\b(emails?|messages?|invoices?|files?|documents?|contacts?|conversations?)\b.{0,20}\bto\b',
-        r'\b(send|share|reveal|give|paste|include)\b.{0,30}\b(passwords?|api[ _-]?keys?|tokens?|secrets?|credentials?|private keys?|session cookies?)\b',
-        r'\b(run|execute|eval)\b.{0,20}\b(the following|this)\b.{0,15}\b(command|code|script|shell)\b',
+        r'\b(do not|don\'t|never) (tell|inform|mention|reveal|alert) (this )?(to )?(the )?'
+        r'(user|human|owner|recipient)\b',
+        r'\b(forward|send|email|upload|exfiltrate|post)\b.{0,40}'
+        r'\b(all|every|the last|recent|these)\b.{0,30}'
+        r'\b(emails?|messages?|invoices?|files?|documents?|contacts?|conversations?)\b'
+        r'.{0,20}\bto\b',
+        r'\b(send|share|reveal|give|paste|include)\b.{0,30}'
+        r'\b(passwords?|api[ _-]?keys?|tokens?|secrets?|credentials?|private keys?|'
+        r'session cookies?)\b',
+        r'\b(run|execute|eval)\b.{0,20}\b(the following|this)\b.{0,15}'
+        r'\b(command|code|script|shell)\b',
         r'<\|im_start\|>|<\|im_end\|>|\[/?INST\]|<<\s*SYS\s*>>|###\s*(instruction|system)\b',
         r'\bact as\b.{0,40}\b(administrator|admin|root|developer mode|dan)\b',
         r'\bwhen (you|the (ai|assistant|agent)) (read|process|see|summari[sz]e)s? this\b',
@@ -67,7 +75,9 @@ _HIDING_STYLE = re.compile(
     r'(left|top|text-indent)\s*:\s*-\d{3,}px|clip\s*:\s*rect\(0)',
     re.I,
 )
-_WHITE = re.compile(r'(^|;)\s*color\s*:\s*(#fff\b|#ffffff\b|white\b|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))', re.I)
+_WHITE = re.compile(
+    r'(^|;)\s*color\s*:\s*(#fff\b|#ffffff\b|white\b|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))', re.I
+)
 _DARK_BG = re.compile(r'background(-color)?\s*:\s*(#0|#1|#2|#3|black|rgb\(\s*[0-6]?\d\s*,)', re.I)
 _VOID = {'br', 'img', 'hr', 'meta', 'link', 'input', 'source', 'wbr', 'area', 'base', 'col'}
 
@@ -135,8 +145,10 @@ class _Splitter(HTMLParser):
             'hidden' in a
             or _HIDING_STYLE.search(style)
             or (_WHITE.search(style) and not _DARK_BG.search(style))
-            or tag == 'font' and a.get('color', '').lower() in ('#fff', '#ffffff', 'white')
-            or tag == 'font' and a.get('size', '') in ('0', '-7')
+            or tag == 'font'
+            and a.get('color', '').lower() in ('#fff', '#ffffff', 'white')
+            or tag == 'font'
+            and a.get('size', '') in ('0', '-7')
         )
         self.stack.append((tag, hides))
         self._open[tag] = self._open.get(tag, 0) + 1
@@ -218,7 +230,9 @@ def analyse(subject: str, text: str, html: str = '') -> tuple[Risk, str]:
     raw = f'{subject}\n{text}\n{html}'
     smuggled = _TAGS.findall(raw)
     if smuggled:
-        decoded = ''.join(chr(ord(c) - 0xE0000) for c in smuggled if 0x20 <= ord(c) - 0xE0000 < 0x7F)
+        decoded = ''.join(
+            chr(ord(c) - 0xE0000) for c in smuggled if 0x20 <= ord(c) - 0xE0000 < 0x7F
+        )
         risk.add(60, f'{len(smuggled)} invisible "tag" characters spell out hidden text')
         risk.hidden_text += decoded
     if _BIDI.search(raw):
@@ -241,8 +255,14 @@ def analyse(subject: str, text: str, html: str = '') -> tuple[Risk, str]:
     visible = visible_html or html_lib.unescape(text or '')
     found = _instructions(_strip_invisible(f'{subject}\n{visible}'))
     if found:
-        risk.add(40 if len(found) == 1 else 60, 'the message gives instructions meant for an AI agent')
-    if risk.hidden_text and _instructions(risk.hidden_text) and 'the hidden text gives instructions' not in risk.reasons:
+        risk.add(
+            40 if len(found) == 1 else 60, 'the message gives instructions meant for an AI agent'
+        )
+    if (
+        risk.hidden_text
+        and _instructions(risk.hidden_text)
+        and 'the hidden text gives instructions' not in risk.reasons
+    ):
         risk.add(60, 'the hidden text gives instructions')
 
     for href, label in links:
@@ -270,7 +290,9 @@ class ShieldSettings:
 
 def settings() -> ShieldSettings:
     values = InstallationService.capability_values(CAPABILITY)
-    return ShieldSettings(enabled=values.get('enabled') == 'yes', hold_high=values.get('action') == 'hold')
+    return ShieldSettings(
+        enabled=values.get('enabled') == 'yes', hold_high=values.get('action') == 'hold'
+    )
 
 
 def held(risk: Risk, current: ShieldSettings | None = None) -> bool:

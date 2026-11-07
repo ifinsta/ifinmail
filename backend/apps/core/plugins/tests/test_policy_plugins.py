@@ -915,7 +915,9 @@ class SpamKeyGrammarTests(SimpleTestCase):
 
     def test_dns_lists(self) -> None:
         p = point('rspamd.policy')
-        self.assertIsNone(p.validate('dnsbl_providers', 'bl.example.org/dnsbl,wl.example.org/dnswl'))
+        self.assertIsNone(
+            p.validate('dnsbl_providers', 'bl.example.org/dnsbl,wl.example.org/dnswl')
+        )
         for bad in (
             'bl.example.org',
             'bl.example.org/other',

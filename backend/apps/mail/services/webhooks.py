@@ -154,7 +154,12 @@ def check_url(url: str, current: Policy | None = None, *, resolve: bool = True) 
     if parts.username or parts.password:
         raise WebhookError('Do not put credentials in the address; verify the signature instead.')
     host = parts.hostname.lower().rstrip('.')
-    if host in _BLOCKED_HOSTS or host.endswith('.localhost') or '.' not in host and not _is_ip(host):
+    if (
+        host in _BLOCKED_HOSTS
+        or host.endswith('.localhost')
+        or '.' not in host
+        and not _is_ip(host)
+    ):
         # A bare name ("redis", "api") is a service on this server's own network.
         raise WebhookError(f'{host} is not a public address.')
     if not resolve:
@@ -207,9 +212,7 @@ def create_endpoint(
     wanted = sorted({str(e) for e in events})
     unknown = [e for e in wanted if e not in SUBSCRIBABLE]
     if unknown or not wanted:
-        raise WebhookError(
-            'Choose events from: ' + ', '.join(str(e) for e in SUBSCRIBABLE) + '.'
-        )
+        raise WebhookError('Choose events from: ' + ', '.join(str(e) for e in SUBSCRIBABLE) + '.')
     if EventType.RECEIVED in wanted and not current.inbox_events:
         raise WebhookError('message.received needs the Inbox Webhooks plugin.')
     if set(wanted) - {EventType.RECEIVED} and not current.delivery_events:
@@ -367,8 +370,9 @@ def _insert_new(wanted: list[WebhookDelivery]) -> list[WebhookDelivery]:
         ids = sorted({delivery.event_id for delivery in wanted})
         for start in range(0, len(ids), _LOOKUP_CHUNK):
             existing.update(
-                WebhookDelivery.objects.filter(event_id__in=ids[start : start + _LOOKUP_CHUNK])
-                .values_list('endpoint_id', 'event_id')
+                WebhookDelivery.objects.filter(
+                    event_id__in=ids[start : start + _LOOKUP_CHUNK]
+                ).values_list('endpoint_id', 'event_id')
             )
         fresh = [d for d in wanted if (d.endpoint_id, d.event_id) not in existing]
         # ignore_conflicts covers a concurrent writer queuing the same event between the check

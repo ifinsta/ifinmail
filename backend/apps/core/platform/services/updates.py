@@ -107,7 +107,10 @@ class UpdateService:
         response = requests.get(
             f'https://api.github.com/repos/{UpdateService.repo()}/tags',
             params={'per_page': 100},
-            headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'ifinmail-update-check'},
+            headers={
+                'Accept': 'application/vnd.github+json',
+                'User-Agent': 'ifinmail-update-check',
+            },
             timeout=8,
         )
         response.raise_for_status()
@@ -128,7 +131,11 @@ class UpdateService:
         if not UpdateService.enabled():
             return UpdateService.status()
         previous = UpdateService.status()
-        record = {'latest': previous.latest, 'checked_at': datetime.now(UTC).isoformat(), 'error': ''}
+        record = {
+            'latest': previous.latest,
+            'checked_at': datetime.now(UTC).isoformat(),
+            'error': '',
+        }
         try:
             record['latest'] = UpdateService.latest_release_tag() or previous.latest
         except Exception as exc:  # network, rate limit, API change: keep the last good answer

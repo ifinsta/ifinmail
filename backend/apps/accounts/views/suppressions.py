@@ -36,7 +36,9 @@ def suppressions_page(request: HttpRequest) -> HttpResponse:
     for key in TokenService.list_all():
         state = compliance.paused(key.prefix)
         if state:
-            paused.append({'prefix': key.prefix, 'label': f'{key.name} ({key_id(key.prefix)})', **state})
+            paused.append(
+                {'prefix': key.prefix, 'label': f'{key.name} ({key_id(key.prefix)})', **state}
+            )
     return render(
         request,
         'admin/settings_suppressions.html',
@@ -69,14 +71,18 @@ def suppressions_action(request: HttpRequest) -> HttpResponse:
             messages.error(request, exc.message)
             return redirect('accounts:suppressions')
         if compliance.suppress(domain, clean, Suppression.MANUAL, by=_actor(request)):
-            AuditService.record(action='suppression_added', user=_actor(request), detail=f'{clean} ({domain})')
+            AuditService.record(
+                action='suppression_added', user=_actor(request), detail=f'{clean} ({domain})'
+            )
             messages.success(request, f'{clean} will not get API mail from {domain}.')
         else:
             messages.error(request, f'{clean} is already suppressed for {domain}.')
     elif action == 'remove':
         clean = request.POST.get('address', '').strip().lower()
         if compliance.unsuppress(domain, clean):
-            AuditService.record(action='suppression_removed', user=_actor(request), detail=f'{clean} ({domain})')
+            AuditService.record(
+                action='suppression_removed', user=_actor(request), detail=f'{clean} ({domain})'
+            )
             messages.success(request, f'{clean} removed from the list.')
     elif action == 'resume':
         prefix = request.POST.get('prefix', '')

@@ -26,10 +26,18 @@ def _report() -> sh.HealthReport:
     return sh.HealthReport(
         checked_at=datetime.now(UTC),
         checks=[
-            sh.HealthCheck('ptr', sh.GROUP_IDENTITY, 'Reverse DNS (PTR)', sh.ERROR,
-                           '192.0.2.10 points back to nothing.', 'Set it at your VPS provider.',
-                           [('Reverse DNS name', 'mail.ifinmail.test')]),
-            sh.HealthCheck('backups', sh.GROUP_SERVER, 'Backups', sh.WAITING, 'First backup tonight.'),
+            sh.HealthCheck(
+                'ptr',
+                sh.GROUP_IDENTITY,
+                'Reverse DNS (PTR)',
+                sh.ERROR,
+                '192.0.2.10 points back to nothing.',
+                'Set it at your VPS provider.',
+                [('Reverse DNS name', 'mail.ifinmail.test')],
+            ),
+            sh.HealthCheck(
+                'backups', sh.GROUP_SERVER, 'Backups', sh.WAITING, 'First backup tonight.'
+            ),
             sh.HealthCheck('disk', sh.GROUP_SERVER, 'Disk space', sh.OK, '17 GB free.'),
         ],
     )
@@ -73,7 +81,9 @@ class SystemHealthPageTests(MailTablesTestCase):
         fresh = sh.HealthReport(checked_at=datetime.now(UTC), checks=[])
         with patch.object(sh, '_collect', return_value=fresh) as collect:
             response = self.client.post(reverse('accounts:system_health_recheck'))
-        self.assertRedirects(response, reverse('accounts:system_health'), fetch_redirect_response=False)
+        self.assertRedirects(
+            response, reverse('accounts:system_health'), fetch_redirect_response=False
+        )
         collect.assert_called_once()
         self.assertEqual(cache.get(sh.CACHE_KEY).checks, [])
 
@@ -131,12 +141,18 @@ class RoleAddressTests(MailTablesTestCase):
         domain = self.make_domain('ifinmail.test')
         MailboxService.create('ifinmail.test', 'douglas', GOOD)
         for role in ('postmaster', 'abuse'):
-            Alias.objects.create(domain=domain, source=f'{role}@ifinmail.test', destination='admin@ifinmail.test')
+            Alias.objects.create(
+                domain=domain, source=f'{role}@ifinmail.test', destination='admin@ifinmail.test'
+            )
         row = sh._role_addresses('ifinmail.test', 'ifinmail.test')
         self.assertEqual(row.state, sh.WARNING)
         self.assertIn('no mailbox', row.summary)
-        Alias.objects.filter(source='postmaster@ifinmail.test').update(destination='douglas@ifinmail.test')
-        Alias.objects.filter(source='abuse@ifinmail.test').update(destination='douglas@ifinmail.test')
+        Alias.objects.filter(source='postmaster@ifinmail.test').update(
+            destination='douglas@ifinmail.test'
+        )
+        Alias.objects.filter(source='abuse@ifinmail.test').update(
+            destination='douglas@ifinmail.test'
+        )
         self.assertEqual(sh._role_addresses('ifinmail.test', 'ifinmail.test').state, sh.OK)
 
 
@@ -218,7 +234,10 @@ class HealthPageTests(MailTablesTestCase):
     def test_values_can_be_copied_and_links_and_assistant_are_offered(self) -> None:
         report = self.report(
             self.check(
-                'ptr', 'Server identity', 'PTR', 'error',
+                'ptr',
+                'Server identity',
+                'PTR',
+                'error',
                 values=[('IP address', '203.0.113.5')],
                 link='/accounts/settings/',
                 link_label='Network',
